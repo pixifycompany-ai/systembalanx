@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { IconButton } from '@/components/shared/IconButton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MetricCard } from '@/components/dashboard/MetricCard';
+import { KpiTriple } from '@/components/shared/KpiTriple';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { MobileReceitasList } from '@/components/receitas/MobileReceitasList';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -455,55 +457,42 @@ export default function Receitas() {
   return (
     <main className="container py-4 md:py-6">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-foreground">Receitas</h1>
-            <p className="text-sm text-muted-foreground">Gerencie suas receitas e recebimentos</p>
-          </div>
-          <div className="flex gap-1.5">
-            <IconButton label="Importar receitas" onClick={() => setImportDialogOpen(true)}>
-              <Upload className="h-4 w-4" />
-            </IconButton>
-            <IconButton label="Nova Receita" emphasis="primary" onClick={handleNew}>
-              <Plus className="h-4 w-4" />
-            </IconButton>
-          </div>
-        </div>
+        <MobilePageHeader
+          eyebrow="Recebimentos"
+          title="Receitas"
+          actions={
+            <>
+              <IconButton label="Importar receitas" onClick={() => setImportDialogOpen(true)}>
+                <Upload className="h-4 w-4" />
+              </IconButton>
+              <IconButton label="Nova Receita" emphasis="primary" onClick={handleNew}>
+                <Plus className="h-4 w-4" />
+              </IconButton>
+            </>
+          }
+        />
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3 mb-6">
-          <MetricCard
-            title="Total Recebido"
-            value={totals.recebido}
-            variant="positive"
-            icon={CheckCircle}
-          />
-          <MetricCard
-            title="Total Pendente"
-            value={totals.pendente}
-            variant="warning"
-            icon={Clock}
-          />
-          <MetricCard
-            title="Total Geral"
-            value={totals.total}
-            variant="info"
-            icon={TrendingUp}
-          />
-        </div>
+        {/* Summary — 3 KPIs compactos (igual mockup) */}
+        <KpiTriple
+          items={[
+            { label: 'Recebido', value: totals.recebido, tone: 'green' },
+            { label: 'Pendente', value: totals.pendente, tone: 'amber' },
+            { label: 'Total', value: totals.total, tone: 'steel' },
+          ]}
+        />
 
         {/* Filters */}
         <div className="flex flex-col gap-4 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Input
-              type="search"
-              placeholder="Buscar por descrição ou cliente..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="sm:w-80"
-            />
+          <Input
+            type="search"
+            placeholder="Buscar por descrição ou cliente..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full"
+          />
+          <div className="grid grid-cols-3 gap-2">
             <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className="sm:w-48">
+              <SelectTrigger className="w-full text-xs">
                 <SelectValue placeholder="Filtrar por mês" />
               </SelectTrigger>
               <SelectContent>
@@ -516,7 +505,7 @@ export default function Receitas() {
               </SelectContent>
             </Select>
             <Select value={clienteFilter} onValueChange={setClienteFilter}>
-              <SelectTrigger className="sm:w-48">
+              <SelectTrigger className="w-full text-xs">
                 <SelectValue placeholder="Filtrar por cliente" />
               </SelectTrigger>
               <SelectContent>
@@ -529,7 +518,7 @@ export default function Receitas() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="sm:w-48">
+              <SelectTrigger className="w-full text-xs">
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent>
