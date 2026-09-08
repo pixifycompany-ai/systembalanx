@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowRight, Sparkles } from 'lucide-react';
+import promoBanner from '@/assets/brand/IMG1.png';
 
 import { HeroStatCard } from '@/components/shared/HeroStatCard';
 import { ListRowCard } from '@/components/shared/ListRowCard';
@@ -105,6 +106,24 @@ export default function Dashboard() {
           action={{ label: 'Ver detalhes', onClick: () => setSaldoSheetOpen(true) }}
         />
       </div>
+
+      {/* Promo banner — resumo do mês */}
+      <button
+        onClick={() => navigate('/fluxo-caixa')}
+        className="group relative mb-6 block w-full overflow-hidden rounded-2xl h-32 md:h-40 text-left border border-border/50"
+      >
+        <img src={promoBanner} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(3,7,15,0.92) 26%, rgba(3,7,15,0.15))' }} />
+        <div className="relative z-10 flex h-full flex-col justify-center px-5">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">Resumo do mês</span>
+          <span className="mt-1 text-[17px] md:text-xl font-semibold text-white">
+            {resumo.lucro_mensal >= 0 ? `Fechando ${mesNome} no azul` : `Atenção com ${mesNome}`}
+          </span>
+          <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#63a9ff]">
+            Ver fluxo de caixa <ArrowRight className="h-3.5 w-3.5" />
+          </span>
+        </div>
+      </button>
 
       {/* Meta do mês */}
       <section className="mb-6">
