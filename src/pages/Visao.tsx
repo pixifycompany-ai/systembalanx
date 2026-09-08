@@ -113,6 +113,8 @@ export default function Visao() {
         </section>
       )}
 
+      {/* Desktop: dashboard completo (mobile mostra só o layout do mockup acima) */}
+      <div className="hidden md:block space-y-6">
       {/* Hero — Lucro do mês */}
       <HeroStatCard
         eyebrow="Lucro do mês"
@@ -181,6 +183,7 @@ export default function Visao() {
 
       {/* IA Advisor */}
       <AIAdvisorWidget />
+      </div>
     </main>
   );
 }
