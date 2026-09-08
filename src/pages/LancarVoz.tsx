@@ -131,7 +131,18 @@ export default function LancarVoz() {
       {(fase === 'ouvindo' || fase === 'processando') && (
         <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
           <div className="relative grid place-items-center mb-8">
-            {fase === 'ouvindo' && <span className="absolute h-32 w-32 rounded-full bg-primary/20 animate-ping" />}
+            {fase === 'ouvindo' && (
+              <div className="absolute -bottom-9 flex items-end gap-1.5 h-10" aria-hidden>
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <span
+                    key={i}
+                    className="wavebar h-9"
+                    style={{ animationDelay: `${(i % 5) * 0.12}s`, opacity: 0.55 + (i % 3) * 0.15 }}
+                  />
+                ))}
+              </div>
+            )}
+            {fase === 'ouvindo' && <span className="absolute h-32 w-32 rounded-full bg-primary/15 animate-ping" />}
             <div className="relative grid h-24 w-24 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_12px_30px_-6px_hsl(var(--primary)/0.6)]">
               {fase === 'processando' ? <CometSpinner size={36} /> : <MicrophoneIcon className="h-10 w-10" />}
             </div>
