@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { parseISO, startOfDay, isBefore } from 'date-fns';
+import { parseISO, startOfDay, isBefore, addMonths } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
-import { ensureFaturaForLancamento, recalcularFatura } from './useFaturas';
+import { ensureFaturaForLancamento, ensureFaturaForCompetencia, recalcularFatura } from './useFaturas';
+import { calcularCompetenciaFatura, toISODate } from '@/utils/faturaCalculator';
 import type { ContaDB } from './useContas';
 
 const CACHE_KEYS_TO_INVALIDATE = ['contas', 'dashboard', 'analises', 'calendario', 'relatorios', 'fluxo-caixa'];
@@ -244,6 +245,95 @@ export function useDespesas() {
     }
   };
 
+  /**
+   * Compra parcelada no cartão de crédito: cria N despesas (uma por parcela),
+   * cada uma vinculada à fatura do seu mês.
+   *  - Parcela 1 cai na fatura ABERTA atual (se comprada antes do fechamento);
+   *  - Parcelas 2..N nas faturas dos meses seguintes (criando as futuras).
+   * Se a conta não for cartão (ou N<=1), cai no createDespesa normal.
+   */
+  const createDespesaParcelada = async (
+    formData: DespesaFormData,
+    numParcelas: number
+  ): Promise<{ success: boolean }> => {
+    const N = Math.max(1, Math.floor(numParcelas || 1));
+    if (N <= 1) {
+      const r = await createDespesa(formData);
+      return { success: r.success };
+    }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+      if (!formData.conta_id) throw new Error('Selecione o cartão para parcelar');
+
+      const { data: contaInfo } = await supabase
+        .from('contas')
+        .select('*')
+        .eq('id', formData.conta_id)
+        .single();
+      const cartao = contaInfo as unknown as ContaDB | null;
+      if (!cartao || (cartao as any).tipo !== 'cartao_credito') {
+        const r = await createDespesa(formData);
+        return { success: r.success };
+      }
+
+      const total = Number(formData.valor);
+      const parcelaBase = Math.round((total / N) * 100) / 100;
+      const ultima = Math.round((total - parcelaBase * (N - 1)) * 100) / 100;
+      const grupo = crypto.randomUUID();
+      const dataCompra = formData.data_competencia || formData.data_vencimento;
+      const baseComp = calcularCompetenciaFatura(dataCompra, (cartao as any).dia_fechamento);
+
+      const criadas: any[] = [];
+      for (let i = 0; i < N; i++) {
+        const comp = addMonths(baseComp, i);
+        const fatura = await ensureFaturaForCompetencia(cartao, comp, user.id);
+        if (!fatura) throw new Error('Não foi possível gerar a fatura da parcela');
+        const valorParcela = i === N - 1 ? ultima : parcelaBase;
+
+        const { data, error } = await supabase
+          .from('despesas')
+          .insert({
+            user_id: user.id,
+            categoria_id: formData.categoria_id || null,
+            conta_id: formData.conta_id,
+            cliente_id: formData.cliente_id || null,
+            fornecedor: formData.fornecedor || null,
+            descricao: `${formData.descricao} (${i + 1}/${N})`,
+            valor: valorParcela,
+            data_competencia: toISODate(comp),
+            data_vencimento: fatura.data_vencimento,
+            data_pagamento: null,
+            status: 'pendente',
+            tipo: formData.tipo,
+            fatura_id: fatura.id,
+            empresa_fonte: formData.empresa_fonte ?? null,
+            parcela_num: i + 1,
+            parcela_total: N,
+            parcela_grupo_id: grupo,
+          } as any)
+          .select(`*, categoria:categorias(*), cliente:clientes(id, nome)`)
+          .single();
+        if (error) throw error;
+        criadas.push(data);
+        await recalcularFatura(fatura.id);
+      }
+
+      setDespesas(prev => [...(criadas as any[]), ...prev]);
+      invalidateRelatedCaches();
+      toast({
+        title: `Compra parcelada em ${N}x criada!`,
+        description: 'Parcela 1 na fatura atual; as demais nas próximas faturas.',
+      });
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao parcelar despesa';
+      toast({ title: 'Erro', description: message, variant: 'destructive' });
+      console.error('Error creating parcelada:', err);
+      return { success: false };
+    }
+  };
+
   const updateDespesa = async (id: string, formData: Partial<DespesaFormData>): Promise<DespesaDB | null> => {
     try {
       const despesaAtual = despesas.find(d => d.id === id);
@@ -449,6 +539,7 @@ export function useDespesas() {
     error,
     refetch: fetchDespesas,
     createDespesa,
+    createDespesaParcelada,
     updateDespesa,
     updateMultipleStatus,
     updateMultipleCategoria,

@@ -51,8 +51,9 @@ export default function Despesas() {
     despesas, 
     categorias,
     isLoading, 
-    createDespesa, 
-    updateDespesa, 
+    createDespesa,
+    createDespesaParcelada,
+    updateDespesa,
     updateMultipleStatus,
     updateMultipleCategoria,
     updateMultipleFornecedor,
@@ -97,6 +98,7 @@ export default function Despesas() {
     empresa_fonte: '' | 'PIXIFY' | 'REVVUE' | 'CLARIO' | 'TABELIO';
     valor_juros: string;
     valor_tarifa: string;
+    parcelas?: string;
   }>({
     categoria_id: '',
     conta_id: '',
@@ -384,7 +386,13 @@ export default function Despesas() {
     if (editingDespesa) {
       await updateDespesa(editingDespesa.id, data);
     } else {
-      await createDespesa(data);
+      const contaSel = activeContas.find(c => c.id === formData.conta_id) as any;
+      const nParcelas = parseInt(formData.parcelas || '1', 10) || 1;
+      if (contaSel?.tipo === 'cartao_credito' && nParcelas > 1) {
+        await createDespesaParcelada(data, nParcelas);
+      } else {
+        await createDespesa(data);
+      }
     }
 
     // Create auxiliary transactions for juros/tarifa when status is 'pago'
@@ -706,6 +714,34 @@ export default function Despesas() {
                   </Select>
                 </div>
               </div>
+
+              {!editingDespesa && (() => {
+                const contaSel = activeContas.find(c => c.id === formData.conta_id) as any;
+                if (contaSel?.tipo !== 'cartao_credito') return null;
+                const n = parseInt(formData.parcelas || '1', 10) || 1;
+                const totalNum = parseFloat(formData.valor) || 0;
+                return (
+                  <div className="space-y-2">
+                    <Label htmlFor="parcelas">Parcelas (cartão)</Label>
+                    <Input
+                      id="parcelas"
+                      type="number"
+                      min="1"
+                      max="48"
+                      step="1"
+                      value={formData.parcelas ?? '1'}
+                      onChange={(e) => setFormData(prev => ({ ...prev, parcelas: e.target.value }))}
+                      placeholder="1"
+                    />
+                    {n > 1 && totalNum > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {n}x de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Math.round((totalNum / n) * 100) / 100)}
+                        {' '}· 1ª na fatura atual, as demais nas próximas
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="space-y-2">
                 <Label htmlFor="tipo">Tipo *</Label>

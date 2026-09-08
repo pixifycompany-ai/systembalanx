@@ -104,12 +104,12 @@ async function syncDespesaFatura(
 }
 
 /**
- * Encontra/cria a fatura correspondente a um lançamento no cartão.
- * Retorna a fatura.
+ * Encontra/cria a fatura de um cartão para uma COMPETÊNCIA (mês) específica.
+ * Base do parcelamento: cada parcela cai na fatura do seu mês.
  */
-export async function ensureFaturaForLancamento(
+export async function ensureFaturaForCompetencia(
   cartao: ContaDB,
-  dataCompra: string,
+  competencia: Date,
   userId: string
 ): Promise<FaturaDB | null> {
   if (
@@ -120,7 +120,6 @@ export async function ensureFaturaForLancamento(
     return null;
   }
 
-  const competencia = calcularCompetenciaFatura(dataCompra, cartao.dia_fechamento);
   const anchorStr = (cartao as any).vencimento_anchor as string | null | undefined;
   const { data_fechamento, data_vencimento } = anchorStr
     ? calcularDatasFaturaComAnchor(
@@ -166,6 +165,26 @@ export async function ensureFaturaForLancamento(
   }
 
   return nova as unknown as FaturaDB;
+}
+
+/**
+ * Encontra/cria a fatura de uma compra ÚNICA no cartão, derivando a
+ * competência a partir da data da compra (regra do dia de fechamento).
+ */
+export async function ensureFaturaForLancamento(
+  cartao: ContaDB,
+  dataCompra: string,
+  userId: string
+): Promise<FaturaDB | null> {
+  if (
+    cartao.tipo !== 'cartao_credito' ||
+    !cartao.dia_fechamento ||
+    !cartao.dia_vencimento
+  ) {
+    return null;
+  }
+  const competencia = calcularCompetenciaFatura(dataCompra, cartao.dia_fechamento);
+  return ensureFaturaForCompetencia(cartao, competencia, userId);
 }
 
 /**
