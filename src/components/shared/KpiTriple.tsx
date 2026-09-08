@@ -7,6 +7,8 @@ export interface KpiItem {
   label: string;
   value: number;
   tone: KpiTone;
+  /** 'currency' (padrão) formata em R$; 'count' mostra o número puro. */
+  format?: 'currency' | 'count';
 }
 
 const TONE_BAR: Record<KpiTone, string> = {
@@ -33,7 +35,7 @@ export function KpiTriple({ items, className }: { items: KpiItem[]; className?: 
             {k.label}
           </div>
           <div className="mt-1.5 whitespace-nowrap text-[11px] md:text-lg font-bold tabular-nums tracking-tight text-foreground">
-            {formatCurrency(k.value)}
+            {k.format === 'count' ? k.value : formatCurrency(k.value)}
           </div>
         </div>
       ))}

@@ -3,6 +3,8 @@ import { IconButton } from '@/components/shared/IconButton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { MobileContratosList } from '@/components/contratos/MobileContratosList';
+import { KpiTriple } from '@/components/shared/KpiTriple';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { LoadingSpinner, SkeletonTable } from '@/components/shared/LoadingSpinner';
@@ -413,53 +415,29 @@ export default function Contratos() {
   return (
     <main className="container py-4 md:py-6">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-foreground">Contratos</h1>
-            <p className="text-sm text-muted-foreground">Gerencie seus contratos e acordos</p>
-          </div>
-          <div className="flex gap-1.5">
-            <IconButton label="Importar contrato (PDF)" onClick={() => setImportDialogOpen(true)}>
-              <Upload className="h-4 w-4" />
-            </IconButton>
-            <IconButton label="Novo Contrato" emphasis="primary" onClick={handleNew}>
-              <Plus className="h-4 w-4" />
-            </IconButton>
-          </div>
-        </div>
+        <MobilePageHeader
+          eyebrow="Recorrência"
+          title="Contratos"
+          actions={
+            <>
+              <IconButton label="Importar contrato (PDF)" onClick={() => setImportDialogOpen(true)}>
+                <Upload className="h-4 w-4" />
+              </IconButton>
+              <IconButton label="Novo Contrato" emphasis="primary" onClick={handleNew}>
+                <Plus className="h-4 w-4" />
+              </IconButton>
+            </>
+          }
+        />
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3 mb-6">
-          <div className="metric-card metric-card-positive">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-muted-foreground">MRR Total</span>
-              <RefreshCw className="h-4 w-4 text-primary" />
-            </div>
-            <p className="text-2xl font-bold text-primary tabular-nums">
-              {formatCurrency(totals.mrrTotal)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Receita recorrente mensal</p>
-          </div>
-          
-          <div className="metric-card metric-card-info">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-muted-foreground">Contratos Ativos</span>
-              <FileText className="h-4 w-4 text-info" />
-            </div>
-            <p className="text-2xl font-bold text-foreground tabular-nums">{totals.ativos}</p>
-            <p className="text-xs text-muted-foreground mt-1">contratos em vigor</p>
-          </div>
-          
-          <div className="metric-card">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-muted-foreground">Valor Total</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground tabular-nums">
-              {formatCurrency(totals.valorTotal)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">soma dos contratos ativos</p>
-          </div>
-        </div>
+        {/* Summary — 3 KPIs compactos (igual mockup) */}
+        <KpiTriple
+          items={[
+            { label: 'MRR Total', value: totals.mrrTotal, tone: 'green' },
+            { label: 'Ativos', value: totals.ativos, tone: 'steel', format: 'count' },
+            { label: 'Valor Total', value: totals.valorTotal, tone: 'amber' },
+          ]}
+        />
 
         {/* Banner: existing duplicate active contracts */}
         {duplicateGroups.length > 0 && (

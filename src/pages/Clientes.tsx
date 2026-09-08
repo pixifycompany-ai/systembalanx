@@ -164,8 +164,8 @@ export default function Clientes() {
       {/* Page Header */}
       <div className="flex items-start justify-between gap-3 mb-4 md:mb-6">
         <div className="min-w-0">
-          <h1 className="text-lg md:text-2xl font-semibold text-foreground">Clientes</h1>
-          <p className="text-xs md:text-sm text-foreground-muted mt-0.5">Gerencie sua base de clientes</p>
+          <p className="text-xs text-foreground-muted mb-0.5 font-medium">Base</p>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">Clientes</h1>
         </div>
         <div className="flex gap-1.5 shrink-0">
           <div className="hidden md:flex border border-border rounded-md">
@@ -183,35 +183,37 @@ export default function Clientes() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 md:mb-6">
+      <div className="flex flex-col gap-2 mb-4 md:mb-6">
         <Input
           type="search"
           placeholder="Buscar nome, email ou documento..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="sm:w-72"
+          className="w-full"
         />
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="sm:w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os status</SelectItem>
-            <SelectItem value="ativo">Ativo</SelectItem>
-            <SelectItem value="inativo">Inativo</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={empresaFilter} onValueChange={setEmpresaFilter}>
-          <SelectTrigger className="sm:w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as marcas</SelectItem>
-            {EMPRESA_FONTE_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="grid grid-cols-2 gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              <SelectItem value="ativo">Ativo</SelectItem>
+              <SelectItem value="inativo">Inativo</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={empresaFilter} onValueChange={setEmpresaFilter}>
+            <SelectTrigger className="w-full text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as marcas</SelectItem>
+              {EMPRESA_FONTE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Content */}
