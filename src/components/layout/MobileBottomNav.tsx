@@ -13,7 +13,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTenant } from '@/contexts/TenantContext';
-import { ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { ShieldCheckIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 
 interface MobileBottomNavProps {
@@ -125,7 +125,16 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
           <SheetHeader>
             <SheetTitle>Novo Lançamento</SheetTitle>
           </SheetHeader>
-          <div className="grid grid-cols-3 gap-3 py-4">
+          <div className="grid grid-cols-2 gap-3 py-4">
+            <button
+              onClick={() => { setFabOpen(false); navigate('/lancar-voz'); }}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-primary/10 hover:bg-primary/15 transition-colors border border-primary/20"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
+                <MicrophoneIcon className="h-5 w-5 text-primary" />
+              </div>
+              <span className="text-sm font-medium">Por voz</span>
+            </button>
             <button
               onClick={() => { setFabOpen(false); onNewEntrada(); }}
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-secondary hover:bg-accent transition-colors"

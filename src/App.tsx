@@ -27,6 +27,7 @@ import CriarConta from "./pages/CriarConta";
 import Onboarding from "./pages/Onboarding";
 import Iara from "./pages/Iara";
 import Superadmin from "./pages/Superadmin";
+import LancarVoz from "./pages/LancarVoz";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/perfil" element={<ProtectedRoute><AppLayout><MeuPerfil /></AppLayout></ProtectedRoute>} />
               <Route path="/iara" element={<ProtectedRoute><AppLayout><Iara /></AppLayout></ProtectedRoute>} />
               <Route path="/superadmin" element={<ProtectedRoute><Superadmin /></ProtectedRoute>} />
+              <Route path="/lancar-voz" element={<ProtectedRoute><LancarVoz /></ProtectedRoute>} />
               
               
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

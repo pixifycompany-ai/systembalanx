@@ -23,3 +23,5 @@ verify_jwt = false
 
 [functions.notify-test]
 verify_jwt = false
+[functions.parse-voz]
+verify_jwt = false
