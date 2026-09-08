@@ -65,7 +65,10 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 flex md:hidden items-end justify-around border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 safe-area-bottom">
+      <nav
+        className="fixed left-1/2 z-50 flex md:hidden items-center gap-1.5 px-2.5 py-2 rounded-[24px] border border-border/60 bg-card/70 backdrop-blur-2xl shadow-[0_18px_40px_-12px_rgba(0,0,0,0.55)]"
+        style={{ bottom: 'calc(0.9rem + env(safe-area-inset-bottom, 0px))', transform: 'translateX(-50%)' }}
+      >
         {mainItems.map((item) => {
           if (item.href === '__fab__') {
             return (
@@ -73,9 +76,9 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
                 key="fab"
                 onClick={() => setFabOpen(true)}
                 aria-label="Novo lançamento"
-                className="relative -top-3 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md active:scale-95 transition-transform"
+                className="mx-0.5 flex h-12 w-12 items-center justify-center rounded-[16px] bg-primary text-primary-foreground shadow-[0_10px_24px_hsl(var(--primary)/0.45)] active:scale-95 transition-transform"
               >
-                <Plus className="h-5 w-5" />
+                <Plus className="h-6 w-6" strokeWidth={2.4} />
               </button>
             );
           }
@@ -88,14 +91,13 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
             <button
               key={item.href}
               onClick={() => handleNavClick(item.href)}
+              aria-label={item.label}
               className={cn(
-                "flex flex-1 flex-col items-center gap-0.5 py-2 px-1 min-w-0 transition-colors",
-                active ? "text-primary" : "text-muted-foreground"
+                "flex h-11 w-11 items-center justify-center rounded-2xl transition-colors",
+                active ? "text-primary bg-primary/15" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <item.icon className="h-5 w-5" />
-              <span className="text-[10px] font-medium">{item.label}</span>
-              {active && <div className="h-0.5 w-4 rounded-full bg-primary" />}
+              <item.icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.4 : 2} />
             </button>
           );
         })}

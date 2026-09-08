@@ -57,11 +57,19 @@ export function HeroStatCard({
     <div className={cn('relative', className)}>
       <div
         className={cn(
-          'rounded-3xl px-5 py-5 md:px-7 md:py-6 shadow-lg animate-fade-in',
+          'relative overflow-hidden rounded-3xl px-5 py-5 md:px-7 md:py-6 shadow-lg animate-fade-in',
           isDark
-            ? 'bg-[hsl(240_10%_8%)] text-white dark:bg-[hsl(240_8%_12%)] dark:border dark:border-border'
+            ? 'text-white border border-white/10'
             : 'bg-surface text-foreground border border-border',
         )}
+        style={
+          isDark
+            ? {
+                background:
+                  'linear-gradient(160deg, rgba(6,10,18,0.24), rgba(6,10,18,0.55)), radial-gradient(120% 96% at 6% -4%, rgba(42,114,226,0.92), transparent 54%), radial-gradient(120% 82% at 99% 2%, rgba(226,144,48,0.72), transparent 52%), radial-gradient(150% 120% at 55% 134%, rgba(60,132,236,0.88), transparent 58%), #0b1420',
+              }
+            : undefined
+        }
       >
         <div className="flex items-center justify-between mb-3">
           <span
