@@ -5,14 +5,15 @@
 
 export type Ciclo = 'mensal' | 'anual';
 
+// Preços PADRÃO (fallback). O valor real vem de `plataforma_config` (editável no Superadmin).
 export const PLAN = {
   id: 'balanx',
   nome: 'BALANX',
   descricao: 'Um plano só, tudo liberado e sem limites.',
 
-  precoMensal: 49.9,          // R$ 49,90 / mês
-  precoAnualParcela: 24.9,    // 12× R$ 24,90 no anual
-  precoAnualTotal: 24.9 * 12, // R$ 298,80 / ano (~metade do mensal)
+  precoMensal: 29.9,          // R$ 29,90 / mês
+  precoAnualParcela: 19.9,    // 12× R$ 19,90 no anual
+  precoAnualTotal: 19.9 * 12, // R$ 238,80 / ano
 
   trialDias: 14,
 

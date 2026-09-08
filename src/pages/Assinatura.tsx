@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +19,19 @@ export default function Assinatura() {
   const [ciclo, setCiclo] = useState<'mensal' | 'anual'>('anual');
   const [cpfCnpj, setCpfCnpj] = useState('');
   const [loading, setLoading] = useState(false);
+  const [precoMensal, setPrecoMensal] = useState(PLAN.precoMensal);
+  const [precoAnualParcela, setPrecoAnualParcela] = useState(PLAN.precoAnualParcela);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('plataforma_config').select('preco_mensal, preco_anual_parcela').eq('id', true).maybeSingle();
+      if (data) {
+        setPrecoMensal(Number(data.preco_mensal));
+        setPrecoAnualParcela(Number(data.preco_anual_parcela));
+      }
+    })();
+  }, []);
+  const precoAnualTotal = precoAnualParcela * 12;
 
   const podeAssinar = role === 'owner' || role === 'admin';
   const jaAtiva = activeTenant?.status_assinatura === 'ativa' || activeTenant?.cortesia;
@@ -84,10 +97,14 @@ export default function Assinatura() {
                 className={cn('relative rounded-2xl border p-4 text-left transition-colors',
                   ciclo === 'anual' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border/60 bg-surface/70')}
               >
-                <span className="absolute top-2 right-2 text-[9px] font-bold uppercase bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] px-1.5 py-0.5 rounded-full">-50%</span>
+                {precoMensal > precoAnualParcela && (
+                  <span className="absolute top-2 right-2 text-[9px] font-bold uppercase bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] px-1.5 py-0.5 rounded-full">
+                    -{Math.round((1 - precoAnualParcela / precoMensal) * 100)}%
+                  </span>
+                )}
                 <div className="text-xs text-foreground-muted">Anual</div>
-                <div className="text-lg font-bold text-foreground">12× {fmt(PLAN.precoAnualParcela)}</div>
-                <div className="text-[11px] text-foreground-muted">{fmt(PLAN.precoAnualTotal)}/ano</div>
+                <div className="text-lg font-bold text-foreground">12× {fmt(precoAnualParcela)}</div>
+                <div className="text-[11px] text-foreground-muted">{fmt(precoAnualTotal)}/ano</div>
               </button>
               <button
                 onClick={() => setCiclo('mensal')}
@@ -95,7 +112,7 @@ export default function Assinatura() {
                   ciclo === 'mensal' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border/60 bg-surface/70')}
               >
                 <div className="text-xs text-foreground-muted">Mensal</div>
-                <div className="text-lg font-bold text-foreground">{fmt(PLAN.precoMensal)}</div>
+                <div className="text-lg font-bold text-foreground">{fmt(precoMensal)}</div>
                 <div className="text-[11px] text-foreground-muted">por mês</div>
               </button>
             </div>
@@ -117,7 +134,7 @@ export default function Assinatura() {
                   <Input value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} placeholder="000.000.000-00" inputMode="numeric" />
                 </div>
                 <Button className="w-full h-12 rounded-2xl font-semibold" onClick={assinar} disabled={loading}>
-                  {loading ? 'Gerando cobrança…' : `Assinar — ${ciclo === 'anual' ? `12× ${fmt(PLAN.precoAnualParcela)}` : fmt(PLAN.precoMensal)}`}
+                  {loading ? 'Gerando cobrança…' : `Assinar — ${ciclo === 'anual' ? `12× ${fmt(precoAnualParcela)}` : fmt(precoMensal)}`}
                 </Button>
                 <p className="text-[11px] text-foreground-muted text-center mt-3">Pagamento via Pix, boleto ou cartão pelo ASAAS. Cancele quando quiser.</p>
               </>

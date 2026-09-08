@@ -288,8 +288,66 @@ function TenantEditor({ tenant, onClose, onSaved }: { tenant: Tenant; onClose: (
 }
 
 function PagamentosTab() {
+  const { toast } = useToast();
+  const [mensal, setMensal] = useState('');
+  const [anual, setAnual] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await sb.from('plataforma_config').select('preco_mensal, preco_anual_parcela').eq('id', true).maybeSingle();
+      setMensal(String(data?.preco_mensal ?? PLAN.precoMensal));
+      setAnual(String(data?.preco_anual_parcela ?? PLAN.precoAnualParcela));
+      setLoaded(true);
+    })();
+  }, []);
+
+  const salvar = async () => {
+    const pm = parseFloat(mensal.replace(',', '.'));
+    const pa = parseFloat(anual.replace(',', '.'));
+    if (!(pm > 0) || !(pa > 0)) { toast({ title: 'Preços inválidos', variant: 'destructive' }); return; }
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-sync-plano`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ preco_mensal: pm, preco_anual_parcela: pa }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Erro ao salvar');
+      toast({ title: 'Preço atualizado', description: `Config salva. ${data.assinaturas_atualizadas ?? 0} assinatura(s) sincronizada(s) no ASAAS.` });
+    } catch (e) {
+      toast({ title: 'Erro', description: e instanceof Error ? e.message : 'Falha', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Preço do plano único */}
+      <div className="rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl p-5">
+        <div className="text-sm font-semibold text-foreground">Preço do plano {PLAN.nome}</div>
+        <p className="text-xs text-foreground-muted mt-0.5 mb-4">Ao salvar, as assinaturas ativas são atualizadas no ASAAS automaticamente.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Mensal (R$)</Label>
+            <Input value={mensal} onChange={(e) => setMensal(e.target.value)} inputMode="decimal" disabled={!loaded} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Anual — parcela (R$)</Label>
+            <Input value={anual} onChange={(e) => setAnual(e.target.value)} inputMode="decimal" disabled={!loaded} />
+            <p className="text-[10px] text-foreground-muted">12× · total {`R$ ${((parseFloat(anual.replace(',', '.')) || 0) * 12).toFixed(2).replace('.', ',')}`}/ano</p>
+          </div>
+        </div>
+        <Button className="mt-4 w-full" onClick={salvar} disabled={saving || !loaded}>
+          {saving ? 'Salvando e sincronizando…' : 'Salvar e sincronizar no ASAAS'}
+        </Button>
+      </div>
+
+      {/* ASAAS status */}
       <div className="rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl p-5">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#1f50e2] text-white font-extrabold">a</div>
@@ -299,21 +357,8 @@ function PagamentosTab() {
           </div>
         </div>
         <p className="mt-4 pt-4 border-t border-border/60 text-sm text-foreground-muted">
-          Integração de cobrança (planos, assinaturas e webhooks) — configuração da chave do ASAAS e ativação automática por evento
-          (<span className="font-mono text-xs">PAYMENT_CONFIRMED</span> / <span className="font-mono text-xs">PAYMENT_RECEIVED</span>) entra na próxima etapa.
+          Ativação automática por evento (<span className="font-mono text-xs">PAYMENT_CONFIRMED</span> / <span className="font-mono text-xs">PAYMENT_RECEIVED</span>) via webhook. Métodos: Pix, boleto e cartão (o cliente escolhe na fatura).
         </p>
-      </div>
-      <div>
-        <h2 className="text-sm font-semibold text-foreground mb-3">Métodos aceitos</h2>
-        <div className="rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl divide-y divide-border/50">
-          {['Pix', 'Boleto', 'Cartão de crédito'].map((m) => (
-            <div key={m} className="flex items-center justify-between px-4 py-3.5">
-              <span className="text-sm text-foreground">{m}</span>
-              <Switch defaultChecked disabled />
-            </div>
-          ))}
-        </div>
-        <p className="text-[11px] text-foreground-muted mt-2">Ativação real dos métodos junto com a integração ASAAS.</p>
       </div>
     </div>
   );

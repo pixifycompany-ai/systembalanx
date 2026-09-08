@@ -6,9 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Plano único BALANX (mantido em sincronia com src/lib/plans.ts)
-const PRECO_MENSAL = 49.9;
-const PRECO_ANUAL = 298.8;
+// Fallback (o valor real vem de plataforma_config)
+const PRECO_MENSAL_FALLBACK = 29.9;
+const PRECO_ANUAL_PARCELA_FALLBACK = 19.9;
 
 function asaasBase() {
   const env = (Deno.env.get("ASAAS_ENV") || "sandbox").toLowerCase();
@@ -80,8 +80,11 @@ serve(async (req) => {
       customerId = cJson.id;
     }
 
-    // 2) Assinatura recorrente
-    const value = ciclo === "anual" ? PRECO_ANUAL : PRECO_MENSAL;
+    // 2) Assinatura recorrente — preço vem de plataforma_config
+    const { data: cfg } = await supabase.from("plataforma_config").select("preco_mensal, preco_anual_parcela").eq("id", true).maybeSingle();
+    const precoMensal = Number(cfg?.preco_mensal ?? PRECO_MENSAL_FALLBACK);
+    const precoAnualParcela = Number(cfg?.preco_anual_parcela ?? PRECO_ANUAL_PARCELA_FALLBACK);
+    const value = ciclo === "anual" ? precoAnualParcela * 12 : precoMensal;
     const cycle = ciclo === "anual" ? "YEARLY" : "MONTHLY";
     const nextDueDate = new Date();
     nextDueDate.setDate(nextDueDate.getDate() + 1);

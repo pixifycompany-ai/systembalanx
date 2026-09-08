@@ -31,3 +31,6 @@ verify_jwt = false
 
 [functions.asaas-webhook]
 verify_jwt = false
+
+[functions.asaas-sync-plano]
+verify_jwt = false
