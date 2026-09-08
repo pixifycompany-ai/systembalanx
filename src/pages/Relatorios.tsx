@@ -22,14 +22,13 @@ export default function Relatorios() {
 
   return (
     <main className="container py-3 md:py-6 max-w-full">
-      <div className="mb-4 md:mb-6">
-        <h1 className="text-h1 text-foreground">Relatórios</h1>
-        <p className="text-xs md:text-sm text-muted-foreground">Análises detalhadas e demonstrativos financeiros</p>
-      </div>
-
-      <div className="flex items-center gap-3 mb-4 md:mb-6">
+      <div className="mb-4 md:mb-6 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs text-foreground-muted mb-0.5 font-medium">Demonstrativos</p>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">Relatórios</h1>
+        </div>
         <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
-          <SelectTrigger className="w-full md:w-[180px] h-9 text-sm"><SelectValue placeholder="Período" /></SelectTrigger>
+          <SelectTrigger className="w-[140px] md:w-[160px] h-9 text-sm shrink-0"><SelectValue placeholder="Período" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="month">Este mês</SelectItem>
             <SelectItem value="quarter">Este trimestre</SelectItem>
