@@ -830,7 +830,7 @@ export default function FluxoCaixa() {
         {/* Mobile: header iOS-style */}
         <div className="md:hidden">
           <MobilePageHeader
-            eyebrow="Movimentações"
+            eyebrow="Extrato"
             title="Lançamentos"
           />
         </div>
