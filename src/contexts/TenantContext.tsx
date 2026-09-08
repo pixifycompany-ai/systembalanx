@@ -40,10 +40,11 @@ interface TenantContextType {
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
 export function TenantProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isSuperadmin, setIsSuperadmin] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -51,6 +52,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       setMemberships([]);
       setActiveId(null);
       setIsSuperadmin(false);
+      setLoadedFor(null);
       setLoading(false);
       return;
     }
@@ -67,6 +69,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
       const current = profile?.current_tenant_id as string | undefined;
       const active = list.find((m) => m.tenant_id === current) || list[0] || null;
       setActiveId(active?.tenant_id ?? null);
+      setLoadedFor(user.id);
     } finally {
       setLoading(false);
     }
@@ -83,6 +86,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const activeMembership = memberships.find((m) => m.tenant_id === activeId) || null;
   const role = activeMembership?.papel ?? null;
   const canWrite = role === 'owner' || role === 'admin' || role === 'financeiro' || isSuperadmin;
+  // Continua "carregando" enquanto a auth resolve OU enquanto ainda não carregamos ESTE usuário
+  const effectiveLoading = authLoading || loading || (!!user && loadedFor !== user.id);
 
   return (
     <TenantContext.Provider
@@ -92,7 +97,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         role,
         isSuperadmin,
         canWrite,
-        loading,
+        loading: effectiveLoading,
         switchTenant,
         refresh: load,
       }}
