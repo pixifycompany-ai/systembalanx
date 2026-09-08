@@ -92,8 +92,12 @@ export default function Dashboard() {
         }
       />
 
-      {/* Hero — Saldo Consolidado */}
-      <div className="mb-10">
+      {/* Hero — Saldo Consolidado (card inteiro abre o detalhe) */}
+      <button
+        type="button"
+        onClick={() => setSaldoSheetOpen(true)}
+        className="mb-6 block w-full text-left rounded-3xl transition-transform active:scale-[0.99]"
+      >
         <HeroStatCard
           eyebrow="Saldo Consolidado"
           context={mesAtual}
@@ -103,9 +107,8 @@ export default function Dashboard() {
             { label: 'Receitas do mês', value: resumo.faturamento_mes, valueClassName: 'text-[hsl(var(--success))]' },
             { label: 'Despesas do mês', value: resumo.despesas_mes, align: 'right', valueClassName: 'text-[hsl(var(--danger))]' },
           ]}
-          action={{ label: 'Ver detalhes', onClick: () => setSaldoSheetOpen(true) }}
         />
-      </div>
+      </button>
 
       {/* Promo banner — resumo do mês */}
       <button

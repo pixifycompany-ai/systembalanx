@@ -58,7 +58,7 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
-        {showHandle && side === "bottom" && (
+        {(showHandle ?? side === "bottom") && side === "bottom" && (
           <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-border-strong" aria-hidden />
         )}
         {children}

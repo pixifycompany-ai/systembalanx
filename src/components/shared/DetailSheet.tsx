@@ -39,6 +39,7 @@ export function DetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
+        showHandle={false}
         showClose={false}
         className={cn(
           'rounded-t-3xl border-t-0 p-0 pb-safe overflow-hidden flex flex-col',

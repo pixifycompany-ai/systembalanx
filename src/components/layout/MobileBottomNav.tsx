@@ -146,7 +146,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
 
       {/* More Menu Sheet — grupos iOS (igual mockup: setgroup + setrow) */}
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="h-[100dvh] rounded-none pb-safe pt-safe flex flex-col border-0">
+        <SheetContent side="bottom" showHandle={false} className="h-[100dvh] rounded-none pb-safe pt-safe flex flex-col border-0">
           <SheetHeader className="shrink-0 text-left space-y-0">
             <span className="text-xs font-medium text-foreground-muted">Tudo do BALANX</span>
             <SheetTitle className="text-2xl font-semibold tracking-tight">Menu</SheetTitle>
