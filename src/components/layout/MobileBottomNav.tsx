@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, List, Plus, LineChart, MoreHorizontal, Users, FileText, Tag, Settings, ArrowLeftRight, TrendingUp, TrendingDown, CalendarDays, FileBarChart, Wallet, BarChart3, Sparkles } from 'lucide-react';
+import { LayoutDashboard, List, Plus, LineChart, MoreHorizontal, Users, FileText, Tag, Settings, ArrowLeftRight, TrendingUp, TrendingDown, CalendarDays, FileBarChart, Wallet, BarChart3, Sparkles, ChevronRight, Moon } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
 
 interface MobileBottomNavProps {
@@ -50,6 +51,7 @@ const allMoreHrefs = moreSections.flatMap(s => s.items.map(i => i.href));
 export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }: MobileBottomNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [moreOpen, setMoreOpen] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
 
@@ -142,37 +144,69 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
         </SheetContent>
       </Sheet>
 
-      {/* More Menu Sheet — full-height vertical list */}
+      {/* More Menu Sheet — grupos iOS (igual mockup: setgroup + setrow) */}
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="h-[100dvh] rounded-none pb-safe pt-safe flex flex-col">
-          <SheetHeader className="shrink-0">
-            <SheetTitle>Menu</SheetTitle>
+        <SheetContent side="bottom" className="h-[100dvh] rounded-none pb-safe pt-safe flex flex-col border-0">
+          <SheetHeader className="shrink-0 text-left space-y-0">
+            <span className="text-xs font-medium text-foreground-muted">Tudo do BALANX</span>
+            <SheetTitle className="text-2xl font-semibold tracking-tight">Menu</SheetTitle>
           </SheetHeader>
-          <div className="flex-1 overflow-y-auto space-y-6 py-4">
+
+          <div className="flex-1 overflow-y-auto pt-3 pb-6">
             {moreSections.map((section) => (
               <div key={section.label}>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-3.5 mb-2 px-0.5">
                   {section.label}
                 </p>
-                <div className="flex flex-col gap-2">
-                  {section.items.map((item) => (
-                    <button
-                      key={item.href}
-                      onClick={() => { setMoreOpen(false); navigate(item.href); }}
-                      className={cn(
-                        "flex items-center gap-3 w-full p-4 rounded-xl transition-colors text-left",
-                        isActive(item.href) ? "bg-primary/10 text-primary" : "bg-secondary hover:bg-accent text-foreground"
-                      )}
-                    >
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-background/60 shrink-0">
-                        <item.icon className="h-5 w-5" />
-                      </div>
-                      <span className="text-sm font-medium">{item.label}</span>
-                    </button>
-                  ))}
+                <div className="mb-3.5 overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl">
+                  {section.items.map((item) => {
+                    const active = isActive(item.href);
+                    return (
+                      <button
+                        key={item.href}
+                        onClick={() => { setMoreOpen(false); navigate(item.href); }}
+                        className="flex items-center gap-3 w-full px-4 py-3.5 text-left border-b border-border/50 last:border-b-0 transition-colors hover:bg-white/5"
+                      >
+                        <item.icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-primary' : 'text-foreground-muted')} />
+                        <span className={cn('flex-1 text-sm font-medium', active ? 'text-primary' : 'text-foreground')}>{item.label}</span>
+                        <ChevronRight className="h-4 w-4 text-foreground-muted/60 shrink-0" />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ))}
+
+            {/* Sistema · preferências */}
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-3.5 mb-2 px-0.5">
+              Preferências
+            </p>
+            <div className="mb-3.5 overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl">
+              <div className="flex items-center gap-3 w-full px-4 py-3.5">
+                <Moon className="h-[18px] w-[18px] shrink-0 text-foreground-muted" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-foreground">Tema</div>
+                  <div className="text-[11px] text-foreground-muted">{theme === 'dark' ? 'Escuro (AURO)' : 'Claro'}</div>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={theme === 'dark'}
+                  aria-label="Alternar tema"
+                  onClick={toggleTheme}
+                  className={cn(
+                    'relative h-6 w-10 shrink-0 rounded-full transition-colors',
+                    theme === 'dark' ? 'bg-primary' : 'bg-surface-3'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all',
+                      theme === 'dark' ? 'right-0.5' : 'left-0.5'
+                    )}
+                  />
+                </button>
+              </div>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
