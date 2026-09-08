@@ -3,7 +3,8 @@ import { AppSidebar } from './AppSidebar';
 import { Header } from './Header';
 import { MobileBottomNav } from './MobileBottomNav';
 import { PullToRefresh } from './PullToRefresh';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
+import { useTenant } from '@/contexts/TenantContext';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,12 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
+  const { acessoAtivo, loading: tenantLoading } = useTenant();
+
+  // Gate de assinatura: acesso expirado (trial acabou, não é cortesia nem ativa) → assinatura
+  if (!tenantLoading && !acessoAtivo) {
+    return <Navigate to="/assinatura" replace />;
+  }
 
   const handleNewEntrada = () => navigate('/fluxo-caixa?action=nova-entrada');
   const handleNewSaida = () => navigate('/fluxo-caixa?action=nova-saida');

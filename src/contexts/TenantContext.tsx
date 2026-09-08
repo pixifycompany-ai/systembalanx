@@ -16,8 +16,29 @@ export interface Tenant {
   status_assinatura: string;
   cortesia: boolean;
   acesso_liberado_ate: string | null;
+  trial_ends_at: string | null;
+  ciclo: string | null;
   asaas_customer_id: string | null;
+  asaas_subscription_id: string | null;
   created_at: string;
+}
+
+/** Regra de acesso: cortesia, assinatura ativa, ou trial em dia. */
+export function tenantTemAcesso(t: Tenant | null): boolean {
+  if (!t) return true; // sem tenant definido ainda — não bloqueia
+  if (t.cortesia) return true;
+  if (t.acesso_liberado_ate && new Date(t.acesso_liberado_ate) >= new Date()) return true;
+  if (t.status_assinatura === 'ativa') return true;
+  if (t.status_assinatura === 'trial') {
+    return !t.trial_ends_at || new Date(t.trial_ends_at) > new Date();
+  }
+  return false;
+}
+
+export function trialDiasRestantes(t: Tenant | null): number | null {
+  if (!t || t.status_assinatura !== 'trial' || !t.trial_ends_at) return null;
+  const ms = new Date(t.trial_ends_at).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / 86400000));
 }
 
 export interface Membership {
@@ -32,6 +53,8 @@ interface TenantContextType {
   role: Papel | null;
   isSuperadmin: boolean;
   canWrite: boolean;
+  acessoAtivo: boolean;
+  trialDias: number | null;
   loading: boolean;
   switchTenant: (tenantId: string) => Promise<void>;
   refresh: () => Promise<void>;
@@ -97,6 +120,8 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         role,
         isSuperadmin,
         canWrite,
+        acessoAtivo: tenantTemAcesso(activeMembership?.tenant ?? null),
+        trialDias: trialDiasRestantes(activeMembership?.tenant ?? null),
         loading: effectiveLoading,
         switchTenant,
         refresh: load,
