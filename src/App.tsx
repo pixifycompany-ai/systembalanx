@@ -22,6 +22,7 @@ import Visao from "./pages/Visao";
 import MeuPerfil from "./pages/MeuPerfil";
 
 import Login from "./pages/Login";
+import Iara from "./pages/Iara";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="/categorias" element={<ProtectedRoute><AppLayout><Categorias /></AppLayout></ProtectedRoute>} />
               <Route path="/contas" element={<ProtectedRoute><AppLayout><Contas /></AppLayout></ProtectedRoute>} />
               <Route path="/perfil" element={<ProtectedRoute><AppLayout><MeuPerfil /></AppLayout></ProtectedRoute>} />
+              <Route path="/iara" element={<ProtectedRoute><AppLayout><Iara /></AppLayout></ProtectedRoute>} />
               
               
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

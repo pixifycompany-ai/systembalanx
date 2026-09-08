@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 
 import { HeroStatCard } from '@/components/shared/HeroStatCard';
 import { ListRowCard } from '@/components/shared/ListRowCard';
@@ -116,6 +116,25 @@ export default function Dashboard() {
           editable
           onEditTarget={(v) => upsertMeta.mutate({ tipo: 'faturamento', periodo: currentPeriodo, valor_meta: v })}
         />
+      </section>
+
+      {/* IARA — atalho pro assistente */}
+      <section className="mb-6">
+        <button
+          onClick={() => navigate('/iara')}
+          className="w-full text-left relative overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl p-4 shadow-md active:scale-[0.99] transition-transform"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_8px_18px_-6px_hsl(var(--primary)/0.6)]">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">IARA · Assistente</div>
+              <div className="text-sm font-medium text-foreground">Tire dúvidas sobre suas finanças</div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-primary shrink-0" />
+          </div>
+        </button>
       </section>
 
       {/* Próximos vencimentos (7 dias) */}

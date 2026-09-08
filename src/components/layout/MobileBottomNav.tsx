@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, List, Plus, LineChart, MoreHorizontal, Users, FileText, Tag, Settings, ArrowLeftRight, TrendingUp, TrendingDown, CalendarDays, FileBarChart, Wallet, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, List, Plus, LineChart, MoreHorizontal, Users, FileText, Tag, Settings, ArrowLeftRight, TrendingUp, TrendingDown, CalendarDays, FileBarChart, Wallet, BarChart3, Sparkles } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +22,7 @@ const moreSections = [
   {
     label: 'Financeiro',
     items: [
+      { href: '/iara', label: 'IARA · Assistente', icon: Sparkles },
       { href: '/contas', label: 'Contas', icon: Wallet },
       { href: '/calendario', label: 'Calendário', icon: CalendarDays },
       { href: '/relatorios', label: 'Relatórios', icon: FileBarChart },
