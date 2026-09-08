@@ -63,6 +63,12 @@ function monthsBetween(startDate: string, endDate: string): number {
   return Math.max(1, (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1);
 }
 
+function addDaysISO(iso: string, n: number): string {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split("T")[0];
+}
+
 async function safe<T>(p: PromiseLike<{ data: T | null }>): Promise<T[]> {
   try {
     const { data } = await p;
@@ -114,7 +120,7 @@ serve(async (req) => {
       safe<any>(supabase.from("transferencias").select("*")),
       safe<any>(supabase.from("clientes").select("id, nome, status")),
       safe<any>(supabase.from("metas").select("*")),
-      safe<any>(supabase.from("faturas").select("*")),
+      safe<any>(supabase.from("cartao_faturas").select("*")),
     ]);
 
     const profileRows = await safe<any>(supabase.from("profiles").select("nome").limit(1));
@@ -301,6 +307,8 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Escolha a ferramenta certa:
   • Perguntas de resultado/desempenho ("quanto faturei/gastei/lucrei", "margem", "por categoria", "top clientes") → resumo_financeiro (regime de competência).
   • Perguntas de agenda/caixa futuro-ou-passado por data ("o que vence/tenho a pagar/a receber", "hoje", "amanhã", "essa semana", "resto do mês") → agenda_vencimentos (por data de vencimento).
+  • Procurar por fornecedor/descrição ("quanto paguei pra X") → buscar_lancamento. Panorama de um cliente → detalhe_cliente. Saldo atual/cartões → saldo_e_contas. Projeção de caixa futuro → projecao_fluxo. Comparar dois períodos → comparativo_periodos.
+- Você pode chamar mais de uma ferramenta antes de responder (ex.: saldo_e_contas + projecao_fluxo para dizer se vai faltar caixa).
 - Se a pessoa não disser o período, responda com o período do contexto ("${periodLabel}") e diga qual período usou. Sempre deixe claro o intervalo que os números cobrem.
 
 ## Estilo das respostas
@@ -346,9 +354,76 @@ ${contexto}`;
           },
         },
       },
+      {
+        type: "function",
+        function: {
+          name: "buscar_lancamento",
+          description: "Procura receitas e despesas por texto na descrição ou no fornecedor. Use para perguntas como 'quanto paguei pra Hostinger?', 'todos os lançamentos da Lovable', 'gastos com energia'.",
+          parameters: {
+            type: "object",
+            properties: {
+              termo: { type: "string", description: "Texto a procurar (nome do fornecedor, descrição, etc.)" },
+            },
+            required: ["termo"],
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "detalhe_cliente",
+          description: "Retorna o panorama de um cliente: total faturado, recebido, a receber, atrasado, nº de contratos ativos e MRR do cliente. Use para 'como está o cliente X?', 'quanto o cliente Y me deve?'.",
+          parameters: {
+            type: "object",
+            properties: {
+              nome: { type: "string", description: "Nome (ou parte do nome) do cliente" },
+            },
+            required: ["nome"],
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "saldo_e_contas",
+          description: "Saldo atual (tempo real) de cada conta bancária + total em caixa, e os cartões de crédito com fatura aberta, limite e disponível. Use para 'qual meu saldo?', 'quanto tenho no banco?', 'como estão meus cartões?'.",
+          parameters: { type: "object", properties: {} },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "projecao_fluxo",
+          description: "Projeta a variação de caixa nos próximos N dias: soma o que está a receber e a pagar por data de vencimento até lá. Use para 'vou ter caixa mês que vem?', 'como fica meu caixa nos próximos 30 dias?'. Combine com saldo_e_contas para o caixa atual.",
+          parameters: {
+            type: "object",
+            properties: {
+              dias: { type: "number", description: "Quantos dias à frente projetar (ex.: 30)" },
+            },
+            required: ["dias"],
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "comparativo_periodos",
+          description: "Compara dois intervalos por regime de competência (recebido, pago, lucro, margem) com a variação percentual. Use para 'esse mês vs mês passado', 'comparar 2º trimestre com o 1º'.",
+          parameters: {
+            type: "object",
+            properties: {
+              inicio_a: { type: "string", description: "Início do período A (YYYY-MM-DD)" },
+              fim_a: { type: "string", description: "Fim do período A" },
+              inicio_b: { type: "string", description: "Início do período B (YYYY-MM-DD)" },
+              fim_b: { type: "string", description: "Fim do período B" },
+            },
+            required: ["inicio_a", "fim_a", "inicio_b", "fim_b"],
+          },
+        },
+      },
     ];
 
-    async function toolResumo(inicio: string, fim: string): Promise<string> {
+    async function computeResumo(inicio: string, fim: string) {
       const [rec, desp] = await Promise.all([
         safe<any>(supabase.from("receitas").select("valor,status,cliente:clientes(nome),categoria:categorias(nome)").gte("data_competencia", inicio).lte("data_competencia", fim)),
         safe<any>(supabase.from("despesas").select("valor,status,categoria:categorias(nome)").gte("data_competencia", inicio).lte("data_competencia", fim)),
@@ -365,13 +440,116 @@ ${contexto}`;
       for (const d of desp.filter(d => d.status === "pago")) { const c = d.categoria?.nome || "Sem categoria"; cat[c] = (cat[c] || 0) + Number(d.valor || 0); }
       const cli: Record<string, number> = {};
       for (const r of rec) { const n = r.cliente?.nome; if (n) cli[n] = (cli[n] || 0) + Number(r.valor || 0); }
-      return JSON.stringify({
+      return {
         periodo: { inicio, fim },
         recebido, a_receber: aReceber, atrasado_a_receber: atrasadoReceber,
         pago, a_pagar: aPagar, atrasado_a_pagar: atrasadoPagar,
         lucro: lucroP, margem_pct: recebido > 0 ? Number(((lucroP / recebido) * 100).toFixed(1)) : 0,
         despesas_por_categoria: Object.fromEntries(Object.entries(cat).sort((a, b) => b[1] - a[1]).slice(0, 10)),
         receita_por_cliente: Object.fromEntries(Object.entries(cli).sort((a, b) => b[1] - a[1]).slice(0, 10)),
+      };
+    }
+
+    async function toolResumo(inicio: string, fim: string): Promise<string> {
+      return JSON.stringify(await computeResumo(inicio, fim));
+    }
+
+    async function toolComparativo(iA: string, fA: string, iB: string, fB: string): Promise<string> {
+      const [a, b] = await Promise.all([computeResumo(iA, fA), computeResumo(iB, fB)]);
+      const varPct = (x: number, y: number) => (y !== 0 ? Number((((x - y) / Math.abs(y)) * 100).toFixed(1)) : null);
+      return JSON.stringify({
+        periodo_a: a, periodo_b: b,
+        variacao: {
+          recebido_pct: varPct(a.recebido, b.recebido),
+          pago_pct: varPct(a.pago, b.pago),
+          lucro_pct: varPct(a.lucro, b.lucro),
+        },
+      });
+    }
+
+    function sanitize(t: string) { return (t || "").replace(/[%,()]/g, " ").trim(); }
+
+    async function toolBuscar(termo: string): Promise<string> {
+      const t = sanitize(termo);
+      if (!t) return JSON.stringify({ erro: "termo vazio" });
+      const [rec, desp] = await Promise.all([
+        safe<any>(supabase.from("receitas").select("descricao,valor,status,data_vencimento,data_competencia,cliente:clientes(nome)").ilike("descricao", `%${t}%`).limit(25)),
+        safe<any>(supabase.from("despesas").select("descricao,fornecedor,valor,status,data_vencimento,data_competencia,categoria:categorias(nome)").or(`descricao.ilike.%${t}%,fornecedor.ilike.%${t}%`).limit(25)),
+      ]);
+      const itens = [
+        ...rec.map(r => ({ tipo: "receita", descricao: r.descricao, quem: r.cliente?.nome || null, valor: Number(r.valor || 0), status: r.status, vencimento: r.data_vencimento, competencia: r.data_competencia })),
+        ...desp.map(d => ({ tipo: "despesa", descricao: d.descricao || d.fornecedor, quem: d.fornecedor || d.categoria?.nome || null, valor: Number(d.valor || 0), status: d.status, vencimento: d.data_vencimento, competencia: d.data_competencia })),
+      ];
+      const totalDespesas = itens.filter(i => i.tipo === "despesa").reduce((s, i) => s + i.valor, 0);
+      const totalReceitas = itens.filter(i => i.tipo === "receita").reduce((s, i) => s + i.valor, 0);
+      return JSON.stringify({ termo: t, encontrados: itens.length, total_receitas: totalReceitas, total_despesas: totalDespesas, itens: itens.slice(0, 40) });
+    }
+
+    async function toolDetalheCliente(nome: string): Promise<string> {
+      const t = sanitize(nome);
+      const clientesMatch = await safe<any>(supabase.from("clientes").select("id,nome,status,cpf_cnpj").ilike("nome", `%${t}%`).limit(1));
+      if (!clientesMatch.length) return JSON.stringify({ erro: `Nenhum cliente encontrado para "${nome}".` });
+      const cli = clientesMatch[0];
+      const [rec, contratosCli] = await Promise.all([
+        safe<any>(supabase.from("receitas").select("valor,status").eq("cliente_id", cli.id)),
+        safe<any>(supabase.from("contratos").select("valor,recorrencia,status").eq("cliente_id", cli.id).eq("status", "ativo")),
+      ]);
+      const s = (arr: any[], st?: string) => arr.filter(x => !st || x.status === st).reduce((t2, x) => t2 + Number(x.valor || 0), 0);
+      const mrr = contratosCli.reduce((sum, c) => {
+        const v = Number(c.valor || 0);
+        if (c.recorrencia === "mensal") return sum + v;
+        if (c.recorrencia === "trimestral") return sum + v / 3;
+        if (c.recorrencia === "semestral") return sum + v / 6;
+        if (c.recorrencia === "anual") return sum + v / 12;
+        return sum;
+      }, 0);
+      return JSON.stringify({
+        cliente: cli.nome, status: cli.status, documento: cli.cpf_cnpj || null,
+        faturado_total: s(rec), recebido: s(rec, "recebido"), a_receber: s(rec, "pendente"), atrasado: s(rec, "atrasado"),
+        contratos_ativos: contratosCli.length, mrr_cliente: mrr,
+      });
+    }
+
+    async function toolSaldoContas(): Promise<string> {
+      const [contasAll, rec, desp, transf, faturas] = await Promise.all([
+        safe<any>(supabase.from("contas").select("*").eq("ativa", true)),
+        safe<any>(supabase.from("receitas").select("valor,conta_id").eq("status", "recebido")),
+        safe<any>(supabase.from("despesas").select("valor,conta_id").eq("status", "pago")),
+        safe<any>(supabase.from("transferencias").select("valor,conta_origem_id,conta_destino_id")),
+        safe<any>(supabase.from("cartao_faturas").select("valor_total,valor_pago,data_vencimento,status,cartao_id")),
+      ]);
+      const bancarias = contasAll.filter(c => c.tipo !== "cartao_credito");
+      const cartoesC = contasAll.filter(c => c.tipo === "cartao_credito");
+      const saldo = (c: any) => Number(c.saldo_inicial || 0)
+        + rec.filter(r => r.conta_id === c.id).reduce((s, r) => s + Number(r.valor || 0), 0)
+        - desp.filter(d => d.conta_id === c.id).reduce((s, d) => s + Number(d.valor || 0), 0)
+        + transf.filter(t => t.conta_destino_id === c.id).reduce((s, t) => s + Number(t.valor || 0), 0)
+        - transf.filter(t => t.conta_origem_id === c.id).reduce((s, t) => s + Number(t.valor || 0), 0);
+      const contasSaldo = bancarias.map(c => ({ nome: c.nome, banco: c.banco || null, saldo: saldo(c) }));
+      const cartoesInfo = cartoesC.map(c => {
+        const aberto = faturas.filter(f => f.cartao_id === c.id).reduce((s, f) => s + Math.max(Number(f.valor_total || 0) - Number(f.valor_pago || 0), 0), 0);
+        const limite = Number(c.limite || 0);
+        return { nome: c.nome, bandeira: c.bandeira || null, limite, fatura_aberta: aberto, disponivel: Math.max(limite - aberto, 0) };
+      });
+      return JSON.stringify({
+        contas: contasSaldo, total_caixa: contasSaldo.reduce((s, c) => s + c.saldo, 0),
+        cartoes: cartoesInfo, total_faturas_abertas: cartoesInfo.reduce((s, c) => s + c.fatura_aberta, 0),
+      });
+    }
+
+    async function toolProjecao(dias: number): Promise<string> {
+      const start = hojeISO;
+      const end = addDaysISO(hojeISO, Math.max(1, Math.floor(dias || 30)));
+      const [rec, desp] = await Promise.all([
+        safe<any>(supabase.from("receitas").select("valor,status,data_vencimento").gte("data_vencimento", start).lte("data_vencimento", end).neq("status", "recebido")),
+        safe<any>(supabase.from("despesas").select("valor,status,data_vencimento").gte("data_vencimento", start).lte("data_vencimento", end).neq("status", "pago")),
+      ]);
+      const aReceber = rec.reduce((s, r) => s + Number(r.valor || 0), 0);
+      const aPagar = desp.reduce((s, d) => s + Number(d.valor || 0), 0);
+      return JSON.stringify({
+        periodo: { inicio: start, fim: end, dias: Math.max(1, Math.floor(dias || 30)) },
+        a_receber: aReceber, a_pagar: aPagar, variacao_prevista: aReceber - aPagar,
+        obs: "Para o caixa projetado final, some 'variacao_prevista' ao total_caixa de saldo_e_contas.",
       });
     }
 
@@ -443,6 +621,11 @@ ${contexto}`;
           try {
             if (tc.function.name === "resumo_financeiro") result = await toolResumo(args.inicio, args.fim);
             else if (tc.function.name === "agenda_vencimentos") result = await toolAgenda(args.inicio, args.fim, args.tipo, args.status);
+            else if (tc.function.name === "buscar_lancamento") result = await toolBuscar(args.termo);
+            else if (tc.function.name === "detalhe_cliente") result = await toolDetalheCliente(args.nome);
+            else if (tc.function.name === "saldo_e_contas") result = await toolSaldoContas();
+            else if (tc.function.name === "projecao_fluxo") result = await toolProjecao(args.dias);
+            else if (tc.function.name === "comparativo_periodos") result = await toolComparativo(args.inicio_a, args.fim_a, args.inicio_b, args.fim_b);
           } catch (e) {
             result = JSON.stringify({ erro: e instanceof Error ? e.message : "falha na consulta" });
           }
