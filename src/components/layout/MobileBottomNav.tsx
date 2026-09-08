@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, List, Plus, LineChart, MoreHorizontal, Users, FileText, Tag, Settings, ArrowLeftRight, TrendingUp, TrendingDown, CalendarDays, FileBarChart, Wallet, BarChart3, Sparkles, ChevronRight, Moon } from 'lucide-react';
+import {
+  HomeIcon, DocumentTextIcon, ChartBarIcon, Squares2X2Icon, PlusIcon,
+  SparklesIcon, WalletIcon, CalendarDaysIcon, DocumentChartBarIcon, PresentationChartLineIcon,
+  UsersIcon, TagIcon, Cog6ToothIcon, ChevronRightIcon, MoonIcon,
+  ArrowsRightLeftIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon,
+} from '@heroicons/react/24/outline';
+import {
+  HomeIcon as HomeSolid, DocumentTextIcon as DocumentSolid,
+  ChartBarIcon as ChartSolid, Squares2X2Icon as GridSolid,
+} from '@heroicons/react/24/solid';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
@@ -12,36 +21,36 @@ interface MobileBottomNavProps {
 }
 
 const mainItems = [
-  { href: '/', label: 'Início', icon: LayoutDashboard },
-  { href: '/fluxo-caixa', label: 'Lançamentos', icon: List },
-  { href: '__fab__', label: '', icon: Plus },
-  { href: '/visao', label: 'Visão', icon: LineChart },
-  { href: '__more__', label: 'Menu', icon: MoreHorizontal },
+  { href: '/', label: 'Início', icon: HomeIcon, iconSolid: HomeSolid },
+  { href: '/fluxo-caixa', label: 'Lançamentos', icon: DocumentTextIcon, iconSolid: DocumentSolid },
+  { href: '__fab__', label: '', icon: PlusIcon, iconSolid: PlusIcon },
+  { href: '/visao', label: 'Visão', icon: ChartBarIcon, iconSolid: ChartSolid },
+  { href: '__more__', label: 'Menu', icon: Squares2X2Icon, iconSolid: GridSolid },
 ];
 
 const moreSections = [
   {
     label: 'Financeiro',
     items: [
-      { href: '/iara', label: 'IARA · Assistente', icon: Sparkles },
-      { href: '/contas', label: 'Contas', icon: Wallet },
-      { href: '/calendario', label: 'Calendário', icon: CalendarDays },
-      { href: '/relatorios', label: 'Relatórios', icon: FileBarChart },
-      { href: '/analises', label: 'Análises (deep-dive)', icon: BarChart3 },
+      { href: '/iara', label: 'IARA · Assistente', icon: SparklesIcon },
+      { href: '/contas', label: 'Contas', icon: WalletIcon },
+      { href: '/calendario', label: 'Calendário', icon: CalendarDaysIcon },
+      { href: '/relatorios', label: 'Relatórios', icon: DocumentChartBarIcon },
+      { href: '/analises', label: 'Análises (deep-dive)', icon: PresentationChartLineIcon },
     ],
   },
   {
     label: 'Gestão',
     items: [
-      { href: '/clientes', label: 'Clientes', icon: Users },
-      { href: '/contratos', label: 'Contratos', icon: FileText },
+      { href: '/clientes', label: 'Clientes', icon: UsersIcon },
+      { href: '/contratos', label: 'Contratos', icon: DocumentTextIcon },
     ],
   },
   {
     label: 'Sistema',
     items: [
-      { href: '/categorias', label: 'Categorias', icon: Tag },
-      { href: '/perfil', label: 'Meu Perfil', icon: Settings },
+      { href: '/categorias', label: 'Categorias', icon: TagIcon },
+      { href: '/perfil', label: 'Meu Perfil', icon: Cog6ToothIcon },
     ],
   },
 ];
@@ -81,7 +90,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
                 aria-label="Novo lançamento"
                 className="mx-0.5 flex h-12 w-12 items-center justify-center rounded-[16px] bg-primary text-primary-foreground shadow-[0_10px_24px_hsl(var(--primary)/0.45)] active:scale-95 transition-transform"
               >
-                <Plus className="h-6 w-6" strokeWidth={2.4} />
+                <PlusIcon className="h-6 w-6" strokeWidth={2.4} />
               </button>
             );
           }
@@ -89,6 +98,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
           const active = item.href === '__more__'
             ? allMoreHrefs.some(h => isActive(h))
             : isActive(item.href);
+          const Icon = active ? item.iconSolid : item.icon;
 
           return (
             <button
@@ -100,7 +110,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
                 active ? "text-primary bg-primary/15" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <item.icon className="h-[22px] w-[22px]" strokeWidth={active ? 2.4 : 2} />
+              <Icon className="h-[22px] w-[22px]" />
             </button>
           );
         })}
@@ -118,7 +128,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-secondary hover:bg-accent transition-colors"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
-                <TrendingUp className="h-5 w-5 text-emerald-500" />
+                <ArrowTrendingUpIcon className="h-5 w-5 text-emerald-500" />
               </div>
               <span className="text-sm font-medium">Receita</span>
             </button>
@@ -127,7 +137,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-secondary hover:bg-accent transition-colors"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
-                <TrendingDown className="h-5 w-5 text-red-500" />
+                <ArrowTrendingDownIcon className="h-5 w-5 text-red-500" />
               </div>
               <span className="text-sm font-medium">Despesa</span>
             </button>
@@ -136,7 +146,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-secondary hover:bg-accent transition-colors"
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted-foreground/10">
-                <ArrowLeftRight className="h-5 w-5 text-muted-foreground" />
+                <ArrowsRightLeftIcon className="h-5 w-5 text-muted-foreground" />
               </div>
               <span className="text-sm font-medium">Transferência</span>
             </button>
@@ -169,7 +179,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
                       >
                         <item.icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-primary' : 'text-foreground-muted')} />
                         <span className={cn('flex-1 text-sm font-medium', active ? 'text-primary' : 'text-foreground')}>{item.label}</span>
-                        <ChevronRight className="h-4 w-4 text-foreground-muted/60 shrink-0" />
+                        <ChevronRightIcon className="h-4 w-4 text-foreground-muted/60 shrink-0" />
                       </button>
                     );
                   })}
@@ -183,7 +193,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
             </p>
             <div className="mb-3.5 overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl">
               <div className="flex items-center gap-3 w-full px-4 py-3.5">
-                <Moon className="h-[18px] w-[18px] shrink-0 text-foreground-muted" />
+                <MoonIcon className="h-[18px] w-[18px] shrink-0 text-foreground-muted" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-foreground">Tema</div>
                   <div className="text-[11px] text-foreground-muted">{theme === 'dark' ? 'Escuro (AURO)' : 'Claro'}</div>

@@ -22,25 +22,24 @@ export function Header() {
 
   return (
     <header
-      className="sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-border bg-background/80 backdrop-blur-md px-3 md:px-6"
+      className="sticky top-0 z-40 flex items-center justify-between gap-2 px-3 md:px-6 md:border-b md:border-border md:bg-background/80 md:backdrop-blur-md"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
         height: 'calc(3.5rem + env(safe-area-inset-top, 0px))',
       }}
     >
-      <div className="flex items-center gap-2 min-w-0 flex-1">
+      {/* Desktop: trigger do sidebar + breadcrumb. Mobile: sem hambúrguer/título (o cabeçalho da tela já traz o título, igual mockup) */}
+      <div className="hidden md:flex items-center gap-2 min-w-0 flex-1">
         <SidebarTrigger className="text-foreground-muted hover:text-foreground shrink-0" />
         {showBreadcrumb && route && (
-          <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-1.5 text-sm min-w-0">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm min-w-0">
             <span className="text-foreground-muted">{route.group}</span>
             <span className="text-foreground-subtle">/</span>
             <span className="text-foreground font-medium truncate">{route.label}</span>
           </nav>
         )}
-        {showBreadcrumb && route && (
-          <span className="md:hidden text-sm font-medium text-foreground truncate">{route.label}</span>
-        )}
       </div>
+      <div className="md:hidden flex-1" />
 
       <div className="flex items-center gap-1 md:gap-2 shrink-0">
         <NotificationBell />

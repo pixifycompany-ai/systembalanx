@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Clock, Copy, HeartPulse, AlertTriangle, X, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Clock, Copy, HeartPulse, AlertTriangle, X, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { BellIcon } from '@heroicons/react/24/outline';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { useNotifications, type Notification, type DuplicateDetail } from '@/hooks/useNotifications';
@@ -65,7 +66,7 @@ export function NotificationBell() {
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative h-9 w-9">
-          <Bell className="h-4 w-4" />
+          <BellIcon className="h-5 w-5" />
           {totalCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
               {totalCount > 99 ? '99+' : totalCount}
@@ -94,7 +95,7 @@ export function NotificationBell() {
             <div className="p-4 text-center text-sm text-muted-foreground">Carregando...</div>
           ) : notifications.length === 0 ? (
             <div className="p-6 text-center">
-              <Bell className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+              <BellIcon className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
               <p className="text-sm text-muted-foreground">Nenhuma notificação</p>
             </div>
           ) : (
