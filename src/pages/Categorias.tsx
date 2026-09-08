@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Pencil, Trash2, Tag, TrendingUp, TrendingDown } from 'lucide-react';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { EmpresaFonteBadge, EMPRESA_FONTE_OPTIONS, type EmpresaFonte } from '@/components/shared/EmpresaFonteBadge';
@@ -166,15 +167,15 @@ export default function Categorias() {
   return (
     <main className="container py-4 md:py-6">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-foreground">Categorias</h1>
-            <p className="text-sm text-muted-foreground">Gerencie as categorias de receitas e despesas</p>
-          </div>
-          <IconButton label="Nova Categoria" emphasis="primary" onClick={handleNew}>
-            <Plus className="h-4 w-4" />
-          </IconButton>
-        </div>
+        <MobilePageHeader
+          eyebrow="Organização"
+          title="Categorias"
+          actions={
+            <IconButton label="Nova Categoria" emphasis="primary" onClick={handleNew}>
+              <Plus className="h-4 w-4" />
+            </IconButton>
+          }
+        />
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'receita' | 'despesa')}>
@@ -408,70 +409,52 @@ function CategoriaGrid({
   }
 
   return (
-    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid gap-2.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       {categorias.map(categoria => (
-        <div 
-          key={categoria.id} 
-          className="metric-card group hover:border-primary/30 transition-all"
+        <div
+          key={categoria.id}
+          onClick={() => onEdit(categoria)}
+          className="relative cursor-pointer rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl p-3.5 transition-colors hover:border-primary/40"
         >
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div 
-                className="flex h-10 w-10 items-center justify-center rounded-lg"
-                style={{ backgroundColor: `${categoria.cor}20` }}
-              >
-                <Tag className="h-5 w-5" style={{ color: categoria.cor }} />
-              </div>
-              <div>
-                <h3 className="font-medium text-foreground">{categoria.nome}</h3>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <p className="text-xs text-muted-foreground">
-                    {categoria.tipo === 'receita' ? 'Receita' : 'Despesa'}
-                  </p>
-                  {categoria.empresa_fonte ? (
-                    <EmpresaFonteBadge empresa={categoria.empresa_fonte} />
-                  ) : (
-                    <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wide">· Geral</span>
-                  )}
-                </div>
-              </div>
-            </div>
-            {categoria.is_padrao && (
-              <Badge variant="secondary" className="gap-1 text-xs">
-                Padrão
-              </Badge>
-            )}
+          {/* Ações — sempre visíveis (toque) */}
+          <div className="absolute top-2 right-2 flex gap-0.5">
+            <button
+              aria-label="Editar categoria"
+              onClick={(e) => { e.stopPropagation(); onEdit(categoria); }}
+              className="grid place-items-center h-6 w-6 rounded-md text-foreground-muted hover:text-foreground hover:bg-white/10 transition-colors"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              aria-label="Excluir categoria"
+              onClick={(e) => { e.stopPropagation(); onDelete(categoria.id); }}
+              className="grid place-items-center h-6 w-6 rounded-md text-foreground-muted hover:text-destructive hover:bg-white/10 transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
           </div>
 
-          {/* Color Preview */}
-          <div className="mb-4">
-            <Badge 
-              className="text-white"
-              style={{ backgroundColor: categoria.cor }}
-            >
-              {categoria.nome}
-            </Badge>
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-xl"
+            style={{ backgroundColor: `${categoria.cor}22` }}
+          >
+            <Tag className="h-[18px] w-[18px]" style={{ color: categoria.cor }} />
           </div>
 
-          {/* Actions — todas categorias editáveis */}
-          <div className="flex items-center gap-2 pt-3 border-t border-border">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex-1"
-              onClick={() => onEdit(categoria)}
-            >
-              <Pencil className="h-4 w-4 mr-2" />
-              Editar
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onDelete(categoria.id)}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+          <div className="mt-2.5 text-sm font-semibold text-foreground truncate pr-1">{categoria.nome}</div>
+          <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
+            <span className="text-[11px] text-foreground-muted truncate">
+              {categoria.tipo === 'receita' ? 'Receita' : 'Despesa'}
+            </span>
+            {categoria.empresa_fonte ? (
+              <EmpresaFonteBadge empresa={categoria.empresa_fonte} />
+            ) : null}
           </div>
+          {categoria.is_padrao && (
+            <span className="mt-2 inline-block text-[9px] font-medium uppercase tracking-wide text-foreground-muted/70">
+              Padrão
+            </span>
+          )}
         </div>
       ))}
     </div>
