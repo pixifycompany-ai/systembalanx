@@ -13,15 +13,11 @@ import { KpiTriple } from '@/components/shared/KpiTriple';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Search, Gift } from 'lucide-react';
 import { formatCurrency } from '@/utils/formatters';
+import { PLAN } from '@/lib/plans';
 import { cn } from '@/lib/utils';
 
 const sb = supabase as any;
 
-const PLANOS = [
-  { value: 'free', label: 'Free' },
-  { value: 'pro', label: 'Pro' },
-  { value: 'business', label: 'Business' },
-];
 const STATUS = [
   { value: 'trial', label: 'Trial' },
   { value: 'ativa', label: 'Ativa' },
@@ -29,7 +25,6 @@ const STATUS = [
   { value: 'cancelada', label: 'Cancelada' },
   { value: 'cortesia', label: 'Cortesia (liberado)' },
 ];
-const PLANO_PRECO: Record<string, number> = { free: 0, pro: 49, business: 149 };
 
 function initials(nome: string) {
   return (nome || '?').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -71,7 +66,7 @@ export default function Superadmin() {
   const cortesias = tenants.filter((t) => t.cortesia).length;
   const mrrPlataforma = tenants
     .filter((t) => t.status_assinatura === 'ativa' && !t.cortesia)
-    .reduce((s, t) => s + (PLANO_PRECO[t.plano] || 0), 0);
+    .reduce((s) => s + PLAN.precoMensal, 0);
 
   const filtered = tenants.filter((t) => t.nome.toLowerCase().includes(search.toLowerCase()));
 
@@ -210,7 +205,6 @@ function StatusBadge({ status, cortesia }: { status: string; cortesia: boolean }
 
 function TenantEditor({ tenant, onClose, onSaved }: { tenant: Tenant; onClose: () => void; onSaved: () => void }) {
   const { toast } = useToast();
-  const [plano, setPlano] = useState(tenant.plano);
   const [status, setStatus] = useState(tenant.status_assinatura);
   const [cortesia, setCortesia] = useState(tenant.cortesia);
   const [liberadoAte, setLiberadoAte] = useState(tenant.acesso_liberado_ate || '');
@@ -219,7 +213,7 @@ function TenantEditor({ tenant, onClose, onSaved }: { tenant: Tenant; onClose: (
   const save = async () => {
     setSaving(true);
     const { error } = await sb.from('tenants').update({
-      plano,
+      plano: PLAN.id,
       status_assinatura: status,
       cortesia,
       acesso_liberado_ate: liberadoAte || null,
@@ -234,7 +228,6 @@ function TenantEditor({ tenant, onClose, onSaved }: { tenant: Tenant; onClose: (
   const liberarGratis = () => {
     setCortesia(true);
     setStatus('cortesia');
-    if (plano === 'free') setPlano('business');
   };
 
   return (
@@ -255,12 +248,12 @@ function TenantEditor({ tenant, onClose, onSaved }: { tenant: Tenant; onClose: (
             </div>
           </button>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs">Plano</Label>
-            <Select value={plano} onValueChange={setPlano}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{PLANOS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
-            </Select>
+          <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
+            <div>
+              <div className="text-sm font-medium text-foreground">Plano {PLAN.nome}</div>
+              <div className="text-xs text-foreground-muted">{`R$ ${PLAN.precoMensal.toFixed(2).replace('.', ',')}/mês · 12× ${PLAN.precoAnualParcela.toFixed(2).replace('.', ',')}`}</div>
+            </div>
+            <span className="text-[10px] font-semibold uppercase text-foreground-muted">Único</span>
           </div>
 
           <div className="space-y-1.5">

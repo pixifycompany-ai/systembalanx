@@ -23,7 +23,7 @@ begin
   select id into v_tenant from public.tenants where nome = 'Pixify' limit 1;
   if v_tenant is null then
     insert into public.tenants (nome, tipo, plano, status_assinatura, cortesia, created_by)
-    values ('Pixify', 'agencia', 'business', 'cortesia', true, v_user)
+    values ('Pixify', 'agencia', 'balanx', 'cortesia', true, v_user)
     returning id into v_tenant;
   end if;
 
