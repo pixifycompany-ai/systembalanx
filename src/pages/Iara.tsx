@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Send, ChevronLeft, RefreshCw, ShieldCheck, Loader2 } from 'lucide-react';
+import { Sparkles, Send, ChevronLeft, RefreshCw, ShieldCheck, Loader2, Mic } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
@@ -34,7 +34,30 @@ export default function Iara() {
   const navigate = useNavigate();
   const { messages, isLoading, period, setPeriod, sendMessage, clearChat } = useFinancialAdvisor();
   const [input, setInput] = useState('');
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const toggleMic = () => {
+    if (listening) { try { recognitionRef.current?.stop(); } catch { /* noop */ } setListening(false); return; }
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    const rec = new SR();
+    rec.lang = 'pt-BR'; rec.continuous = false; rec.interimResults = true;
+    let finalText = '';
+    rec.onresult = (e: any) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t; else interim += t;
+      }
+      setInput((finalText + interim).trim());
+    };
+    rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false);
+    recognitionRef.current = rec;
+    try { rec.start(); setListening(true); } catch { /* noop */ }
+  };
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -167,6 +190,19 @@ export default function Iara() {
           disabled={isLoading}
           className="flex-1 h-11 rounded-2xl bg-surface/70 backdrop-blur-xl border border-border/60 px-4 text-sm text-foreground placeholder:text-foreground-subtle outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
+        <button
+          type="button"
+          onClick={toggleMic}
+          aria-label="Falar"
+          className={cn(
+            'flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors active:scale-95',
+            listening
+              ? 'bg-primary/15 border-primary text-primary animate-pulse'
+              : 'bg-surface/70 backdrop-blur-xl border-border/60 text-foreground-muted',
+          )}
+        >
+          <Mic className="h-5 w-5" />
+        </button>
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
