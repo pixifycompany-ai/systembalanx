@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getMonthNameFull, formatCurrencyShort } from '@/utils/formatters';
+import { getMonthNameFull } from '@/utils/formatters';
 import { DayDetailDialog } from './DayDetailDialog';
 import type { DayTransactions } from '@/hooks/useCalendario';
 
@@ -95,17 +95,13 @@ export function CalendarGrid({ year, month, days, onPrev, onNext }: CalendarGrid
                 >
                   {cell.day}
                 </span>
-                {dayData && cell.currentMonth && (
-                  <div className="mt-0.5 space-y-0.5">
+                {dayData && cell.currentMonth && (dayData.receitas > 0 || dayData.despesas > 0) && (
+                  <div className="mt-1 flex items-center gap-1">
                     {dayData.receitas > 0 && (
-                      <div className="text-[9px] md:text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 rounded px-1 py-0.5 truncate">
-                        + {formatCurrencyShort(dayData.receitas)}
-                      </div>
+                      <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />
                     )}
                     {dayData.despesas > 0 && (
-                      <div className="text-[9px] md:text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 rounded px-1 py-0.5 truncate">
-                        - {formatCurrencyShort(dayData.despesas)}
-                      </div>
+                      <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--danger))]" />
                     )}
                   </div>
                 )}

@@ -5,6 +5,7 @@ import { WeekView } from '@/components/calendario/WeekView';
 import { DayView } from '@/components/calendario/DayView';
 import { TopDespesasChart } from '@/components/calendario/TopDespesasChart';
 import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 
 import { useCalendario, type CalendarioModo } from '@/hooks/useCalendario';
 import { SkeletonChart } from '@/components/shared/LoadingSpinner';
@@ -41,12 +42,8 @@ export default function Calendario() {
 
   return (
     <main className="container py-3 md:py-6 max-w-full">
-      <div className="mb-4 md:mb-6">
-        <h1 className="text-h1 text-foreground">Calendário Financeiro</h1>
-        <p className="text-xs md:text-sm text-muted-foreground">
-          Visualize receitas e despesas por dia
-        </p>
-      </div>
+      <MobilePageHeader eyebrow="Financeiro" title="Calendário" />
+
 
       {/* Mode toggle */}
       <div className="mb-4">
