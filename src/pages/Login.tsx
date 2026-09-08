@@ -54,19 +54,19 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm space-y-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm">
         {/* Logo/Brand */}
-        <div className="text-center space-y-4">
+        <div className="flex flex-col items-center text-center mb-7">
           <PixifyLogo size="lg" className="justify-center" />
-          <p className="text-sm text-muted-foreground">Sistema de Gestão Financeira</p>
+          <p className="mt-3 text-sm text-foreground-muted">Sistema de Gestão Financeira</p>
         </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
+        {/* Glass card */}
+        <div className="rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-2xl shadow-lg p-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
+              <Label htmlFor="email" className="text-xs font-medium text-foreground-muted uppercase tracking-wide">
                 Email
               </Label>
               <Input
@@ -78,11 +78,10 @@ export default function Login() {
                 autoComplete="email"
                 disabled={isSubmitting}
                 className="h-11" />
-              
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
+              <Label htmlFor="password" className="text-xs font-medium text-foreground-muted uppercase tracking-wide">
                 Senha
               </Label>
               <Input
@@ -94,28 +93,25 @@ export default function Login() {
                 autoComplete="current-password"
                 disabled={isSubmitting}
                 className="h-11" />
-              
             </div>
-          </div>
 
-          <Button
-            type="submit"
-            className="w-full h-11 font-medium"
-            disabled={isSubmitting}>
-            
-            {isSubmitting ?
-            <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Entrando...
-              </> :
-
-            'Entrar'
-            }
-          </Button>
-        </form>
+            <Button
+              type="submit"
+              className="w-full h-11 font-semibold shadow-[0_10px_24px_-6px_hsl(var(--primary)/0.5)]"
+              disabled={isSubmitting}>
+              {isSubmitting ?
+              <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Entrando...
+                </> :
+              'Entrar'
+              }
+            </Button>
+          </form>
+        </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="mt-5 text-center text-xs text-foreground-subtle">
           Acesso restrito
         </p>
       </div>
