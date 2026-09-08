@@ -1,0 +1,25 @@
+project_id = "numhbxrzchspdqxdrdqf"
+
+[functions.clickup-proxy]
+verify_jwt = false
+
+[functions.parse-transactions]
+verify_jwt = false
+
+[functions.parse-contract]
+verify_jwt = false
+
+[functions.financial-advisor]
+verify_jwt = false
+
+[functions.categorize-transactions]
+verify_jwt = false
+
+[functions.vapid-public-key]
+verify_jwt = false
+
+[functions.notify-due-expenses]
+verify_jwt = false
+
+[functions.notify-test]
+verify_jwt = false

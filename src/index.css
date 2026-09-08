@@ -1,0 +1,467 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Pixify Finance — Design System v2
+   Filosofia: calma, controle, precisão. Hierarquia por peso.
+   Tokens HSL para compatibilidade total com shadcn/ui.
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* ===== Surfaces ===== */
+    --background: 0 0% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 240 5% 96%;
+    --surface-3: 240 5% 93%;
+
+    /* ===== Foreground ===== */
+    --foreground: 240 10% 4%;
+    --foreground-muted: 240 4% 46%;
+    --foreground-subtle: 240 5% 65%;
+
+    /* ===== Borders ===== */
+    --border: 240 6% 90%;
+    --border-subtle: 240 5% 96%;
+    --border-strong: 240 6% 80%;
+
+    /* ===== Primary (preto Vercel-like) ===== */
+    --primary: 240 10% 4%;
+    --primary-foreground: 0 0% 100%;
+
+    /* ===== Semantic ===== */
+    --success: 152 60% 36%;
+    --success-bg: 152 65% 95%;
+    --success-fg: 152 65% 22%;
+
+    --danger: 0 72% 50%;
+    --danger-bg: 0 86% 97%;
+    --danger-fg: 0 74% 35%;
+
+    --warning: 35 92% 48%;
+    --warning-bg: 48 96% 94%;
+    --warning-fg: 26 83% 30%;
+
+    --info: 214 89% 52%;
+    --info-bg: 214 95% 96%;
+    --info-fg: 214 80% 35%;
+
+    /* ===== Tag colors (categorias) ===== */
+    --tag-pink: 330 80% 50%;
+    --tag-orange: 25 95% 55%;
+    --tag-amber: 38 92% 50%;
+    --tag-green: 152 60% 40%;
+    --tag-teal: 175 70% 40%;
+    --tag-blue: 214 89% 52%;
+    --tag-violet: 260 75% 58%;
+    --tag-fuchsia: 292 75% 55%;
+
+    /* ===== Brand colors (empresa-fonte) ===== */
+    --brand-pixify: 260 75% 58%;
+    --brand-revvue: 214 89% 52%;
+    --brand-clario: 38 92% 50%;
+    --brand-tabelio: 152 60% 40%;
+
+    /* ===== Focus ring ===== */
+    --ring: 240 10% 4%;
+    --ring-offset: 0 0% 100%;
+
+    /* ===== Radii ===== */
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 14px;
+    --radius-2xl: 20px;
+    --radius: 10px; /* shadcn default alias */
+
+    /* ===== Shadows ===== */
+    --shadow-xs: 0 1px 0 0 hsl(240 6% 90% / 0.5);
+    --shadow-sm: 0 1px 2px 0 hsl(240 10% 4% / 0.04), 0 1px 3px 0 hsl(240 10% 4% / 0.06);
+    --shadow-md: 0 4px 6px -1px hsl(240 10% 4% / 0.05), 0 2px 4px -2px hsl(240 10% 4% / 0.04);
+    --shadow-lg: 0 10px 15px -3px hsl(240 10% 4% / 0.06), 0 4px 6px -4px hsl(240 10% 4% / 0.04);
+    --shadow-popover: 0 8px 24px hsl(240 10% 4% / 0.08), 0 2px 4px hsl(240 10% 4% / 0.04);
+
+    /* ===== Motion ===== */
+    --duration-instant: 100ms;
+    --duration-fast: 150ms;
+    --duration-normal: 200ms;
+    --duration-slow: 300ms;
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* ============================================================
+       LEGACY ALIASES — não duplicar tokens. Componentes existentes
+       continuam funcionando. NOVO código deve usar os tokens acima.
+       ============================================================ */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 4%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 10% 4%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --warning-foreground: 0 0% 100%;
+    --info-foreground: 0 0% 100%;
+    --input: 240 6% 90%;
+
+    /* Chart palette (data viz) */
+    --chart-1: 214 89% 52%;
+    --chart-2: 152 60% 40%;
+    --chart-3: 35 92% 48%;
+    --chart-4: 260 75% 58%;
+    --chart-5: 0 72% 50%;
+
+    /* Financial legacy */
+    --positive: 152 60% 36%;
+    --positive-muted: 152 65% 95%;
+    --negative: 0 72% 50%;
+    --negative-muted: 0 86% 97%;
+    --pending: 35 92% 48%;
+    --pending-muted: 48 96% 94%;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 4% 46%;
+    --sidebar-primary: 240 10% 4%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 96%;
+    --sidebar-accent-foreground: 240 10% 4%;
+    --sidebar-border: 240 6% 90%;
+    --sidebar-ring: 240 10% 4%;
+  }
+
+  .dark {
+    /* ===== Surfaces ===== */
+    --background: 240 10% 4%;
+    --surface: 240 6% 10%;
+    --surface-2: 240 4% 14%;
+    --surface-3: 240 4% 17%;
+
+    /* ===== Foreground ===== */
+    --foreground: 0 0% 98%;
+    --foreground-muted: 240 5% 65%;
+    --foreground-subtle: 240 4% 46%;
+
+    /* ===== Borders ===== */
+    --border: 240 4% 16%;
+    --border-subtle: 240 6% 10%;
+    --border-strong: 240 4% 22%;
+
+    /* ===== Primary (branco no dark) ===== */
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 10% 4%;
+
+    /* ===== Semantic (ajustados) ===== */
+    --success: 152 55% 50%;
+    --success-bg: 152 50% 14%;
+    --success-fg: 152 65% 70%;
+
+    --danger: 0 72% 60%;
+    --danger-bg: 0 50% 16%;
+    --danger-fg: 0 80% 75%;
+
+    --warning: 38 90% 58%;
+    --warning-bg: 35 55% 14%;
+    --warning-fg: 40 90% 70%;
+
+    --info: 214 90% 62%;
+    --info-bg: 214 45% 16%;
+    --info-fg: 214 90% 75%;
+
+    /* ===== Focus ===== */
+    --ring: 0 0% 98%;
+    --ring-offset: 240 10% 4%;
+
+    /* ===== Shadows (mais evidentes no dark) ===== */
+    --shadow-xs: 0 1px 0 0 hsl(0 0% 0% / 0.2);
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.5);
+    --shadow-popover: 0 8px 24px hsl(0 0% 0% / 0.5), 0 0 0 1px hsl(var(--border));
+
+    /* ===== Legacy aliases ===== */
+    --card: 240 6% 10%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 6% 10%;
+    --popover-foreground: 0 0% 98%;
+    --secondary: 240 4% 14%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 4% 14%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 240 4% 17%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 72% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --warning-foreground: 240 10% 4%;
+    --info-foreground: 240 10% 4%;
+    --input: 240 4% 16%;
+
+    --chart-1: 214 90% 62%;
+    --chart-2: 152 55% 50%;
+    --chart-3: 38 90% 58%;
+    --chart-4: 260 75% 65%;
+    --chart-5: 0 72% 60%;
+
+    --positive: 152 55% 50%;
+    --positive-muted: 152 50% 14%;
+    --negative: 0 72% 60%;
+    --negative-muted: 0 50% 16%;
+    --pending: 38 90% 58%;
+    --pending-muted: 35 55% 14%;
+
+    --sidebar-background: 240 6% 10%;
+    --sidebar-foreground: 240 5% 65%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 240 10% 4%;
+    --sidebar-accent: 240 4% 14%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 4% 16%;
+    --sidebar-ring: 0 0% 98%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    min-width: 0;
+  }
+
+  html, body, #root {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* Recharts: never overflow parent on mobile */
+  .recharts-responsive-container,
+  .recharts-wrapper {
+    max-width: 100% !important;
+  }
+
+  html {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    font-feature-settings: 'cv11', 'ss01', 'ss03', 'tnum';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-size: 13px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  h1 { @apply font-semibold; }
+  h2 { @apply font-semibold; }
+  h3 { @apply font-semibold; }
+
+  /* Tabular numbers everywhere by default for financial UI */
+  .font-mono, .tabular, .tabular-nums {
+    font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    font-feature-settings: 'tnum', 'zero';
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus visible — sempre visível, AA contrast */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border-strong));
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--foreground-subtle));
+  }
+}
+
+@layer components {
+  /* Typography scale tokens — reduced ~12% for higher density */
+  .text-display { font-size: 2.5rem; line-height: 1.05; font-weight: 600; letter-spacing: -0.02em; }
+  .text-h1 { font-size: 1.75rem; line-height: 1.15; font-weight: 600; letter-spacing: -0.015em; }
+  .text-h2 { font-size: 1.25rem; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; }
+  .text-h3 { font-size: 1rem; line-height: 1.35; font-weight: 600; }
+  .text-body { font-size: 0.8125rem; line-height: 1.5; font-weight: 400; }
+  .text-body-lg { font-size: 0.875rem; line-height: 1.55; font-weight: 400; }
+  .text-metric {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 1.75rem; line-height: 1.1; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .text-metric-sm {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 1.125rem; line-height: 1.2; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .text-num {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.8125rem; line-height: 1.5; font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .text-label-xs {
+    font-size: 0.6875rem; line-height: 1.35; font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: hsl(var(--foreground-muted));
+  }
+
+  /* Mobile responsive overrides — iPhone first (390px base) */
+  @media (max-width: 767px) {
+    .text-h1 { font-size: 1.25rem; }
+    .text-h2 { font-size: 1.0625rem; }
+    .text-h3 { font-size: 0.9375rem; }
+    .text-metric { font-size: 1.375rem; }
+    .text-metric-sm { font-size: 1rem; }
+    .text-num { font-size: 0.75rem; }
+  }
+
+  /* Scroll pills — horizontal snap em mobile, layout normal em desktop */
+  .scroll-pills {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .scroll-pills::-webkit-scrollbar { display: none; }
+
+  @media (max-width: 767px) {
+    .scroll-pills {
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+      mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent);
+      -webkit-mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent);
+    }
+    .scroll-pills > * {
+      scroll-snap-align: start;
+      flex-shrink: 0;
+    }
+  }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .safe-area-top { padding-top: env(safe-area-inset-top, 0px); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+  .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+
+  /* Animations */
+  .animate-fade-in { animation: fadeIn var(--duration-normal) var(--ease-out-expo); }
+  .animate-slide-up { animation: slideUp var(--duration-normal) var(--ease-out-expo); }
+  .animate-scale-in { animation: scaleIn var(--duration-normal) var(--ease-out-expo); }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+}
+
+/* Mobile touch targets (iOS HIG) */
+@media (max-width: 767px) {
+  button:not(.no-touch-min), a:not(.no-touch-min), [role="button"]:not(.no-touch-min) {
+    min-height: 40px;
+  }
+  .inline-action {
+    min-height: 32px;
+    min-width: 32px;
+  }
+
+  /* Previne zoom automático no iOS ao focar inputs (requer font-size ≥16px) */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print */
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+  .no-print { display: none !important; }
+}
+
+@layer components {
+  /* Tabela genérica usada em /receitas, /despesas, /contratos.
+     Replica a densidade do componente shadcn Table. */
+  .data-table {
+    width: 100%;
+    caption-side: bottom;
+    font-size: 0.875rem; /* text-sm */
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .data-table thead tr {
+    @apply border-b border-border;
+  }
+  .data-table th {
+    @apply h-10 px-4 text-left align-middle text-xs font-medium uppercase tracking-wide text-foreground-muted whitespace-nowrap;
+  }
+  .data-table tbody tr {
+    @apply border-b border-border-subtle transition-colors duration-150 hover:bg-surface-2/50;
+  }
+  .data-table tbody tr:last-child {
+    @apply border-0;
+  }
+  .data-table td {
+    @apply px-4 py-3 align-middle text-sm;
+  }
+  .data-table tfoot {
+    @apply border-t border-border bg-surface-2 font-medium;
+  }
+  .data-table th.text-right,
+  .data-table td.text-right { text-align: right; }
+  .data-table th.text-center,
+  .data-table td.text-center { text-align: center; }
+}

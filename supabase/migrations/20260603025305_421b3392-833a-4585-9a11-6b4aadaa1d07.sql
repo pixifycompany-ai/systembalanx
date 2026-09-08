@@ -1,0 +1,1 @@
+ALTER TYPE conta_tipo ADD VALUE IF NOT EXISTS 'cartao_debito';
