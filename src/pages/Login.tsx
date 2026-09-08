@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PixifyLogo } from '@/components/shared/PixifyLogo';
 import loginVideo from '@/assets/brand/login.mp4';
+import { BalanxLoader } from '@/components/shared/BalanxLoader';
 
 export default function Login() {
   const { user, loading, signIn } = useAuth();
@@ -35,11 +36,7 @@ export default function Login() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-[#04060b]">
-        <Loader2 className="h-8 w-8 animate-spin text-white/60" />
-      </div>
-    );
+    return <BalanxLoader />;
   }
 
   return (

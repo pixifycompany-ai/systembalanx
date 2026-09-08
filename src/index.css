@@ -489,3 +489,18 @@
   .metric-card-warning { border-color: hsl(var(--warning) / 0.3); background: hsl(var(--warning) / 0.06); }
   .metric-card-info { border-color: hsl(var(--primary) / 0.3); background: hsl(var(--primary) / 0.07); }
 }
+
+/* ===== Anel-cometa (loading premium AURO) ===== */
+@keyframes balanx-spin { to { transform: rotate(1turn); } }
+.balanx-cring {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 90deg, transparent 0 8%, hsl(var(--primary)));
+  -webkit-mask: radial-gradient(farthest-side, #0000 calc(100% - 2.5px), #000 calc(100% - 2.5px));
+          mask: radial-gradient(farthest-side, #0000 calc(100% - 2.5px), #000 calc(100% - 2.5px));
+  animation: balanx-spin 1s cubic-bezier(.5,.15,.5,.85) infinite;
+}
+.balanx-cring::after {
+  content: ""; position: absolute; top: -1.25px; left: 50%; transform: translateX(-50%);
+  width: 2.5px; height: 2.5px; border-radius: 50%; background: hsl(var(--primary));
+  box-shadow: 0 0 6px 1px hsl(var(--primary) / .8);
+}
