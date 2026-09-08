@@ -331,7 +331,17 @@ export default function Categorias() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex items-center gap-3 pt-4">
+                {editingCategoria && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 mr-auto"
+                    onClick={() => { setDeletingId(editingCategoria.id); setModalOpen(false); setDeleteDialogOpen(true); }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1.5" /> Excluir
+                  </Button>
+                )}
                 <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
                   Cancelar
                 </Button>
@@ -411,51 +421,19 @@ function CategoriaGrid({
   return (
     <div className="grid gap-2.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
       {categorias.map(categoria => (
-        <div
+        <button
           key={categoria.id}
           onClick={() => onEdit(categoria)}
-          className="relative cursor-pointer rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl p-3.5 transition-colors hover:border-primary/40"
+          className="text-left cursor-pointer rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl p-3.5 transition-colors hover:border-primary/40"
         >
-          {/* Ações — sempre visíveis (toque) */}
-          <div className="absolute top-2 right-2 flex gap-0.5">
-            <button
-              aria-label="Editar categoria"
-              onClick={(e) => { e.stopPropagation(); onEdit(categoria); }}
-              className="grid place-items-center h-6 w-6 rounded-md text-foreground-muted hover:text-foreground hover:bg-white/10 transition-colors"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              aria-label="Excluir categoria"
-              onClick={(e) => { e.stopPropagation(); onDelete(categoria.id); }}
-              className="grid place-items-center h-6 w-6 rounded-md text-foreground-muted hover:text-destructive hover:bg-white/10 transition-colors"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+          <div className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-foreground/5">
+            <Tag className="h-[18px] w-[18px] text-foreground/75" />
           </div>
-
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl"
-            style={{ backgroundColor: `${categoria.cor}22` }}
-          >
-            <Tag className="h-[18px] w-[18px]" style={{ color: categoria.cor }} />
+          <div className="mt-2.5 text-[13px] font-semibold text-foreground truncate">{categoria.nome}</div>
+          <div className="mt-0.5 text-[11px] text-foreground-muted truncate">
+            {categoria.tipo === 'receita' ? 'Receita' : 'Despesa'}{categoria.is_padrao ? ' · padrão' : ''}
           </div>
-
-          <div className="mt-2.5 text-sm font-semibold text-foreground truncate pr-1">{categoria.nome}</div>
-          <div className="mt-0.5 flex items-center gap-1.5 min-w-0">
-            <span className="text-[11px] text-foreground-muted truncate">
-              {categoria.tipo === 'receita' ? 'Receita' : 'Despesa'}
-            </span>
-            {categoria.empresa_fonte ? (
-              <EmpresaFonteBadge empresa={categoria.empresa_fonte} />
-            ) : null}
-          </div>
-          {categoria.is_padrao && (
-            <span className="mt-2 inline-block text-[9px] font-medium uppercase tracking-wide text-foreground-muted/70">
-              Padrão
-            </span>
-          )}
-        </div>
+        </button>
       ))}
     </div>
   );
