@@ -8,9 +8,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { parseISO } from 'date-fns';
 import type { ContaDB, ContaFormData } from '@/hooks/useContas';
+import { BRANDS, BrandMark, brandByName } from '@/lib/cardBrands';
+import { formatCurrency } from '@/utils/formatters';
+import { cn } from '@/lib/utils';
 
-const CORES = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
-const BANDEIRAS = ['Visa', 'Mastercard', 'Elo', 'American Express', 'Hipercard', 'Diners'];
+const CORES = ['#3B82F6', '#7A2EA8', '#0EA5A5', '#1F9E5A', '#F59E0B', '#EF4444', '#EC4899', '#334155'];
+
+function cardFace(cor: string) {
+  return {
+    background: `linear-gradient(140deg, color-mix(in srgb, ${cor} 82%, #06070d) 0%, color-mix(in srgb, ${cor} 30%, #06070d) 52%, #080a12 100%)`,
+    boxShadow: '0 14px 30px -12px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.14)',
+  } as const;
+}
 
 interface CartaoFormDialogProps {
   open: boolean;
@@ -95,6 +104,24 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Preview ao vivo do cartão (logo oficial + contraste automático) */}
+          {(() => {
+            const cor = form.cor || '#3a78cd';
+            const b = brandByName(form.bandeira);
+            return (
+              <div className="relative overflow-hidden rounded-2xl p-4 text-white" style={cardFace(cor)}>
+                {b && <div className="absolute top-3.5 right-4"><BrandMark brand={b} bg={cor} height={20} /></div>}
+                <div className="text-sm font-semibold pr-16 truncate">{form.nome || 'Novo cartão'}</div>
+                <div className="text-[11px] text-white/60 truncate pr-16">
+                  {[b?.name, form.banco].filter(Boolean).join(' • ') || 'Seu banco'}
+                </div>
+                <div className="mt-4 font-mono tracking-[0.18em] text-white/80 text-sm">•••• •••• •••• ••••</div>
+                <div className="mt-2 text-[10px] uppercase tracking-wide text-white/55">Limite</div>
+                <div className="text-lg font-bold tabular-nums">{form.limite ? formatCurrency(Number(form.limite)) : 'R$ —'}</div>
+              </div>
+            );
+          })()}
+
           <div className="space-y-2">
             <Label>Nome do Cartão *</Label>
             <Input
@@ -104,26 +131,41 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Banco</Label>
-              <Input
-                value={form.banco || ''}
-                onChange={(e) => setForm(p => ({ ...p, banco: e.target.value }))}
-                placeholder="Ex: Nubank"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Bandeira</Label>
-              <Select
-                value={form.bandeira || ''}
-                onValueChange={(v) => setForm(p => ({ ...p, bandeira: v }))}
-              >
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {BANDEIRAS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          <div className="space-y-2">
+            <Label>Banco</Label>
+            <Input
+              value={form.banco || ''}
+              onChange={(e) => setForm(p => ({ ...p, banco: e.target.value }))}
+              placeholder="Ex: Nubank"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Bandeira</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {BRANDS.map((b) => {
+                const on = form.bandeira === b.name;
+                return (
+                  <button
+                    key={b.key}
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, bandeira: on ? '' : b.name }))}
+                    className={cn(
+                      'flex flex-col items-center justify-center gap-1.5 h-[58px] rounded-xl border transition-colors',
+                      on ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border/60 bg-surface/70 hover:border-border',
+                    )}
+                  >
+                    {b.type === 'color' ? (
+                      <span className="inline-flex items-center rounded bg-white/90 px-1 py-0.5"
+                        dangerouslySetInnerHTML={{ __html: b.svg.replace('<svg', '<svg height="14" width="auto"') }} />
+                    ) : (
+                      <span className="inline-flex items-center text-foreground"
+                        dangerouslySetInnerHTML={{ __html: b.svg.replace('<svg', '<svg height="14" width="auto"') }} />
+                    )}
+                    <span className="text-[9.5px] font-semibold text-foreground-muted">{b.name === 'American Express' ? 'Amex' : b.name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -181,18 +223,23 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
           </div>
 
           <div className="space-y-2">
-            <Label>Cor</Label>
+            <Label>Cor do cartão</Label>
             <div className="flex gap-2 flex-wrap">
               {CORES.map(cor => (
                 <button
                   key={cor}
                   type="button"
-                  className={`w-8 h-8 rounded-full border-2 transition ${form.cor === cor ? 'border-foreground scale-110' : 'border-transparent'}`}
-                  style={{ backgroundColor: cor }}
+                  aria-label={`Cor ${cor}`}
+                  className={cn(
+                    'w-9 h-9 rounded-[10px] transition-transform active:scale-95',
+                    form.cor === cor ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : 'ring-1 ring-white/10',
+                  )}
+                  style={{ background: `linear-gradient(135deg, ${cor}, color-mix(in srgb, ${cor} 45%, #06070d))` }}
                   onClick={() => setForm(p => ({ ...p, cor }))}
                 />
               ))}
             </div>
+            <p className="text-[11px] text-foreground-muted">A cor vira um degradê no cartão. A logo da bandeira ajusta o contraste sozinha.</p>
           </div>
 
           <div className="flex items-center justify-between">
