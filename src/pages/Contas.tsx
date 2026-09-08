@@ -140,9 +140,16 @@ export default function Contas() {
       {/* Header desktop */}
       <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-lg md:text-xl font-semibold text-foreground">Contas & Cartões</h1>
-          <p className="text-sm text-muted-foreground">Gerencie suas contas bancárias e cartões de crédito</p>
+          <p className="text-xs text-foreground-muted mb-0.5 font-medium">Suas finanças</p>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
+            {tab === 'contas' ? 'Contas' : 'Cartões'}
+          </h1>
         </div>
+        {tab === 'contas' ? (
+          <Button onClick={() => handleOpenForm()}><Plus className="h-4 w-4 mr-2" />Nova Conta</Button>
+        ) : (
+          <Button onClick={() => { setEditingCartao(null); setIsCartaoFormOpen(true); }}><Plus className="h-4 w-4 mr-2" />Novo Cartão</Button>
+        )}
       </div>
 
       {/* Header mobile estilo iOS */}
@@ -150,6 +157,17 @@ export default function Contas() {
         <MobilePageHeader
           eyebrow="Suas finanças"
           title={tab === 'contas' ? 'Contas' : 'Cartões'}
+          actions={
+            tab === 'contas' ? (
+              <IconButton label="Nova Conta Bancária" emphasis="primary" onClick={() => handleOpenForm()}>
+                <Plus className="h-4 w-4" />
+              </IconButton>
+            ) : (
+              <IconButton label="Novo Cartão de Crédito" emphasis="primary" onClick={() => { setEditingCartao(null); setIsCartaoFormOpen(true); }}>
+                <Plus className="h-4 w-4" />
+              </IconButton>
+            )
+          }
         />
       </div>
 
@@ -162,12 +180,6 @@ export default function Contas() {
 
         {/* TAB CONTAS BANCARIAS */}
         <TabsContent value="contas">
-          <div className="flex justify-end mb-4">
-            <IconButton label="Nova Conta Bancária" emphasis="primary" onClick={() => handleOpenForm()}>
-              <Plus className="h-4 w-4" />
-            </IconButton>
-          </div>
-
           {/* HERO: saldo total — mobile (dark) / desktop (light gradient) */}
           <div className="md:hidden mb-6">
             <HeroStatCard
@@ -267,12 +279,6 @@ export default function Contas() {
 
         {/* TAB CARTOES */}
         <TabsContent value="cartoes">
-          <div className="flex justify-end mb-4">
-            <IconButton label="Novo Cartão de Crédito" emphasis="primary" onClick={() => { setEditingCartao(null); setIsCartaoFormOpen(true); }}>
-              <Plus className="h-4 w-4" />
-            </IconButton>
-          </div>
-
           <div className="md:hidden mb-6">
             <HeroStatCard
               eyebrow="Total em Faturas Abertas"
