@@ -112,7 +112,7 @@ export default function Dashboard() {
         onClick={() => navigate('/fluxo-caixa')}
         className="group relative mb-6 block w-full overflow-hidden rounded-2xl h-32 md:h-40 text-left border border-border/50"
       >
-        <img src={promoBanner} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <img src={promoBanner} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_18%]" />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(3,7,15,0.92) 26%, rgba(3,7,15,0.15))' }} />
         <div className="relative z-10 flex h-full flex-col justify-center px-5">
           <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">Resumo do mês</span>
