@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { TenantProvider } from "@/contexts/TenantContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -25,6 +26,7 @@ import Login from "./pages/Login";
 import CriarConta from "./pages/CriarConta";
 import Onboarding from "./pages/Onboarding";
 import Iara from "./pages/Iara";
+import Superadmin from "./pages/Superadmin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -40,6 +42,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <AuthProvider>
+        <TenantProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -62,6 +65,7 @@ const App = () => (
               <Route path="/contas" element={<ProtectedRoute><AppLayout><Contas /></AppLayout></ProtectedRoute>} />
               <Route path="/perfil" element={<ProtectedRoute><AppLayout><MeuPerfil /></AppLayout></ProtectedRoute>} />
               <Route path="/iara" element={<ProtectedRoute><AppLayout><Iara /></AppLayout></ProtectedRoute>} />
+              <Route path="/superadmin" element={<ProtectedRoute><Superadmin /></ProtectedRoute>} />
               
               
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
@@ -69,6 +73,7 @@ const App = () => (
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
+        </TenantProvider>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>

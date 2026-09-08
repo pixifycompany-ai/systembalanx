@@ -6,6 +6,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import iso from '@/assets/brand/logo_isotipo.svg';
 
@@ -18,6 +19,22 @@ export default function Onboarding() {
   const [step, setStep] = useState<Step>('tipo');
   const [tipo, setTipo] = useState<TenantType>('pessoal');
   const [invites, setInvites] = useState<string[]>(['', '']);
+  const [tenantId, setTenantId] = useState<string | null>(null);
+
+  // Cria o tenant de verdade (owner = usuário) quando há sessão. Sem sessão
+  // (confirmação de e-mail pendente), o wizard segue só visual e cria depois.
+  const ensureTenant = async (): Promise<string | null> => {
+    if (tenantId) return tenantId;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return null;
+      const nomeConta = tipo === 'agencia' ? (nome ? `${nome.split(' ')[0]} · Agência` : 'Minha agência') : (nome || 'Minha conta');
+      const { data, error } = await (supabase as any).rpc('create_tenant_with_owner', { p_nome: nomeConta, p_tipo: tipo });
+      if (error || !data) return null;
+      setTenantId(data as string);
+      return data as string;
+    } catch { return null; }
+  };
 
   const nome = useMemo(() => {
     try { return localStorage.getItem('onboarding:nome') || ''; } catch { return ''; }
@@ -69,7 +86,7 @@ export default function Onboarding() {
             <div className="flex-1" />
             <Button
               className="w-full h-12 rounded-2xl font-semibold text-[15px]"
-              onClick={() => setStep('passos')}
+              onClick={async () => { await ensureTenant(); setStep('passos'); }}
             >
               Continuar
             </Button>
@@ -163,10 +180,16 @@ export default function Onboarding() {
             <div className="flex-1" />
             <Button
               className="w-full h-12 rounded-2xl font-semibold text-[15px]"
-              onClick={() => {
-                const validos = invites.filter((e) => e.trim());
+              onClick={async () => {
+                const validos = invites.map((e) => e.trim()).filter(Boolean);
                 if (validos.length > 0) {
-                  toast({ title: 'Convites na fila', description: `${validos.length} convite(s) serão enviados quando o multiusuário estiver ativo.` });
+                  const tid = await ensureTenant();
+                  if (tid) {
+                    await (supabase as any).from('tenant_invites').insert(
+                      validos.map((email, i) => ({ tenant_id: tid, email, papel: i === 0 ? 'admin' : 'membro' })),
+                    );
+                    toast({ title: 'Convites registrados', description: `${validos.length} convite(s) criado(s).` });
+                  }
                 }
                 setStep('pronto');
               }}

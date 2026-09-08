@@ -12,6 +12,8 @@ import {
 } from '@heroicons/react/24/solid';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useTenant } from '@/contexts/TenantContext';
+import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 
 interface MobileBottomNavProps {
@@ -61,6 +63,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { isSuperadmin } = useTenant();
   const [moreOpen, setMoreOpen] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
 
@@ -186,6 +189,25 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
                 </div>
               </div>
             ))}
+
+            {/* Plataforma (só superadmin) */}
+            {isSuperadmin && (
+              <>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-3.5 mb-2 px-0.5">
+                  Plataforma
+                </p>
+                <div className="mb-3.5 overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl">
+                  <button
+                    onClick={() => { setMoreOpen(false); navigate('/superadmin'); }}
+                    className="flex items-center gap-3 w-full px-4 py-3.5 text-left transition-colors hover:bg-white/5"
+                  >
+                    <ShieldCheckIcon className="h-[18px] w-[18px] shrink-0 text-primary" />
+                    <span className="flex-1 text-sm font-medium text-foreground">Superadmin</span>
+                    <ChevronRightIcon className="h-4 w-4 text-foreground-muted/60 shrink-0" />
+                  </button>
+                </div>
+              </>
+            )}
 
             {/* Sistema · preferências */}
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-3.5 mb-2 px-0.5">
