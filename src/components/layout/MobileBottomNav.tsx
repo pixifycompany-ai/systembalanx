@@ -11,6 +11,7 @@ import {
   ChartBarIcon as ChartSolid, Squares2X2Icon as GridSolid,
 } from '@heroicons/react/24/solid';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Switch } from '@/components/ui/switch';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTenant } from '@/contexts/TenantContext';
 import { ShieldCheckIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
@@ -229,23 +230,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
                   <div className="text-sm font-medium text-foreground">Tema</div>
                   <div className="text-[11px] text-foreground-muted">{theme === 'dark' ? 'Escuro (AURO)' : 'Claro'}</div>
                 </div>
-                <button
-                  role="switch"
-                  aria-checked={theme === 'dark'}
-                  aria-label="Alternar tema"
-                  onClick={toggleTheme}
-                  className={cn(
-                    'relative h-6 w-10 shrink-0 rounded-full transition-colors',
-                    theme === 'dark' ? 'bg-primary' : 'bg-surface-3'
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all',
-                      theme === 'dark' ? 'right-0.5' : 'left-0.5'
-                    )}
-                  />
-                </button>
+                <Switch aria-label="Alternar tema" checked={theme === 'dark'} onCheckedChange={toggleTheme} />
               </div>
             </div>
           </div>
