@@ -127,8 +127,8 @@ export default function MeuPerfil() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Meu Perfil</h1>
-        <p className="text-sm text-muted-foreground">Gerencie suas informações pessoais e preferências.</p>
+        <p className="text-xs text-foreground-muted mb-0.5 font-medium">Conta</p>
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">Meu Perfil</h1>
       </div>
 
       {/* Identidade */}
