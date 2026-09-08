@@ -54,7 +54,7 @@ export function FaturaDetailDialog({
   startInCreate = false,
   onRefresh,
 }: FaturaDetailDialogProps) {
-  const { categorias, createDespesa, updateDespesa, deleteDespesa } = useDespesas();
+  const { categorias, createDespesa, createDespesaParcelada, updateDespesa, deleteDespesa } = useDespesas();
 
   const cartaoFaturas = useMemo(
     () => faturas.filter(f => f.cartao_id === cartao.id).sort((a, b) => b.competencia.localeCompare(a.competencia)),
@@ -75,6 +75,7 @@ export function FaturaDetailDialog({
     data_competencia: isoToday(),
     categoria_id: '',
     fornecedor: '',
+    parcelas: 1,
   });
   const [saving, setSaving] = useState(false);
   const [deleteState, setDeleteState] = useState<LancamentoLite | null>(null);
@@ -116,6 +117,7 @@ export function FaturaDetailDialog({
       data_competencia: isoToday(),
       categoria_id: '',
       fornecedor: '',
+      parcelas: 1,
     });
     setEditing(null);
   };
@@ -133,6 +135,7 @@ export function FaturaDetailDialog({
       data_competencia: l.data_competencia,
       categoria_id: l.categoria_id || '',
       fornecedor: l.fornecedor || '',
+      parcelas: 1,
     });
     setFormOpen(true);
   };
@@ -156,6 +159,8 @@ export function FaturaDetailDialog({
 
       if (editing) {
         await updateDespesa(editing.id, payload);
+      } else if (form.parcelas > 1) {
+        await createDespesaParcelada(payload, form.parcelas);
       } else {
         await createDespesa(payload, true);
       }
@@ -388,7 +393,7 @@ function LancamentoFormInline({
   onSave,
 }: {
   categorias: { id: string; nome: string; tipo: string }[];
-  form: { descricao: string; valor: string | number; data_competencia: string; categoria_id: string; fornecedor: string };
+  form: { descricao: string; valor: string | number; data_competencia: string; categoria_id: string; fornecedor: string; parcelas: number };
   setForm: (updater: any) => void;
   editing: LancamentoLite | null;
   saving: boolean;
@@ -419,6 +424,20 @@ function LancamentoFormInline({
             placeholder="0,00"
           />
         </div>
+        {!editing && (
+          <div className="space-y-1">
+            <Label className="text-xs">Parcelas</Label>
+            <Input
+              type="number"
+              min="1"
+              max="48"
+              step="1"
+              value={form.parcelas}
+              onChange={(e) => setForm((p: any) => ({ ...p, parcelas: parseInt(e.target.value) || 1 }))}
+              placeholder="1"
+            />
+          </div>
+        )}
         <div className="space-y-1">
           <DatePickerField
             label="Data da compra"
