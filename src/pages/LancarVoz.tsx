@@ -142,8 +142,13 @@ export default function LancarVoz() {
                 ))}
               </div>
             )}
-            {fase === 'ouvindo' && <span className="absolute h-32 w-32 rounded-full bg-primary/15 animate-ping" />}
-            <div className="relative grid h-24 w-24 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_12px_30px_-6px_hsl(var(--primary)/0.6)]">
+            {fase === 'ouvindo' && <span className="absolute h-32 w-32 rounded-full bg-[hsl(var(--danger))]/15 animate-ping" />}
+            <div className={cn(
+              'relative grid h-24 w-24 place-items-center rounded-full text-white',
+              fase === 'ouvindo'
+                ? 'bg-[hsl(var(--danger))] shadow-[0_12px_30px_-6px_hsl(var(--danger)/0.6)]'
+                : 'bg-primary shadow-[0_12px_30px_-6px_hsl(var(--primary)/0.6)]',
+            )}>
               {fase === 'processando' ? <CometSpinner size={36} /> : <MicrophoneIcon className="h-10 w-10" />}
             </div>
           </div>

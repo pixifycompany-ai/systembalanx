@@ -507,4 +507,4 @@
 
 /* ===== Onda sonora (IARA ouvindo) ===== */
 @keyframes balanx-wave { 0%, 100% { transform: scaleY(0.28); } 50% { transform: scaleY(1); } }
-.wavebar { width: 4px; border-radius: 9px; background: hsl(var(--primary)); transform-origin: center; animation: balanx-wave 0.9s ease-in-out infinite; }
+.wavebar { width: 4px; border-radius: 9px; background: hsl(var(--danger)); transform-origin: center; animation: balanx-wave 0.9s ease-in-out infinite; }

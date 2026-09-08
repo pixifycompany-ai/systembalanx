@@ -197,7 +197,7 @@ export default function Iara() {
           className={cn(
             'flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors active:scale-95',
             listening
-              ? 'bg-primary/15 border-primary text-primary animate-pulse'
+              ? 'bg-[hsl(var(--danger))]/15 border-[hsl(var(--danger))] text-[hsl(var(--danger))] animate-pulse'
               : 'bg-surface/70 backdrop-blur-xl border-border/60 text-foreground-muted',
           )}
         >
