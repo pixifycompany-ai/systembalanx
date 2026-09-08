@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Send, ChevronLeft, RefreshCw, ShieldCheck, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import { useFinancialAdvisor, type PeriodOption } from '@/hooks/useFinancialAdvisor';
 import {
@@ -111,8 +112,19 @@ export default function Iara() {
               )}
             >
               {m.role === 'assistant' ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                  <ReactMarkdown>{m.content || '…'}</ReactMarkdown>
+                <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-table:my-2 prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      table: ({ node, ...props }) => (
+                        <div className="overflow-x-auto -mx-1">
+                          <table {...props} />
+                        </div>
+                      ),
+                    }}
+                  >
+                    {m.content || '…'}
+                  </ReactMarkdown>
                 </div>
               ) : (
                 <p className="whitespace-pre-wrap">{m.content}</p>
