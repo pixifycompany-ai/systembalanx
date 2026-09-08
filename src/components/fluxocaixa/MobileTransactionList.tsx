@@ -71,37 +71,6 @@ export function MobileTransactionList({
 
   return (
     <div className="space-y-4">
-      {/* Compact summary cards */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-lg border border-border/50 bg-card p-2.5 border-t-2 border-t-emerald-500">
-          <div className="flex items-center gap-1 mb-1">
-            <TrendingUp className="h-3 w-3 text-emerald-500" />
-            <span className="text-[10px] font-medium uppercase text-muted-foreground">Entradas</span>
-          </div>
-          <span className="text-[13px] font-bold text-foreground">{formatCurrency(totals.entradas)}</span>
-        </div>
-        <div className="rounded-lg border border-border/50 bg-card p-2.5 border-t-2 border-t-red-500">
-          <div className="flex items-center gap-1 mb-1">
-            <TrendingDown className="h-3 w-3 text-red-500" />
-            <span className="text-[10px] font-medium uppercase text-muted-foreground">Saídas</span>
-          </div>
-          <span className="text-[13px] font-bold text-foreground">{formatCurrency(totals.saidas)}</span>
-        </div>
-        <div className={cn(
-          "rounded-lg border border-border/50 bg-card p-2.5 border-t-2",
-          totals.saldo >= 0 ? "border-t-blue-500" : "border-t-red-500"
-        )}>
-          <div className="flex items-center gap-1 mb-1">
-            <ArrowLeftRight className="h-3 w-3 text-blue-500" />
-            <span className="text-[10px] font-medium uppercase text-muted-foreground">Saldo</span>
-          </div>
-          <span className={cn(
-            "text-[13px] font-bold",
-            totals.saldo >= 0 ? "text-foreground" : "text-red-500"
-          )}>{formatCurrency(totals.saldo)}</span>
-        </div>
-      </div>
-
       {/* Transaction list */}
       {transactions.length === 0 ? (
         <EmptyState

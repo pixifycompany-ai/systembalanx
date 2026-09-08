@@ -869,22 +869,15 @@ export default function FluxoCaixa() {
         <Tabs value={tipoFilter} onValueChange={(v) => { setTipoFilter(v as TipoTransacao); setStatusFilter([]); }} className="mb-6">
           <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0 scrollbar-hide">
             <TabsList>
-              <TabsTrigger value="todas">Todas</TabsTrigger>
-              <TabsTrigger value="entrada">Entradas</TabsTrigger>
-              <TabsTrigger value="saida">Saídas</TabsTrigger>
+              <TabsTrigger value="todas">Tudo</TabsTrigger>
+              <TabsTrigger value="entrada">Receitas</TabsTrigger>
+              <TabsTrigger value="saida">Despesas</TabsTrigger>
             </TabsList>
           </div>
         </Tabs>
 
-        {/* Mobile filter pills */}
-        <div className="md:hidden mb-4 space-y-2">
-          <Input
-            type="search"
-            placeholder="Buscar..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-9 w-full"
-          />
+        {/* Mobile filter pills — extrato limpo (igual HTML, sem busca) */}
+        <div className="md:hidden mb-4">
           <div className="scroll-pills -mx-3 px-3 flex gap-2 overflow-x-auto scrollbar-hide items-center">
             <button
               type="button"
