@@ -291,6 +291,18 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Nunca peça nem exponha senhas, tokens, dados de cartão ou credenciais. Não invente dados pessoais.
 - Se a margem estiver negativa ou o caixa apertado, seja honesta e construtiva: aponte os maiores ofensores (categorias/atrasos) e próximos passos práticos.
 
+## Períodos e datas (MUITO IMPORTANTE)
+- HOJE é ${hojeISO}. O bloco "CONTEXTO FINANCEIRO" abaixo é um panorama do período "${periodLabel}" selecionado no app. Para QUALQUER outro período que a pessoa mencionar, você DEVE usar as ferramentas para consultar os dados reais daquele intervalo — nunca estime.
+- Traduza expressões em datas ISO (YYYY-MM-DD) a partir de HOJE (${hojeISO}), fuso do Brasil, semana de segunda a domingo:
+  • "hoje" → ${hojeISO} a ${hojeISO}; "amanhã" → dia seguinte; "depois de amanhã" → +2 dias; "ontem" → dia anterior.
+  • "essa semana" → segunda a domingo da semana atual; "semana passada" → segunda a domingo da semana anterior; "próxima semana" → a seguinte.
+  • "esse mês"/"resto do mês" → de HOJE até o último dia do mês atual; "mês passado" → 1º ao último dia do mês anterior.
+  • "do dia X ao dia Y", "entre X e Y" → use exatamente essas datas (assuma o mês/ano atual se só vier o dia).
+- Escolha a ferramenta certa:
+  • Perguntas de resultado/desempenho ("quanto faturei/gastei/lucrei", "margem", "por categoria", "top clientes") → resumo_financeiro (regime de competência).
+  • Perguntas de agenda/caixa futuro-ou-passado por data ("o que vence/tenho a pagar/a receber", "hoje", "amanhã", "essa semana", "resto do mês") → agenda_vencimentos (por data de vencimento).
+- Se a pessoa não disser o período, responda com o período do contexto ("${periodLabel}") e diga qual período usou. Sempre deixe claro o intervalo que os números cobrem.
+
 ## Estilo das respostas
 - Responda em Markdown. Comece pela conclusão/resposta direta e depois os detalhes.
 - Use listas curtas e, quando útil, uma mini-tabela. Emojis com muita moderação (no máximo 1–2 quando destacam algo importante).
@@ -300,7 +312,93 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 # CONTEXTO FINANCEIRO (dados reais deste usuário)
 ${contexto}`;
 
-    // ---- Chamada ao provedor (compatível com API da OpenAI) ----
+    // ---- Ferramentas: a IARA consulta a fonte para QUALQUER intervalo de datas ----
+    const TOOLS = [
+      {
+        type: "function",
+        function: {
+          name: "resumo_financeiro",
+          description: "Resumo por REGIME DE COMPETÊNCIA (data_competencia) de um intervalo de datas: recebido, a receber, pago, a pagar, lucro, margem, despesas por categoria e receita por cliente. Use para perguntas de resultado/desempenho (faturamento, gastos, lucro, margem, por categoria, top clientes) em qualquer período.",
+          parameters: {
+            type: "object",
+            properties: {
+              inicio: { type: "string", description: "Data inicial no formato YYYY-MM-DD" },
+              fim: { type: "string", description: "Data final no formato YYYY-MM-DD" },
+            },
+            required: ["inicio", "fim"],
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "agenda_vencimentos",
+          description: "Lançamentos por DATA DE VENCIMENTO num intervalo (o que vence/entra/sai): lista receitas e despesas com descrição, valor, status e cliente/categoria, mais totais a receber e a pagar. Use para 'hoje', 'amanhã', 'depois de amanhã', 'essa semana', 'semana passada', 'resto do mês', 'do dia X ao Y' e contas a pagar/receber.",
+          parameters: {
+            type: "object",
+            properties: {
+              inicio: { type: "string", description: "Data inicial YYYY-MM-DD" },
+              fim: { type: "string", description: "Data final YYYY-MM-DD" },
+              tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "Filtrar por tipo (padrão: ambos)" },
+              status: { type: "string", enum: ["pago", "recebido", "pendente", "atrasado"], description: "Filtrar por status (opcional)" },
+            },
+            required: ["inicio", "fim"],
+          },
+        },
+      },
+    ];
+
+    async function toolResumo(inicio: string, fim: string): Promise<string> {
+      const [rec, desp] = await Promise.all([
+        safe<any>(supabase.from("receitas").select("valor,status,cliente:clientes(nome),categoria:categorias(nome)").gte("data_competencia", inicio).lte("data_competencia", fim)),
+        safe<any>(supabase.from("despesas").select("valor,status,categoria:categorias(nome)").gte("data_competencia", inicio).lte("data_competencia", fim)),
+      ]);
+      const s = (arr: any[]) => arr.reduce((t, x) => t + Number(x.valor || 0), 0);
+      const recebido = s(rec.filter(r => r.status === "recebido"));
+      const aReceber = s(rec.filter(r => r.status === "pendente"));
+      const atrasadoReceber = s(rec.filter(r => r.status === "atrasado"));
+      const pago = s(desp.filter(d => d.status === "pago"));
+      const aPagar = s(desp.filter(d => d.status === "pendente"));
+      const atrasadoPagar = s(desp.filter(d => d.status === "atrasado"));
+      const lucroP = recebido - pago;
+      const cat: Record<string, number> = {};
+      for (const d of desp.filter(d => d.status === "pago")) { const c = d.categoria?.nome || "Sem categoria"; cat[c] = (cat[c] || 0) + Number(d.valor || 0); }
+      const cli: Record<string, number> = {};
+      for (const r of rec) { const n = r.cliente?.nome; if (n) cli[n] = (cli[n] || 0) + Number(r.valor || 0); }
+      return JSON.stringify({
+        periodo: { inicio, fim },
+        recebido, a_receber: aReceber, atrasado_a_receber: atrasadoReceber,
+        pago, a_pagar: aPagar, atrasado_a_pagar: atrasadoPagar,
+        lucro: lucroP, margem_pct: recebido > 0 ? Number(((lucroP / recebido) * 100).toFixed(1)) : 0,
+        despesas_por_categoria: Object.fromEntries(Object.entries(cat).sort((a, b) => b[1] - a[1]).slice(0, 10)),
+        receita_por_cliente: Object.fromEntries(Object.entries(cli).sort((a, b) => b[1] - a[1]).slice(0, 10)),
+      });
+    }
+
+    async function toolAgenda(inicio: string, fim: string, tipo?: string, status?: string): Promise<string> {
+      const wantRec = tipo !== "despesa";
+      const wantDesp = tipo !== "receita";
+      const [rec, desp] = await Promise.all([
+        wantRec ? safe<any>(supabase.from("receitas").select("descricao,valor,status,data_vencimento,cliente:clientes(nome)").gte("data_vencimento", inicio).lte("data_vencimento", fim)) : Promise.resolve([]),
+        wantDesp ? safe<any>(supabase.from("despesas").select("descricao,valor,status,data_vencimento,categoria:categorias(nome)").gte("data_vencimento", inicio).lte("data_vencimento", fim)) : Promise.resolve([]),
+      ]);
+      let itens = [
+        ...rec.map(r => ({ data: r.data_vencimento, tipo: "receita", descricao: r.descricao || r.cliente?.nome || "Receita", valor: Number(r.valor || 0), status: r.status, quem: r.cliente?.nome || null })),
+        ...desp.map(d => ({ data: d.data_vencimento, tipo: "despesa", descricao: d.descricao || d.categoria?.nome || "Despesa", valor: Number(d.valor || 0), status: d.status, quem: d.categoria?.nome || null })),
+      ];
+      if (status) itens = itens.filter(i => i.status === status);
+      itens.sort((a, b) => String(a.data || "").localeCompare(String(b.data || "")));
+      const aReceber = itens.filter(i => i.tipo === "receita" && i.status !== "recebido").reduce((t, i) => t + i.valor, 0);
+      const aPagar = itens.filter(i => i.tipo === "despesa" && i.status !== "pago").reduce((t, i) => t + i.valor, 0);
+      return JSON.stringify({
+        periodo: { inicio, fim },
+        total_itens: itens.length,
+        a_receber: aReceber, a_pagar: aPagar, saldo_previsto: aReceber - aPagar,
+        itens: itens.slice(0, 40),
+      });
+    }
+
+    // ---- Provedor (compatível com API da OpenAI) + loop de ferramentas ----
     const apiKey = Deno.env.get("OPENAI_API_KEY") || Deno.env.get("IARA_API_KEY");
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "IA não configurada (defina OPENAI_API_KEY)." }), {
@@ -310,36 +408,66 @@ ${contexto}`;
     const apiBase = (Deno.env.get("IARA_API_BASE") || "https://api.openai.com/v1").replace(/\/$/, "");
     const model = Deno.env.get("IARA_MODEL") || "gpt-4o-mini";
 
-    const aiResponse = await fetch(`${apiBase}/chat/completions`, {
+    const callAI = (msgs: any[]) => fetch(`${apiBase}/chat/completions`, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "system", content: systemPrompt }, ...messages],
-        stream: true,
-        temperature: 0.3,
-      }),
+      body: JSON.stringify({ model, messages: msgs, tools: TOOLS, tool_choice: "auto", temperature: 0.3 }),
     });
 
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiResponse.status === 401) {
-        return new Response(JSON.stringify({ error: "Chave de IA inválida. Verifique a OPENAI_API_KEY." }), {
+    const convo: any[] = [{ role: "system", content: systemPrompt }, ...messages];
+    let finalText = "";
+
+    for (let i = 0; i < 4; i++) {
+      const resp = await callAI(convo);
+      if (!resp.ok) {
+        if (resp.status === 429) {
+          return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns segundos." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const errorText = await resp.text();
+        console.error("AI error:", resp.status, errorText);
+        const msg = resp.status === 401 ? "Chave de IA inválida. Verifique a OPENAI_API_KEY." : "Erro ao processar sua mensagem.";
+        return new Response(JSON.stringify({ error: msg }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const errorText = await aiResponse.text();
-      console.error("AI error:", aiResponse.status, errorText);
-      return new Response(JSON.stringify({ error: "Erro ao processar sua mensagem." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const data = await resp.json();
+      const msg = data.choices?.[0]?.message;
+      if (msg?.tool_calls?.length) {
+        convo.push(msg);
+        for (const tc of msg.tool_calls) {
+          let args: any = {};
+          try { args = JSON.parse(tc.function.arguments || "{}"); } catch { /* ignore */ }
+          let result = "{}";
+          try {
+            if (tc.function.name === "resumo_financeiro") result = await toolResumo(args.inicio, args.fim);
+            else if (tc.function.name === "agenda_vencimentos") result = await toolAgenda(args.inicio, args.fim, args.tipo, args.status);
+          } catch (e) {
+            result = JSON.stringify({ erro: e instanceof Error ? e.message : "falha na consulta" });
+          }
+          convo.push({ role: "tool", tool_call_id: tc.id, content: result });
+        }
+        continue; // deixa o modelo ler os resultados e decidir o próximo passo
+      }
+      finalText = msg?.content || "";
+      break;
     }
 
-    return new Response(aiResponse.body, {
+    if (!finalText) finalText = "Não consegui montar a resposta agora. Pode reformular a pergunta?";
+
+    // Entrega no formato SSE que o cliente já sabe ler (choices[].delta.content)
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        const payload = JSON.stringify({ choices: [{ delta: { content: finalText } }] });
+        controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      },
+    });
+
+    return new Response(stream, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (error) {

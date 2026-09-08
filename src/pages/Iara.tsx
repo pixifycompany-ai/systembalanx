@@ -20,10 +20,12 @@ const PERIOD_LABELS: Record<PeriodOption, string> = {
 };
 
 const SUGESTOES = [
-  'Analise meu fluxo de caixa',
+  'O que tenho a pagar essa semana?',
+  'Quanto recebi do dia 1 ao 15?',
+  'O que vence hoje e amanhã?',
   'Quanto posso retirar de lucro?',
   'Quais despesas estão acima da média?',
-  'Projeção para os próximos 3 meses',
+  'Contas a receber no resto do mês',
   'Receitas atrasadas',
 ];
 
