@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { IconButton } from '@/components/shared/IconButton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MetricCard } from '@/components/dashboard/MetricCard';
+import { KpiTriple } from '@/components/shared/KpiTriple';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { MobileDespesasList } from '@/components/despesas/MobileDespesasList';
 import { StatusBadge, CategoryBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -437,55 +439,42 @@ export default function Despesas() {
   return (
     <main className="container py-4 md:py-6">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-foreground">Despesas</h1>
-            <p className="text-sm text-muted-foreground">Gerencie suas despesas e pagamentos</p>
-          </div>
-          <div className="flex gap-1.5">
-            <IconButton label="Importar despesas" onClick={() => setImportDialogOpen(true)}>
-              <Upload className="h-4 w-4" />
-            </IconButton>
-            <IconButton label="Nova Despesa" emphasis="primary" onClick={handleNew}>
-              <Plus className="h-4 w-4" />
-            </IconButton>
-          </div>
-        </div>
+        <MobilePageHeader
+          eyebrow="Pagamentos"
+          title="Despesas"
+          actions={
+            <>
+              <IconButton label="Importar despesas" onClick={() => setImportDialogOpen(true)}>
+                <Upload className="h-4 w-4" />
+              </IconButton>
+              <IconButton label="Nova Despesa" emphasis="primary" onClick={handleNew}>
+                <Plus className="h-4 w-4" />
+              </IconButton>
+            </>
+          }
+        />
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3 mb-6">
-          <MetricCard
-            title="Total Pago"
-            value={totals.pago}
-            variant="positive"
-            icon={CheckCircle}
-          />
-          <MetricCard
-            title="Total Pendente"
-            value={totals.pendente}
-            variant="warning"
-            icon={Clock}
-          />
-          <MetricCard
-            title="Total Geral"
-            value={totals.total}
-            variant="negative"
-            icon={TrendingDown}
-          />
-        </div>
+        {/* Summary — 3 KPIs compactos (igual mockup) */}
+        <KpiTriple
+          items={[
+            { label: 'Pago', value: totals.pago, tone: 'green' },
+            { label: 'Pendente', value: totals.pendente, tone: 'amber' },
+            { label: 'Total', value: totals.total, tone: 'red' },
+          ]}
+        />
 
         {/* Filters */}
         <div className="flex flex-col gap-4 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
-            <Input
-              type="search"
-              placeholder="Buscar por descrição ou fornecedor..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="sm:w-80"
-            />
+          <Input
+            type="search"
+            placeholder="Buscar por descrição ou fornecedor..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full"
+          />
+          <div className="grid grid-cols-3 gap-2">
             <Select value={monthFilter} onValueChange={setMonthFilter}>
-              <SelectTrigger className="sm:w-48">
+              <SelectTrigger className="w-full text-xs">
                 <SelectValue placeholder="Filtrar por mês" />
               </SelectTrigger>
               <SelectContent>
@@ -498,7 +487,7 @@ export default function Despesas() {
               </SelectContent>
             </Select>
             <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
-              <SelectTrigger className="sm:w-48">
+              <SelectTrigger className="w-full text-xs">
                 <SelectValue placeholder="Filtrar por categoria" />
               </SelectTrigger>
               <SelectContent>
@@ -511,7 +500,7 @@ export default function Despesas() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="sm:w-48">
+              <SelectTrigger className="w-full text-xs">
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent>
