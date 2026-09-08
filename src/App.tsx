@@ -22,6 +22,8 @@ import Visao from "./pages/Visao";
 import MeuPerfil from "./pages/MeuPerfil";
 
 import Login from "./pages/Login";
+import CriarConta from "./pages/CriarConta";
+import Onboarding from "./pages/Onboarding";
 import Iara from "./pages/Iara";
 import NotFound from "./pages/NotFound";
 
@@ -44,6 +46,8 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
+              <Route path="/criar-conta" element={<CriarConta />} />
+              <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
               <Route path="/fluxo-caixa" element={<ProtectedRoute><AppLayout><FluxoCaixa /></AppLayout></ProtectedRoute>} />
               <Route path="/analises" element={<ProtectedRoute><AppLayout><Analises /></AppLayout></ProtectedRoute>} />

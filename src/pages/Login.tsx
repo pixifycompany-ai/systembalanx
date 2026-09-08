@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -119,7 +119,9 @@ export default function Login() {
               )}
             </Button>
           </form>
-          <p className="mt-3 text-center text-[11px] text-white/55">Acesso restrito · balanx.com.br</p>
+          <p className="mt-3 text-center text-[12.5px] text-white/70">
+            Não tem conta? <Link to="/criar-conta" className="font-semibold text-white">Criar conta</Link>
+          </p>
         </div>
       </div>
     </div>
