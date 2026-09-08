@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { SkeletonTable } from '@/components/shared/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/utils/formatters';
+import { haptic } from '@/lib/haptics';
 import { Check, Trash2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -63,8 +64,8 @@ function SwipeCard({ item, onConfirm, onDelete, onClick }: { item: Despesa; onCo
 
   const handleTouchEnd = useCallback(() => {
     if (!isDragging.current) return;
-    if (offsetX > THRESHOLD && !isSettled) onConfirm(item.id);
-    else if (offsetX < -THRESHOLD) onDelete(item.id);
+    if (offsetX > THRESHOLD && !isSettled) { haptic(15); onConfirm(item.id); }
+    else if (offsetX < -THRESHOLD) { haptic([10, 30, 10]); onDelete(item.id); }
     setOffsetX(0);
     isDragging.current = false;
     isHorizontal.current = null;
