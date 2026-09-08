@@ -52,7 +52,7 @@ export function MobileContratosList({ contratos, isLoading, onEdit, onDelete, on
           key={c.id}
           className={cn(
             "bg-card border border-border/50 rounded-lg p-3",
-            c.recorrencia === 'mensal' && c.status === 'ativo' && 'border-l-2 border-l-primary'
+            c.recorrencia === 'mensal' && c.status === 'ativo' && 'border-l-[3px] border-l-[hsl(var(--warning))]'
           )}
           onClick={() => onEdit(c)}
         >

@@ -22,7 +22,7 @@ export function CalendarGrid({ year, month, days, onPrev, onNext }: CalendarGrid
   const daysInMonth = lastDay.getDate();
   const prevMonthLast = new Date(year, month, 0).getDate();
 
-  const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const weekDays = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
   const cells: { day: number; currentMonth: boolean; dateStr: string }[] = [];
 
@@ -65,8 +65,8 @@ export function CalendarGrid({ year, month, days, onPrev, onNext }: CalendarGrid
         </div>
 
         <div className="grid grid-cols-7 gap-px mb-1">
-          {weekDays.map((wd) => (
-            <div key={wd} className="text-center text-[10px] font-medium text-muted-foreground py-1">
+          {weekDays.map((wd, i) => (
+            <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">
               {wd}
             </div>
           ))}
