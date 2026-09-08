@@ -473,4 +473,19 @@
   .data-table td.text-right { text-align: right; }
   .data-table th.text-center,
   .data-table td.text-center { text-align: center; }
+
+  /* ===== AURO · glass card (metric-card era no-op; agora vidro fosco) ===== */
+  .metric-card {
+    padding: 1.25rem;
+    border-radius: var(--radius-2xl);
+    border: 1px solid hsl(var(--border) / 0.6);
+    background: hsl(var(--surface) / 0.7);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    backdrop-filter: blur(24px) saturate(1.5);
+    box-shadow: var(--shadow-md);
+  }
+  .metric-card-positive { border-color: hsl(var(--success) / 0.3); background: hsl(var(--success) / 0.06); }
+  .metric-card-negative { border-color: hsl(var(--danger) / 0.3); background: hsl(var(--danger) / 0.06); }
+  .metric-card-warning { border-color: hsl(var(--warning) / 0.3); background: hsl(var(--warning) / 0.06); }
+  .metric-card-info { border-color: hsl(var(--primary) / 0.3); background: hsl(var(--primary) / 0.07); }
 }
