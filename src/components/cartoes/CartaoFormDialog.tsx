@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -97,13 +97,14 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{cartao ? 'Editar Cartão' : 'Novo Cartão de Crédito'}</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[520px] sm:mx-auto">
+        <div className="px-5 pt-1 pb-1">
+          <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
+          <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">{cartao ? 'Editar cartão' : 'Novo cartão'}</h2>
+        </div>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 px-5 pt-3">
           {/* Preview ao vivo do cartão (logo oficial + contraste automático) */}
           {(() => {
             const cor = form.cor || '#3a78cd';
@@ -251,13 +252,15 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={!valid}>
-            {cartao ? 'Salvar' : 'Criar'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div className="flex gap-2.5 px-5 py-5">
+          <button onClick={() => onOpenChange(false)} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
+            Cancelar
+          </button>
+          <button onClick={handleSubmit} disabled={!valid} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50">
+            {cartao ? 'Salvar' : 'Criar cartão'}
+          </button>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }

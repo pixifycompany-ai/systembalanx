@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -340,53 +341,71 @@ export default function Contas() {
       </Tabs>
 
       {/* Conta bancária dialog */}
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editingConta ? 'Editar Conta' : 'Nova Conta'}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
+      <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[480px] sm:mx-auto">
+          <div className="pb-1">
+            <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
+            <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">{editingConta ? 'Editar conta' : 'Nova conta'}</h2>
+          </div>
+
+          <div className="space-y-4 pt-3">
             <div className="space-y-2">
-              <Label>Nome da Conta *</Label>
-              <Input value={formData.nome} onChange={(e) => setFormData(p => ({ ...p, nome: e.target.value }))} />
+              <Label>Nome da conta</Label>
+              <Input value={formData.nome} onChange={(e) => setFormData(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Bradesco PJ" />
             </div>
             <div className="space-y-2">
               <Label>Banco</Label>
-              <Input value={formData.banco || ''} onChange={(e) => setFormData(p => ({ ...p, banco: e.target.value }))} />
+              <Input value={formData.banco || ''} onChange={(e) => setFormData(p => ({ ...p, banco: e.target.value }))} placeholder="Ex: Bradesco" />
             </div>
             <div className="space-y-2">
               <Label>Tipo</Label>
-              <Select value={formData.tipo} onValueChange={(v: any) => setFormData(p => ({ ...p, tipo: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CONTA_TIPOS.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-3 gap-2">
+                {CONTA_TIPOS.map(t => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => setFormData(p => ({ ...p, tipo: t.value as any }))}
+                    className={cn(
+                      'no-touch-min rounded-xl border py-2.5 text-sm font-semibold transition-colors',
+                      formData.tipo === t.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Saldo Inicial</Label>
-              <Input type="number" step="0.01" value={formData.saldo_inicial || ''}
+              <Label>Saldo inicial</Label>
+              <Input type="number" step="0.01" value={formData.saldo_inicial || ''} placeholder="R$ 0,00"
                 onChange={(e) => setFormData(p => ({ ...p, saldo_inicial: parseFloat(e.target.value) || 0 }))} />
             </div>
             <div className="space-y-2">
               <Label>Cor</Label>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex flex-wrap gap-2">
                 {CORES.map(cor => (
                   <button key={cor} type="button"
-                    className={`w-8 h-8 rounded-full border-2 ${formData.cor === cor ? 'border-foreground scale-110' : 'border-transparent'}`}
+                    className={cn('h-10 w-10 rounded-[12px] transition-all', formData.cor === cor ? 'ring-2 ring-white ring-offset-2 ring-offset-transparent scale-105' : 'hover:scale-105')}
                     style={{ backgroundColor: cor }} onClick={() => setFormData(p => ({ ...p, cor }))} />
                 ))}
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <Label>Conta Ativa</Label>
+            <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-surface/60 px-4 py-3">
+              <Label>Conta ativa</Label>
               <Switch checked={formData.ativa} onCheckedChange={(c) => setFormData(p => ({ ...p, ativa: c }))} />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsFormOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={!formData.nome.trim()}>{editingConta ? 'Salvar' : 'Criar'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+          <div className="flex gap-2.5 pt-4">
+            <button onClick={() => setIsFormOpen(false)} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
+              Cancelar
+            </button>
+            <button onClick={handleSubmit} disabled={!formData.nome.trim()} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50">
+              {editingConta ? 'Salvar' : 'Criar'}
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Cartão dialogs */}
       <CartaoFormDialog

@@ -828,7 +828,7 @@ export default function FluxoCaixa() {
     }
   }, [actionParam]);
 
-  // Mobile swipe confirm handler
+  // Mobile swipe confirm handler — atualiza SÓ status+data (update parcial preserva categoria/conta/cliente/etc)
   const handleMobileConfirm = async (t: TransacaoUnificada) => {
     if (t.tabela_origem === 'transferencia') return; // não há "dar baixa" em transferências
     if (t.tipo === 'entrada') {
@@ -836,7 +836,8 @@ export default function FluxoCaixa() {
     } else {
       await updateDespesa(t.id, { status: 'pago', data_pagamento: format(new Date(), 'yyyy-MM-dd') });
     }
-    syncContas();
+    // Re-busca lançamentos + contas pra lista refletir o estado real (com joins de categoria/conta)
+    await Promise.all([refetchFluxo(), refetchContas()]);
   };
 
   // Mobile swipe delete handler
