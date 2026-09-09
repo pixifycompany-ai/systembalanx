@@ -175,11 +175,13 @@ export default function FluxoCaixa() {
   const [saidaFrequency, setSaidaFrequency] = useState('mensal');
   const [saidaRepeatTimes, setSaidaRepeatTimes] = useState(12);
 
-  // Juros/Multa and Tarifa states
+  // Juros/Multa, Tarifa e Imposto states
   const [entradaValorJuros, setEntradaValorJuros] = useState('');
   const [entradaValorTarifa, setEntradaValorTarifa] = useState('');
+  const [entradaValorImposto, setEntradaValorImposto] = useState('');
   const [saidaValorJuros, setSaidaValorJuros] = useState('');
   const [saidaValorTarifa, setSaidaValorTarifa] = useState('');
+  const [saidaValorImposto, setSaidaValorImposto] = useState('');
 
   // Form states
   const [formEntrada, setFormEntrada] = useState<ReceitaFormData>({
@@ -424,6 +426,7 @@ export default function FluxoCaixa() {
     });
     setEntradaValorJuros('');
     setEntradaValorTarifa('');
+    setEntradaValorImposto('');
     setEntradaModalOpen(true);
   };
 
@@ -444,6 +447,7 @@ export default function FluxoCaixa() {
     });
     setEntradaValorJuros('');
     setEntradaValorTarifa('');
+    setEntradaValorImposto('');
     setEntradaModalOpen(true);
   };
 
@@ -468,6 +472,7 @@ export default function FluxoCaixa() {
     });
     setSaidaValorJuros('');
     setSaidaValorTarifa('');
+    setSaidaValorImposto('');
     setSaidaModalOpen(true);
   };
 
@@ -489,6 +494,7 @@ export default function FluxoCaixa() {
     });
     setSaidaValorJuros('');
     setSaidaValorTarifa('');
+    setSaidaValorImposto('');
     setSaidaModalOpen(true);
   };
 
@@ -532,7 +538,8 @@ export default function FluxoCaixa() {
       if (formEntrada.status === 'recebido') {
         const valorJuros = parseFloat(entradaValorJuros) || 0;
         const valorTarifa = parseFloat(entradaValorTarifa) || 0;
-        if (valorJuros > 0 || valorTarifa > 0) {
+        const valorImposto = parseFloat(entradaValorImposto) || 0;
+        if (valorJuros > 0 || valorTarifa > 0 || valorImposto > 0) {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             await createAuxiliaryTransactions({
@@ -540,6 +547,7 @@ export default function FluxoCaixa() {
               descricaoOrigem: formEntrada.descricao,
               valorJuros,
               valorTarifa,
+              valorImposto,
               data_competencia: formEntrada.data_competencia,
               data_vencimento: formEntrada.data_vencimento,
               conta_id: formEntrada.conta_id,
@@ -589,7 +597,8 @@ export default function FluxoCaixa() {
       if (formSaida.status === 'pago') {
         const valorJuros = parseFloat(saidaValorJuros) || 0;
         const valorTarifa = parseFloat(saidaValorTarifa) || 0;
-        if (valorJuros > 0 || valorTarifa > 0) {
+        const valorImposto = parseFloat(saidaValorImposto) || 0;
+        if (valorJuros > 0 || valorTarifa > 0 || valorImposto > 0) {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             await createAuxiliaryTransactions({
@@ -597,6 +606,7 @@ export default function FluxoCaixa() {
               descricaoOrigem: formSaida.descricao,
               valorJuros,
               valorTarifa,
+              valorImposto,
               data_competencia: formSaida.data_competencia,
               data_vencimento: formSaida.data_vencimento,
               conta_id: formSaida.conta_id,
@@ -1466,34 +1476,31 @@ export default function FluxoCaixa() {
         )}
 
         {/* ===== ENTRADA MODAL (modern layout) ===== */}
-        <Dialog open={entradaModalOpen} onOpenChange={setEntradaModalOpen}>
-          <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto p-0">
-            {/* Colored header */}
-            <div className="bg-emerald-500/10 dark:bg-emerald-500/20 p-5 border-b">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                  {editingItem ? 'Editar Entrada' : 'Nova Entrada'}
-                </span>
+        <Sheet open={entradaModalOpen} onOpenChange={setEntradaModalOpen}>
+          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/95 backdrop-blur-2xl sm:max-w-[760px] sm:mx-auto">
+            {/* Header AURO */}
+            <div className="px-5 pt-1 pb-1">
+              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[hsl(var(--success))]">
+                <span className="h-2 w-2 rounded-full bg-[hsl(var(--success))]" />Receita
               </div>
-              <div className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">
-                {formatCurrency(formEntrada.valor || 0)}
-              </div>
+              <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">
+                {editingItem ? 'Editar entrada' : 'Nova entrada'}
+              </h2>
             </div>
-            
-            <form onSubmit={handleSubmitEntrada} className="p-5 space-y-4">
-              {/* Value input */}
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valor *</Label>
+
+            <form onSubmit={handleSubmitEntrada} className="p-5 pt-3 space-y-4">
+              {/* Valor — grande e verde */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Valor *</Label>
                 <Input
                   type="number"
                   step="0.01"
                   min="0.01"
                   value={formEntrada.valor || ''}
                   onChange={(e) => setFormEntrada(prev => ({ ...prev, valor: parseFloat(e.target.value) || 0 }))}
-                  placeholder="0,00"
+                  placeholder="R$ 0,00"
                   required
-                  className="text-lg font-semibold h-12"
+                  className="h-14 text-2xl font-bold tabular-nums text-[hsl(var(--success))]"
                 />
               </div>
 
@@ -1574,22 +1581,29 @@ export default function FluxoCaixa() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-2">
                   <Label className="text-xs">Status</Label>
-                  <Select value={formEntrada.status} onValueChange={(v: 'pendente' | 'recebido' | 'atrasado') => {
-                    setFormEntrada(prev => ({
-                      ...prev,
-                      status: v,
-                      data_recebimento: v === 'recebido' ? (prev.data_recebimento || prev.data_vencimento) : prev.data_recebimento,
-                    }));
-                  }}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="recebido">Recebido</SelectItem>
-                      <SelectItem value="atrasado">Atrasado</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['pendente', 'recebido', 'atrasado'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setFormEntrada(prev => ({
+                          ...prev,
+                          status: s,
+                          data_recebimento: s === 'recebido' ? (prev.data_recebimento || prev.data_vencimento) : prev.data_recebimento,
+                        }))}
+                        className={cn(
+                          'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors',
+                          formEntrada.status === s
+                            ? 'border-transparent bg-primary text-white'
+                            : 'border-border/60 bg-surface/60 text-foreground-muted',
+                        )}
+                      >
+                        {s === 'recebido' ? 'Recebido' : s === 'pendente' ? 'Pendente' : 'Atrasado'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {formEntrada.status === 'recebido' && (
                   <DatePickerField
@@ -1600,35 +1614,23 @@ export default function FluxoCaixa() {
                 )}
               </div>
 
-              {/* Juros/Multa e Tarifa - shown when 'recebido' */}
+              {/* Juros/Multa, Tarifa e Imposto - shown when 'recebido' */}
               {formEntrada.status === 'recebido' && (
-                <div className="grid grid-cols-2 gap-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-3">
+                <div className="grid grid-cols-3 gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3">
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Juros/Multa (R$)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={entradaValorJuros}
-                      onChange={(e) => setEntradaValorJuros(e.target.value)}
-                      placeholder="0,00"
-                      className="h-8 text-xs"
-                    />
+                    <Label className="text-xs font-medium text-amber-500">Juros/Multa</Label>
+                    <Input type="number" step="0.01" min="0" value={entradaValorJuros} onChange={(e) => setEntradaValorJuros(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium text-red-700 dark:text-red-400">Tarifa Bancária (R$)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={entradaValorTarifa}
-                      onChange={(e) => setEntradaValorTarifa(e.target.value)}
-                      placeholder="0,00"
-                      className="h-8 text-xs"
-                    />
+                    <Label className="text-xs font-medium text-[hsl(var(--danger))]">Tarifa</Label>
+                    <Input type="number" step="0.01" min="0" value={entradaValorTarifa} onChange={(e) => setEntradaValorTarifa(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
                   </div>
-                  <p className="col-span-2 text-[10px] text-muted-foreground">
-                    Juros/Multa cria receita extra. Tarifa cria despesa automática.
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-[hsl(var(--warning))]">Imposto</Label>
+                    <Input type="number" step="0.01" min="0" value={entradaValorImposto} onChange={(e) => setEntradaValorImposto(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
+                  </div>
+                  <p className="col-span-3 text-[10px] text-muted-foreground">
+                    Juros/Multa cria receita extra. Tarifa e Imposto criam despesas automáticas (Imposto na categoria Impostos).
                   </p>
                 </div>
               )}
@@ -1682,43 +1684,40 @@ export default function FluxoCaixa() {
                   <Button type="button" variant="ghost" size="sm" onClick={() => setEntradaModalOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={isSaving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-white">
                     {isSaving ? <><LoadingSpinner size="sm" className="mr-2" />Salvando...</> : (editingItem ? 'Atualizar' : 'Adicionar')}
                   </Button>
                 </div>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </SheetContent>
+        </Sheet>
 
         {/* ===== SAÍDA MODAL (modern layout) ===== */}
-        <Dialog open={saidaModalOpen} onOpenChange={setSaidaModalOpen}>
-          <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto p-0">
-            {/* Colored header */}
-            <div className="bg-rose-500/10 dark:bg-rose-500/20 p-5 border-b">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="h-5 w-5 text-rose-600 dark:text-rose-400" />
-                <span className="text-sm font-semibold text-rose-700 dark:text-rose-300">
-                  {editingItem ? 'Editar Saída' : 'Nova Saída'}
-                </span>
+        <Sheet open={saidaModalOpen} onOpenChange={setSaidaModalOpen}>
+          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/95 backdrop-blur-2xl sm:max-w-[760px] sm:mx-auto">
+            {/* Header AURO */}
+            <div className="px-5 pt-1 pb-1">
+              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[hsl(var(--danger))]">
+                <span className="h-2 w-2 rounded-full bg-[hsl(var(--danger))]" />Despesa
               </div>
-              <div className="text-3xl font-bold text-rose-700 dark:text-rose-300">
-                {formatCurrency(formSaida.valor || 0)}
-              </div>
+              <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">
+                {editingItem ? 'Editar saída' : 'Nova saída'}
+              </h2>
             </div>
-            
-            <form onSubmit={handleSubmitSaida} className="p-5 space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valor *</Label>
+
+            <form onSubmit={handleSubmitSaida} className="p-5 pt-3 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Valor *</Label>
                 <Input
                   type="number"
                   step="0.01"
                   min="0.01"
                   value={formSaida.valor || ''}
                   onChange={(e) => setFormSaida(prev => ({ ...prev, valor: parseFloat(e.target.value) || 0 }))}
-                  placeholder="0,00"
+                  placeholder="R$ 0,00"
                   required
-                  className="text-lg font-semibold h-12"
+                  className="h-14 text-2xl font-bold tabular-nums text-[hsl(var(--danger))]"
                 />
               </div>
 
@@ -1806,32 +1805,45 @@ export default function FluxoCaixa() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label className="text-xs">Status</Label>
-                  <Select value={formSaida.status} onValueChange={(v: 'pendente' | 'pago' | 'atrasado') => {
-                    setFormSaida(prev => ({
-                      ...prev,
-                      status: v,
-                      data_pagamento: v === 'pago' ? (prev.data_pagamento || prev.data_vencimento) : prev.data_pagamento,
-                    }));
-                  }}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="pago">Pago</SelectItem>
-                      <SelectItem value="atrasado">Atrasado</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-2">
+                <Label className="text-xs">Tipo de despesa</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {DESPESA_TIPO_OPTIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() => setFormSaida(prev => ({ ...prev, tipo: o.value as 'fixa' | 'variavel' }))}
+                      className={cn(
+                        'no-touch-min rounded-xl border py-2.5 text-sm font-semibold transition-colors',
+                        formSaida.tipo === o.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                      )}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Tipo Despesa</Label>
-                  <Select value={formSaida.tipo} onValueChange={(v: 'fixa' | 'variavel') => setFormSaida(prev => ({ ...prev, tipo: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {DESPESA_TIPO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Status</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['pendente', 'pago', 'atrasado'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setFormSaida(prev => ({
+                        ...prev,
+                        status: s,
+                        data_pagamento: s === 'pago' ? (prev.data_pagamento || prev.data_vencimento) : prev.data_pagamento,
+                      }))}
+                      className={cn(
+                        'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors',
+                        formSaida.status === s ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                      )}
+                    >
+                      {s === 'pago' ? 'Pago' : s === 'pendente' ? 'Pendente' : 'Atrasado'}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -1843,35 +1855,23 @@ export default function FluxoCaixa() {
                 />
               )}
 
-              {/* Juros/Multa e Tarifa - shown when 'pago' */}
+              {/* Juros/Multa, Tarifa e Imposto - shown when 'pago' */}
               {formSaida.status === 'pago' && (
-                <div className="grid grid-cols-2 gap-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-3">
+                <div className="grid grid-cols-3 gap-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-3">
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium text-amber-700 dark:text-amber-400">Juros/Multa (R$)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={saidaValorJuros}
-                      onChange={(e) => setSaidaValorJuros(e.target.value)}
-                      placeholder="0,00"
-                      className="h-8 text-xs"
-                    />
+                    <Label className="text-xs font-medium text-amber-500">Juros/Multa</Label>
+                    <Input type="number" step="0.01" min="0" value={saidaValorJuros} onChange={(e) => setSaidaValorJuros(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium text-red-700 dark:text-red-400">Tarifa Bancária (R$)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={saidaValorTarifa}
-                      onChange={(e) => setSaidaValorTarifa(e.target.value)}
-                      placeholder="0,00"
-                      className="h-8 text-xs"
-                    />
+                    <Label className="text-xs font-medium text-[hsl(var(--danger))]">Tarifa</Label>
+                    <Input type="number" step="0.01" min="0" value={saidaValorTarifa} onChange={(e) => setSaidaValorTarifa(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
                   </div>
-                  <p className="col-span-2 text-[10px] text-muted-foreground">
-                    Juros/Multa e Tarifa criam despesas extras automaticamente.
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-[hsl(var(--warning))]">Imposto</Label>
+                    <Input type="number" step="0.01" min="0" value={saidaValorImposto} onChange={(e) => setSaidaValorImposto(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
+                  </div>
+                  <p className="col-span-3 text-[10px] text-muted-foreground">
+                    Juros/Multa, Tarifa e Imposto criam despesas automáticas (Imposto na categoria Impostos).
                   </p>
                 </div>
               )}
@@ -1924,14 +1924,14 @@ export default function FluxoCaixa() {
                   <Button type="button" variant="ghost" size="sm" onClick={() => setSaidaModalOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={isSaving} className="bg-rose-600 hover:bg-rose-700 text-white">
+                  <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-white">
                     {isSaving ? <><LoadingSpinner size="sm" className="mr-2" />Salvando...</> : (editingItem ? 'Atualizar' : 'Adicionar')}
                   </Button>
                 </div>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </SheetContent>
+        </Sheet>
 
         {/* Receipt Generator */}
         <ReceiptGenerator open={receiptOpen} onOpenChange={setReceiptOpen} data={receiptData} />

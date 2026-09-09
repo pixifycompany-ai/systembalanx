@@ -13,6 +13,7 @@ export async function createAuxiliaryTransactions({
   descricaoOrigem,
   valorJuros,
   valorTarifa,
+  valorImposto = 0,
   data_competencia,
   data_vencimento,
   conta_id,
@@ -25,6 +26,7 @@ export async function createAuxiliaryTransactions({
   descricaoOrigem: string;
   valorJuros: number;
   valorTarifa: number;
+  valorImposto?: number;
   data_competencia: string;
   data_vencimento: string;
   conta_id?: string;
@@ -33,7 +35,7 @@ export async function createAuxiliaryTransactions({
   origem_id?: string;
   origem_tipo?: 'receita' | 'despesa';
 }) {
-  if (valorJuros <= 0 && valorTarifa <= 0) return;
+  if (valorJuros <= 0 && valorTarifa <= 0 && valorImposto <= 0) return;
 
   const linkFields = (() => {
     if (!origem_id || !origem_tipo) return {} as Record<string, string>;
@@ -53,6 +55,42 @@ export async function createAuxiliaryTransactions({
   const catTarifa = categoriasData?.find(c => c.nome === 'Tarifa Bancária' && c.tipo === 'despesa');
 
   const today = new Date().toISOString().split('T')[0];
+
+  // Imposto (sempre despesa) — garante a categoria "Impostos" mesmo se não for padrão.
+  let catImpostoId: string | null = null;
+  if (valorImposto > 0) {
+    const { data: impostoCats } = await supabase
+      .from('categorias')
+      .select('id, nome, tipo')
+      .eq('tipo', 'despesa')
+      .ilike('nome', 'imposto%')
+      .limit(1);
+    if (impostoCats && impostoCats.length > 0) {
+      catImpostoId = impostoCats[0].id;
+    } else {
+      const { data: novaCat } = await supabase
+        .from('categorias')
+        .insert({ user_id, nome: 'Impostos', tipo: 'despesa', cor: '#f5a62e' } as never)
+        .select('id')
+        .single();
+      catImpostoId = (novaCat as { id: string } | null)?.id ?? null;
+    }
+    if (catImpostoId) {
+      await supabase.from('despesas').insert({
+        user_id,
+        descricao: `Imposto - ${descricaoOrigem}`,
+        valor: valorImposto,
+        categoria_id: catImpostoId,
+        conta_id: conta_id || null,
+        data_competencia,
+        data_vencimento,
+        data_pagamento: today,
+        status: 'pago',
+        tipo: 'variavel',
+        ...linkFields,
+      } as never);
+    }
+  }
 
   if (tipo === 'receita') {
     if (valorJuros > 0 && catJurosReceita) {
