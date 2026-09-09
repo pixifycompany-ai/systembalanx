@@ -1,8 +1,10 @@
+import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BalanxLoader } from "@/components/shared/BalanxLoader";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { TenantProvider } from "@/contexts/TenantContext";
@@ -40,6 +42,17 @@ const queryClient = new QueryClient({
   },
 });
 
+/** Splash de abertura (cold start): mostra o BalanxLoader por um tempo mínimo a cada load da página. */
+function BootSplash({ children }: { children: React.ReactNode }) {
+  const [booting, setBooting] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setBooting(false), 1400);
+    return () => clearTimeout(t);
+  }, []);
+  if (booting) return <BalanxLoader />;
+  return <>{children}</>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -48,6 +61,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <BootSplash>
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -76,6 +90,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          </BootSplash>
         </TooltipProvider>
         </TenantProvider>
       </AuthProvider>
