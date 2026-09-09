@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   HomeIcon, DocumentTextIcon, ChartBarIcon, Squares2X2Icon, PlusIcon,
-  SparklesIcon, WalletIcon, CalendarDaysIcon, DocumentChartBarIcon, PresentationChartLineIcon,
+  WalletIcon, CalendarDaysIcon, DocumentChartBarIcon, PresentationChartLineIcon,
   UsersIcon, TagIcon, Cog6ToothIcon, ChevronRightIcon, MoonIcon,
   ArrowsRightLeftIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon,
 } from '@heroicons/react/24/outline';
@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTenant } from '@/contexts/TenantContext';
 import { ShieldCheckIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
+import { Sparkle } from '@/components/shared/Sparkle';
 import { cn } from '@/lib/utils';
 
 interface MobileBottomNavProps {
@@ -35,7 +36,7 @@ const moreSections = [
   {
     label: 'Financeiro',
     items: [
-      { href: '/iara', label: 'IARA · Assistente', icon: SparklesIcon },
+      { href: '/iara', label: 'IARA · Assistente', icon: Sparkle },
       { href: '/contas', label: 'Contas', icon: WalletIcon },
       { href: '/calendario', label: 'Calendário', icon: CalendarDaysIcon },
       { href: '/relatorios', label: 'Relatórios', icon: DocumentChartBarIcon },

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { Sparkle } from '@/components/shared/Sparkle';
 import promoBanner from '@/assets/brand/IMG1.png';
 
 import { HeroStatCard } from '@/components/shared/HeroStatCard';
@@ -152,7 +153,7 @@ export default function Dashboard() {
         >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_8px_18px_-6px_hsl(var(--primary)/0.6)]">
-              <Sparkles className="h-5 w-5" />
+              <Sparkle className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">IARA · Assistente</div>
