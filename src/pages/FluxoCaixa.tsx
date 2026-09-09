@@ -1477,7 +1477,7 @@ export default function FluxoCaixa() {
 
         {/* ===== ENTRADA MODAL (modern layout) ===== */}
         <Sheet open={entradaModalOpen} onOpenChange={setEntradaModalOpen}>
-          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.78] backdrop-blur-2xl sm:max-w-[760px] sm:mx-auto">
+          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[760px] sm:mx-auto">
             {/* Header AURO */}
             <div className="px-5 pt-1 pb-1">
               <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[hsl(var(--success))]">
@@ -1715,7 +1715,7 @@ export default function FluxoCaixa() {
 
         {/* ===== SAÍDA MODAL (modern layout) ===== */}
         <Sheet open={saidaModalOpen} onOpenChange={setSaidaModalOpen}>
-          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.78] backdrop-blur-2xl sm:max-w-[760px] sm:mx-auto">
+          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[760px] sm:mx-auto">
             {/* Header AURO */}
             <div className="px-5 pt-1 pb-1">
               <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[hsl(var(--danger))]">
