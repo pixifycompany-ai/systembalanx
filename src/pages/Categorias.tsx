@@ -12,12 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -218,17 +213,18 @@ export default function Categorias() {
         </Tabs>
 
         {/* Create/Edit Modal */}
-        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogContent className="sm:max-w-[400px]">
-            <DialogHeader>
-              <DialogTitle>
-                {editingCategoria ? 'Editar Categoria' : 'Nova Categoria'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <Sheet open={modalOpen} onOpenChange={setModalOpen}>
+          <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[480px] sm:mx-auto">
+            <div className="pb-1">
+              <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
+              <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">
+                {editingCategoria ? 'Editar categoria' : 'Nova categoria'}
+              </h2>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4 pt-3">
               <div className="space-y-2">
-                <Label htmlFor="nome">Nome *</Label>
+                <Label htmlFor="nome">Nome</Label>
                 <Input
                   id="nome"
                   value={formData.nome}
@@ -239,32 +235,23 @@ export default function Categorias() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tipo">Tipo</Label>
-                <Select
-                  value={formData.tipo}
-                  onValueChange={(value: 'receita' | 'despesa') => 
-                    setFormData(prev => ({ ...prev, tipo: value }))
-                  }
-                  disabled={!!editingCategoria}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="receita">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4 text-green-500" />
-                        Receita
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="despesa">
-                      <div className="flex items-center gap-2">
-                        <TrendingDown className="h-4 w-4 text-red-500" />
-                        Despesa
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Tipo</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['despesa', 'receita'] as const).map((tp) => (
+                    <button
+                      key={tp}
+                      type="button"
+                      disabled={!!editingCategoria}
+                      onClick={() => setFormData(prev => ({ ...prev, tipo: tp }))}
+                      className={cn(
+                        'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors disabled:opacity-50',
+                        formData.tipo === tp ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                      )}
+                    >
+                      {tp === 'despesa' ? 'Despesa' : 'Receita'}
+                    </button>
+                  ))}
+                </div>
               </div>
 
 
@@ -305,10 +292,10 @@ export default function Categorias() {
                       key={cor.value}
                       type="button"
                       className={cn(
-                        "w-8 h-8 rounded-full border-2 transition-all",
-                        formData.cor === cor.value 
-                          ? "border-foreground scale-110" 
-                          : "border-transparent hover:scale-105"
+                        "h-10 w-10 rounded-[12px] transition-all",
+                        formData.cor === cor.value
+                          ? "ring-2 ring-white ring-offset-2 ring-offset-transparent scale-105"
+                          : "hover:scale-105"
                       )}
                       style={{ backgroundColor: cor.value }}
                       onClick={() => setFormData(prev => ({ ...prev, cor: cor.value }))}
@@ -345,7 +332,7 @@ export default function Categorias() {
                 <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSaving}>
+                <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-white">
                   {isSaving ? (
                     <>
                       <LoadingSpinner size="sm" className="mr-2" />
@@ -357,8 +344,8 @@ export default function Categorias() {
                 </Button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </SheetContent>
+        </Sheet>
 
         {/* Delete Confirmation */}
         <ConfirmDialog
