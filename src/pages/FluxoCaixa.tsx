@@ -940,12 +940,6 @@ export default function FluxoCaixa() {
               );
             })()}
 
-            <button
-              onClick={() => setFiltersOpen(true)}
-              className="h-8 px-3.5 shrink-0 inline-flex items-center rounded-full text-xs font-semibold border border-border/70 bg-transparent text-foreground-muted capitalize whitespace-nowrap"
-            >
-              {format(parseISO(`${monthFilter}-01`), 'MMMM', { locale: ptBR })}
-            </button>
           </div>
         </div>
 
