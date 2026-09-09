@@ -46,6 +46,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileTransactionList } from '@/components/fluxocaixa/MobileTransactionList';
 import { PullToRefresh } from '@/components/shared/PullToRefresh';
+import { TransactionDetailSheet } from '@/components/fluxocaixa/TransactionDetailSheet';
 import { toast } from 'sonner';
 
 // Sorting types
@@ -142,6 +143,7 @@ export default function FluxoCaixa() {
   // Modal states
   const [entradaModalOpen, setEntradaModalOpen] = useState(false);
   const [saidaModalOpen, setSaidaModalOpen] = useState(false);
+  const [detailItem, setDetailItem] = useState<TransacaoUnificada | null>(null);
   const [editingItem, setEditingItem] = useState<TransacaoUnificada | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -498,9 +500,13 @@ export default function FluxoCaixa() {
     setSaidaModalOpen(true);
   };
 
-  // Row click handler
+  // Row click handler → abre o detalhe (bottom sheet)
   const handleRowClick = (t: TransacaoUnificada) => {
-    if (t.tabela_origem === 'transferencia') return; // Transferências não abrem modal de edição
+    if (t.tabela_origem === 'transferencia') return; // Transferências não abrem detalhe
+    setDetailItem(t);
+  };
+
+  const handleEditFromDetail = (t: TransacaoUnificada) => {
     if (t.tipo === 'entrada') handleEditEntrada(t);
     else handleEditSaida(t);
   };
@@ -1974,6 +1980,28 @@ export default function FluxoCaixa() {
             </form>
           </SheetContent>
         </Sheet>
+
+        {/* Detalhe do lançamento (bottom sheet) */}
+        {detailItem && (() => {
+          const cats = detailItem.tipo === 'entrada' ? categoriasReceita : categoriasDespesa;
+          const cat = cats.find(c => c.id === detailItem.categoria_id);
+          const conta = contas.find(c => c.id === detailItem.conta_id);
+          const cliente = clientes.find(c => c.id === (detailItem as any).cliente_id);
+          const forma = FORMA_PAGAMENTO_OPTIONS.find(o => o.value === (detailItem as any).forma_pagamento);
+          return (
+            <TransactionDetailSheet
+              transaction={detailItem}
+              contaNome={conta?.nome}
+              categoriaNome={cat?.nome}
+              categoriaCor={cat?.cor}
+              clienteNome={cliente?.nome}
+              formaLabel={forma?.label}
+              onOpenChange={(o) => { if (!o) setDetailItem(null); }}
+              onEdit={handleEditFromDetail}
+              onDelete={handleMobileDelete}
+            />
+          );
+        })()}
 
         {/* Receipt Generator */}
         <ReceiptGenerator open={receiptOpen} onOpenChange={setReceiptOpen} data={receiptData} />
