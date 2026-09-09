@@ -17,12 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { formatPhone } from '@/utils/formatters';
 import { exportClientes } from '@/utils/exportCSV';
@@ -310,104 +305,112 @@ export default function Clientes() {
       )}
 
       {/* Create/Edit Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-[760px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingCliente ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
-          </DialogHeader>
+      <Sheet open={modalOpen} onOpenChange={setModalOpen}>
+        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[520px] sm:mx-auto">
+          <div className="pb-1">
+            <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
+            <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">
+              {editingCliente ? 'Editar cliente' : 'Novo cliente'}
+            </h2>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 pt-3">
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome *</Label>
+              <Label htmlFor="nome">Nome</Label>
               <Input
                 id="nome"
                 value={formData.nome}
                 onChange={(e) => setFormData((p) => ({ ...p, nome: e.target.value }))}
-                placeholder="Nome do cliente ou empresa"
+                placeholder="Ex: Loja Verano"
                 required
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Empresa-fonte *</Label>
-                <Select
-                  value={formData.empresa_fonte || 'PIXIFY'}
-                  onValueChange={(v: EmpresaFonte) => setFormData((p) => ({ ...p, empresa_fonte: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EMPRESA_FONTE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        <span className="flex items-center gap-2">
-                          <span
-                            className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: `hsl(var(--brand-${o.value.toLowerCase()}))` }}
-                          />
-                          {o.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Tipo</Label>
-                <Select
-                  value={formData.tipo}
-                  onValueChange={(v: 'PF' | 'PJ') => setFormData((p) => ({ ...p, tipo: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CLIENTE_TIPO_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-2">
+              <Label>Marca (empresa-fonte)</Label>
+              <Select
+                value={formData.empresa_fonte || 'PIXIFY'}
+                onValueChange={(v: EmpresaFonte) => setFormData((p) => ({ ...p, empresa_fonte: v }))}
+              >
+                <SelectTrigger>
+                  {(() => {
+                    const sel = EMPRESA_FONTE_OPTIONS.find(o => o.value === (formData.empresa_fonte || 'PIXIFY'));
+                    return sel
+                      ? <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: `hsl(var(--brand-${sel.value.toLowerCase()}))` }} />{sel.label}</span>
+                      : <SelectValue />;
+                  })()}
+                </SelectTrigger>
+                <SelectContent>
+                  {EMPRESA_FONTE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: `hsl(var(--brand-${o.value.toLowerCase()}))` }} />
+                        {o.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {CLIENTE_TIPO_OPTIONS.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => setFormData((p) => ({ ...p, tipo: o.value as 'PF' | 'PJ' }))}
+                    className={cn(
+                      'no-touch-min rounded-xl border py-2.5 text-sm font-semibold transition-colors',
+                      formData.tipo === o.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cpf_cnpj">{formData.tipo === 'PJ' ? 'CNPJ' : 'CPF'}</Label>
-                <Input
-                  id="cpf_cnpj"
-                  value={formData.cpf_cnpj || ''}
-                  onChange={(e) => setFormData((p) => ({ ...p, cpf_cnpj: e.target.value.replace(/\D/g, '') }))}
-                  placeholder={formData.tipo === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
-                  maxLength={formData.tipo === 'PJ' ? 14 : 11}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(v: 'ativo' | 'inativo') => setFormData((p) => ({ ...p, status: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ativo">Ativo</SelectItem>
-                    <SelectItem value="inativo">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="space-y-2">
+              <Label htmlFor="cpf_cnpj">{formData.tipo === 'PJ' ? 'CNPJ' : 'CPF'}</Label>
+              <Input
+                id="cpf_cnpj"
+                value={formData.cpf_cnpj || ''}
+                onChange={(e) => setFormData((p) => ({ ...p, cpf_cnpj: e.target.value.replace(/\D/g, '') }))}
+                placeholder={formData.tipo === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
+                maxLength={formData.tipo === 'PJ' ? 14 : 11}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['ativo', 'inativo'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setFormData((p) => ({ ...p, status: s }))}
+                    className={cn(
+                      'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors',
+                      formData.status === s ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                    )}
+                  >
+                    {s === 'ativo' ? 'Ativo' : 'Inativo'}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">E-mail</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email || ''}
                   onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
-                  placeholder="email@exemplo.com"
+                  placeholder="contato@…"
                 />
               </div>
               <div className="space-y-2">
@@ -416,7 +419,7 @@ export default function Clientes() {
                   id="telefone"
                   value={formData.telefone || ''}
                   onChange={(e) => setFormData((p) => ({ ...p, telefone: e.target.value.replace(/\D/g, '') }))}
-                  placeholder="(00) 00000-0000"
+                  placeholder="(11) …"
                   maxLength={11}
                 />
               </div>
@@ -432,20 +435,17 @@ export default function Clientes() {
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? (
-                  <>
-                    <LoadingSpinner size="sm" className="mr-2" />
-                    Salvando...
-                  </>
-                ) : editingCliente ? 'Atualizar' : 'Criar'}
-              </Button>
+            <div className="flex gap-2.5 pt-2">
+              <button type="button" onClick={() => setModalOpen(false)} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
+                Cancelar
+              </button>
+              <button type="submit" disabled={isSaving} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50">
+                {isSaving ? 'Salvando…' : editingCliente ? 'Atualizar' : 'Criar'}
+              </button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDialog
         open={deleteDialogOpen}
