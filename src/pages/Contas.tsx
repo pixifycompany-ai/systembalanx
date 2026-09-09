@@ -15,6 +15,7 @@ import { useContas, type ContaDB, type ContaFormData } from '@/hooks/useContas';
 import { useFaturas, type FaturaDB } from '@/hooks/useFaturas';
 import { formatCurrency } from '@/utils/formatters';
 import { Plus, Pencil, Trash2, Wallet, Building2, CreditCard } from 'lucide-react';
+import { BuildingLibraryIcon, CreditCardIcon, HomeIcon } from '@heroicons/react/24/outline';
 import { HeroStatCard } from '@/components/shared/HeroStatCard';
 import { ListRowCard } from '@/components/shared/ListRowCard';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
@@ -173,9 +174,13 @@ export default function Contas() {
 
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="contas"><Building2 className="h-3.5 w-3.5 mr-1.5" />Contas Bancárias</TabsTrigger>
-          <TabsTrigger value="cartoes"><CreditCard className="h-3.5 w-3.5 mr-1.5" />Cartões de Crédito</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 h-auto rounded-[14px] border border-border/60 bg-surface/70 backdrop-blur-xl p-1 gap-[3px] mb-3.5">
+          <TabsTrigger value="contas" className="flex items-center justify-center gap-1.5 rounded-[10px] py-[9px] text-[12.5px] font-semibold text-foreground-muted data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-none">
+            <BuildingLibraryIcon className="h-[15px] w-[15px]" />Contas
+          </TabsTrigger>
+          <TabsTrigger value="cartoes" className="flex items-center justify-center gap-1.5 rounded-[10px] py-[9px] text-[12.5px] font-semibold text-foreground-muted data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-none">
+            <CreditCardIcon className="h-[15px] w-[15px]" />Cartões
+          </TabsTrigger>
         </TabsList>
 
         {/* TAB CONTAS BANCARIAS */}
@@ -216,10 +221,10 @@ export default function Contas() {
                     onClick={() => handleOpenForm(conta)}
                     leading={
                       <div
-                        className="h-10 w-10 rounded-xl flex items-center justify-center text-white"
-                        style={{ backgroundColor: conta.cor }}
+                        className="grid h-[38px] w-[38px] place-items-center rounded-xl"
+                        style={{ background: `color-mix(in srgb, ${conta.cor} 16%, transparent)`, color: conta.cor }}
                       >
-                        <Building2 className="h-5 w-5" />
+                        <HomeIcon className="h-[18px] w-[18px]" strokeWidth={1.7} />
                       </div>
                     }
                     title={conta.nome}
@@ -279,13 +284,14 @@ export default function Contas() {
 
         {/* TAB CARTOES */}
         <TabsContent value="cartoes">
-          <div className="md:hidden mb-6">
-            <HeroStatCard
-              eyebrow="Total em Faturas Abertas"
-              value={totalCartoes}
-              subtitle={`${creditCards.length} ${creditCards.length === 1 ? 'cartão ativo' : 'cartões ativos'}`}
-              progressTone="danger"
-            />
+          <div className="md:hidden mb-3 rounded-[20px] border border-border/60 bg-surface/70 backdrop-blur-xl px-4 py-[15px]">
+            <div className="text-[11.5px] font-medium text-foreground-muted">Total em Faturas Abertas</div>
+            <div className="mt-[5px] whitespace-nowrap text-[26px] font-[680] tracking-[-0.03em] tabular-nums text-[hsl(var(--danger))]">
+              {formatCurrency(totalCartoes)}
+            </div>
+            <div className="mt-[3px] text-[11.5px] text-foreground-subtle">
+              {creditCards.length} {creditCards.length === 1 ? 'cartão ativo' : 'cartões ativos'}
+            </div>
           </div>
           <Card className="hidden md:block mb-6 bg-gradient-to-r from-purple-500/10 to-pink-500/5 border-purple-500/20">
             <CardContent className="pt-6">
