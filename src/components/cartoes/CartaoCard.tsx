@@ -31,7 +31,7 @@ export function CartaoCard({ cartao, faturaAtual, onPagar, onLancamentos, onImpo
 
   return (
     <div
-      className="relative overflow-hidden rounded-[22px] border border-[rgba(244,236,221,0.12)] px-4 pt-4 pb-3.5 text-[#fff5e9]"
+      className="auro-card relative overflow-hidden rounded-[22px] border border-[rgba(244,236,221,0.12)] px-4 pt-4 pb-3.5 text-[#fff5e9]"
       style={cardFace}
     >
       {/* Header — tocável abre o detalhe/lançamentos */}

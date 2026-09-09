@@ -153,7 +153,7 @@ export function SwipeableTransactionCard({
       {/* Card content */}
       <div
         ref={cardRef}
-        className="relative flex items-center gap-3 p-3.5 bg-surface/60 backdrop-blur-xl border border-border/60 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-transform duration-150 ease-out active:bg-accent/30"
+        className="auro-card relative flex items-center gap-3 p-3.5 bg-surface/55 backdrop-blur-xl border border-border/60 rounded-2xl transition-transform duration-150 ease-out active:bg-accent/30"
         style={{ transform: `translateX(${offsetX}px)` }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

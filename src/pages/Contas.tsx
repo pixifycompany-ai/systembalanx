@@ -284,7 +284,7 @@ export default function Contas() {
 
         {/* TAB CARTOES */}
         <TabsContent value="cartoes">
-          <div className="md:hidden mb-3 rounded-[20px] border border-border/60 bg-surface/70 backdrop-blur-xl px-4 py-[15px]">
+          <div className="md:hidden mb-3 auro-card rounded-[20px] border border-border/60 bg-surface/55 backdrop-blur-xl px-4 py-[15px]">
             <div className="text-[11.5px] font-medium text-foreground-muted">Total em Faturas Abertas</div>
             <div className="mt-[5px] whitespace-nowrap text-[26px] font-[680] tracking-[-0.03em] tabular-nums text-[hsl(var(--danger))]">
               {formatCurrency(totalCartoes)}
