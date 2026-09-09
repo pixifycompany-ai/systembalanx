@@ -22,7 +22,7 @@ export function Header() {
 
   return (
     <header
-      className="sticky top-0 z-40 flex items-center justify-between gap-2 px-3 md:px-6 md:border-b md:border-border md:bg-background/80 md:backdrop-blur-md"
+      className="sticky top-0 z-40 hidden md:flex items-center justify-between gap-2 px-3 md:px-6 md:border-b md:border-border md:bg-background/80 md:backdrop-blur-md"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
         height: 'calc(3.5rem + env(safe-area-inset-top, 0px))',

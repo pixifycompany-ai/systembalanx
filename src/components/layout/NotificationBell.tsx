@@ -65,17 +65,18 @@ export function NotificationBell() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-9 w-9">
+        <button
+          aria-label="Notificações"
+          className="relative grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground transition-colors hover:bg-surface-2"
+        >
           <BellIcon className="h-5 w-5" />
           {totalCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-              {totalCount > 99 ? '99+' : totalCount}
-            </span>
+            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[hsl(var(--warning))] ring-2 ring-background" />
           )}
-        </Button>
+        </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0">
-        <div className="border-b border-border px-4 py-3 flex items-center justify-between">
+      <PopoverContent align="end" className="w-80 p-0 overflow-hidden rounded-2xl border-border/60 bg-surface/95 backdrop-blur-xl shadow-2xl">
+        <div className="border-b border-border/60 px-4 py-3 flex items-center justify-between">
           <div>
             <h4 className="text-sm font-semibold">Notificações</h4>
             {totalCount > 0 && (

@@ -8,6 +8,7 @@ import promoBanner from '@/assets/brand/IMG1.png';
 import { HeroStatCard } from '@/components/shared/HeroStatCard';
 import { ListRowCard } from '@/components/shared/ListRowCard';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
+import { NotificationBell } from '@/components/layout/NotificationBell';
 import { DetailSheet } from '@/components/shared/DetailSheet';
 import { ProgressGoal } from '@/components/dashboard/ProgressGoal';
 import { AlertsWidget } from '@/components/dashboard/AlertsWidget';
@@ -86,9 +87,12 @@ export default function Dashboard() {
         eyebrow={`${greeting()},`}
         title={primeiroNome}
         actions={
-          <span className="text-xs font-semibold uppercase tracking-widest text-foreground-muted px-3 py-1.5 rounded-full border border-border bg-surface">
-            {mesAtual}
-          </span>
+          <>
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted px-3 py-2 rounded-full border border-border/60 bg-surface/70 backdrop-blur-xl">
+              {mesAtual}
+            </span>
+            <NotificationBell />
+          </>
         }
       />
 
