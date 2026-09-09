@@ -881,13 +881,21 @@ export default function FluxoCaixa() {
 
         {/* Tabs and Filters */}
         <Tabs value={tipoFilter} onValueChange={(v) => { setTipoFilter(v as TipoTransacao); setStatusFilter([]); }} className="mb-6">
-          <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0 scrollbar-hide">
-            <TabsList>
-              <TabsTrigger value="todas">Tudo</TabsTrigger>
-              <TabsTrigger value="entrada">Receitas</TabsTrigger>
-              <TabsTrigger value="saida">Despesas</TabsTrigger>
-            </TabsList>
-          </div>
+          <TabsList className="grid w-full grid-cols-3 h-auto rounded-[13px] border border-border/60 bg-surface/70 backdrop-blur-xl p-[3px] gap-0">
+            {[
+              { v: 'todas', l: 'Tudo' },
+              { v: 'entrada', l: 'Receitas' },
+              { v: 'saida', l: 'Despesas' },
+            ].map((t) => (
+              <TabsTrigger
+                key={t.v}
+                value={t.v}
+                className="rounded-[10px] py-2 text-[12.5px] font-semibold text-foreground-muted data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none"
+              >
+                {t.l}
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </Tabs>
 
         {/* Mobile filter pills — igual HTML: Todas contas | Pago | Pendente | mês */}
