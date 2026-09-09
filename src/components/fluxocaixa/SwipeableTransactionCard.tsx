@@ -1,6 +1,8 @@
 import { useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { parseISO } from 'date-fns';
 import { Check, Trash2, ArrowUpRight, CreditCard } from 'lucide-react';
+import { EyeIcon, DocumentDuplicateIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '@/utils/formatters';
 import type { TransacaoUnificada } from '@/types/fluxoCaixa';
 import { cn } from '@/lib/utils';
@@ -30,6 +32,7 @@ interface SwipeableTransactionCardProps {
   onConfirm: (t: TransacaoUnificada) => void;
   onDelete: (t: TransacaoUnificada) => void;
   onClick: (t: TransacaoUnificada) => void;
+  onDuplicate?: (t: TransacaoUnificada) => void;
 }
 
 // iOS Mail-style thresholds
@@ -47,13 +50,27 @@ export function SwipeableTransactionCard({
   onConfirm,
   onDelete,
   onClick,
+  onDuplicate,
 }: SwipeableTransactionCardProps) {
   const [offsetX, setOffsetX] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
   const startX = useRef(0);
   const startY = useRef(0);
   const isDragging = useRef(false);
   const isHorizontal = useRef<boolean | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressClick = useRef(false);
+
+  const clearLongPress = () => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  };
+  const openMenu = useCallback(() => {
+    setOffsetX(0);
+    setMenuOpen(true);
+    suppressClick.current = true;
+    try { navigator.vibrate?.(12); } catch { /* noop */ }
+  }, []);
 
   const isTransfer = t.tabela_origem === 'transferencia';
   const isSettled = isTransfer || t.status === 'recebido' || t.status === 'pago';
@@ -63,11 +80,16 @@ export function SwipeableTransactionCard({
     startY.current = e.touches[0].clientY;
     isDragging.current = false;
     isHorizontal.current = null;
-  }, []);
+    suppressClick.current = false;
+    clearLongPress();
+    longPressTimer.current = setTimeout(() => { if (!isDragging.current) openMenu(); }, 480);
+  }, [openMenu]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     const dx = e.touches[0].clientX - startX.current;
     const dy = e.touches[0].clientY - startY.current;
+
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) clearLongPress();
 
     if (isHorizontal.current === null) {
       if (Math.abs(dx) < INTENT_GUARD && Math.abs(dy) < INTENT_GUARD) return;
@@ -100,6 +122,7 @@ export function SwipeableTransactionCard({
   }, [isSettled]);
 
   const handleTouchEnd = useCallback(() => {
+    clearLongPress();
     if (!isDragging.current) return;
 
     // Fire on either full swipe OR passing threshold on release (iOS Mail-like)
@@ -115,10 +138,16 @@ export function SwipeableTransactionCard({
   }, [offsetX, isSettled, onConfirm, onDelete, t]);
 
   const handleClick = useCallback(() => {
+    if (suppressClick.current) { suppressClick.current = false; return; }
     if (!isDragging.current && offsetX === 0) {
       onClick(t);
     }
   }, [onClick, t, offsetX]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    openMenu();
+  }, [openMenu]);
 
 
   const leftPillWidth = offsetX > 0 && !isSettled ? Math.min(offsetX, ACTION_WIDTH) : 0;
@@ -159,6 +188,7 @@ export function SwipeableTransactionCard({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onClick={handleClick}
+        onContextMenu={handleContextMenu}
       >
         {/* Avatar quadrado (igual HTML: seta verde/vermelha) */}
         <div className={cn(
@@ -194,6 +224,54 @@ export function SwipeableTransactionCard({
           </div>
         </div>
       </div>
+
+      {/* Menu de contexto (long-press / right-click) — portal p/ escapar do overflow/transform */}
+      {menuOpen && createPortal(
+        <div className="fixed inset-0 z-[70]" onClick={() => setMenuOpen(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
+          <div
+            className="absolute inset-x-3 bottom-4 overflow-hidden rounded-2xl border border-border/60 bg-surface/95 shadow-2xl backdrop-blur-2xl"
+            onClick={(e) => e.stopPropagation()}
+            style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
+          >
+            {/* Preview do lançamento */}
+            <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3">
+              <div className={cn(
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                isTransfer ? 'bg-primary/15 text-primary'
+                  : t.tipo === 'entrada' ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]'
+                    : 'bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]',
+              )}>
+                {isTransfer ? <CreditCard className="h-[18px] w-[18px]" /> : <ArrowUpRight className="h-[18px] w-[18px]" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-foreground">{t.descricao}</p>
+                <p className="truncate text-[11px] text-foreground-muted">{[contaNome, statusLabel(t)].filter(Boolean).join(' · ')}</p>
+              </div>
+              <span className={cn(
+                'text-sm font-semibold tabular-nums',
+                isTransfer ? 'text-foreground-muted'
+                  : t.tipo === 'entrada' ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]',
+              )}>
+                {isTransfer ? '' : (t.tipo === 'entrada' ? '+' : '−')}{formatCurrency(t.valor)}
+              </span>
+            </div>
+            {/* Ações */}
+            <button onClick={() => { setMenuOpen(false); onClick(t); }} className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-sm font-medium text-foreground active:bg-white/5">
+              <EyeIcon className="h-5 w-5 text-foreground-muted" /> Ver detalhe
+            </button>
+            {onDuplicate && !isTransfer && (
+              <button onClick={() => { setMenuOpen(false); onDuplicate(t); }} className="flex w-full items-center gap-3 border-t border-border/60 px-4 py-3.5 text-left text-sm font-medium text-foreground active:bg-white/5">
+                <DocumentDuplicateIcon className="h-5 w-5 text-foreground-muted" /> Duplicar
+              </button>
+            )}
+            <button onClick={() => { setMenuOpen(false); onDelete(t); }} className="flex w-full items-center gap-3 border-t border-border/60 px-4 py-3.5 text-left text-sm font-semibold text-[hsl(var(--danger))] active:bg-white/5">
+              <TrashIcon className="h-5 w-5" /> Excluir
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

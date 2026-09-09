@@ -26,6 +26,7 @@ interface MobileTransactionListProps {
   onConfirm: (t: TransacaoUnificada) => void;
   onDelete: (t: TransacaoUnificada) => void;
   onClick: (t: TransacaoUnificada) => void;
+  onDuplicate?: (t: TransacaoUnificada) => void;
   onNewEntrada: () => void;
   onNewSaida: () => void;
 }
@@ -47,6 +48,7 @@ export function MobileTransactionList({
   onConfirm,
   onDelete,
   onClick,
+  onDuplicate,
   onNewEntrada,
   onNewSaida,
 }: MobileTransactionListProps) {
@@ -121,6 +123,7 @@ export function MobileTransactionList({
                       onConfirm={onConfirm}
                       onDelete={onDelete}
                       onClick={onClick}
+                      onDuplicate={onDuplicate}
                     />
                   );
                 })}

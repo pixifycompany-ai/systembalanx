@@ -45,6 +45,8 @@ import { createAuxiliaryTransactions } from '@/hooks/useAuxiliaryTransactions';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileTransactionList } from '@/components/fluxocaixa/MobileTransactionList';
+import { PullToRefresh } from '@/components/shared/PullToRefresh';
+import { toast } from 'sonner';
 
 // Sorting types
 type SortColumn = 'data_vencimento' | 'tipo' | 'descricao' | 'origem' | 'valor' | 'status' | 'categoria' | 'conta';
@@ -827,6 +829,27 @@ export default function FluxoCaixa() {
     setDeleteDialogOpen(true);
   };
 
+  // Long-press → Duplicar (cria cópia como pendente)
+  const handleDuplicate = async (t: TransacaoUnificada) => {
+    if (t.tabela_origem === 'transferencia') return;
+    const base: any = {
+      descricao: `${t.descricao} (cópia)`,
+      valor: Number(t.valor),
+      categoria_id: t.categoria_id || undefined,
+      conta_id: t.conta_id || undefined,
+      data_competencia: (t as any).data_competencia || t.data_vencimento,
+      data_vencimento: t.data_vencimento,
+      status: 'pendente',
+    };
+    if (t.tipo === 'entrada') {
+      await createReceita({ ...base, cliente_id: (t as any).cliente_id || undefined });
+    } else {
+      await createDespesa({ ...base, tipo: 'variavel' });
+    }
+    syncContas();
+    toast.success('Lançamento duplicado', { description: 'Criado como pendente.' });
+  };
+
   return (
     <main className="container py-4 md:py-6">
         {/* Mobile: header iOS-style */}
@@ -1155,18 +1178,21 @@ export default function FluxoCaixa() {
 
         {/* Table / Mobile List */}
         {isMobile ? (
-          <MobileTransactionList
-            transactions={filteredTransacoes}
-            contas={contas}
-            isLoading={isLoading}
-            totals={totals}
-            saldoAtual={contas.filter(c => c.ativa && c.tipo !== 'cartao_credito').reduce((s, c) => s + Number(c.saldo_atual || 0), 0)}
-            onConfirm={handleMobileConfirm}
-            onDelete={handleMobileDelete}
-            onClick={handleRowClick}
-            onNewEntrada={handleNewEntrada}
-            onNewSaida={handleNewSaida}
-          />
+          <PullToRefresh onRefresh={async () => { await Promise.all([refetchFluxo(), refetchContas(), refetchTransferencias()]); }}>
+            <MobileTransactionList
+              transactions={filteredTransacoes}
+              contas={contas}
+              isLoading={isLoading}
+              totals={totals}
+              saldoAtual={contas.filter(c => c.ativa && c.tipo !== 'cartao_credito').reduce((s, c) => s + Number(c.saldo_atual || 0), 0)}
+              onConfirm={handleMobileConfirm}
+              onDelete={handleMobileDelete}
+              onClick={handleRowClick}
+              onDuplicate={handleDuplicate}
+              onNewEntrada={handleNewEntrada}
+              onNewSaida={handleNewSaida}
+            />
+          </PullToRefresh>
         ) : (
         <div className="metric-card overflow-hidden">
           {isLoading ? (
