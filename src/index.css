@@ -393,7 +393,7 @@
 
   .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
   .safe-area-top { padding-top: env(safe-area-inset-top, 0px); }
-  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+  .pb-safe { padding-bottom: max(env(safe-area-inset-bottom, 0px), 22px); }
   .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
 
   /* Animations */
