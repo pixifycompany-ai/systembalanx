@@ -123,7 +123,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
 
       {/* FAB Action Sheet — seletor "Novo lançamento" (igual mockup) */}
       <Sheet open={fabOpen} onOpenChange={setFabOpen}>
-        <SheetContent side="bottom" className="rounded-t-[26px] border-t border-border/60 bg-surface/95 backdrop-blur-2xl" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)' }}>
+        <SheetContent side="bottom" className="rounded-t-[26px] border-t border-border/60 bg-surface/[0.78] backdrop-blur-2xl" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)' }}>
           <SheetHeader className="text-left space-y-0 pb-3.5">
             <span className="text-[11px] font-medium text-foreground-muted">Adicionar</span>
             <SheetTitle className="text-[19px] font-[670] tracking-[-0.02em]">Novo lançamento</SheetTitle>
