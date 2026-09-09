@@ -13,6 +13,7 @@ import { FluxoCaixaReport } from '@/components/fluxocaixa/FluxoCaixaReport';
 import { LinkedAuxiliaryList } from '@/components/fluxocaixa/LinkedAuxiliaryList';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -151,6 +152,7 @@ export default function FluxoCaixa() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [transferData, setTransferData] = useState<TransferenciaFormData>({
     conta_origem_id: '',
     conta_destino_id: '',
@@ -832,6 +834,18 @@ export default function FluxoCaixa() {
           <MobilePageHeader
             eyebrow="Extrato"
             title="Lançamentos"
+            actions={
+              <button
+                onClick={() => setFiltersOpen(true)}
+                aria-label="Filtros"
+                className="relative grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground"
+              >
+                <SlidersHorizontal className="h-[18px] w-[18px]" />
+                {(contaFilter !== 'all' || statusFilter.length > 0) && (
+                  <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[hsl(var(--warning))]" />
+                )}
+              </button>
+            }
           />
         </div>
         <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -876,46 +890,17 @@ export default function FluxoCaixa() {
           </div>
         </Tabs>
 
-        {/* Mobile filter pills — extrato limpo (igual HTML, sem busca) */}
+        {/* Mobile filter pills — igual HTML: Todas contas | Pago | Pendente | mês */}
         <div className="md:hidden mb-4">
           <div className="scroll-pills -mx-3 px-3 flex gap-2 overflow-x-auto scrollbar-hide items-center">
-            <button
-              type="button"
-              aria-label="Mês anterior"
-              onClick={() => {
-                setDateFilterMode('month');
-                setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), -1), 'yyyy-MM'));
-              }}
-              className="h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-full border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="inline-flex items-center h-8 px-3 rounded-full border bg-background text-xs font-medium capitalize shrink-0">
-              {dateFilterMode === 'range' && dateRangeStart && dateRangeEnd
-                ? `${format(dateRangeStart, 'dd/MM')}–${format(dateRangeEnd, 'dd/MM')}`
-                : format(parseISO(`${monthFilter}-01`), 'MMMM yyyy', { locale: ptBR })}
-            </div>
-            <button
-              type="button"
-              aria-label="Próximo mês"
-              onClick={() => {
-                setDateFilterMode('month');
-                setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), 1), 'yyyy-MM'));
-              }}
-              className="h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-full border bg-background text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-
-
             <Popover>
               <PopoverTrigger asChild>
-                <FilterPill
-                  icon={<ArrowLeftRight />}
-                  label="Conta"
-                  value={contaFilter === 'all' ? null : (contas.find(c => c.id === contaFilter)?.nome || null)}
-                  onClear={contaFilter !== 'all' ? () => setContaFilter('all') : undefined}
-                />
+                <button className={cn(
+                  'h-8 px-3.5 shrink-0 inline-flex items-center rounded-full text-xs font-semibold border transition-colors whitespace-nowrap',
+                  contaFilter === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'bg-surface/70 backdrop-blur-xl border-border/60 text-foreground',
+                )}>
+                  {contaFilter === 'all' ? 'Todas contas' : (contas.find(c => c.id === contaFilter)?.nome || 'Conta')}
+                </button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-56 p-2 max-h-72 overflow-y-auto">
                 <button onClick={() => setContaFilter('all')} className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent">Todas as contas</button>
@@ -928,33 +913,82 @@ export default function FluxoCaixa() {
               </PopoverContent>
             </Popover>
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <FilterPill
-                  icon={<Filter />}
-                  label="Status"
-                  value={statusFilter.length > 0 ? `${statusFilter.length}` : null}
-                  onClear={statusFilter.length > 0 ? () => setStatusFilter([]) : undefined}
-                />
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-52 p-2">
-                {statusOptions.map(o => {
-                  const checked = statusFilter.includes(o.value);
-                  return (
-                    <button
-                      key={o.value}
-                      onClick={() => setStatusFilter(prev => checked ? prev.filter(v => v !== o.value) : [...prev, o.value])}
-                      className={cn('w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent flex items-center justify-between', checked && 'bg-accent font-medium')}
-                    >
-                      {o.label}
-                      {checked && <span className="text-primary">✓</span>}
-                    </button>
-                  );
-                })}
-              </PopoverContent>
-            </Popover>
+            {(() => {
+              const pagoVals = ['pago', 'recebido'];
+              const pagoActive = pagoVals.some(v => statusFilter.includes(v));
+              const pendenteActive = statusFilter.includes('pendente');
+              const pill = (active: boolean) => cn(
+                'h-8 px-3.5 shrink-0 inline-flex items-center rounded-full text-xs font-semibold border transition-colors whitespace-nowrap',
+                active ? 'bg-primary text-primary-foreground border-primary' : 'bg-surface/70 backdrop-blur-xl border-border/60 text-foreground',
+              );
+              return (
+                <>
+                  <button
+                    className={pill(pagoActive)}
+                    onClick={() => setStatusFilter(prev => pagoActive ? prev.filter(v => !pagoVals.includes(v)) : [...new Set([...prev, ...pagoVals])])}
+                  >Pago</button>
+                  <button
+                    className={pill(pendenteActive)}
+                    onClick={() => setStatusFilter(prev => pendenteActive ? prev.filter(v => v !== 'pendente') : [...prev, 'pendente'])}
+                  >Pendente</button>
+                </>
+              );
+            })()}
+
+            <div className="inline-flex items-center gap-1 shrink-0">
+              <button
+                type="button" aria-label="Mês anterior"
+                onClick={() => { setDateFilterMode('month'); setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), -1), 'yyyy-MM')); }}
+                className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-border/60 bg-surface/70 text-foreground-muted"
+              ><ChevronLeft className="h-4 w-4" /></button>
+              <span className="h-8 px-3 inline-flex items-center rounded-full border border-border/60 bg-surface/70 text-xs font-semibold capitalize whitespace-nowrap">
+                {format(parseISO(`${monthFilter}-01`), 'MMMM', { locale: ptBR })}
+              </span>
+              <button
+                type="button" aria-label="Próximo mês"
+                onClick={() => { setDateFilterMode('month'); setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), 1), 'yyyy-MM')); }}
+                className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-border/60 bg-surface/70 text-foreground-muted"
+              ><ChevronRight className="h-4 w-4" /></button>
+            </div>
           </div>
         </div>
+
+        {/* Sheet de filtros (botão sliders no header) */}
+        <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+          <SheetContent side="bottom" className="rounded-t-2xl pb-safe">
+            <SheetHeader className="text-left">
+              <SheetTitle>Filtros</SheetTitle>
+            </SheetHeader>
+            <div className="py-4 space-y-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted mb-2">Conta</p>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => setContaFilter('all')} className={cn('h-8 px-3 rounded-full text-xs font-medium border', contaFilter === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'border-border/60')}>Todas</button>
+                  {contas.filter(c => c.tipo !== 'cartao_credito').map(c => (
+                    <button key={c.id} onClick={() => setContaFilter(c.id)} className={cn('h-8 px-3 rounded-full text-xs font-medium border inline-flex items-center gap-1.5', contaFilter === c.id ? 'bg-primary text-primary-foreground border-primary' : 'border-border/60')}>
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.cor }} />{c.nome}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted mb-2">Status</p>
+                <div className="flex flex-wrap gap-2">
+                  {statusOptions.map(o => {
+                    const checked = statusFilter.includes(o.value);
+                    return (
+                      <button key={o.value} onClick={() => setStatusFilter(prev => checked ? prev.filter(v => v !== o.value) : [...prev, o.value])}
+                        className={cn('h-8 px-3 rounded-full text-xs font-medium border', checked ? 'bg-primary text-primary-foreground border-primary' : 'border-border/60')}>
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <Button variant="ghost" className="w-full" onClick={() => { setContaFilter('all'); setStatusFilter([]); }}>Limpar filtros</Button>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* Desktop toolbar */}
         <div className="hidden md:flex md:flex-wrap items-center gap-3 mb-4">
