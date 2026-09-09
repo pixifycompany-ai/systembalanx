@@ -4,7 +4,7 @@ import {
   HomeIcon, DocumentTextIcon, ChartBarIcon, Squares2X2Icon, PlusIcon,
   WalletIcon, CalendarDaysIcon, DocumentChartBarIcon, PresentationChartLineIcon,
   UsersIcon, TagIcon, Cog6ToothIcon, ChevronRightIcon, MoonIcon,
-  ArrowsRightLeftIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon,
+  ChevronUpIcon, ChevronDownIcon, ArrowsUpDownIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeSolid, DocumentTextIcon as DocumentSolid,
@@ -121,50 +121,40 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
         })}
       </nav>
 
-      {/* FAB Action Sheet */}
+      {/* FAB Action Sheet — seletor "Novo lançamento" (igual mockup) */}
       <Sheet open={fabOpen} onOpenChange={setFabOpen}>
-        <SheetContent side="bottom" className="rounded-t-2xl pb-safe">
-          <SheetHeader>
-            <SheetTitle>Novo Lançamento</SheetTitle>
+        <SheetContent side="bottom" className="rounded-t-[26px] border-t border-border/60 bg-surface/95 backdrop-blur-2xl pb-safe">
+          <SheetHeader className="text-left space-y-0 pb-3.5">
+            <span className="text-[11px] font-medium text-foreground-muted">Adicionar</span>
+            <SheetTitle className="text-[19px] font-[670] tracking-[-0.02em]">Novo lançamento</SheetTitle>
           </SheetHeader>
-          <div className="grid grid-cols-2 gap-3 py-4">
-            <button
-              onClick={() => { setFabOpen(false); navigate('/lancar-voz'); }}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-primary/10 hover:bg-primary/15 transition-colors border border-primary/20"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
-                <MicrophoneIcon className="h-5 w-5 text-primary" />
-              </div>
-              <span className="text-sm font-medium">Por voz</span>
-            </button>
-            <button
-              onClick={() => { setFabOpen(false); onNewEntrada(); }}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-secondary hover:bg-accent transition-colors"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
-                <ArrowTrendingUpIcon className="h-5 w-5 text-emerald-500" />
-              </div>
-              <span className="text-sm font-medium">Receita</span>
-            </button>
-            <button
-              onClick={() => { setFabOpen(false); onNewSaida(); }}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-secondary hover:bg-accent transition-colors"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
-                <ArrowTrendingDownIcon className="h-5 w-5 text-red-500" />
-              </div>
-              <span className="text-sm font-medium">Despesa</span>
-            </button>
-            <button
-              onClick={() => { setFabOpen(false); onNewTransferencia(); }}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-secondary hover:bg-accent transition-colors"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted-foreground/10">
-                <ArrowsRightLeftIcon className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <span className="text-sm font-medium">Transferência</span>
-            </button>
+
+          <div className="flex gap-2.5">
+            {[
+              { label: 'Receita', icon: ChevronUpIcon, tint: 'bg-[hsl(var(--success)/0.24)] text-[hsl(var(--success))]', onClick: onNewEntrada },
+              { label: 'Despesa', icon: ChevronDownIcon, tint: 'bg-[hsl(var(--danger)/0.24)] text-[hsl(var(--danger))]', onClick: onNewSaida },
+              { label: 'Transferência', icon: ArrowsUpDownIcon, tint: 'bg-primary/25 text-[hsl(var(--primary))]', onClick: onNewTransferencia },
+            ].map((t) => (
+              <button
+                key={t.label}
+                onClick={() => { setFabOpen(false); t.onClick(); }}
+                className="auro-card flex flex-1 flex-col items-center gap-2.5 rounded-2xl border border-border/60 bg-surface/55 px-2 py-4 backdrop-blur-xl transition-transform active:scale-[0.97]"
+              >
+                <span className={cn('grid h-11 w-11 place-items-center rounded-[14px]', t.tint)}>
+                  <t.icon className="h-5 w-5" strokeWidth={2.4} />
+                </span>
+                <span className="text-[12.5px] font-semibold text-foreground">{t.label}</span>
+              </button>
+            ))}
           </div>
+
+          <button
+            onClick={() => { setFabOpen(false); navigate('/lancar-voz'); }}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-border/60 bg-surface/55 py-3 text-[13px] font-semibold text-foreground backdrop-blur-xl transition-transform active:scale-[0.99]"
+          >
+            <MicrophoneIcon className="h-4 w-4 text-primary" />
+            Lançar por voz
+          </button>
         </SheetContent>
       </Sheet>
 
