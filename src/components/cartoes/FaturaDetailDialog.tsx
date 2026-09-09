@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Plus, Receipt, Pencil, Trash2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
+import { PlusIcon } from '@heroicons/react/24/outline';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { IconButton } from '@/components/shared/IconButton';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/utils/formatters';
 import { rotuloCompetencia } from '@/utils/faturaCalculator';
-import { useDespesas, type DespesaDB } from '@/hooks/useDespesas';
+import { useDespesas } from '@/hooks/useDespesas';
 import type { ContaDB } from '@/hooks/useContas';
 import type { FaturaDB, FaturaPagamentoDB } from '@/hooks/useFaturas';
 
@@ -100,7 +99,6 @@ export function FaturaDetailDialog({
     if (open) {
       setIdx(0);
       if (startInCreate) {
-        // Pequeno delay garante que fatura já esteja carregada
         setTimeout(() => openCreate(), 50);
       }
     } else {
@@ -167,9 +165,7 @@ export function FaturaDetailDialog({
 
       setFormOpen(false);
       resetForm();
-      // Refresh global de faturas (atualiza valor_total/em aberto na UI)
       await onRefresh?.();
-      // Refresh local da lista de lançamentos
       if (fatura) await fetchLancamentos(fatura.id);
     } finally {
       setSaving(false);
@@ -184,36 +180,45 @@ export function FaturaDetailDialog({
     if (fatura) await fetchLancamentos(fatura.id);
   };
 
+  const sheetClass = 'p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[640px] sm:mx-auto';
+
+  const Header = () => (
+    <div className="flex items-center gap-2.5 px-5 pt-1 pb-3">
+      <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+      </span>
+      <h2 className="text-[18px] font-[670] tracking-[-0.02em] text-foreground">Faturas — {cartao.nome}</h2>
+    </div>
+  );
+
   if (!fatura) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>{cartao.nome}</DialogTitle></DialogHeader>
-          <div className="py-6 text-center text-muted-foreground text-sm">
-            Nenhuma fatura ainda. Crie um lançamento para abrir a primeira fatura deste cartão.
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" showHandle className={sheetClass}>
+          <Header />
+          <div className="px-5 pb-6">
+            <div className="py-6 text-center text-sm text-foreground-muted">
+              Nenhuma fatura ainda. Crie um lançamento para abrir a primeira fatura deste cartão.
+            </div>
+            {!formOpen && (
+              <button onClick={openCreate} className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white">
+                <PlusIcon className="h-4 w-4" strokeWidth={2.4} /> Novo lançamento
+              </button>
+            )}
+            {formOpen && (
+              <LancamentoFormInline
+                categorias={categorias}
+                form={form}
+                setForm={setForm}
+                editing={editing}
+                saving={saving}
+                onCancel={() => { setFormOpen(false); resetForm(); }}
+                onSave={handleSave}
+              />
+            )}
           </div>
-          <Button onClick={async () => {
-            // Cria fatura por meio de uma despesa pendente vazia? Em vez disso, abra o form de criar
-            // forçando geração da fatura via createDespesa.
-            openCreate();
-          }}>
-            <Plus className="h-4 w-4 mr-2" /> Novo lançamento
-          </Button>
-
-          {/* Form mesmo sem fatura: createDespesa cria a fatura no ato */}
-          {formOpen && (
-            <LancamentoFormInline
-              categorias={categorias}
-              form={form}
-              setForm={setForm}
-              editing={editing}
-              saving={saving}
-              onCancel={() => { setFormOpen(false); resetForm(); }}
-              onSave={handleSave}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     );
   }
 
@@ -222,151 +227,131 @@ export function FaturaDetailDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 pr-8">
-              <Receipt className="h-5 w-5" /> Faturas — {cartao.nome}
-            </DialogTitle>
-          </DialogHeader>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" showHandle className={sheetClass}>
+          <Header />
 
-          {/* Navegação entre meses + ação primária */}
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <Button variant="ghost" size="sm" disabled={idx >= cartaoFaturas.length - 1} onClick={() => setIdx(i => i + 1)}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="text-center flex-1">
-              <p className="text-xs text-muted-foreground uppercase">Competência</p>
-              <p className="font-semibold">{rotuloCompetencia(fatura.competencia)}</p>
+          <div className="px-5 pb-5 space-y-4">
+            {/* Navegação entre meses */}
+            <div className="flex items-center justify-between gap-2">
+              <button
+                disabled={idx >= cartaoFaturas.length - 1}
+                onClick={() => setIdx(i => i + 1)}
+                className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-surface/60 text-foreground disabled:opacity-30"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <div className="flex-1 text-center">
+                <p className="text-[10px] uppercase tracking-wide text-foreground-muted">Competência</p>
+                <p className="text-sm font-semibold text-foreground">{rotuloCompetencia(fatura.competencia)}</p>
+              </div>
+              <button
+                disabled={idx <= 0}
+                onClick={() => setIdx(i => i - 1)}
+                className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-surface/60 text-foreground disabled:opacity-30"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
-            <Button variant="ghost" size="sm" disabled={idx <= 0} onClick={() => setIdx(i => i - 1)}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
 
-          <div className="flex justify-end mb-3">
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-1" /> Novo lançamento
-            </Button>
-          </div>
+            {/* Novo lançamento */}
+            <div className="flex justify-end">
+              <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-[12px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] px-4 py-2.5 text-[13px] font-semibold text-white">
+                <PlusIcon className="h-4 w-4" strokeWidth={2.4} /> Novo lançamento
+              </button>
+            </div>
 
-          {/* Resumo */}
-          <div className="grid grid-cols-3 gap-2 rounded-lg bg-muted p-3 text-sm mb-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="font-semibold tabular-nums">{formatCurrency(Number(fatura.valor_total))}</p>
+            {/* Resumo */}
+            <div className="auro-card grid grid-cols-3 gap-y-3 rounded-2xl border border-border/60 bg-surface/55 px-4 py-3.5">
+              <Summary lab="Total" val={formatCurrency(Number(fatura.valor_total))} />
+              <Summary lab="Pago" val={formatCurrency(Number(fatura.valor_pago))} />
+              <Summary lab="Em aberto" val={formatCurrency(restante)} strong danger={restante > 0} />
+              <Summary lab="Vencimento" val={format(parseISO(fatura.data_vencimento), 'dd/MM/yyyy')} />
+              <Summary lab="Fechamento" val={format(parseISO(fatura.data_fechamento), 'dd/MM/yyyy')} />
+              <Summary lab="Status" val={fatura.status.replace('_', ' ')} capitalize />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Pago</p>
-              <p className="font-semibold tabular-nums">{formatCurrency(Number(fatura.valor_pago))}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Em aberto</p>
-              <p className="font-bold tabular-nums">{formatCurrency(restante)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Vencimento</p>
-              <p className="font-medium">{format(parseISO(fatura.data_vencimento), 'dd/MM/yyyy')}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Fechamento</p>
-              <p className="font-medium">{format(parseISO(fatura.data_fechamento), 'dd/MM/yyyy')}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Status</p>
-              <p className="font-medium capitalize">{fatura.status.replace('_', ' ')}</p>
-            </div>
-          </div>
 
-          {/* Form inline */}
-          {formOpen && (
-            <LancamentoFormInline
-              categorias={categorias}
-              form={form}
-              setForm={setForm}
-              editing={editing}
-              saving={saving}
-              onCancel={() => { setFormOpen(false); resetForm(); }}
-              onSave={handleSave}
-            />
-          )}
+            {/* Form inline */}
+            {formOpen && (
+              <LancamentoFormInline
+                categorias={categorias}
+                form={form}
+                setForm={setForm}
+                editing={editing}
+                saving={saving}
+                onCancel={() => { setFormOpen(false); resetForm(); }}
+                onSave={handleSave}
+              />
+            )}
 
-          {/* Lançamentos */}
-          <div className="mb-4">
-            <h4 className="text-xs uppercase text-muted-foreground mb-2">
-              Lançamentos ({lancamentos.length})
-            </h4>
-            {loadingLancs ? (
-              <p className="text-sm text-muted-foreground py-3 text-center">Carregando...</p>
-            ) : lancamentos.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-3 text-center">Sem lançamentos.</p>
-            ) : (
-              <ul className="divide-y divide-border border border-border rounded-lg">
-                {lancamentos.map((l) => (
-                  <li key={l.id} className="flex items-center justify-between p-2.5 text-sm gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{l.descricao}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(parseISO(l.data_competencia), "dd 'de' MMM", { locale: ptBR })}
-                        {l.categoria?.nome ? ` • ${l.categoria.nome}` : ''}
-                        {l.fornecedor ? ` • ${l.fornecedor}` : ''}
-                      </p>
+            {/* Lançamentos */}
+            <div>
+              <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
+                Lançamentos ({lancamentos.length})
+              </h4>
+              {loadingLancs ? (
+                <p className="py-3 text-center text-sm text-foreground-muted">Carregando…</p>
+              ) : lancamentos.length === 0 ? (
+                <p className="py-3 text-center text-sm text-foreground-muted">Sem lançamentos.</p>
+              ) : (
+                <div className="auro-card overflow-hidden rounded-2xl border border-border/60 bg-surface/55 divide-y divide-border/50">
+                  {lancamentos.map((l) => (
+                    <div key={l.id} className="flex items-center gap-3 px-4 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">{l.descricao}</p>
+                        <p className="truncate text-[11px] text-foreground-muted">
+                          {format(parseISO(l.data_competencia), "dd 'de' MMM", { locale: ptBR })}
+                          {l.categoria?.nome ? ` · ${l.categoria.nome}` : ''}
+                          {l.fornecedor ? ` · ${l.fornecedor}` : ''}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-bold tabular-nums text-foreground">{formatCurrency(Number(l.valor))}</span>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button onClick={() => openEdit(l)} aria-label="Editar" className="grid h-8 w-8 place-items-center rounded-lg text-foreground-muted hover:bg-white/5 hover:text-foreground">
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button onClick={() => setDeleteState(l)} aria-label="Excluir" className="grid h-8 w-8 place-items-center rounded-lg text-[hsl(var(--danger))] hover:bg-white/5">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                    <span className="font-semibold tabular-nums">{formatCurrency(Number(l.valor))}</span>
-                    <div className="flex gap-0.5 shrink-0">
-                      <IconButton
-                        label="Editar lançamento"
-                        tooltipSide="top"
-                        variant="ghost"
-                        className="h-7 w-7"
-                        onClick={() => openEdit(l)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </IconButton>
-                      <IconButton
-                        label="Excluir lançamento"
-                        tooltipSide="top"
-                        emphasis="destructive"
-                        className="h-7 w-7"
-                        onClick={() => setDeleteState(l)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </IconButton>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Pagamentos */}
+            {pagsFatura.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Pagamentos</h4>
+                <div className="auro-card overflow-hidden rounded-2xl border border-border/60 bg-surface/55 divide-y divide-border/50">
+                  {pagsFatura.map(p => {
+                    const conta = contas.find(c => c.id === p.conta_id);
+                    return (
+                      <div key={p.id} className="flex items-center justify-between px-4 py-3">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{conta?.nome || 'Conta'}</p>
+                          <p className="text-[11px] text-foreground-muted">{format(parseISO(p.data_pagamento), 'dd/MM/yyyy')}</p>
+                        </div>
+                        <span className="text-sm font-bold tabular-nums text-[hsl(var(--success))]">{formatCurrency(Number(p.valor))}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {restante > 0 && (
+              <button
+                onClick={() => onPagar(fatura)}
+                className="w-full rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3.5 text-[14px] font-semibold text-white"
+              >
+                Pagar fatura
+              </button>
             )}
           </div>
-
-          {/* Pagamentos */}
-          {pagsFatura.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-xs uppercase text-muted-foreground mb-2">Pagamentos</h4>
-              <ul className="divide-y divide-border border border-border rounded-lg">
-                {pagsFatura.map(p => {
-                  const conta = contas.find(c => c.id === p.conta_id);
-                  return (
-                    <li key={p.id} className="flex items-center justify-between p-2.5 text-sm">
-                      <div>
-                        <p className="font-medium">{conta?.nome || 'Conta'}</p>
-                        <p className="text-xs text-muted-foreground">{format(parseISO(p.data_pagamento), 'dd/MM/yyyy')}</p>
-                      </div>
-                      <span className="font-semibold tabular-nums text-emerald-600">{formatCurrency(Number(p.valor))}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-
-          {restante > 0 && (
-            <Button className="w-full" onClick={() => onPagar(fatura)}>
-              Pagar Fatura
-            </Button>
-          )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDialog
         open={!!deleteState}
@@ -381,7 +366,18 @@ export function FaturaDetailDialog({
   );
 }
 
-// ----------------- Form inline -----------------
+function Summary({ lab, val, strong, danger, capitalize }: { lab: string; val: string; strong?: boolean; danger?: boolean; capitalize?: boolean }) {
+  return (
+    <div>
+      <p className="text-[10.5px] text-foreground-muted">{lab}</p>
+      <p className={`mt-0.5 text-[13.5px] tabular-nums ${strong ? 'font-bold' : 'font-semibold'} ${danger ? 'text-[hsl(var(--danger))]' : 'text-foreground'} ${capitalize ? 'capitalize' : ''}`}>
+        {val}
+      </p>
+    </div>
+  );
+}
+
+// ----------------- Form inline (AURO) -----------------
 
 function LancamentoFormInline({
   categorias,
@@ -392,7 +388,7 @@ function LancamentoFormInline({
   onCancel,
   onSave,
 }: {
-  categorias: { id: string; nome: string; tipo: string }[];
+  categorias: { id: string; nome: string; tipo: string; cor?: string }[];
   form: { descricao: string; valor: string | number; data_competencia: string; categoria_id: string; fornecedor: string; parcelas: number };
   setForm: (updater: any) => void;
   editing: LancamentoLite | null;
@@ -400,33 +396,38 @@ function LancamentoFormInline({
   onCancel: () => void;
   onSave: () => void;
 }) {
+  const catSel = categorias.find(c => c.id === form.categoria_id);
   return (
-    <div className="rounded-lg border border-border bg-card p-3 mb-4 space-y-3">
-      <p className="text-xs font-semibold uppercase text-muted-foreground">
+    <div className="auro-card space-y-3.5 rounded-2xl border border-primary/30 bg-surface/60 p-4">
+      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-primary">
+        <span className="h-2 w-2 rounded-full bg-primary" />
         {editing ? 'Editar lançamento' : 'Novo lançamento'}
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="sm:col-span-2 space-y-1">
-          <Label className="text-xs">Descrição *</Label>
-          <Input
-            value={form.descricao}
-            onChange={(e) => setForm((p: any) => ({ ...p, descricao: e.target.value }))}
-            placeholder="Ex: Assinatura Netflix"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Valor *</Label>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Descrição *</Label>
+        <Input
+          value={form.descricao}
+          onChange={(e) => setForm((p: any) => ({ ...p, descricao: e.target.value }))}
+          placeholder="Ex: Assinatura Netflix"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Valor *</Label>
           <Input
             type="number"
             step="0.01"
             value={form.valor}
             onChange={(e) => setForm((p: any) => ({ ...p, valor: e.target.value }))}
-            placeholder="0,00"
+            placeholder="R$ 0,00"
+            className="h-12 text-lg font-bold tabular-nums text-[hsl(var(--danger))]"
           />
         </div>
         {!editing && (
-          <div className="space-y-1">
-            <Label className="text-xs">Parcelas</Label>
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Parcelas</Label>
             <Input
               type="number"
               min="1"
@@ -435,47 +436,63 @@ function LancamentoFormInline({
               value={form.parcelas}
               onChange={(e) => setForm((p: any) => ({ ...p, parcelas: parseInt(e.target.value) || 1 }))}
               placeholder="1"
+              className="h-12"
             />
           </div>
         )}
-        <div className="space-y-1">
-          <DatePickerField
-            label="Data da compra"
-            required
-            showQuickButtons
-            value={form.data_competencia}
-            onChange={(v) => setForm((p: any) => ({ ...p, data_competencia: v }))}
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Categoria</Label>
-          <Select
-            value={form.categoria_id || 'none'}
-            onValueChange={(v) => setForm((p: any) => ({ ...p, categoria_id: v === 'none' ? '' : v }))}
-          >
-            <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Sem categoria</SelectItem>
-              {categorias.map(c => (
-                <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Fornecedor</Label>
-          <Input
-            value={form.fornecedor}
-            onChange={(e) => setForm((p: any) => ({ ...p, fornecedor: e.target.value }))}
-            placeholder="Opcional"
-          />
-        </div>
       </div>
-      <div className="flex justify-end gap-2 pt-1">
-        <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>Cancelar</Button>
-        <Button size="sm" onClick={onSave} disabled={saving || !form.descricao.trim() || !form.valor}>
-          {saving ? 'Salvando...' : editing ? 'Salvar' : 'Adicionar'}
-        </Button>
+
+      <DatePickerField
+        label="Data da compra"
+        required
+        showQuickButtons
+        value={form.data_competencia}
+        onChange={(v) => setForm((p: any) => ({ ...p, data_competencia: v }))}
+      />
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">Categoria</Label>
+        <Select
+          value={form.categoria_id || 'none'}
+          onValueChange={(v) => setForm((p: any) => ({ ...p, categoria_id: v === 'none' ? '' : v }))}
+        >
+          <SelectTrigger>
+            {catSel
+              ? <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[5px]" style={{ background: catSel.cor || 'hsl(var(--primary))' }} />{catSel.nome}</span>
+              : <SelectValue placeholder="Selecionar categoria" />}
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Sem categoria</SelectItem>
+            {categorias.map(c => (
+              <SelectItem key={c.id} value={c.id}>
+                <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[5px]" style={{ background: c.cor || 'hsl(var(--primary))' }} />{c.nome}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">Fornecedor</Label>
+        <Input
+          value={form.fornecedor}
+          onChange={(e) => setForm((p: any) => ({ ...p, fornecedor: e.target.value }))}
+          placeholder="Opcional"
+        />
+      </div>
+
+      <div className="flex gap-2.5 pt-1">
+        <button type="button" onClick={onCancel} disabled={saving} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground disabled:opacity-50">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving || !form.descricao.trim() || !form.valor}
+          className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50"
+        >
+          {saving ? 'Salvando…' : editing ? 'Salvar' : 'Adicionar'}
+        </button>
       </div>
     </div>
   );
