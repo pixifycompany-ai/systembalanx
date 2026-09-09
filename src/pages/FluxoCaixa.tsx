@@ -1777,9 +1777,17 @@ export default function FluxoCaixa() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-xs">Vincular a Cliente</Label>
+                  <Label className="text-xs">Fornecedor</Label>
+                  <Input
+                    value={formSaida.fornecedor || ''}
+                    onChange={(e) => setFormSaida(prev => ({ ...prev, fornecedor: e.target.value }))}
+                    placeholder="Ex: Meta Platforms"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Vincular a cliente</Label>
                   <Select value={formSaida.cliente_id || 'none'} onValueChange={(v) => setFormSaida(prev => ({ ...prev, cliente_id: v === 'none' ? undefined : v }))}>
                     <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
                     <SelectContent>
@@ -1788,17 +1796,9 @@ export default function FluxoCaixa() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Fornecedor</Label>
-                  <Input
-                    value={formSaida.fornecedor || ''}
-                    onChange={(e) => setFormSaida(prev => ({ ...prev, fornecedor: e.target.value }))}
-                    placeholder="Nome do fornecedor"
-                  />
-                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-xs">Categoria</Label>
                   <Select value={formSaida.categoria_id || 'none'} onValueChange={(v) => setFormSaida(prev => ({ ...prev, categoria_id: v === 'none' ? undefined : v }))}>
@@ -1842,9 +1842,9 @@ export default function FluxoCaixa() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Forma Pagamento</Label>
+                  <Label className="text-xs">Forma de pagamento</Label>
                   <Select value={formSaida.forma_pagamento || 'none'} onValueChange={(v) => setFormSaida(prev => ({ ...prev, forma_pagamento: v === 'none' ? undefined : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Selecionar forma" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhuma</SelectItem>
                       {FORMA_PAGAMENTO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}

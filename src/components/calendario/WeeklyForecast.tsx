@@ -5,16 +5,16 @@ import { formatCurrency } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 import type { DayTransactions, DayItem } from '@/hooks/useCalendario';
 
-export type CalFiltro = 'tudo' | 'a_pagar' | 'a_receber' | 'pago' | 'recebido';
+export type CalFiltro = 'a_pagar' | 'a_receber' | 'pago' | 'recebido';
 
-function itemMatches(item: DayItem, f: CalFiltro): boolean {
-  if (f === 'tudo') return true;
+function itemMatches(item: DayItem, filtros: Set<CalFiltro>): boolean {
+  if (filtros.size === 0) return true; // "Tudo"
   const pend = item.status === 'pendente' || item.status === 'atrasado';
-  if (f === 'a_pagar') return item.tipo === 'despesa' && pend;
-  if (f === 'a_receber') return item.tipo === 'receita' && pend;
-  if (f === 'pago') return item.tipo === 'despesa' && item.status === 'pago';
-  if (f === 'recebido') return item.tipo === 'receita' && item.status === 'recebido';
-  return true;
+  if (filtros.has('a_pagar') && item.tipo === 'despesa' && pend) return true;
+  if (filtros.has('a_receber') && item.tipo === 'receita' && pend) return true;
+  if (filtros.has('pago') && item.tipo === 'despesa' && item.status === 'pago') return true;
+  if (filtros.has('recebido') && item.tipo === 'receita' && item.status === 'recebido') return true;
+  return false;
 }
 
 interface WeekRow {
@@ -29,10 +29,10 @@ interface WeekRow {
 
 export function WeeklyForecast({
   days,
-  filtro,
+  filtros,
 }: {
   days: Record<string, DayTransactions>;
-  filtro: CalFiltro;
+  filtros: Set<CalFiltro>;
 }) {
   const weeks = useMemo<WeekRow[]>(() => {
     const map = new Map<string, { entradas: number; saidas: number; start: Date }>();
@@ -43,7 +43,7 @@ export function WeeklyForecast({
       if (!map.has(key)) map.set(key, { entradas: 0, saidas: 0, start: wkStart });
       const acc = map.get(key)!;
       for (const it of day.items) {
-        if (!itemMatches(it, filtro)) continue;
+        if (!itemMatches(it, filtros)) continue;
         if (it.tipo === 'receita') acc.entradas += Number(it.valor);
         else acc.saidas += Number(it.valor);
       }
@@ -64,7 +64,7 @@ export function WeeklyForecast({
         isCurrent: key === todayWk,
       };
     });
-  }, [days, filtro]);
+  }, [days, filtros]);
 
   if (weeks.length === 0) return null;
 

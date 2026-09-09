@@ -12,7 +12,6 @@ import { useCalendario, type CalendarioModo } from '@/hooks/useCalendario';
 import { SkeletonChart } from '@/components/shared/LoadingSpinner';
 
 const FILTROS: { value: CalFiltro; label: string }[] = [
-  { value: 'tudo', label: 'Tudo' },
   { value: 'a_receber', label: 'A receber' },
   { value: 'recebido', label: 'Recebido' },
   { value: 'a_pagar', label: 'A pagar' },
@@ -28,7 +27,13 @@ export default function Calendario() {
     return stored === 'semana' || stored === 'hoje' || stored === 'mes' ? stored : 'mes';
   });
   const [refDate, setRefDate] = useState<Date>(new Date());
-  const [filtro, setFiltro] = useState<CalFiltro>('tudo');
+  const [filtros, setFiltros] = useState<Set<CalFiltro>>(new Set());
+  const toggleFiltro = (f: CalFiltro) =>
+    setFiltros((prev) => {
+      const n = new Set(prev);
+      if (n.has(f)) n.delete(f); else n.add(f);
+      return n;
+    });
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, modo);
@@ -70,11 +75,14 @@ export default function Calendario() {
         </ScrollPills>
       </div>
 
-      {/* Filtro de previsão de caixa */}
+      {/* Filtro de previsão de caixa (multi-seleção) */}
       <div className="mb-4">
         <ScrollPills>
+          <Pill active={filtros.size === 0} onClick={() => setFiltros(new Set())}>
+            Tudo
+          </Pill>
           {FILTROS.map((f) => (
-            <Pill key={f.value} active={filtro === f.value} onClick={() => setFiltro(f.value)}>
+            <Pill key={f.value} active={filtros.has(f.value)} onClick={() => toggleFiltro(f.value)}>
               {f.label}
             </Pill>
           ))}
@@ -111,7 +119,7 @@ export default function Calendario() {
             />
           )}
 
-          {(modo === 'mes' || modo === 'semana') && <WeeklyForecast days={days} filtro={filtro} />}
+          {(modo === 'mes' || modo === 'semana') && <WeeklyForecast days={days} filtros={filtros} />}
 
           {modo === 'mes' && <TopDespesasChart data={topDespesas} total={totalDespesas} />}
         </div>

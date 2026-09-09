@@ -372,8 +372,9 @@
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       padding-bottom: 2px;
-      mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent);
-      -webkit-mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent);
+      /* Só um leve fade à direita (onde há overflow); esquerda intacta pra não "apagar" o pill ativo */
+      mask-image: linear-gradient(to right, black calc(100% - 16px), transparent);
+      -webkit-mask-image: linear-gradient(to right, black calc(100% - 16px), transparent);
     }
     .scroll-pills > * {
       scroll-snap-align: start;
