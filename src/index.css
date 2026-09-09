@@ -533,6 +533,13 @@
     0 14px 32px -20px rgba(15, 23, 42, 0.18);
 }
 
+/* ===== Typing (IARA digitando) ===== */
+@keyframes iara-typing-dot { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+.iara-typing { display: flex; gap: 4px; align-items: center; }
+.iara-typing i { width: 6px; height: 6px; border-radius: 99px; background: hsl(var(--muted-foreground)); animation: iara-typing-dot 1.1s ease-in-out infinite; }
+.iara-typing i:nth-child(2) { animation-delay: 0.18s; }
+.iara-typing i:nth-child(3) { animation-delay: 0.36s; }
+
 /* ===== Wave do voicedock IARA (azul, igual mockup ia-voz) ===== */
 @keyframes voicewave { 0%, 100% { height: 7px; } 50% { height: 30px; } }
 .vwave { display: flex; align-items: center; justify-content: center; gap: 3px; height: 36px; }

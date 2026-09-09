@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Send, ChevronLeft, RefreshCw, ShieldCheck, Loader2, Mic } from 'lucide-react';
+import { Send, ChevronLeft, RefreshCw, ShieldCheck, Loader2, Mic } from 'lucide-react';
+import { UserIcon } from '@heroicons/react/24/solid';
+import { Sparkle } from '@/components/shared/Sparkle';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
@@ -82,12 +84,14 @@ export default function Iara() {
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shrink-0 shadow-[0_8px_18px_-6px_hsl(var(--primary)/0.6)]">
-          <Sparkles className="h-5 w-5" />
+        <div className="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white shrink-0">
+          <Sparkle className="h-4 w-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold leading-tight">IARA</div>
-          <div className="text-[11px] text-foreground-muted">Assistente financeiro</div>
+          <div className="text-[15.5px] font-[670] leading-tight tracking-[-0.02em]">IARA</div>
+          <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-[hsl(var(--success))] whitespace-nowrap">
+            <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />online
+          </div>
         </div>
         <Select value={period} onValueChange={(v) => setPeriod(v as PeriodOption)}>
           <SelectTrigger className="w-auto h-9 text-xs gap-1">
@@ -120,18 +124,20 @@ export default function Iara() {
           <div key={m.id} className={cn('flex gap-2.5 items-end', m.role === 'user' && 'flex-row-reverse')}>
             <div
               className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-                m.role === 'assistant' ? 'bg-primary text-primary-foreground' : 'bg-surface-3 text-foreground-muted',
+                'flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full',
+                m.role === 'assistant'
+                  ? 'bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white'
+                  : 'bg-surface-3 text-foreground-muted',
               )}
             >
-              {m.role === 'assistant' ? <Sparkles className="h-4 w-4" /> : 'Você'}
+              {m.role === 'assistant' ? <Sparkle className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
             </div>
             <div
               className={cn(
-                'max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-md',
+                'max-w-[80%] px-3.5 py-2.5 text-[13px] leading-[1.55]',
                 m.role === 'assistant'
-                  ? 'bg-surface/80 backdrop-blur-xl border border-border/60 rounded-bl-md text-foreground'
-                  : 'bg-primary text-primary-foreground rounded-br-md',
+                  ? 'auro-card rounded-[18px_18px_18px_6px] bg-surface/55 backdrop-blur-xl border border-border/60 text-foreground'
+                  : 'rounded-[18px_18px_6px_18px] bg-[linear-gradient(160deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white',
               )}
             >
               {m.role === 'assistant' ? (
@@ -157,8 +163,11 @@ export default function Iara() {
         ))}
         {isLoading && lastIsUser && (
           <div className="flex gap-2.5 items-end">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
+            <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white">
+              <Sparkle className="h-4 w-4" />
+            </div>
+            <div className="auro-card rounded-[18px_18px_18px_6px] bg-surface/55 backdrop-blur-xl border border-border/60 px-3.5 py-3">
+              <div className="iara-typing"><i /><i /><i /></div>
             </div>
           </div>
         )}
@@ -166,13 +175,14 @@ export default function Iara() {
 
       {/* Sugestões */}
       <div className="flex gap-2 overflow-x-auto px-3 md:px-4 py-2 scrollbar-hide">
-        {SUGESTOES.map((s) => (
+        {SUGESTOES.map((s, i) => (
           <button
             key={s}
             onClick={() => submit(s)}
             disabled={isLoading}
-            className="shrink-0 text-xs font-medium text-foreground bg-surface/70 border border-border/60 rounded-full px-3 py-1.5 hover:border-border-strong transition-colors disabled:opacity-50"
+            className="shrink-0 text-[11.5px] font-semibold text-foreground bg-surface/55 backdrop-blur-xl border border-border/60 rounded-full px-3.5 py-2 hover:border-border-strong transition-colors disabled:opacity-50"
           >
+            {i === 0 && <span className="mr-1.5 font-extrabold text-[hsl(var(--primary))]">✦</span>}
             {s}
           </button>
         ))}
@@ -207,7 +217,7 @@ export default function Iara() {
           type="submit"
           disabled={isLoading || !input.trim()}
           aria-label="Enviar"
-          className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_10px_24px_-6px_hsl(var(--primary)/0.5)] active:scale-95 transition-transform disabled:opacity-50"
+          className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] text-white shadow-[0_10px_24px_-6px_hsl(var(--primary)/0.5)] active:scale-95 transition-transform disabled:opacity-50"
         >
           {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
         </button>
