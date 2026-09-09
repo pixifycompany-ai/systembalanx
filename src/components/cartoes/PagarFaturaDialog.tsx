@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Plus, Trash2, Wallet } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
+import { PlusIcon } from '@heroicons/react/24/outline';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatCurrency } from '@/utils/formatters';
 import type { ContaDB } from '@/hooks/useContas';
@@ -28,7 +27,7 @@ interface Linha {
 
 export function PagarFaturaDialog({ open, onOpenChange, cartao, fatura, contasBancarias }: PagarFaturaDialogProps) {
   const { pagarFatura } = useFaturas(cartao.id);
-  const restante = Number(fatura.valor_total) - Number(fatura.valor_pago);
+  const restante = Math.round((Number(fatura.valor_total) - Number(fatura.valor_pago)) * 100) / 100;
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const [linhas, setLinhas] = useState<Linha[]>([]);
@@ -37,11 +36,7 @@ export function PagarFaturaDialog({ open, onOpenChange, cartao, fatura, contasBa
   useEffect(() => {
     if (open) {
       setLinhas([
-        {
-          conta_id: cartao.conta_pagamento_padrao_id || contasBancarias[0]?.id || '',
-          valor: restante,
-          data_pagamento: today,
-        },
+        { conta_id: cartao.conta_pagamento_padrao_id || contasBancarias[0]?.id || '', valor: restante, data_pagamento: today },
       ]);
     }
   }, [open, cartao.conta_pagamento_padrao_id, restante, contasBancarias, today]);
@@ -53,7 +48,6 @@ export function PagarFaturaDialog({ open, onOpenChange, cartao, fatura, contasBa
     const restanteAposLinhas = Math.max(restante - total, 0);
     setLinhas(prev => [...prev, { conta_id: contasBancarias[0]?.id || '', valor: restanteAposLinhas, data_pagamento: today }]);
   };
-
   const removeLinha = (i: number) => setLinhas(prev => prev.filter((_, idx) => idx !== i));
   const updateLinha = (i: number, patch: Partial<Linha>) =>
     setLinhas(prev => prev.map((l, idx) => idx === i ? { ...l, ...patch } : l));
@@ -65,96 +59,103 @@ export function PagarFaturaDialog({ open, onOpenChange, cartao, fatura, contasBa
     if (ok) onOpenChange(false);
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Wallet className="h-5 w-5" />
-            Pagar Fatura — {cartao.nome}
-          </DialogTitle>
-        </DialogHeader>
+  const mini = [
+    { lab: 'Compet.', val: format(parseISO(fatura.competencia), 'MMM', { locale: ptBR }), accent: 'hsl(var(--primary))' },
+    { lab: 'Vencim.', val: format(parseISO(fatura.data_vencimento), 'dd/MM'), accent: 'hsl(38 82% 55%)' },
+    { lab: 'Em aberto', val: formatCurrency(restante), accent: 'hsl(var(--danger))', danger: true },
+  ];
 
-        <div className="space-y-4 py-2">
-          <div className="rounded-lg bg-muted p-3 grid grid-cols-3 gap-2 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground">Competência</p>
-              <p className="font-medium">{format(parseISO(fatura.competencia), 'MMM/yyyy', { locale: ptBR })}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Vencimento</p>
-              <p className="font-medium">{format(parseISO(fatura.data_vencimento), 'dd/MM/yyyy')}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Em aberto</p>
-              <p className="font-bold">{formatCurrency(restante)}</p>
-            </div>
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[560px] sm:mx-auto">
+        {/* Header */}
+        <div className="px-5 pt-1 pb-3">
+          <div className="text-[11.5px] font-medium text-foreground-muted">
+            {cartao.nome} · {format(parseISO(fatura.competencia), "MMMM", { locale: ptBR })}
+          </div>
+          <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">Pagar fatura</h2>
+        </div>
+
+        <div className="px-5 pb-5 space-y-4">
+          {/* Mini-cards */}
+          <div className="grid grid-cols-3 gap-2.5">
+            {mini.map((m) => (
+              <div key={m.lab} className="auro-card relative overflow-hidden rounded-2xl border border-border/60 bg-surface/55 px-3 py-2.5">
+                <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: m.accent }} />
+                <div className="text-[9.5px] font-semibold uppercase tracking-wide text-foreground-muted">{m.lab}</div>
+                <div className={`mt-1 text-[14px] font-bold tabular-nums ${m.danger ? 'text-[hsl(var(--danger))]' : 'text-foreground'}`}>{m.val}</div>
+              </div>
+            ))}
           </div>
 
+          {/* Pagar com */}
           <div className="space-y-2">
-            <Label>Pagar com</Label>
-            {linhas.map((linha, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-5">
+            <div className="text-xs font-medium text-foreground-muted">Pagar com</div>
+            {linhas.map((linha, i) => {
+              const conta = contasBancarias.find(c => c.id === linha.conta_id);
+              return (
+                <div key={i} className="auro-card flex items-center gap-2 rounded-2xl border border-border/60 bg-surface/55 px-3 py-2.5">
                   <Select value={linha.conta_id} onValueChange={(v) => updateLinha(i, { conta_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Conta" /></SelectTrigger>
+                    <SelectTrigger className="h-8 flex-1 border-0 bg-transparent px-0 focus:ring-0">
+                      {conta
+                        ? <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full" style={{ background: conta.cor }} />{conta.nome}</span>
+                        : <SelectValue placeholder="Conta" />}
+                    </SelectTrigger>
                     <SelectContent>
                       {contasBancarias.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                        <SelectItem key={c.id} value={c.id}>
+                          <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full" style={{ background: c.cor }} />{c.nome}</span>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="col-span-3">
                   <Input
                     type="number"
                     step="0.01"
                     value={linha.valor}
                     onChange={(e) => updateLinha(i, { valor: parseFloat(e.target.value) || 0 })}
+                    className="h-8 w-28 border-0 bg-transparent px-0 text-right text-sm font-semibold tabular-nums focus-visible:ring-0"
                   />
-                </div>
-                <div className="col-span-3">
-                  <Input
-                    type="date"
-                    value={linha.data_pagamento}
-                    onChange={(e) => updateLinha(i, { data_pagamento: e.target.value })}
-                  />
-                </div>
-                <div className="col-span-1 flex justify-end">
                   {linhas.length > 1 && (
-                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => removeLinha(i)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <button onClick={() => removeLinha(i)} className="shrink-0 text-foreground-muted hover:text-[hsl(var(--danger))]">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   )}
                 </div>
-              </div>
-            ))}
-            <Button variant="outline" size="sm" onClick={addLinha} className="w-full">
-              <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar conta
-            </Button>
+              );
+            })}
+            <button onClick={addLinha} className="flex items-center gap-2 px-1 py-1.5 text-[13px] font-semibold text-[hsl(38_82%_55%)]">
+              <PlusIcon className="h-4 w-4" strokeWidth={2.2} /> Adicionar outra conta
+            </button>
           </div>
 
-          <div className="flex items-center justify-between border-t pt-3">
-            <div className="text-sm">
-              <p className="text-muted-foreground">Total selecionado</p>
-              <p className={`font-bold text-lg tabular-nums ${total > restante + 0.001 ? 'text-destructive' : ''}`}>
-                {formatCurrency(total)}
-              </p>
+          {/* Totais */}
+          <div className="auro-card rounded-2xl border border-border/60 bg-surface/55 px-4 py-3.5 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-foreground-muted">Total selecionado</span>
+              <span className={`font-bold tabular-nums ${total > restante + 0.001 ? 'text-[hsl(var(--danger))]' : 'text-foreground'}`}>{formatCurrency(total)}</span>
             </div>
-            <div className="text-sm text-right">
-              <p className="text-muted-foreground">Saldo após pagamento</p>
-              <p className="font-medium tabular-nums">{formatCurrency(Math.max(restante - total, 0))}</p>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-foreground-muted">Saldo após pagamento</span>
+              <span className="font-semibold tabular-nums text-foreground">{formatCurrency(Math.max(restante - total, 0))}</span>
             </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-2.5 pt-1">
+            <button onClick={() => onOpenChange(false)} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={!podeConfirmar || loading}
+              className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50"
+            >
+              {loading ? 'Processando…' : 'Confirmar pagamento'}
+            </button>
           </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={!podeConfirmar || loading}>
-            {loading ? 'Processando...' : 'Confirmar Pagamento'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
