@@ -11,7 +11,7 @@ export function CometSpinner({ size = 52, className }: { size?: number; classNam
 }
 
 /** Tela cheia de carregamento (isotipo + glow + anel-cometa), igual ao mockup. */
-export function BalanxLoader({ message = 'Carregando' }: { message?: string }) {
+export function BalanxLoader({ message = 'Carregando seu financeiro…' }: { message?: string }) {
   return (
     <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center bg-background relative">
       <div className="relative grid place-items-center" style={{ width: 120, height: 120 }}>
