@@ -1509,7 +1509,7 @@ export default function FluxoCaixa() {
                 <Input
                   value={formEntrada.descricao}
                   onChange={(e) => setFormEntrada(prev => ({ ...prev, descricao: e.target.value }))}
-                  placeholder="Descrição da receita"
+                  placeholder="Ex: Gestão de Redes — Janeiro"
                   required
                 />
               </div>
@@ -1534,50 +1534,70 @@ export default function FluxoCaixa() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label className="text-xs">Cliente</Label>
-                  <Select value={formEntrada.cliente_id || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, cliente_id: v === 'none' ? undefined : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
-                      {clientes.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Categoria</Label>
-                  <Select value={formEntrada.categoria_id || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, categoria_id: v === 'none' ? undefined : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhuma</SelectItem>
-                      {categoriasReceita.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Cliente</Label>
+                <Select value={formEntrada.cliente_id || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, cliente_id: v === 'none' ? undefined : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {clientes.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label className="text-xs">Conta</Label>
-                  <Select value={formEntrada.conta_id || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, conta_id: v === 'none' ? undefined : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhuma</SelectItem>
-                      {contas.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Forma Pagamento</Label>
-                  <Select value={formEntrada.forma_pagamento || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, forma_pagamento: v === 'none' ? undefined : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhuma</SelectItem>
-                      {FORMA_PAGAMENTO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Categoria</Label>
+                <Select value={formEntrada.categoria_id || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, categoria_id: v === 'none' ? undefined : v }))}>
+                  <SelectTrigger>
+                    {(() => {
+                      const sel = categoriasReceita.find(c => c.id === formEntrada.categoria_id);
+                      return sel
+                        ? <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[5px]" style={{ background: sel.cor }} />{sel.nome}</span>
+                        : <SelectValue placeholder="Selecionar categoria" />;
+                    })()}
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    {categoriasReceita.map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[5px]" style={{ background: c.cor }} />{c.nome}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Conta</Label>
+                <Select value={formEntrada.conta_id || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, conta_id: v === 'none' ? undefined : v }))}>
+                  <SelectTrigger>
+                    {(() => {
+                      const sel = contas.find(c => c.id === formEntrada.conta_id);
+                      return sel
+                        ? <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full" style={{ background: sel.cor }} />{sel.nome}</span>
+                        : <SelectValue placeholder="Selecionar conta" />;
+                    })()}
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    {contas.map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full" style={{ background: c.cor }} />{c.nome}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Forma de pagamento</Label>
+                <Select value={formEntrada.forma_pagamento || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, forma_pagamento: v === 'none' ? undefined : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar forma" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    {FORMA_PAGAMENTO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1726,7 +1746,7 @@ export default function FluxoCaixa() {
                 <Input
                   value={formSaida.descricao}
                   onChange={(e) => setFormSaida(prev => ({ ...prev, descricao: e.target.value }))}
-                  placeholder="Descrição da despesa"
+                  placeholder="Ex: Meta Ads — cliente Verano"
                   required
                 />
               </div>
@@ -1776,20 +1796,42 @@ export default function FluxoCaixa() {
                 <div className="space-y-2">
                   <Label className="text-xs">Categoria</Label>
                   <Select value={formSaida.categoria_id || 'none'} onValueChange={(v) => setFormSaida(prev => ({ ...prev, categoria_id: v === 'none' ? undefined : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectTrigger>
+                      {(() => {
+                        const sel = categoriasDespesa.find(c => c.id === formSaida.categoria_id);
+                        return sel
+                          ? <span className="flex items-center gap-2 min-w-0"><span className="h-3.5 w-3.5 shrink-0 rounded-[5px]" style={{ background: sel.cor }} /><span className="truncate">{sel.nome}</span></span>
+                          : <SelectValue placeholder="Categoria" />;
+                      })()}
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhuma</SelectItem>
-                      {categoriasDespesa.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                      {categoriasDespesa.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[5px]" style={{ background: c.cor }} />{c.nome}</span>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs">Conta</Label>
                   <Select value={formSaida.conta_id || 'none'} onValueChange={(v) => setFormSaida(prev => ({ ...prev, conta_id: v === 'none' ? undefined : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectTrigger>
+                      {(() => {
+                        const sel = contas.find(c => c.id === formSaida.conta_id);
+                        return sel
+                          ? <span className="flex items-center gap-2 min-w-0"><span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: sel.cor }} /><span className="truncate">{sel.nome}</span></span>
+                          : <SelectValue placeholder="Conta" />;
+                      })()}
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhuma</SelectItem>
-                      {contas.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                      {contas.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full" style={{ background: c.cor }} />{c.nome}</span>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
