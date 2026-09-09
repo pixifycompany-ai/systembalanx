@@ -27,7 +27,8 @@ export function AppLayout({ children }: AppLayoutProps) {
     <PullToRefresh>
       <SidebarProvider>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="bg-transparent">
+
           <Header />
           <main className="flex-1 px-3 py-3 md:px-10 md:py-8 pb-24 md:pb-8 overflow-x-hidden max-w-full">
             {children}

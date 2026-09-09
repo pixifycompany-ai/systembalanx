@@ -258,13 +258,21 @@
   body {
     @apply text-foreground;
     background-color: hsl(var(--background));
-    background-image:
-      radial-gradient(75% 45% at 8% -2%, hsl(var(--primary) / 0.10), transparent 60%),
-      radial-gradient(70% 40% at 96% 2%, hsl(35 85% 55% / 0.06), transparent 60%),
-      radial-gradient(95% 60% at 55% 110%, hsl(var(--primary) / 0.08), transparent 62%);
     background-attachment: fixed;
     background-repeat: no-repeat;
     font-size: 13px;
+  }
+  /* Glow ambiente AURO (dark) — azul topo-esq + âmbar topo-dir + azul embaixo, igual mockup */
+  .dark body {
+    background-image:
+      radial-gradient(120% 78% at 16% -4%, rgba(58, 120, 205, 0.30), transparent 56%),
+      radial-gradient(115% 62% at 98% 1%, rgba(216, 152, 70, 0.22), transparent 52%),
+      radial-gradient(120% 82% at 55% 118%, rgba(58, 120, 205, 0.16), transparent 62%);
+  }
+  .light body {
+    background-image:
+      radial-gradient(90% 55% at 10% -2%, hsl(var(--primary) / 0.08), transparent 60%),
+      radial-gradient(80% 45% at 98% 2%, hsl(35 85% 55% / 0.06), transparent 60%);
   }
 
   h1, h2, h3, h4, h5, h6 {

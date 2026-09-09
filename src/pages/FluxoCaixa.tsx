@@ -895,10 +895,7 @@ export default function FluxoCaixa() {
           <div className="scroll-pills -mx-3 px-3 flex gap-2 overflow-x-auto scrollbar-hide items-center">
             <Popover>
               <PopoverTrigger asChild>
-                <button className={cn(
-                  'h-8 px-3.5 shrink-0 inline-flex items-center rounded-full text-xs font-semibold border transition-colors whitespace-nowrap',
-                  contaFilter === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'bg-surface/70 backdrop-blur-xl border-border/60 text-foreground',
-                )}>
+                <button className="h-8 px-3.5 shrink-0 inline-flex items-center rounded-full text-xs font-semibold border border-transparent bg-primary text-primary-foreground whitespace-nowrap">
                   {contaFilter === 'all' ? 'Todas contas' : (contas.find(c => c.id === contaFilter)?.nome || 'Conta')}
                 </button>
               </PopoverTrigger>
@@ -919,7 +916,7 @@ export default function FluxoCaixa() {
               const pendenteActive = statusFilter.includes('pendente');
               const pill = (active: boolean) => cn(
                 'h-8 px-3.5 shrink-0 inline-flex items-center rounded-full text-xs font-semibold border transition-colors whitespace-nowrap',
-                active ? 'bg-primary text-primary-foreground border-primary' : 'bg-surface/70 backdrop-blur-xl border-border/60 text-foreground',
+                active ? 'bg-primary text-primary-foreground border-transparent' : 'bg-transparent border-border/70 text-foreground-muted',
               );
               return (
                 <>
@@ -935,21 +932,12 @@ export default function FluxoCaixa() {
               );
             })()}
 
-            <div className="inline-flex items-center gap-1 shrink-0">
-              <button
-                type="button" aria-label="Mês anterior"
-                onClick={() => { setDateFilterMode('month'); setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), -1), 'yyyy-MM')); }}
-                className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-border/60 bg-surface/70 text-foreground-muted"
-              ><ChevronLeft className="h-4 w-4" /></button>
-              <span className="h-8 px-3 inline-flex items-center rounded-full border border-border/60 bg-surface/70 text-xs font-semibold capitalize whitespace-nowrap">
-                {format(parseISO(`${monthFilter}-01`), 'MMMM', { locale: ptBR })}
-              </span>
-              <button
-                type="button" aria-label="Próximo mês"
-                onClick={() => { setDateFilterMode('month'); setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), 1), 'yyyy-MM')); }}
-                className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-border/60 bg-surface/70 text-foreground-muted"
-              ><ChevronRight className="h-4 w-4" /></button>
-            </div>
+            <button
+              onClick={() => setFiltersOpen(true)}
+              className="h-8 px-3.5 shrink-0 inline-flex items-center rounded-full text-xs font-semibold border border-border/70 bg-transparent text-foreground-muted capitalize whitespace-nowrap"
+            >
+              {format(parseISO(`${monthFilter}-01`), 'MMMM', { locale: ptBR })}
+            </button>
           </div>
         </div>
 
@@ -960,6 +948,18 @@ export default function FluxoCaixa() {
               <SheetTitle>Filtros</SheetTitle>
             </SheetHeader>
             <div className="py-4 space-y-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted mb-2">Período</p>
+                <div className="inline-flex items-center gap-2">
+                  <button aria-label="Mês anterior" onClick={() => { setDateFilterMode('month'); setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), -1), 'yyyy-MM')); }}
+                    className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-border/60"><ChevronLeft className="h-4 w-4" /></button>
+                  <span className="h-9 px-4 inline-flex items-center rounded-full border border-border/60 text-sm font-medium capitalize">
+                    {format(parseISO(`${monthFilter}-01`), 'MMMM yyyy', { locale: ptBR })}
+                  </span>
+                  <button aria-label="Próximo mês" onClick={() => { setDateFilterMode('month'); setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), 1), 'yyyy-MM')); }}
+                    className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-border/60"><ChevronRight className="h-4 w-4" /></button>
+                </div>
+              </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted mb-2">Conta</p>
                 <div className="flex flex-wrap gap-2">
