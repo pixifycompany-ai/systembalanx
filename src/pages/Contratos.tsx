@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency, formatDate } from '@/utils/formatters';
@@ -593,17 +594,18 @@ export default function Contratos() {
         )}
 
         {/* Create/Edit Modal */}
-        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogContent className="sm:max-w-[760px] max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingContrato ? 'Editar Contrato' : 'Novo Contrato'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <Sheet open={modalOpen} onOpenChange={setModalOpen}>
+          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[560px] sm:mx-auto">
+            <div className="px-5 pt-1 pb-1">
+              <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
+              <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">
+                {editingContrato ? 'Editar contrato' : 'Novo contrato'}
+              </h2>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4 p-5 pt-3">
               <div className="space-y-2">
-                <Label htmlFor="cliente_id">Cliente *</Label>
+                <Label htmlFor="cliente_id">Cliente</Label>
                 <Select
                   value={formData.cliente_id}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, cliente_id: value }))}
@@ -785,21 +787,21 @@ export default function Contratos() {
 
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: typeof formData.status) => setFormData(prev => ({ ...prev, status: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['ativo', 'encerrado', 'cancelado'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, status: s }))}
+                      className={cn(
+                        'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors',
+                        formData.status === s ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                      )}
+                    >
+                      {s === 'ativo' ? 'Ativo' : s === 'encerrado' ? 'Encerrado' : 'Cancelado'}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Data de Inativação - only when status is not ativo */}
@@ -935,24 +937,17 @@ export default function Contratos() {
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
+              <div className="flex gap-2.5 pt-2">
+                <button type="button" onClick={() => setModalOpen(false)} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
                   Cancelar
-                </Button>
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving ? (
-                    <>
-                      <LoadingSpinner size="sm" className="mr-2" />
-                      Salvando...
-                    </>
-                  ) : (
-                    editingContrato ? 'Atualizar' : 'Criar'
-                  )}
-                </Button>
+                </button>
+                <button type="submit" disabled={isSaving} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50">
+                  {isSaving ? 'Salvando…' : (editingContrato ? 'Atualizar' : 'Criar')}
+                </button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </SheetContent>
+        </Sheet>
 
         {/* Delete Confirmation */}
         <ConfirmDialog
