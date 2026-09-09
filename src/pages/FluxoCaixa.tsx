@@ -1160,6 +1160,7 @@ export default function FluxoCaixa() {
             contas={contas}
             isLoading={isLoading}
             totals={totals}
+            saldoAtual={contas.filter(c => c.ativa && c.tipo !== 'cartao_credito').reduce((s, c) => s + Number(c.saldo_atual || 0), 0)}
             onConfirm={handleMobileConfirm}
             onDelete={handleMobileDelete}
             onClick={handleRowClick}

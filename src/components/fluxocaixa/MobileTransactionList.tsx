@@ -22,6 +22,7 @@ interface MobileTransactionListProps {
   contas: Conta[];
   isLoading: boolean;
   totals: { entradas: number; saidas: number; saldo: number };
+  saldoAtual: number;
   onConfirm: (t: TransacaoUnificada) => void;
   onDelete: (t: TransacaoUnificada) => void;
   onClick: (t: TransacaoUnificada) => void;
@@ -42,6 +43,7 @@ export function MobileTransactionList({
   contas,
   isLoading,
   totals,
+  saldoAtual,
   onConfirm,
   onDelete,
   onClick,
@@ -64,6 +66,19 @@ export function MobileTransactionList({
     for (const c of contas) m.set(c.id, c);
     return m;
   }, [contas]);
+
+  // Saldo corrente por lançamento — na MESMA ordem exibida, ancorando o último (mais recente) no saldo atual real.
+  const saldoPorId = useMemo(() => {
+    const effect = (t: TransacaoUnificada) => t.tabela_origem === 'transferencia' ? 0 : (t.tipo === 'entrada' ? Number(t.valor || 0) : -Number(t.valor || 0));
+    const totalEffect = transactions.reduce((s, t) => s + effect(t), 0);
+    const m = new Map<string, number>();
+    let running = saldoAtual - totalEffect; // saldo de abertura (antes do primeiro exibido)
+    for (const t of transactions) {
+      running += effect(t);
+      m.set(`${t.tabela_origem}-${t.id}`, running);
+    }
+    return m;
+  }, [transactions, saldoAtual]);
 
   if (isLoading) {
     return <div className="px-4"><SkeletonTable rows={5} /></div>;
@@ -102,6 +117,7 @@ export function MobileTransactionList({
                       transaction={t}
                       contaNome={conta?.nome}
                       contaCor={conta?.cor}
+                      saldoCorrente={saldoPorId.get(`${t.tabela_origem}-${t.id}`)}
                       onConfirm={onConfirm}
                       onDelete={onDelete}
                       onClick={onClick}

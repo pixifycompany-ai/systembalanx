@@ -26,6 +26,7 @@ interface SwipeableTransactionCardProps {
   transaction: TransacaoUnificada;
   contaNome?: string;
   contaCor?: string;
+  saldoCorrente?: number;
   onConfirm: (t: TransacaoUnificada) => void;
   onDelete: (t: TransacaoUnificada) => void;
   onClick: (t: TransacaoUnificada) => void;
@@ -42,6 +43,7 @@ export function SwipeableTransactionCard({
   transaction: t,
   contaNome,
   contaCor,
+  saldoCorrente,
   onConfirm,
   onDelete,
   onClick,
@@ -125,7 +127,7 @@ export function SwipeableTransactionCard({
   const rightReady = rightPillWidth >= THRESHOLD;
 
   return (
-    <div className="relative overflow-hidden rounded-lg">
+    <div className="relative overflow-hidden rounded-2xl">
       {/* Left action pill - confirm */}
       <div
         className={cn(
@@ -151,7 +153,7 @@ export function SwipeableTransactionCard({
       {/* Card content */}
       <div
         ref={cardRef}
-        className="relative flex items-center gap-3 p-3 bg-card border border-border/50 rounded-lg transition-transform duration-150 ease-out active:bg-accent/30"
+        className="relative flex items-center gap-3 p-3.5 bg-surface/60 backdrop-blur-xl border border-border/60 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-transform duration-150 ease-out active:bg-accent/30"
         style={{ transform: `translateX(${offsetX}px)` }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -185,9 +187,11 @@ export function SwipeableTransactionCard({
           )}>
             {isTransfer ? '' : (t.tipo === 'entrada' ? '+' : '−')}{formatCurrency(t.valor)}
           </div>
-          {!isSettled && (
-            <div className="text-[11px] text-foreground-muted mt-0.5">{metaVencimento(t.data_vencimento)}</div>
-          )}
+          <div className="text-[11px] text-foreground-muted mt-0.5 tabular-nums">
+            {isSettled
+              ? (typeof saldoCorrente === 'number' ? `saldo ${formatCurrency(saldoCorrente)}` : '')
+              : metaVencimento(t.data_vencimento)}
+          </div>
         </div>
       </div>
     </div>
