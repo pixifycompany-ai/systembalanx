@@ -6,9 +6,18 @@ import { DayView } from '@/components/calendario/DayView';
 import { TopDespesasChart } from '@/components/calendario/TopDespesasChart';
 import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
+import { WeeklyForecast, type CalFiltro } from '@/components/calendario/WeeklyForecast';
 
 import { useCalendario, type CalendarioModo } from '@/hooks/useCalendario';
 import { SkeletonChart } from '@/components/shared/LoadingSpinner';
+
+const FILTROS: { value: CalFiltro; label: string }[] = [
+  { value: 'tudo', label: 'Tudo' },
+  { value: 'a_receber', label: 'A receber' },
+  { value: 'recebido', label: 'Recebido' },
+  { value: 'a_pagar', label: 'A pagar' },
+  { value: 'pago', label: 'Pago' },
+];
 
 const STORAGE_KEY = 'calendario:modo';
 
@@ -19,6 +28,7 @@ export default function Calendario() {
     return stored === 'semana' || stored === 'hoje' || stored === 'mes' ? stored : 'mes';
   });
   const [refDate, setRefDate] = useState<Date>(new Date());
+  const [filtro, setFiltro] = useState<CalFiltro>('tudo');
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, modo);
@@ -60,6 +70,17 @@ export default function Calendario() {
         </ScrollPills>
       </div>
 
+      {/* Filtro de previsão de caixa */}
+      <div className="mb-4">
+        <ScrollPills>
+          {FILTROS.map((f) => (
+            <Pill key={f.value} active={filtro === f.value} onClick={() => setFiltro(f.value)}>
+              {f.label}
+            </Pill>
+          ))}
+        </ScrollPills>
+      </div>
+
       {isLoading ? (
         <SkeletonChart />
       ) : (
@@ -89,6 +110,8 @@ export default function Calendario() {
               onNext={handleNext}
             />
           )}
+
+          {(modo === 'mes' || modo === 'semana') && <WeeklyForecast days={days} filtro={filtro} />}
 
           {modo === 'mes' && <TopDespesasChart data={topDespesas} total={totalDespesas} />}
         </div>
