@@ -16,6 +16,10 @@ import { useDashboard } from '@/hooks/useDashboard';
 import { formatCurrency } from '@/utils/formatters';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useMemo, useState } from 'react';
+import { TagIcon } from '@heroicons/react/24/outline';
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
+import { cn } from '@/lib/utils';
 
 export default function Visao() {
   const {
@@ -35,6 +39,19 @@ export default function Visao() {
   } = useDashboard();
 
   const mesAtual = format(new Date(), 'MMM', { locale: ptBR }).toUpperCase();
+  const semestreBadge = new Date().getMonth() >= 6 ? '2º SEM' : '1º SEM';
+  const [range, setRange] = useState<'semana' | 'mes' | 'ano'>('mes');
+  const serieMRR = useMemo(() => {
+    const src = range === 'ano' ? revenueData12m : range === 'semana' ? revenueData3m : revenueData6m;
+    return (src || []).map((d) => ({ mes: d.mes, valor: d.receita }));
+  }, [range, revenueData3m, revenueData6m, revenueData12m]);
+  const deltaPct = useMemo(() => {
+    if (serieMRR.length < 2) return null;
+    const a = serieMRR[serieMRR.length - 2].valor;
+    const b = serieMRR[serieMRR.length - 1].valor;
+    if (!a) return null;
+    return ((b - a) / a) * 100;
+  }, [serieMRR]);
 
   if (isLoading) {
     return (
@@ -68,44 +85,84 @@ export default function Visao() {
         eyebrow="Deep-dive"
         title="Visão"
         actions={
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground-muted px-3 py-1.5 rounded-full border border-border bg-surface">
-            {mesAtual}
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground-muted px-3 py-1.5 rounded-full border border-border/60 bg-surface/70 backdrop-blur-xl">
+            {semestreBadge}
           </span>
         }
       />
 
-      {/* MRR em destaque (igual mockup) */}
-      <div className="rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl p-4 md:hidden">
-        <div className="text-[11px] uppercase tracking-wide text-foreground-muted">Receita recorrente (MRR)</div>
-        <div className="mt-1 flex items-baseline gap-2">
-          <span className="text-2xl font-bold tabular-nums text-foreground">{formatCurrency(contractsData.mrrTotal)}</span>
-          <span className="text-xs font-semibold text-[hsl(var(--success))]">
-            {contractsData.contratosAtivos} contratos
-          </span>
-        </div>
-        <div className="mt-1 text-[11px] text-foreground-muted">Projeção anual (MRR × 12): {formatCurrency(resumo.receita_anual_projetada)}</div>
+      {/* Segmented Semana | Mês | Ano (igual mockup) */}
+      <div className="md:hidden grid grid-cols-3 gap-[3px] rounded-[14px] border border-border/60 bg-surface/70 backdrop-blur-xl p-1">
+        {([['semana', 'Semana'], ['mes', 'Mês'], ['ano', 'Ano']] as const).map(([v, label]) => (
+          <button
+            key={v}
+            onClick={() => setRange(v)}
+            className={cn(
+              'rounded-[10px] py-[9px] text-[12.5px] font-semibold transition-colors',
+              range === v ? 'bg-primary text-white' : 'text-foreground-muted',
+            )}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {/* Despesas por categoria — catrows (igual mockup) */}
+      {/* MRR em destaque com gráfico de área (igual mockup) */}
+      <div className="md:hidden auro-card rounded-[24px] border border-border/60 bg-surface/55 backdrop-blur-xl px-4 pt-4 pb-2 overflow-hidden">
+        <div className="text-[11.5px] text-foreground-muted">Receita recorrente (MRR)</div>
+        <div className="mt-1 flex items-baseline gap-2.5">
+          <span className="text-[30px] font-[680] tracking-[-0.03em] tabular-nums text-foreground">{formatCurrency(contractsData.mrrTotal)}</span>
+          {deltaPct !== null && (
+            <span className={cn('text-[13px] font-semibold', deltaPct >= 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]')}>
+              {deltaPct >= 0 ? '+' : ''}{deltaPct.toFixed(1).replace('.', ',')}%
+            </span>
+          )}
+        </div>
+        <div className="mt-2 h-[140px] -mx-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={serieMRR} margin={{ top: 8, right: 6, left: 6, bottom: 0 }}>
+              <defs>
+                <linearGradient id="mrrFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(38 82% 55%)" stopOpacity={0.32} />
+                  <stop offset="60%" stopColor="hsl(var(--primary))" stopOpacity={0.16} />
+                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <YAxis hide domain={['dataMin', 'dataMax']} />
+              <XAxis
+                dataKey="mes"
+                tickLine={false}
+                axisLine={false}
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                interval="preserveStartEnd"
+                minTickGap={12}
+              />
+              <Area type="monotone" dataKey="valor" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#mrrFill)" dot={false} activeDot={{ r: 4 }} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Despesas por categoria — ícones em tile (igual mockup) */}
       {expensesByCategory.length > 0 && (
         <section className="md:hidden">
           <div className="flex items-end justify-between mb-2 px-1">
             <h2 className="text-base font-semibold text-foreground">Despesas por categoria</h2>
             <span className="text-xs text-foreground-muted capitalize">{format(new Date(), 'MMMM', { locale: ptBR })}</span>
           </div>
-          <div className="rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl divide-y divide-border/50 overflow-hidden">
+          <div className="auro-card rounded-2xl border border-border/60 bg-surface/55 backdrop-blur-xl divide-y divide-border/50 overflow-hidden">
             {expensesByCategory.slice(0, 6).map((c) => {
               const pct = totalDespCat > 0 ? Math.round((c.valor / totalDespCat) * 100) : 0;
               return (
                 <div key={c.categoria} className="flex items-center gap-3 px-4 py-3">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-xs font-bold" style={{ background: `${c.cor}22`, color: c.cor }}>
-                    {(c.categoria || '?').charAt(0).toUpperCase()}
+                  <span className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-xl" style={{ background: `color-mix(in srgb, ${c.cor} 18%, transparent)`, color: c.cor }}>
+                    <TagIcon className="h-[18px] w-[18px]" strokeWidth={1.9} />
                   </span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-foreground truncate">{c.categoria}</div>
+                    <div className="text-sm font-semibold text-foreground truncate">{c.categoria}</div>
                     <div className="text-[11px] text-foreground-muted">{pct}%</div>
                   </div>
-                  <div className="text-sm font-semibold tabular-nums text-[hsl(var(--danger))]">− {formatCurrency(c.valor)}</div>
+                  <div className="text-sm font-bold tabular-nums text-[hsl(var(--danger))]">−{formatCurrency(c.valor)}</div>
                 </div>
               );
             })}
