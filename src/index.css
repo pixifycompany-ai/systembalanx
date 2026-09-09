@@ -265,9 +265,9 @@
   /* Glow ambiente AURO (dark) — azul topo-esq + âmbar topo-dir + azul embaixo, igual mockup */
   .dark body {
     background-image:
-      radial-gradient(120% 78% at 16% -4%, rgba(58, 120, 205, 0.30), transparent 56%),
-      radial-gradient(115% 62% at 98% 1%, rgba(216, 152, 70, 0.22), transparent 52%),
-      radial-gradient(120% 82% at 55% 118%, rgba(58, 120, 205, 0.16), transparent 62%);
+      radial-gradient(125% 82% at 14% -6%, rgba(58, 120, 205, 0.48), transparent 58%),
+      radial-gradient(120% 68% at 99% 0%, rgba(216, 152, 70, 0.38), transparent 55%),
+      radial-gradient(125% 85% at 55% 120%, rgba(58, 120, 205, 0.28), transparent 64%);
   }
   .light body {
     background-image:
