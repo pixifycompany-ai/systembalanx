@@ -26,6 +26,8 @@ import MeuPerfil from "./pages/MeuPerfil";
 
 import Login from "./pages/Login";
 import CriarConta from "./pages/CriarConta";
+import EsqueciSenha from "./pages/EsqueciSenha";
+import RedefinirSenha from "./pages/RedefinirSenha";
 import Onboarding from "./pages/Onboarding";
 import Iara from "./pages/Iara";
 import Superadmin from "./pages/Superadmin";
@@ -66,6 +68,8 @@ const App = () => (
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/criar-conta" element={<CriarConta />} />
+              <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+              <Route path="/redefinir-senha" element={<RedefinirSenha />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
               <Route path="/fluxo-caixa" element={<ProtectedRoute><AppLayout><FluxoCaixa /></AppLayout></ProtectedRoute>} />

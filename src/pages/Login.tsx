@@ -101,6 +101,11 @@ export default function Login() {
                 className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:ring-white/40"
               />
             </div>
+            <div className="flex justify-end -mt-1">
+              <Link to="/esqueci-senha" className="text-[12px] font-medium text-white/70 hover:text-white">
+                Esqueci minha senha
+              </Link>
+            </div>
             <Button
               type="submit"
               className="w-full h-12 rounded-2xl font-semibold text-[15px] shadow-[0_12px_26px_-6px_hsl(var(--primary)/0.6)]"
