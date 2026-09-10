@@ -1,4 +1,5 @@
 import { useState, useRef, ChangeEvent, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,10 +18,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 
-type Sheet = null | 'nome' | 'email' | 'senha';
+type Sheet = null | 'nome' | 'email' | 'senha' | 'excluir';
 
 export default function MeuPerfil() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const { profile, avatarSignedUrl, loading, updateNome, updatePushEnabled, uploadAvatar } = useProfile();
   const fileRef = useRef<HTMLInputElement>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
@@ -35,6 +37,28 @@ export default function MeuPerfil() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [pushSaving, setPushSaving] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleExcluirConta = async () => {
+    if (confirmText.trim().toUpperCase() !== 'EXCLUIR') return;
+    setDeleting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/excluir-conta`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Falha ao excluir a conta');
+      toast.success('Conta excluída', { description: 'Todos os seus dados foram apagados. Até logo.' });
+      await signOut();
+      navigate('/login', { replace: true });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Não foi possível excluir a conta');
+      setDeleting(false);
+    }
+  };
 
   if (!loading && profile && nome === '' && profile.nome) setNome(profile.nome);
   if (user && email === '' && user.email) setEmail(user.email);
@@ -186,6 +210,14 @@ export default function MeuPerfil() {
         <ArrowRightOnRectangleIcon className="h-4 w-4" /> Sair da conta
       </button>
 
+      {/* Zona de perigo — excluir conta */}
+      <button
+        onClick={() => { setConfirmText(''); setSheet('excluir'); }}
+        className="mt-4 mb-2 w-full text-center text-[12.5px] font-medium text-foreground-muted underline underline-offset-2 hover:text-[hsl(var(--danger))] transition-colors"
+      >
+        Excluir minha conta
+      </button>
+
       {/* Sheet: nome */}
       <DetailSheet open={sheet === 'nome'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Identidade" title="Seu nome">
         <div className="space-y-3 pb-2">
@@ -226,6 +258,26 @@ export default function MeuPerfil() {
           </div>
           <Button className="w-full" onClick={handleChangePassword} disabled={savingPassword || !currentPassword || !newPassword}>
             {savingPassword && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Alterar senha
+          </Button>
+        </div>
+      </DetailSheet>
+
+      {/* Sheet: excluir conta (LGPD) */}
+      <DetailSheet open={sheet === 'excluir'} onOpenChange={(o) => { if (!o && !deleting) setSheet(null); }} eyebrow="Zona de perigo" title="Excluir minha conta">
+        <div className="space-y-4 pb-2">
+          <div className="rounded-xl border border-[hsl(var(--danger))]/30 bg-[hsl(var(--danger))]/10 p-3.5 text-[13px] leading-relaxed text-foreground">
+            Isso apaga <b>permanentemente</b> a sua conta e <b>todos os dados</b>: lançamentos, contas, contratos, clientes, categorias, cartões, metas e o seu login. Se houver assinatura ativa, ela é cancelada. <b>Não dá pra desfazer.</b>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Para confirmar, digite <b>EXCLUIR</b></Label>
+            <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="EXCLUIR" autoCapitalize="characters" autoComplete="off" />
+          </div>
+          <Button
+            onClick={handleExcluirConta}
+            disabled={deleting || confirmText.trim().toUpperCase() !== 'EXCLUIR'}
+            className="w-full h-12 rounded-2xl font-semibold bg-[hsl(var(--danger))] text-white hover:bg-[hsl(var(--danger))]/90 disabled:opacity-50"
+          >
+            {deleting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Excluindo tudo…</> : 'Excluir minha conta para sempre'}
           </Button>
         </div>
       </DetailSheet>
