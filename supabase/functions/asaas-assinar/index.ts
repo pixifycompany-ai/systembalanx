@@ -89,6 +89,36 @@ serve(async (req) => {
     const nextDueDate = new Date();
     nextDueDate.setDate(nextDueDate.getDate() + 1);
 
+    // 2a) MUDANÇA DE PLANO: já existe assinatura → atualiza (não cria outra, não cobra em dobro).
+    // updatePendingPayments:false mantém a data/cobrança atual; o novo ciclo/valor
+    // passa a valer no PRÓXIMO vencimento (anual começa quando o mês pago acabar).
+    const existingSubId = tenant.asaas_subscription_id as string | null;
+    if (existingSubId && !tenant.cortesia) {
+      const uRes = await fetch(`${base}/subscriptions/${existingSubId}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          value,
+          cycle,
+          description: `BALANX — plano ${ciclo}`,
+          updatePendingPayments: false,
+        }),
+      });
+      if (uRes.ok) {
+        await supabase.from("tenants").update({ ciclo, updated_at: new Date().toISOString() }).eq("id", tenant_id);
+        return new Response(
+          JSON.stringify({ changed: true, subscriptionId: existingSubId, invoiceUrl: null, message: `Plano alterado para ${ciclo}. Passa a valer no próximo vencimento.` }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      // 404 = assinatura não existe mais no Asaas → segue e cria uma nova. Outros erros: aborta.
+      if (uRes.status !== 404) {
+        const uJson = await uRes.json().catch(() => ({}));
+        console.error("ASAAS subscription update error", uRes.status, uJson);
+        return new Response(JSON.stringify({ error: (uJson as any)?.errors?.[0]?.description || "Erro ao mudar o plano." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     const sRes = await fetch(`${base}/subscriptions`, {
       method: "POST",
       headers,

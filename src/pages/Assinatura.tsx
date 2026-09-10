@@ -34,23 +34,28 @@ export default function Assinatura() {
   const precoAnualTotal = precoAnualParcela * 12;
 
   const podeAssinar = role === 'owner' || role === 'admin';
-  const jaAtiva = activeTenant?.status_assinatura === 'ativa' || activeTenant?.cortesia;
+  const cortesia = !!activeTenant?.cortesia;
+  const assinaturaAtiva = activeTenant?.status_assinatura === 'ativa';
+  const cicloAtual = (activeTenant?.ciclo as 'mensal' | 'anual' | null) ?? null;
+  const descontoPct = precoMensal > precoAnualParcela ? Math.round((1 - precoAnualParcela / precoMensal) * 100) : 0;
 
-  const assinar = async () => {
+  const chamarAsaas = async (novoCiclo: 'mensal' | 'anual', precisaCpf: boolean) => {
     if (!activeTenant) return;
-    if (!cpfCnpj.replace(/\D/g, '')) { toast({ title: 'Informe seu CPF ou CNPJ', variant: 'destructive' }); return; }
+    if (precisaCpf && !cpfCnpj.replace(/\D/g, '')) { toast({ title: 'Informe seu CPF ou CNPJ', variant: 'destructive' }); return; }
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-assinar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ tenant_id: activeTenant.id, ciclo, cpfCnpj }),
+        body: JSON.stringify({ tenant_id: activeTenant.id, ciclo: novoCiclo, cpfCnpj }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Erro ao assinar');
       await refresh();
-      if (data.invoiceUrl) {
+      if (data.changed) {
+        toast({ title: 'Plano alterado! 🎉', description: data.message || 'A mudança passa a valer no próximo vencimento.' });
+      } else if (data.invoiceUrl) {
         window.open(data.invoiceUrl, '_blank');
         toast({ title: 'Quase lá!', description: 'Abrimos a fatura pra você pagar (Pix, boleto ou cartão).' });
       } else {
@@ -63,6 +68,9 @@ export default function Assinatura() {
     }
   };
 
+  const assinar = () => chamarAsaas(ciclo, true);
+  const mudarPlano = (novo: 'mensal' | 'anual') => chamarAsaas(novo, false);
+
   return (
     <div className="min-h-[100dvh] bg-background">
       <div className="mx-auto w-full max-w-md px-5 pt-12 pb-16">
@@ -74,12 +82,48 @@ export default function Assinatura() {
         <h1 className="text-3xl font-semibold tracking-tight text-foreground mb-1">Plano {PLAN.nome}</h1>
         <p className="text-sm text-foreground-muted mb-5">{PLAN.descricao}</p>
 
-        {jaAtiva ? (
+        {cortesia ? (
           <div className="rounded-2xl border border-[hsl(var(--success))]/40 bg-[hsl(var(--success))]/10 p-4 mb-5">
-            <div className="text-sm font-semibold text-foreground">
-              {activeTenant?.cortesia ? 'Acesso liberado (cortesia) 🎉' : 'Assinatura ativa 🎉'}
-            </div>
+            <div className="text-sm font-semibold text-foreground">Acesso liberado (cortesia) 🎉</div>
             <div className="text-xs text-foreground-muted mt-0.5">Tudo liberado. Bom trabalho!</div>
+          </div>
+        ) : assinaturaAtiva ? (
+          <div className="space-y-3 mb-5">
+            <div className="rounded-2xl border border-[hsl(var(--success))]/40 bg-[hsl(var(--success))]/10 p-4">
+              <div className="text-sm font-semibold text-foreground">Assinatura ativa 🎉</div>
+              <div className="text-xs text-foreground-muted mt-0.5">
+                Plano {cicloAtual === 'anual' ? 'Anual' : 'Mensal'} · {cicloAtual === 'anual' ? `12× ${fmt(precoAnualParcela)}` : `${fmt(precoMensal)}/mês`}
+              </div>
+            </div>
+
+            {podeAssinar && cicloAtual !== 'anual' && descontoPct > 0 && (
+              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+                <div className="text-sm font-semibold text-foreground">Economize {descontoPct}% no plano Anual</div>
+                <div className="text-xs text-foreground-muted mt-0.5 mb-3">
+                  Pague 12× {fmt(precoAnualParcela)} em vez de {fmt(precoMensal)}/mês. A mudança começa no próximo vencimento — sem cobrança dupla.
+                </div>
+                <Button className="w-full h-11 rounded-2xl font-semibold" onClick={() => mudarPlano('anual')} disabled={loading}>
+                  {loading ? 'Alterando…' : 'Mudar para Anual'}
+                </Button>
+              </div>
+            )}
+
+            {podeAssinar && cicloAtual === 'anual' && (
+              <div className="rounded-2xl border border-border/60 bg-surface/70 p-4">
+                <div className="text-sm font-semibold text-foreground">Você está no melhor preço (Anual) 🏆</div>
+                <button
+                  onClick={() => mudarPlano('mensal')}
+                  disabled={loading}
+                  className="mt-1.5 text-xs font-medium text-foreground-muted underline underline-offset-2 disabled:opacity-50"
+                >
+                  {loading ? 'Alterando…' : 'Prefiro voltar para o mensal'}
+                </button>
+              </div>
+            )}
+
+            {!podeAssinar && (
+              <p className="text-xs text-foreground-muted text-center py-1">Só o responsável (owner/admin) pode mudar o plano.</p>
+            )}
           </div>
         ) : (
           <>
