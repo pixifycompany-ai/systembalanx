@@ -50,7 +50,9 @@ export default function MeuPerfil() {
   const handleAvatarPick = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error('Imagem deve ter no máximo 5 MB'); return; }
+    // Sem bloqueio por tamanho: o uploadAvatar comprime/redimensiona automaticamente
+    // (foto de celular ~5–12MB cai pra ~100–400KB). Só evitamos arquivos absurdos.
+    if (file.size > 40 * 1024 * 1024) { toast.error('Imagem muito grande (máx. 40 MB).'); return; }
     setUploading(true);
     const { error } = await uploadAvatar(file);
     setUploading(false);
