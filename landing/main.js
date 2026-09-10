@@ -192,3 +192,18 @@
     mic.classList.add('rec');
   });
 })();
+
+/* ===================== Cookie consent ===================== */
+(() => {
+  'use strict';
+  const el = document.getElementById('cookie');
+  if (!el) return;
+  let ok = null;
+  try { ok = localStorage.getItem('balanx_cookie'); } catch (_) {}
+  if (!ok) el.hidden = false;
+  const set = (v) => { try { localStorage.setItem('balanx_cookie', v); } catch (_) {} el.hidden = true; };
+  const yes = document.getElementById('cookieYes');
+  const no = document.getElementById('cookieNo');
+  yes && yes.addEventListener('click', () => set('all'));
+  no && no.addEventListener('click', () => set('essential'));
+})();

@@ -148,36 +148,103 @@
         <p>Do recebível recorrente ao fechamento do mês — sem planilha e sem susto.</p>
       </header>
 
-      <div class="grid">
-        <article class="card auro reveal">
-          <div class="card__ico ico-flux"></div>
-          <h3>Fluxo de caixa & previsão</h3>
-          <p>Entradas, saídas e transferências em um extrato único. Veja o saldo projetado por semana e antecipe o aperto antes dele chegar.</p>
+      <div class="bento">
+        <!-- Fluxo de caixa (largo) -->
+        <article class="bento-card bento-card--wide auro reveal">
+          <div class="bento-viz">
+            <div class="viz-eq" aria-hidden="true">
+              <i style="--h:.35"></i><i style="--h:.55"></i><i style="--h:.4"></i><i style="--h:.7"></i><i style="--h:.5"></i><i style="--h:.85"></i><i style="--h:.6"></i><i style="--h:.95"></i><i style="--h:.7"></i><i style="--h:1"></i><i style="--h:.75"></i><i style="--h:.9"></i><i style="--h:.6"></i><i style="--h:.8"></i><i style="--h:.55"></i><i style="--h:.72"></i>
+            </div>
+          </div>
+          <div class="bento-txt">
+            <h3>Fluxo de caixa & previsão</h3>
+            <p>Entradas, saídas e transferências num extrato único. Veja o saldo projetado por semana e antecipe o aperto antes dele chegar.</p>
+          </div>
         </article>
-        <article class="card auro reveal" data-delay="80">
-          <div class="card__ico ico-contrato"></div>
-          <h3>Contratos & recebíveis</h3>
-          <p>Mensalidades e parcelas geradas automaticamente. Cada cliente com seu contrato, MRR e vencimentos no lugar certo.</p>
+
+        <!-- Cartões -->
+        <article class="bento-card auro reveal" data-delay="80">
+          <div class="bento-viz">
+            <div class="viz-card" aria-hidden="true">
+              <span class="viz-card__shine"></span>
+              <div class="viz-card__brand">balanx</div>
+              <div class="viz-card__num">•••• •••• •••• 6411</div>
+              <div class="viz-card__row"><span>FATURA</span><b>R$ 3.520</b></div>
+            </div>
+          </div>
+          <div class="bento-txt">
+            <h3>Cartões & faturas</h3>
+            <p>Compras parceladas caem na fatura certa pelo dia de fechamento. Pague debitando a conta e mantenha tudo conciliado.</p>
+          </div>
         </article>
-        <article class="card auro reveal" data-delay="160">
-          <div class="card__ico ico-card"></div>
-          <h3>Cartões & faturas</h3>
-          <p>Compras parceladas caem na fatura certa pelo dia de fechamento. Pague a fatura debitando a conta e mantendo tudo conciliado.</p>
+
+        <!-- Contratos / MRR -->
+        <article class="bento-card auro reveal">
+          <div class="bento-viz viz-center">
+            <div class="viz-mrr" aria-hidden="true">
+              <span class="viz-mrr__chip">↻ recorrente</span>
+              <div class="viz-mrr__val">R$ <b data-count="12480">12.480</b></div>
+              <div class="viz-mrr__lbl">MRR · receita mensal recorrente</div>
+              <div class="viz-avatars"><span></span><span></span><span></span><span>+9</span></div>
+            </div>
+          </div>
+          <div class="bento-txt">
+            <h3>Contratos & recebíveis</h3>
+            <p>Mensalidades e parcelas geradas sozinhas. Cada cliente com seu contrato, MRR e vencimentos no lugar.</p>
+          </div>
         </article>
-        <article class="card auro reveal">
-          <div class="card__ico ico-cal"></div>
-          <h3>Calendário de caixa</h3>
-          <p>Resumo de saldo por semana e filtros de a pagar, pago, a receber e recebido — a previsão de caixa que cabe no olhar.</p>
+
+        <!-- Calendário -->
+        <article class="bento-card auro reveal" data-delay="80">
+          <div class="bento-viz viz-center">
+            <div class="viz-week" aria-hidden="true">
+              <div><i style="--h:.5"></i><span>S</span></div>
+              <div><i style="--h:.8"></i><span>T</span></div>
+              <div><i style="--h:.35"></i><span>Q</span></div>
+              <div class="on"><i style="--h:1"></i><span>Q</span></div>
+              <div><i style="--h:.6"></i><span>S</span></div>
+              <div><i style="--h:.45"></i><span>S</span></div>
+              <div><i style="--h:.7"></i><span>D</span></div>
+            </div>
+          </div>
+          <div class="bento-txt">
+            <h3>Calendário de caixa</h3>
+            <p>Saldo por semana e filtros de a pagar, pago, a receber e recebido — a previsão que cabe no olhar.</p>
+          </div>
         </article>
-        <article class="card auro reveal" data-delay="80">
-          <div class="card__ico ico-voz"></div>
-          <h3>Lance por voz</h3>
-          <p>Fale “recebi 2.997 da mensalidade e paguei 320 de energia” e a IARA registra os lançamentos pra você revisar e salvar.</p>
+
+        <!-- Relatórios / metas -->
+        <article class="bento-card auro reveal" data-delay="160">
+          <div class="bento-viz viz-center">
+            <div class="viz-ring" aria-hidden="true">
+              <svg viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10"/>
+                <circle class="viz-ring__prog" cx="60" cy="60" r="50" fill="none" stroke="url(#ringg)" stroke-width="10" stroke-linecap="round" transform="rotate(-90 60 60)"/>
+                <defs><linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4c8dff"/><stop offset="1" stop-color="#e0a24e"/></linearGradient></defs>
+              </svg>
+              <div class="viz-ring__c"><b>68%</b><span>da meta</span></div>
+            </div>
+          </div>
+          <div class="bento-txt">
+            <h3>Relatórios & metas</h3>
+            <p>Meta de faturamento, categorias e análises claras — pra decidir com número, não com achismo.</p>
+          </div>
         </article>
-        <article class="card auro reveal" data-delay="160">
-          <div class="card__ico ico-rel"></div>
-          <h3>Relatórios & metas</h3>
-          <p>Meta de faturamento, categorias, análises e relatórios claros — pra decidir com número, não com achismo.</p>
+
+        <!-- Lançar por voz (largo, full) -->
+        <article class="bento-card bento-card--full auro reveal">
+          <div class="bento-viz bento-viz--side">
+            <div class="viz-voice" aria-hidden="true">
+              <span class="viz-voice__mic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg>
+              </span>
+              <div class="viz-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            </div>
+          </div>
+          <div class="bento-txt">
+            <h3>Lance por voz</h3>
+            <p>Fale <em>“recebi 2.997 da mensalidade e paguei 320 de energia”</em> e a IARA registra os lançamentos pra você revisar e salvar em segundos.</p>
+          </div>
         </article>
       </div>
     </section>
@@ -286,12 +353,22 @@
     </div>
     <nav class="footer__links" aria-label="Rodapé">
       <a href="#recursos">Recursos</a>
-      <a href="#iara">IARA</a>
       <a href="#precos">Preços</a>
+      <a href="/privacidade.html">Privacidade</a>
+      <a href="/termos.html">Termos</a>
       <a href="https://app.balanx.com.br/login">Entrar</a>
     </nav>
     <p class="footer__legal">© <span id="year">2026</span> BALANX · Gestão financeira. Todos os direitos reservados.</p>
   </footer>
+
+  <!-- ===== Cookie consent ===== -->
+  <div id="cookie" class="cookie" hidden>
+    <p>Usamos cookies essenciais e, opcionalmente, de análise para melhorar sua experiência. Ao continuar, você concorda com a nossa <a href="/privacidade.html">Política de Privacidade</a>.</p>
+    <div class="cookie__btns">
+      <button id="cookieNo" class="cookie__btn cookie__btn--ghost">Só essenciais</button>
+      <button id="cookieYes" class="cookie__btn cookie__btn--ok">Aceitar</button>
+    </div>
+  </div>
 
   <!-- ===== IARA — chat de pré-venda ===== -->
   <button id="iaraFab" class="iara-fab" aria-label="Falar com a IARA" title="Tire dúvidas com a IARA">
