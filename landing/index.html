@@ -293,6 +293,35 @@
     <p class="footer__legal">© <span id="year">2026</span> BALANX · Gestão financeira. Todos os direitos reservados.</p>
   </footer>
 
+  <!-- ===== IARA — chat de pré-venda ===== -->
+  <button id="iaraFab" class="iara-fab" aria-label="Falar com a IARA" title="Tire dúvidas com a IARA">
+    <svg class="iara-fab__spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" fill="currentColor"/></svg>
+    <svg class="iara-fab__close" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+  </button>
+
+  <div id="iaraPanel" class="iara-panel" hidden aria-live="polite">
+    <div class="iara-panel__head">
+      <span class="iara-panel__ava"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" fill="currentColor"/></svg></span>
+      <div class="iara-panel__id">
+        <div class="iara-panel__name">IARA</div>
+        <div class="iara-panel__status">tira suas dúvidas sobre o BALANX</div>
+      </div>
+      <button id="iaraClose" class="iara-panel__x" aria-label="Fechar">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div id="iaraMsgs" class="iara-panel__msgs"></div>
+    <form id="iaraForm" class="iara-panel__composer" autocomplete="off">
+      <input id="iaraInput" type="text" placeholder="Pergunte sobre o BALANX…" aria-label="Sua mensagem" />
+      <button type="button" id="iaraMic" class="iara-mic" aria-label="Falar por áudio">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg>
+      </button>
+      <button type="submit" class="iara-sendbtn" aria-label="Enviar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      </button>
+    </form>
+  </div>
+
   <script src="/main.js" defer></script>
 </body>
 </html>

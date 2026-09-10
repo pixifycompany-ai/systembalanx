@@ -176,8 +176,8 @@ p{margin:0}
 .showcase__overlay p{color:var(--muted);max-width:26em;margin:14px 0 22px}
 
 /* ---------- PREÇOS ---------- */
-.toggle{display:inline-flex;gap:4px;padding:4px;border-radius:14px;background:var(--surface);
-  border:1px solid var(--border);margin:0 auto 26px;position:relative;left:50%;transform:translateX(-50%)}
+.toggle{display:flex;width:fit-content;gap:4px;padding:4px;border-radius:14px;background:var(--surface);
+  border:1px solid var(--border);margin:0 auto 26px}
 .toggle__opt{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 18px;border:0;border-radius:11px;
   background:transparent;color:var(--muted);font-weight:600;font-size:14px;cursor:pointer;transition:.2s}
 .toggle__opt.is-active{background:linear-gradient(180deg,#4c8dff,#2563eb);color:#fff}
@@ -249,3 +249,55 @@ p{margin:0}
   .footer{flex-direction:column;align-items:flex-start;gap:14px}
   .footer__legal{margin-left:0}
 }
+
+/* ===================== IARA — chat de pré-venda ===================== */
+.iara-fab{position:fixed;right:20px;bottom:20px;z-index:80;width:58px;height:58px;border:0;cursor:pointer;
+  border-radius:50%;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(160deg,#4c8dff,#2563eb);
+  box-shadow:0 12px 30px -8px rgba(37,99,235,.7),inset 0 1px 0 rgba(255,255,255,.25);
+  transition:transform .18s ease}
+.iara-fab:hover{transform:scale(1.06)}
+.iara-fab:active{transform:scale(.95)}
+.iara-fab svg{width:26px;height:26px}
+.iara-fab__close{display:none}
+.iara-fab.open .iara-fab__spark{display:none}
+.iara-fab.open .iara-fab__close{display:block}
+
+.iara-panel{position:fixed;right:20px;bottom:88px;z-index:80;width:min(380px,calc(100vw - 32px));
+  height:min(560px,calc(100dvh - 120px));display:flex;flex-direction:column;overflow:hidden;
+  border-radius:22px;border:1px solid var(--border);background:rgba(12,16,28,.86);
+  backdrop-filter:blur(24px) saturate(1.4);
+  box-shadow:0 30px 70px -24px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.08);
+  transform-origin:bottom right;animation:iaraIn .22s cubic-bezier(.2,.8,.2,1)}
+@keyframes iaraIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+.iara-panel__head{display:flex;align-items:center;gap:11px;padding:14px 14px;border-bottom:1px solid var(--border)}
+.iara-panel__ava{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(150deg,#4c8dff,#2563eb)}
+.iara-panel__ava svg{width:18px;height:18px}
+.iara-panel__id{flex:1;min-width:0}
+.iara-panel__name{font-size:14.5px;font-weight:700}
+.iara-panel__status{font-size:11px;color:var(--pos)}
+.iara-panel__x{flex:none;width:30px;height:30px;border:0;background:transparent;color:var(--muted);cursor:pointer;border-radius:8px}
+.iara-panel__x svg{width:18px;height:18px}
+.iara-panel__x:hover{background:rgba(255,255,255,.06);color:var(--fg)}
+.iara-panel__msgs{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px}
+.iara-msg{max-width:86%;padding:10px 13px;font-size:13.5px;line-height:1.5;border-radius:15px;white-space:pre-wrap;word-wrap:break-word}
+.iara-msg--user{align-self:flex-end;background:linear-gradient(180deg,#4c8dff,#2563eb);color:#fff;border-radius:15px 15px 5px 15px}
+.iara-msg--bot{align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:15px 15px 15px 5px}
+.iara-msg--typing{color:var(--muted);font-style:italic}
+.iara-panel__composer{display:flex;align-items:center;gap:8px;padding:10px 12px;border-top:1px solid var(--border)}
+.iara-panel__composer input{flex:1;min-width:0;height:40px;border-radius:12px;border:1px solid var(--border);
+  background:rgba(255,255,255,.05);color:var(--fg);padding:0 12px;font-size:14px;outline:none;font-family:inherit}
+.iara-panel__composer input:focus{border-color:rgba(76,141,255,.5)}
+.iara-mic,.iara-sendbtn{flex:none;width:40px;height:40px;border-radius:12px;border:1px solid var(--border);
+  background:rgba(255,255,255,.05);color:var(--muted);cursor:pointer;display:grid;place-items:center;transition:.15s}
+.iara-mic svg,.iara-sendbtn svg{width:18px;height:18px}
+.iara-mic:hover,.iara-sendbtn:hover{color:var(--fg);border-color:rgba(255,255,255,.24)}
+.iara-mic.rec{background:hsl(4 70% 42% / .18);border-color:var(--neg);color:var(--neg);animation:iaraPulse 1s infinite}
+@keyframes iaraPulse{50%{opacity:.5}}
+.iara-sendbtn{background:linear-gradient(180deg,#4c8dff,#2563eb);color:#fff;border-color:transparent}
+@media (max-width:680px){
+  .iara-panel{right:10px;left:10px;width:auto;bottom:82px;height:min(70dvh,540px)}
+  .iara-fab{right:14px;bottom:14px}
+}
+@media (prefers-reduced-motion:reduce){ .iara-panel{animation:none} .iara-mic.rec{animation:none} }

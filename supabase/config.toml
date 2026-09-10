@@ -32,6 +32,9 @@ verify_jwt = false
 [functions.excluir-conta]
 verify_jwt = false
 
+[functions.iara-lp]
+verify_jwt = false
+
 [functions.asaas-assinar]
 verify_jwt = false
 
