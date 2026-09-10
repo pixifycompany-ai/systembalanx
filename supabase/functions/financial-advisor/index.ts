@@ -106,6 +106,18 @@ serve(async (req) => {
       });
     }
 
+    // Fair-use: teto diário generoso por usuário (anti-abuso — uso normal nunca encosta).
+    // Falha ABERTA se a RPC ainda não existir (não bloqueia por erro de infra).
+    try {
+      const limiteDia = Number(Deno.env.get("IARA_LIMITE_DIA") || "120");
+      const { data: uso } = await supabase.rpc("iara_registrar_uso", { p_limite: limiteDia });
+      if (uso && (uso as { bloqueado?: boolean }).bloqueado) {
+        return new Response(JSON.stringify({ error: `Você atingiu o limite de ${limiteDia} perguntas à IARA por hoje. Volte amanhã 🙂` }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } catch (_e) { /* fail open */ }
+
     const { messages, period }: RequestBody = await req.json();
     const { startDate, endDate, periodLabel } = getPeriodDates(period);
     const hojeISO = new Date().toISOString().split("T")[0];
@@ -321,106 +333,17 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 ${contexto}`;
 
     // ---- Ferramentas: a IARA consulta a fonte para QUALQUER intervalo de datas ----
+    // Ferramentas enxutas (descrições curtas = menos tokens por chamada). O roteamento
+    // detalhado está no system prompt; aqui basta o essencial. Mesmas 7 capacidades.
+    const D = { type: "string", description: "YYYY-MM-DD" };
     const TOOLS = [
-      {
-        type: "function",
-        function: {
-          name: "resumo_financeiro",
-          description: "Resumo por REGIME DE COMPETÊNCIA (data_competencia) de um intervalo de datas: recebido, a receber, pago, a pagar, lucro, margem, despesas por categoria e receita por cliente. Use para perguntas de resultado/desempenho (faturamento, gastos, lucro, margem, por categoria, top clientes) em qualquer período.",
-          parameters: {
-            type: "object",
-            properties: {
-              inicio: { type: "string", description: "Data inicial no formato YYYY-MM-DD" },
-              fim: { type: "string", description: "Data final no formato YYYY-MM-DD" },
-            },
-            required: ["inicio", "fim"],
-          },
-        },
-      },
-      {
-        type: "function",
-        function: {
-          name: "agenda_vencimentos",
-          description: "Lançamentos por DATA DE VENCIMENTO num intervalo (o que vence/entra/sai): lista receitas e despesas com descrição, valor, status e cliente/categoria, mais totais a receber e a pagar. Use para 'hoje', 'amanhã', 'depois de amanhã', 'essa semana', 'semana passada', 'resto do mês', 'do dia X ao Y' e contas a pagar/receber.",
-          parameters: {
-            type: "object",
-            properties: {
-              inicio: { type: "string", description: "Data inicial YYYY-MM-DD" },
-              fim: { type: "string", description: "Data final YYYY-MM-DD" },
-              tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "Filtrar por tipo (padrão: ambos)" },
-              status: { type: "string", enum: ["pago", "recebido", "pendente", "atrasado"], description: "Filtrar por status (opcional)" },
-            },
-            required: ["inicio", "fim"],
-          },
-        },
-      },
-      {
-        type: "function",
-        function: {
-          name: "buscar_lancamento",
-          description: "Procura receitas e despesas por texto na descrição ou no fornecedor. Use para perguntas como 'quanto paguei pra Hostinger?', 'todos os lançamentos da Lovable', 'gastos com energia'.",
-          parameters: {
-            type: "object",
-            properties: {
-              termo: { type: "string", description: "Texto a procurar (nome do fornecedor, descrição, etc.)" },
-            },
-            required: ["termo"],
-          },
-        },
-      },
-      {
-        type: "function",
-        function: {
-          name: "detalhe_cliente",
-          description: "Retorna o panorama de um cliente: total faturado, recebido, a receber, atrasado, nº de contratos ativos e MRR do cliente. Use para 'como está o cliente X?', 'quanto o cliente Y me deve?'.",
-          parameters: {
-            type: "object",
-            properties: {
-              nome: { type: "string", description: "Nome (ou parte do nome) do cliente" },
-            },
-            required: ["nome"],
-          },
-        },
-      },
-      {
-        type: "function",
-        function: {
-          name: "saldo_e_contas",
-          description: "Saldo atual (tempo real) de cada conta bancária + total em caixa, e os cartões de crédito com fatura aberta, limite e disponível. Use para 'qual meu saldo?', 'quanto tenho no banco?', 'como estão meus cartões?'.",
-          parameters: { type: "object", properties: {} },
-        },
-      },
-      {
-        type: "function",
-        function: {
-          name: "projecao_fluxo",
-          description: "Projeta a variação de caixa nos próximos N dias: soma o que está a receber e a pagar por data de vencimento até lá. Use para 'vou ter caixa mês que vem?', 'como fica meu caixa nos próximos 30 dias?'. Combine com saldo_e_contas para o caixa atual.",
-          parameters: {
-            type: "object",
-            properties: {
-              dias: { type: "number", description: "Quantos dias à frente projetar (ex.: 30)" },
-            },
-            required: ["dias"],
-          },
-        },
-      },
-      {
-        type: "function",
-        function: {
-          name: "comparativo_periodos",
-          description: "Compara dois intervalos por regime de competência (recebido, pago, lucro, margem) com a variação percentual. Use para 'esse mês vs mês passado', 'comparar 2º trimestre com o 1º'.",
-          parameters: {
-            type: "object",
-            properties: {
-              inicio_a: { type: "string", description: "Início do período A (YYYY-MM-DD)" },
-              fim_a: { type: "string", description: "Fim do período A" },
-              inicio_b: { type: "string", description: "Início do período B (YYYY-MM-DD)" },
-              fim_b: { type: "string", description: "Fim do período B" },
-            },
-            required: ["inicio_a", "fim_a", "inicio_b", "fim_b"],
-          },
-        },
-      },
+      { type: "function", function: { name: "resumo_financeiro", description: "Resultado por competência num intervalo: recebido, a receber, pago, a pagar, lucro, margem, despesas por categoria e receita por cliente. Use p/ faturamento, gastos, lucro, margem, top categorias/clientes.", parameters: { type: "object", properties: { inicio: D, fim: D }, required: ["inicio", "fim"] } } },
+      { type: "function", function: { name: "agenda_vencimentos", description: "Lançamentos por data de VENCIMENTO (o que vence/entra/sai) + totais a receber/pagar. Use p/ hoje, amanhã, essa semana, resto do mês, do dia X ao Y, contas a pagar/receber.", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" }, status: { type: "string", enum: ["pago", "recebido", "pendente", "atrasado"], description: "opcional" } }, required: ["inicio", "fim"] } } },
+      { type: "function", function: { name: "buscar_lancamento", description: "Procura receitas/despesas por texto na descrição ou fornecedor. Ex: 'quanto paguei pra X', 'gastos com energia'.", parameters: { type: "object", properties: { termo: { type: "string", description: "texto a procurar" } }, required: ["termo"] } } },
+      { type: "function", function: { name: "detalhe_cliente", description: "Panorama de um cliente: faturado, recebido, a receber, atrasado, contratos ativos e MRR. Ex: 'como está o cliente X', 'quanto Y me deve'.", parameters: { type: "object", properties: { nome: { type: "string", description: "nome ou parte" } }, required: ["nome"] } } },
+      { type: "function", function: { name: "saldo_e_contas", description: "Saldo atual de cada conta + total em caixa e cartões (fatura aberta, limite, disponível). Ex: 'meu saldo', 'como estão meus cartões'.", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "projecao_fluxo", description: "Projeta a variação de caixa nos próximos N dias (a receber − a pagar por vencimento). Ex: 'vou ter caixa mês que vem'. Combine com saldo_e_contas.", parameters: { type: "object", properties: { dias: { type: "number", description: "dias à frente (ex: 30)" } }, required: ["dias"] } } },
+      { type: "function", function: { name: "comparativo_periodos", description: "Compara dois intervalos por competência (recebido, pago, lucro, margem) com variação %. Ex: 'esse mês vs passado'.", parameters: { type: "object", properties: { inicio_a: D, fim_a: D, inicio_b: D, fim_b: D }, required: ["inicio_a", "fim_a", "inicio_b", "fim_b"] } } },
     ];
 
     async function computeResumo(inicio: string, fim: string) {
