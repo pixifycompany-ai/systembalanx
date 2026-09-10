@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { compressImage } from '@/utils/imageCompression';
 
 export interface Profile {
   id: string;
@@ -72,11 +73,14 @@ export function useProfile() {
 
   const uploadAvatar = async (file: File) => {
     if (!user) return { error: new Error('not authenticated') };
-    const ext = file.name.split('.').pop() || 'png';
+    // Comprime/redimensiona no cliente pra caber com folga no limite (ninguém
+    // vai comprimir foto à mão). Fotos de celular (~5–12MB) caem pra ~100–400KB.
+    const toUpload = await compressImage(file, { maxDim: 1024, maxBytes: 5 * 1024 * 1024 });
+    const ext = toUpload.type === 'image/jpeg' ? 'jpg' : (toUpload.name.split('.').pop() || 'png');
     const path = `${user.id}/avatar-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from('avatars')
-      .upload(path, file, { upsert: true, contentType: file.type });
+      .upload(path, toUpload, { upsert: true, contentType: toUpload.type });
     if (upErr) return { error: upErr };
     const { error: updErr } = await supabase
       .from('profiles')

@@ -10,18 +10,37 @@ export function CometSpinner({ size = 52, className }: { size?: number; classNam
   );
 }
 
-/** Tela cheia de carregamento (isotipo + glow + anel-cometa), igual ao mockup. */
-export function BalanxLoader({ message = 'Carregando seu financeiro…' }: { message?: string }) {
+/**
+ * Carregamento com isotipo + anel-cometa.
+ * - fullscreen (padrão): cobre o viewport com bg opaco + glow próprio (splash/rotas).
+ * - fullscreen=false: transparente e sem retângulo, pra usar DENTRO do app (ex.:
+ *   MeuPerfil, dentro do AppLayout) — assim o glow do body aparece e não fica o
+ *   "quadrado" recortado pelo padding do <main>.
+ */
+export function BalanxLoader({
+  message = 'Carregando seu financeiro…',
+  fullscreen = true,
+}: {
+  message?: string;
+  fullscreen?: boolean;
+}) {
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col items-center justify-center bg-background relative overflow-hidden">
-      {/* Glow ambiente AURO (igual mockup) */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(60% 42% at 18% 8%, hsl(var(--primary) / 0.42), transparent 70%), radial-gradient(55% 38% at 88% 4%, hsl(38 82% 55% / 0.30), transparent 68%), radial-gradient(70% 45% at 50% 108%, hsl(var(--primary) / 0.28), transparent 72%)',
-        }}
-      />
+    <div
+      className={cn(
+        'w-full flex flex-col items-center justify-center relative overflow-hidden',
+        fullscreen ? 'min-h-[100dvh] bg-background' : 'min-h-[60vh]',
+      )}
+    >
+      {/* Glow ambiente AURO — só no modo tela cheia (inline usa o glow do body) */}
+      {fullscreen && (
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(60% 42% at 18% 8%, hsl(var(--primary) / 0.42), transparent 70%), radial-gradient(55% 38% at 88% 4%, hsl(38 82% 55% / 0.30), transparent 68%), radial-gradient(70% 45% at 50% 108%, hsl(var(--primary) / 0.28), transparent 72%)',
+          }}
+        />
+      )}
       <div className="relative z-[1] grid place-items-center" style={{ width: 120, height: 120 }}>
         <div
           className="absolute rounded-full"
@@ -39,7 +58,10 @@ export function BalanxLoader({ message = 'Carregando seu financeiro…' }: { mes
           style={{ height: 46, filter: 'drop-shadow(0 6px 20px hsl(var(--primary) / 0.35))' }}
         />
       </div>
-      <p className="absolute bottom-20 z-[1] text-xs font-medium text-foreground-muted tracking-wide">{message}</p>
+      <p className={cn(
+        'z-[1] text-xs font-medium text-foreground-muted tracking-wide',
+        fullscreen ? 'absolute bottom-20' : 'mt-6',
+      )}>{message}</p>
     </div>
   );
 }

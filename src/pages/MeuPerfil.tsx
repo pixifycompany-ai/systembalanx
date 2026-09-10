@@ -126,7 +126,7 @@ export default function MeuPerfil() {
 
   const initials = (profile?.nome || user?.email || '?').slice(0, 2).toUpperCase();
 
-  if (loading) return <BalanxLoader />;
+  if (loading) return <BalanxLoader fullscreen={false} />;
 
   return (
     <div className="max-w-lg mx-auto">
@@ -149,7 +149,7 @@ export default function MeuPerfil() {
         </button>
         <button onClick={() => setSheet('nome')} className="flex-1 min-w-0 text-left">
           <div className="text-[15px] font-semibold text-foreground truncate">{profile?.nome || 'Seu nome'}</div>
-          <div className="text-[11.5px] text-foreground-muted mt-0.5">Trocar avatar · PNG/JPG até 5MB</div>
+          <div className="text-[11.5px] text-foreground-muted mt-0.5">Trocar avatar · ajustamos o tamanho pra você</div>
         </button>
         <ChevronRightIcon className="h-4 w-4 text-foreground-muted/60 shrink-0" onClick={() => setSheet('nome')} />
       </div>
