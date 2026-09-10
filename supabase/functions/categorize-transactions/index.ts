@@ -65,9 +65,9 @@ serve(async (req) => {
       );
     }
 
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
+    const apiKey = Deno.env.get('OPENAI_API_KEY') || Deno.env.get('IARA_API_KEY');
     if (!apiKey) {
-      console.error('LOVABLE_API_KEY not configured');
+      console.error('OPENAI_API_KEY not configured');
       return new Response(
         JSON.stringify({ suggestions: [] }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -99,14 +99,14 @@ REGRAS:
 Retorne APENAS um JSON array como: [{"index": 0, "categoria_id": "uuid-aqui"}, ...]
 Sem markdown, sem explicação.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: Deno.env.get('IARA_MODEL') || 'gpt-4o-mini',
         messages: [
           { role: 'system', content: 'Você é um assistente que categoriza transações financeiras. Responda apenas com JSON.' },
           { role: 'user', content: prompt },

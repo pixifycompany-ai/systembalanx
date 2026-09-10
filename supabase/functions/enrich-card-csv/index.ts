@@ -56,7 +56,7 @@ serve(async (req) => {
       });
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    const apiKey = Deno.env.get("OPENAI_API_KEY") || Deno.env.get("IARA_API_KEY");
     if (!apiKey) {
       return new Response(JSON.stringify({ enriched: [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -82,14 +82,14 @@ ${txList}
 Retorne APENAS um JSON array. Sem markdown, sem explicação:
 [{"index": 0, "categoria_id": "uuid-ou-null", "fornecedor": "Nome", "tipo_despesa": "fixa|variavel"}, ...]`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: Deno.env.get("IARA_MODEL") || "gpt-4o-mini",
         messages: [
           { role: "system", content: "Você categoriza lançamentos de cartão de crédito. Responda apenas com JSON." },
           { role: "user", content: prompt },

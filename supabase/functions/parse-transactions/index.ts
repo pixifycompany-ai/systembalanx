@@ -344,7 +344,7 @@ function parseXLSX(base64Content: string): ParsedTransaction[] {
 
 // Parse PDF/Image using AI
 async function parseWithAI(base64Content: string, fileType: string, fileName?: string): Promise<ParsedTransaction[]> {
-  const apiKey = Deno.env.get('LOVABLE_API_KEY');
+  const apiKey = Deno.env.get('OPENAI_API_KEY') || Deno.env.get('IARA_API_KEY');
   if (!apiKey) throw new Error('Configuração de IA não encontrada');
   
   const mediaType = fileType.includes('pdf') ? 'application/pdf' : fileType.includes('png') ? 'image/png' : 'image/jpeg';
@@ -374,14 +374,14 @@ Rules:
 
 Return ONLY the JSON array, no markdown or explanation.`;
 
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: Deno.env.get('IARA_MODEL') || 'gpt-4o-mini',
       messages: [{
         role: 'user',
         content: [
@@ -389,7 +389,7 @@ Return ONLY the JSON array, no markdown or explanation.`;
           { type: 'image_url', image_url: { url: `data:${mediaType};base64,${base64Content}` } },
         ],
       }],
-      max_tokens: 32000,
+      max_tokens: 16000,
     }),
   });
   

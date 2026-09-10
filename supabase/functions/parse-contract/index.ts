@@ -111,7 +111,7 @@ serve(async (req) => {
       );
     }
     
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
+    const apiKey = Deno.env.get('OPENAI_API_KEY') || Deno.env.get('IARA_API_KEY');
     if (!apiKey) {
       return new Response(
         JSON.stringify({ success: false, error: 'Configuração de IA não encontrada' }),
@@ -152,14 +152,14 @@ Se algum campo não for encontrado:
 
 Retorne APENAS o JSON, sem markdown ou explicação.`;
     
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: Deno.env.get('IARA_MODEL') || 'gpt-4o-mini',
         messages: [
           {
             role: 'user',
