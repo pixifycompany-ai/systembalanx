@@ -399,21 +399,24 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
 
   const updateReceita = async (id: string, formData: Partial<ReceitaFormData>): Promise<boolean> => {
     try {
+      // UPDATE PARCIAL: só envia campos explicitamente presentes em formData.
+      // Isso evita apagar categoria/conta/cliente/contrato quando o call site
+      // manda um update parcial (ex.: "dar baixa" enviando só status+data).
+      // "k in formData" distingue chave OMITIDA (baixa → preserva) de chave
+      // PRESENTE-mas-vazia (edição limpando o campo → grava null).
+      const payload: Record<string, unknown> = {};
+      const nullableKeys = ['cliente_id', 'categoria_id', 'conta_id', 'contrato_id', 'data_recebimento', 'forma_pagamento'] as const;
+      const directKeys = ['descricao', 'valor', 'data_competencia', 'data_vencimento', 'status'] as const;
+      for (const k of nullableKeys) {
+        if (k in formData) payload[k] = (formData as Record<string, unknown>)[k] || null;
+      }
+      for (const k of directKeys) {
+        if (k in formData) payload[k] = (formData as Record<string, unknown>)[k];
+      }
+
       const { data, error } = await supabase
         .from('receitas')
-        .update({
-          cliente_id: formData.cliente_id || null,
-          categoria_id: formData.categoria_id || null,
-          conta_id: formData.conta_id || null,
-          contrato_id: formData.contrato_id || null,
-          descricao: formData.descricao,
-          valor: formData.valor,
-          data_competencia: formData.data_competencia,
-          data_vencimento: formData.data_vencimento,
-          data_recebimento: formData.data_recebimento || null,
-          status: formData.status,
-          forma_pagamento: formData.forma_pagamento || null,
-        })
+        .update(payload as never)
         .eq('id', id)
         .select('*, cliente:clientes(id, nome), categoria:categorias(id, nome, cor)')
         .single();
@@ -500,22 +503,23 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
 
   const updateDespesa = async (id: string, formData: Partial<DespesaFormData>): Promise<boolean> => {
     try {
+      // UPDATE PARCIAL: só envia campos presentes (não apaga categoria/conta/cliente
+      // no "dar baixa", que manda só status+data). Ver updateReceita acima.
+      // "k in formData" distingue chave OMITIDA (baixa → preserva) de chave
+      // PRESENTE-mas-vazia (edição limpando o campo → grava null).
+      const payload: Record<string, unknown> = {};
+      const nullableKeys = ['categoria_id', 'conta_id', 'cliente_id', 'fornecedor', 'data_pagamento', 'forma_pagamento'] as const;
+      const directKeys = ['descricao', 'valor', 'data_competencia', 'data_vencimento', 'status', 'tipo'] as const;
+      for (const k of nullableKeys) {
+        if (k in formData) payload[k] = (formData as Record<string, unknown>)[k] || null;
+      }
+      for (const k of directKeys) {
+        if (k in formData) payload[k] = (formData as Record<string, unknown>)[k];
+      }
+
       const { data, error } = await supabase
         .from('despesas')
-        .update({
-          categoria_id: formData.categoria_id || null,
-          conta_id: formData.conta_id || null,
-          cliente_id: formData.cliente_id || null,
-          fornecedor: formData.fornecedor || null,
-          descricao: formData.descricao,
-          valor: formData.valor,
-          data_competencia: formData.data_competencia,
-          data_vencimento: formData.data_vencimento,
-          data_pagamento: formData.data_pagamento || null,
-          status: formData.status,
-          tipo: formData.tipo,
-          forma_pagamento: formData.forma_pagamento || null,
-        })
+        .update(payload as never)
         .eq('id', id)
         .select('*, categoria:categorias(id, nome, cor), cliente:clientes(id, nome)')
         .single();

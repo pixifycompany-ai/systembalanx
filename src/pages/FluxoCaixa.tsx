@@ -242,7 +242,11 @@ export default function FluxoCaixa() {
   const filteredTransacoes = useMemo(() => {
     const filtered = transacoes.filter(t => {
       const matchesTipo = tipoFilter === 'todas' || t.tipo === tipoFilter;
-      const matchesStatus = statusFilter.length === 0 || statusFilter.includes(t.status);
+      // "Pendente" engloba os vencidos (status 'atrasado') — não expomos filtro de atrasado separado.
+      const matchesStatus =
+        statusFilter.length === 0 ||
+        statusFilter.includes(t.status) ||
+        (statusFilter.includes('pendente') && t.status === 'atrasado');
       const matchesSearch = !searchTerm || 
         t.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.cliente?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
