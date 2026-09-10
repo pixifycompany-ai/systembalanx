@@ -31,7 +31,8 @@ serve(async (req) => {
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "IA não configurada (OPENAI_API_KEY)." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const apiBase = (Deno.env.get("IARA_API_BASE") || "https://api.openai.com/v1").replace(/\/$/, "");
+    // Whisper vive no OpenAI real (não use IARA_API_BASE, que pode ser um proxy só de chat).
+    const apiBase = (Deno.env.get("TRANSCRIBE_API_BASE") || "https://api.openai.com/v1").replace(/\/$/, "");
     const model = Deno.env.get("TRANSCRIBE_MODEL") || "whisper-1";
 
     const form = await req.formData();

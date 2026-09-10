@@ -38,34 +38,98 @@ export default function LancarVoz() {
   const { categorias: catDespesa, createDespesa } = useDespesas();
 
   const [fase, setFase] = useState<Fase>('ouvindo');
+  const [gravando, setGravando] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [itens, setItens] = useState<ItemVoz[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
-  const recognitionRef = useRef<any>(null);
-  const finalRef = useRef('');
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { setFase('sem-suporte'); return; }
-    const rec = new SR();
-    rec.lang = 'pt-BR';
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.onresult = (e: any) => {
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalRef.current += t + ' ';
-        else interim += t;
-      }
-      setTranscript((finalRef.current + interim).trim());
-    };
-    rec.onerror = () => { /* ignora; usuário pode parar manualmente */ };
-    recognitionRef.current = rec;
-    try { rec.start(); } catch { /* já iniciado */ }
-    return () => { try { rec.stop(); } catch { /* noop */ } };
+    // Web Speech é furada no iOS — usamos MediaRecorder + Whisper (edge function).
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      setFase('sem-suporte');
+    }
+    return () => { try { mediaRecorderRef.current?.stop(); } catch { /* noop */ } };
   }, []);
+
+  // Grava → transcreve (Whisper) → interpreta (parse-voz) → revisar.
+  const transcrever = async (blob: Blob): Promise<string> => {
+    const type = blob.type || 'audio/webm';
+    const ext = type.includes('mp4') || type.includes('m4a') ? 'm4a'
+      : type.includes('ogg') ? 'ogg'
+      : type.includes('wav') ? 'wav'
+      : type.includes('mpeg') ? 'mp3'
+      : 'webm';
+    const fd = new FormData();
+    fd.append('file', blob, `audio.${ext}`);
+    const { data: { session } } = await supabase.auth.getSession();
+    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcrever`, {
+      method: 'POST', headers: { Authorization: `Bearer ${session?.access_token}` }, body: fd,
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Falha na transcrição');
+    return (data.text || '').trim();
+  };
+
+  const interpretar = async (texto: string): Promise<ItemVoz[]> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-voz`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ transcript: texto }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Erro ao interpretar');
+    return (data.itens || []) as ItemVoz[];
+  };
+
+  const processar = async (blob: Blob) => {
+    setFase('processando');
+    try {
+      const texto = await transcrever(blob);
+      setTranscript(texto);
+      if (!texto) { toast({ title: 'Não entendi o áudio', description: 'Toque no microfone e fale de novo.' }); setFase('ouvindo'); return; }
+      const list = await interpretar(texto);
+      if (!list.length) { toast({ title: 'Nada reconhecido', description: 'Ex.: "paguei 320 de energia hoje".' }); setFase('ouvindo'); setTranscript(''); return; }
+      setItens(list);
+      setFase('revisar');
+    } catch (e) {
+      toast({ title: 'Erro', description: e instanceof Error ? e.message : 'Falha ao processar', variant: 'destructive' });
+      setFase('ouvindo');
+    }
+  };
+
+  const startRec = async () => {
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      toast({ title: 'Microfone bloqueado', description: 'Permita o acesso ao microfone nas configurações do navegador.', variant: 'destructive' });
+      return;
+    }
+    const mr = new MediaRecorder(stream);
+    chunksRef.current = [];
+    mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
+    mr.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
+      if (blob.size > 0) await processar(blob);
+      else setFase('ouvindo');
+    };
+    mr.start();
+    mediaRecorderRef.current = mr;
+    setTranscript('');
+    setGravando(true);
+  };
+
+  const stopRec = () => {
+    try { mediaRecorderRef.current?.stop(); } catch { /* noop */ }
+    setGravando(false);
+  };
+
+  const toggleGravar = () => { if (gravando) stopRec(); else startRec(); };
 
   const catsFor = (tipo: 'receita' | 'despesa') => (tipo === 'receita' ? catReceita : catDespesa);
 
@@ -79,33 +143,8 @@ export default function LancarVoz() {
   const nSaidas = itens.filter((i) => i.tipo === 'despesa').length;
   const nEntradas = itens.length - nSaidas;
 
-  const pararEProcessar = async () => {
-    try { recognitionRef.current?.stop(); } catch { /* noop */ }
-    const texto = (finalRef.current || transcript).trim();
-    if (!texto) { toast({ title: 'Não ouvi nada', description: 'Toque no microfone e fale os lançamentos.' }); return; }
-    setFase('processando');
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-voz`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ transcript: texto }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || 'Erro ao interpretar');
-      const list: ItemVoz[] = data.itens || [];
-      if (!list.length) { toast({ title: 'Nada reconhecido', description: 'Tente de novo, ex.: "paguei 320 de energia hoje".' }); setFase('ouvindo'); finalRef.current = ''; setTranscript(''); try { recognitionRef.current?.start(); } catch { /* noop */ } return; }
-      setItens(list);
-      setFase('revisar');
-    } catch (e) {
-      toast({ title: 'Erro', description: e instanceof Error ? e.message : 'Falha ao processar', variant: 'destructive' });
-      setFase('ouvindo');
-    }
-  };
-
   const refazer = () => {
-    setFase('ouvindo'); setItens([]); setEditIdx(null); finalRef.current = ''; setTranscript('');
-    try { recognitionRef.current?.start(); } catch { /* noop */ }
+    setFase('ouvindo'); setItens([]); setEditIdx(null); setTranscript(''); setGravando(false);
   };
 
   const salvarTudo = async () => {
@@ -198,8 +237,8 @@ export default function LancarVoz() {
           <div className="mb-4 mt-auto rounded-[24px] border border-border/70 bg-surface/80 px-4 pb-4 pt-[18px] shadow-[0_-10px_30px_-14px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
             <div className="mb-3 flex items-center gap-2">
               <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.04em] text-[hsl(var(--danger))]">
-                <span className={cn('h-2 w-2 rounded-full bg-[hsl(var(--danger))]', ouvindo && 'animate-pulse')} />
-                {processando ? 'Processando' : 'Ouvindo'}
+                <span className={cn('h-2 w-2 rounded-full bg-[hsl(var(--danger))]', gravando && 'animate-pulse')} />
+                {processando ? 'Transcrevendo' : gravando ? 'Gravando' : 'Pronto'}
               </span>
               <span className="ml-auto text-[11px] font-semibold text-foreground-subtle">IARA</span>
             </div>
@@ -207,7 +246,7 @@ export default function LancarVoz() {
             {processando ? (
               <div className="grid h-9 place-items-center"><CometSpinner size={30} /></div>
             ) : (
-              <div className="vwave" aria-hidden>
+              <div className={cn('vwave', !gravando && 'opacity-40')} aria-hidden>
                 {[0, 0.1, 0.25, 0.15, 0.35, 0.05, 0.3, 0.2, 0.4, 0.12, 0.28, 0.18, 0.36, 0.08].map((d, i) => (
                   <i key={i} style={{ animationDelay: `${d}s` }} />
                 ))}
@@ -215,21 +254,28 @@ export default function LancarVoz() {
             )}
 
             <div className="mt-3 min-h-[44px] text-center text-[14px] leading-[1.5] text-foreground">
-              {transcript
-                ? `"${transcript}"`
-                : <span className="text-foreground-subtle">Fale seus lançamentos…</span>}
+              {gravando
+                ? <span className="text-foreground-subtle">Ouvindo… fale seus lançamentos</span>
+                : transcript
+                  ? `"${transcript}"`
+                  : <span className="text-foreground-subtle">Toque no microfone e fale</span>}
             </div>
 
             <button
-              onClick={pararEProcessar}
+              onClick={toggleGravar}
               disabled={processando}
-              aria-label="Parar e revisar"
-              className="mx-auto mt-3.5 grid h-[60px] w-[60px] place-items-center rounded-full bg-[linear-gradient(160deg,hsl(var(--danger)),#c62b1e)] text-white shadow-[0_0_0_8px_hsl(var(--danger)/0.16),0_10px_24px_hsl(var(--danger)/0.4)] disabled:opacity-60"
+              aria-label={gravando ? 'Parar e revisar' : 'Falar'}
+              className={cn(
+                'mx-auto mt-3.5 grid h-[60px] w-[60px] place-items-center rounded-full text-white transition-colors disabled:opacity-60',
+                gravando
+                  ? 'bg-[linear-gradient(160deg,hsl(var(--danger)),#c62b1e)] shadow-[0_0_0_8px_hsl(var(--danger)/0.16),0_10px_24px_hsl(var(--danger)/0.4)]'
+                  : 'bg-[linear-gradient(160deg,hsl(var(--primary)/0.95),hsl(var(--primary)))] shadow-[0_0_0_8px_hsl(var(--primary)/0.16),0_10px_24px_hsl(var(--primary)/0.4)]',
+              )}
             >
               <MicrophoneIcon className="h-7 w-7" />
             </button>
             <div className="mt-2.5 text-center text-[11px] text-foreground-subtle">
-              {processando ? 'Interpretando…' : 'Toque no microfone pra parar'}
+              {processando ? 'Transcrevendo e interpretando…' : gravando ? 'Toque para parar' : 'Toque para falar'}
             </div>
           </div>
         </div>
