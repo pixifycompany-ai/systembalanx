@@ -26,6 +26,9 @@ verify_jwt = false
 [functions.parse-voz]
 verify_jwt = false
 
+[functions.transcrever]
+verify_jwt = false
+
 [functions.asaas-assinar]
 verify_jwt = false
 

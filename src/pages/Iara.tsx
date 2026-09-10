@@ -6,6 +6,8 @@ import { Sparkle } from '@/components/shared/Sparkle';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { useFinancialAdvisor, type PeriodOption } from '@/hooks/useFinancialAdvisor';
 import {
   Select,
@@ -36,29 +38,78 @@ export default function Iara() {
   const navigate = useNavigate();
   const { messages, isLoading, period, setPeriod, sendMessage, clearChat } = useFinancialAdvisor();
   const [input, setInput] = useState('');
-  const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const [listening, setListening] = useState(false); // gravando
+  const [transcribing, setTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  // Grava o áudio (MediaRecorder) e transcreve no servidor (Whisper). A Web Speech
+  // API do navegador não é confiável no iOS — este caminho funciona no iPhone.
+  const transcrever = async (blob: Blob) => {
+    setTranscribing(true);
+    try {
+      const type = blob.type || 'audio/webm';
+      const ext = type.includes('mp4') || type.includes('m4a') ? 'm4a'
+        : type.includes('ogg') ? 'ogg'
+        : type.includes('wav') ? 'wav'
+        : type.includes('mpeg') ? 'mp3'
+        : 'webm';
+      const fd = new FormData();
+      fd.append('file', blob, `audio.${ext}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcrever`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+        body: fd,
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Falha na transcrição');
+      const text = (data.text || '').trim();
+      if (text) setInput((prev) => (prev ? `${prev} ${text}` : text));
+      else toast({ title: 'Não entendi o áudio', description: 'Tente falar de novo, mais perto do microfone.' });
+    } catch (e) {
+      toast({ title: 'Erro ao transcrever', description: e instanceof Error ? e.message : 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
+  const startRec = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      toast({ title: 'Sem suporte a gravação', description: 'Seu navegador não permite gravar áudio aqui.', variant: 'destructive' });
+      return;
+    }
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      toast({ title: 'Microfone bloqueado', description: 'Permita o acesso ao microfone nas configurações do navegador.', variant: 'destructive' });
+      return;
+    }
+    const mr = new MediaRecorder(stream);
+    chunksRef.current = [];
+    mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
+    mr.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
+      if (blob.size > 0) await transcrever(blob);
+    };
+    mr.start();
+    mediaRecorderRef.current = mr;
+    setListening(true);
+  };
+
+  const stopRec = () => {
+    try { mediaRecorderRef.current?.stop(); } catch { /* noop */ }
+    setListening(false);
+  };
 
   const toggleMic = () => {
-    if (listening) { try { recognitionRef.current?.stop(); } catch { /* noop */ } setListening(false); return; }
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return;
-    const rec = new SR();
-    rec.lang = 'pt-BR'; rec.continuous = false; rec.interimResults = true;
-    let finalText = '';
-    rec.onresult = (e: any) => {
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalText += t; else interim += t;
-      }
-      setInput((finalText + interim).trim());
-    };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
-    recognitionRef.current = rec;
-    try { rec.start(); setListening(true); } catch { /* noop */ }
+    if (transcribing) return;
+    if (listening) stopRec();
+    else startRec();
   };
 
   useEffect(() => {
@@ -203,15 +254,17 @@ export default function Iara() {
         <button
           type="button"
           onClick={toggleMic}
-          aria-label="Falar"
+          disabled={transcribing}
+          aria-label={listening ? 'Parar e transcrever' : 'Falar'}
           className={cn(
             'flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors active:scale-95',
             listening
               ? 'bg-[hsl(var(--danger))]/15 border-[hsl(var(--danger))] text-[hsl(var(--danger))] animate-pulse'
               : 'bg-surface/70 backdrop-blur-xl border-border/60 text-foreground-muted',
+            transcribing && 'opacity-60',
           )}
         >
-          <Mic className="h-5 w-5" />
+          {transcribing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Mic className="h-5 w-5" />}
         </button>
         <button
           type="submit"
