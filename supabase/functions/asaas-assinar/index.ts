@@ -146,12 +146,14 @@ serve(async (req) => {
       invoiceUrl = pJson?.data?.[0]?.invoiceUrl || null;
     }
 
-    // 4) Salva ids no tenant
+    // 4) Salva ids no tenant. NÃO rebaixa o status aqui: quem está em trial
+    // continua com acesso até o fim do teste; a liberação/ativação vem pelo
+    // webhook (PAYMENT_CONFIRMED no cartão, PAYMENT_RECEIVED no Pix/boleto).
+    // Assim, assinar no meio do trial não bloqueia o usuário na hora.
     await supabase.from("tenants").update({
       asaas_customer_id: customerId,
       asaas_subscription_id: sJson.id,
       ciclo,
-      status_assinatura: tenant.cortesia ? tenant.status_assinatura : "inadimplente",
       updated_at: new Date().toISOString(),
     }).eq("id", tenant_id);
 
