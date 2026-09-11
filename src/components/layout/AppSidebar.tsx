@@ -66,14 +66,15 @@ const navGroups = [
 ];
 
 // Estado ativo/hover no capricho AURO (azul), consistente em light e dark.
-// `!` para vencer os defaults do shadcn (data-[active]:bg-sidebar-accent).
-// Barra de acento à esquerda via before: aparece só no item ativo.
+// `!` vence os defaults do shadcn (data-[active]:bg-sidebar-accent).
+// Item ativo: pill com gradiente + borda interna + glow, barra de acento à
+// esquerda (before:) e ícone/tipografia em primary.
+// Layout no Tailwind; o visual do estado ATIVO (gradiente + glow + barra de
+// acento) fica na classe .sb-nav-item do index.css (garante que aplica).
 const itemClass =
-  'group/nav relative h-9 rounded-lg font-normal text-sidebar-foreground/80 transition-all ' +
-  'before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-primary before:opacity-0 before:transition-opacity ' +
-  'hover:bg-sidebar-accent/60 hover:text-sidebar-foreground ' +
-  'data-[active=true]:!bg-primary/10 data-[active=true]:!text-primary data-[active=true]:font-semibold data-[active=true]:before:opacity-100 ' +
-  '[&>a>svg]:transition-colors data-[active=true]:[&>a>svg]:text-primary';
+  'sb-nav-item group/nav relative my-0.5 h-9 rounded-xl px-3 font-medium text-sidebar-foreground/85 transition-all duration-150 ' +
+  'hover:bg-sidebar-accent/55 hover:text-foreground ' +
+  '[&>a>svg]:h-[18px] [&>a>svg]:w-[18px] [&>a>svg]:transition-colors';
 
 function planLabel(t: ReturnType<typeof useTenant>['activeTenant']): string {
   if (!t) return '';
@@ -107,8 +108,8 @@ export function AppSidebar() {
 
       <SidebarContent>
         {navGroups.map((group) => (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/55">
+          <SidebarGroup key={group.label} className="py-1.5">
+            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-bold uppercase tracking-[0.13em] text-sidebar-foreground/45">
               {group.label}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -132,8 +133,8 @@ export function AppSidebar() {
         ))}
 
         {isSuperadmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-sidebar-foreground/55">
+          <SidebarGroup className="py-1.5">
+            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-bold uppercase tracking-[0.13em] text-sidebar-foreground/45">
               Plataforma
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -213,12 +214,12 @@ export function AppSidebar() {
 
 function Avatar({ url, inicial }: { url: string | null; inicial: string }) {
   if (url) {
-    return <img src={url} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-sidebar-border" />;
+    return <img src={url} alt="" className="h-9 w-9 shrink-0 rounded-[11px] object-cover ring-1 ring-sidebar-border" />;
   }
   return (
     <div
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold text-white"
-      style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)/0.55))' }}
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] text-[13px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
+      style={{ background: 'linear-gradient(140deg, hsl(var(--primary)), hsl(212 87% 42%))' }}
     >
       {inicial}
     </div>

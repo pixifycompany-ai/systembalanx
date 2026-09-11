@@ -55,7 +55,9 @@ export function NotificationBell() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const handleClick = (notif: Notification) => {
-    if (notif.type === 'duplicado' && notif.details?.length) {
+    // Qualquer notificação com itens (atrasados, vencem hoje, duplicados…) expande
+    // a lista em vez de navegar direto — assim o usuário vê nome + valor de cada um.
+    if (notif.details?.length) {
       setExpandedId(prev => prev === notif.id ? null : notif.id);
       return;
     }
@@ -105,7 +107,7 @@ export function NotificationBell() {
                 const config = typeConfig[notif.type];
                 const Icon = config.icon;
                 const isExpanded = expandedId === notif.id;
-                const hasDupeDetails = notif.type === 'duplicado' && notif.details?.length;
+                const hasDupeDetails = !!notif.details?.length;
 
                 return (
                   <div key={notif.id} className={cn(severityBg[notif.severity])}>

@@ -85,6 +85,21 @@ export function useNotifications() {
       const allPending = [...receitaItems, ...despesaItems];
       const notifs: Notification[] = [];
 
+      // Mapeia itens -> details (para expandir e listar nome + valor de cada um).
+      // Ordena por vencimento (mais antigo primeiro).
+      const toDetails = (items: typeof allPending): DuplicateDetail[] =>
+        items
+          .slice()
+          .sort((a, b) => (a.data_vencimento || '').localeCompare(b.data_vencimento || ''))
+          .map(i => ({
+            id: i.id,
+            descricao: i.descricao,
+            valor: i.valor,
+            data_vencimento: i.data_vencimento,
+            tipo: i.tipo,
+            fornecedor_cliente: i.fornecedor_cliente,
+          }));
+
       // 1. Overdue
       const overdue = allPending.filter(item => {
         if (!item.data_vencimento) return false;
@@ -101,6 +116,7 @@ export function useNotifications() {
           description: `R$ ${totalOverdue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} em atraso`,
           href: '/fluxo-caixa?status=atrasado',
           count: overdue.length,
+          details: toDetails(overdue),
         });
       }
 
@@ -115,6 +131,7 @@ export function useNotifications() {
           description: `R$ ${dueToday.reduce((s, i) => s + i.valor, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
           href: '/fluxo-caixa?status=pendente',
           count: dueToday.length,
+          details: toDetails(dueToday),
         });
       }
 
@@ -133,6 +150,7 @@ export function useNotifications() {
           description: `R$ ${dueNext3.reduce((s, i) => s + i.valor, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
           href: '/fluxo-caixa?status=pendente',
           count: dueNext3.length,
+          details: toDetails(dueNext3),
         });
       }
 
