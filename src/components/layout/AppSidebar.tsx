@@ -66,8 +66,14 @@ const navGroups = [
 ];
 
 // Estado ativo/hover no capricho AURO (azul), consistente em light e dark.
+// `!` para vencer os defaults do shadcn (data-[active]:bg-sidebar-accent).
+// Barra de acento à esquerda via before: aparece só no item ativo.
 const itemClass =
-  'transition-colors data-[active=true]:bg-primary/12 data-[active=true]:text-primary data-[active=true]:font-medium hover:bg-sidebar-accent/70';
+  'group/nav relative h-9 rounded-lg font-normal text-sidebar-foreground/80 transition-all ' +
+  'before:absolute before:left-0 before:top-1/2 before:h-4 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-primary before:opacity-0 before:transition-opacity ' +
+  'hover:bg-sidebar-accent/60 hover:text-sidebar-foreground ' +
+  'data-[active=true]:!bg-primary/10 data-[active=true]:!text-primary data-[active=true]:font-semibold data-[active=true]:before:opacity-100 ' +
+  '[&>a>svg]:transition-colors data-[active=true]:[&>a>svg]:text-primary';
 
 function planLabel(t: ReturnType<typeof useTenant>['activeTenant']): string {
   if (!t) return '';

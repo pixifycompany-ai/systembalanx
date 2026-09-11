@@ -92,7 +92,10 @@ export default function Dashboard() {
             <span className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted px-3 py-2 rounded-full border border-border/60 bg-surface/70 backdrop-blur-xl">
               {mesAtual}
             </span>
-            <NotificationBell />
+            {/* Sino só no mobile — no desktop o Header já tem um (evita 2 sinos) */}
+            <span className="md:hidden">
+              <NotificationBell />
+            </span>
           </>
         }
       />

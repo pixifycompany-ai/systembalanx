@@ -42,10 +42,24 @@ serve(async (req) => {
       return new Response(JSON.stringify({ ok: true, skipped: "cortesia" }), { headers: { "Content-Type": "application/json" } });
     }
 
+    // Cartão (crédito/débito): o dinheiro é "confirmado" na hora (PAYMENT_CONFIRMED) e só
+    // LIQUIDADO ~30 dias depois (PAYMENT_RECEIVED). Pix/boleto: cai direto no PAYMENT_RECEIVED.
+    // Regra: cartão libera no CONFIRMED; Pix/boleto libera no RECEIVED. Assim o RECEIVED
+    // atrasado do cartão NÃO reativa a assinatura (ex.: se foi cancelada no meio).
+    const billingType = String(payment?.billingType || "").toUpperCase();
+    const isCartao = billingType.includes("CARD"); // CREDIT_CARD, DEBIT_CARD
+
     let novoStatus: string | null = null;
-    if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") novoStatus = "ativa";
-    else if (event === "PAYMENT_OVERDUE") novoStatus = "inadimplente";
-    else if (event === "SUBSCRIPTION_DELETED" || event === "PAYMENT_DELETED" || event === "PAYMENT_REFUNDED") novoStatus = "cancelada";
+    if (event === "PAYMENT_CONFIRMED") {
+      novoStatus = "ativa"; // cartão/débito libera aqui (e qualquer confirmação imediata)
+    } else if (event === "PAYMENT_RECEIVED") {
+      // Pix/boleto liberam aqui. Cartão NÃO — já liberou no CONFIRMED.
+      if (!isCartao) novoStatus = "ativa";
+    } else if (event === "PAYMENT_OVERDUE") {
+      novoStatus = "inadimplente";
+    } else if (event === "SUBSCRIPTION_DELETED" || event === "PAYMENT_DELETED" || event === "PAYMENT_REFUNDED") {
+      novoStatus = "cancelada";
+    }
 
     if (novoStatus) {
       await admin.from("tenants").update({ status_assinatura: novoStatus, updated_at: new Date().toISOString() }).eq("id", tenant.id);

@@ -258,12 +258,22 @@
   body {
     @apply text-foreground;
     background-color: hsl(var(--background));
-    background-attachment: fixed;
-    background-repeat: no-repeat;
     font-size: 13px;
   }
-  /* Glow ambiente AURO (dark) — azul topo-esq + âmbar topo-dir + azul embaixo, igual mockup */
-  .dark body {
+  /* Glow ambiente AURO num layer FIXO (position:fixed) em vez de
+     background-attachment:fixed — este último quebra no Safari iOS e deixa o
+     fundo achatado/escuro ao rolar páginas longas. Assim o glow (inclusive os
+     de baixo) sempre pinta a viewport inteira, em qualquer scroll. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-repeat: no-repeat;
+    background-color: hsl(var(--background));
+  }
+  .dark body::before {
     background-image:
       radial-gradient(125% 82% at 14% -6%, rgba(58, 120, 205, 0.48), transparent 58%),
       radial-gradient(120% 68% at 99% 0%, rgba(216, 152, 70, 0.38), transparent 55%),
@@ -271,7 +281,7 @@
       radial-gradient(70% 52% at 4% 106%, rgba(58, 120, 205, 0.24), transparent 60%),
       radial-gradient(74% 54% at 98% 112%, rgba(216, 152, 70, 0.20), transparent 60%);
   }
-  .light body {
+  .light body::before {
     background-image:
       radial-gradient(90% 55% at 10% -2%, hsl(var(--primary) / 0.08), transparent 60%),
       radial-gradient(80% 45% at 98% 2%, hsl(35 85% 55% / 0.06), transparent 60%);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { parseISO, startOfDay, isBefore } from 'date-fns';
@@ -136,6 +137,16 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
   const [categoriasDespesa, setCategoriasDespesa] = useState<CategoriaInternal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+
+  // Invalida os caches (React Query) que dependem de receitas/despesas: saldo do
+  // dashboard, saldos das contas, calendário e análises. Assim o saldo da página
+  // inicial atualiza na hora ao dar baixa/editar/excluir — sem recarregar a página.
+  const invalidateDerived = useCallback(() => {
+    for (const key of ['dashboard', 'contas', 'account-running-balance', 'calendario', 'analises', 'relatorios', 'cartao-faturas']) {
+      queryClient.invalidateQueries({ queryKey: [key] });
+    }
+  }, [queryClient]);
 
   // Update overdue items
   const updateOverdueReceitas = useCallback(async (items: ReceitaInternal[]) => {
@@ -388,6 +399,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       if (error) throw error;
 
       setReceitas(prev => [data as unknown as ReceitaInternal, ...prev]);
+      invalidateDerived();
       toast({ title: 'Entrada criada com sucesso!' });
       return true;
     } catch (err) {
@@ -424,6 +436,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       if (error) throw error;
 
       setReceitas(prev => prev.map(r => r.id === id ? data as unknown as ReceitaInternal : r));
+      invalidateDerived();
       toast({ title: 'Entrada atualizada com sucesso!' });
       return true;
     } catch (err) {
@@ -439,6 +452,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       if (error) throw error;
 
       setReceitas(prev => prev.filter(r => r.id !== id));
+      invalidateDerived();
       toast({ title: 'Entrada excluída com sucesso!' });
       return true;
     } catch (err) {
@@ -454,6 +468,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       if (error) throw error;
 
       setReceitas(prev => prev.filter(r => !ids.includes(r.id)));
+      invalidateDerived();
       toast({ title: `${ids.length} entradas excluídas com sucesso!` });
       return true;
     } catch (err) {
@@ -492,6 +507,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       if (error) throw error;
 
       setDespesas(prev => [data as unknown as DespesaInternal, ...prev]);
+      invalidateDerived();
       toast({ title: 'Saída criada com sucesso!' });
       return true;
     } catch (err) {
@@ -527,6 +543,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       if (error) throw error;
 
       setDespesas(prev => prev.map(d => d.id === id ? data as unknown as DespesaInternal : d));
+      invalidateDerived();
       toast({ title: 'Saída atualizada com sucesso!' });
       return true;
     } catch (err) {
@@ -542,6 +559,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       if (error) throw error;
 
       setDespesas(prev => prev.filter(d => d.id !== id));
+      invalidateDerived();
       toast({ title: 'Saída excluída com sucesso!' });
       return true;
     } catch (err) {
@@ -557,6 +575,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       if (error) throw error;
 
       setDespesas(prev => prev.filter(d => !ids.includes(d.id)));
+      invalidateDerived();
       toast({ title: `${ids.length} saídas excluídas com sucesso!` });
       return true;
     } catch (err) {
@@ -610,6 +629,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
         }));
       }
       
+      invalidateDerived();
       toast({ title: `Status atualizado para ${ids.length} itens!` });
       return true;
     } catch (err) {
@@ -639,7 +659,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
 
       // Refetch to get updated cliente data
       await fetchData();
-      
+      invalidateDerived();
       toast({ title: `Cliente atualizado para ${ids.length} entradas!` });
       return true;
     } catch (err) {
@@ -688,6 +708,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
         if (error) throw error;
       }
       await fetchData();
+      invalidateDerived();
       const total = receitaIds.length + despesaIds.length;
       toast({ title: `Conta atualizada para ${total} ${total === 1 ? 'lançamento' : 'lançamentos'}!` });
       return true;
