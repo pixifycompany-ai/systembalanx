@@ -39,7 +39,7 @@ export function MobileContratosList({ contratos, isLoading, onEdit, onDelete, on
 
   if (contratos.length === 0) {
     return (
-      <EmptyState emoji="📄" title="Nenhum contrato encontrado" description="Crie seu primeiro contrato."
+      <EmptyState title="Nenhum contrato encontrado" description="Crie seu primeiro contrato."
         action={<Button onClick={onNew} className="gap-2"><Plus className="h-4 w-4" />Novo Contrato</Button>}
       />
     );

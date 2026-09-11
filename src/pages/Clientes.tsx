@@ -220,7 +220,6 @@ export default function Clientes() {
         </div>
       ) : filteredClientes.length === 0 ? (
         <EmptyState
-          emoji="👥"
           title="Nenhum cliente encontrado"
           description="Adicione seu primeiro cliente para começar a gerenciar suas receitas."
           action={

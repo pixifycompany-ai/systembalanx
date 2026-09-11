@@ -54,7 +54,7 @@ export default function Assinatura() {
       if (!resp.ok) throw new Error(data.error || 'Erro ao assinar');
       await refresh();
       if (data.changed) {
-        toast({ title: 'Plano alterado! 🎉', description: data.message || 'A mudança passa a valer no próximo vencimento.' });
+        toast({ title: 'Plano alterado!', description: data.message || 'A mudança passa a valer no próximo vencimento.' });
       } else if (data.invoiceUrl) {
         window.open(data.invoiceUrl, '_blank');
         toast({ title: 'Quase lá!', description: 'Abrimos a fatura pra você pagar (Pix, boleto ou cartão).' });
@@ -84,13 +84,13 @@ export default function Assinatura() {
 
         {cortesia ? (
           <div className="rounded-2xl border border-[hsl(var(--success))]/40 bg-[hsl(var(--success))]/10 p-4 mb-5">
-            <div className="text-sm font-semibold text-foreground">Acesso liberado (cortesia) 🎉</div>
+            <div className="text-sm font-semibold text-foreground">Acesso liberado (cortesia)</div>
             <div className="text-xs text-foreground-muted mt-0.5">Tudo liberado. Bom trabalho!</div>
           </div>
         ) : assinaturaAtiva ? (
           <div className="space-y-3 mb-5">
             <div className="rounded-2xl border border-[hsl(var(--success))]/40 bg-[hsl(var(--success))]/10 p-4">
-              <div className="text-sm font-semibold text-foreground">Assinatura ativa 🎉</div>
+              <div className="text-sm font-semibold text-foreground">Assinatura ativa</div>
               <div className="text-xs text-foreground-muted mt-0.5">
                 Plano {cicloAtual === 'anual' ? 'Anual' : 'Mensal'} · {cicloAtual === 'anual' ? `12× ${fmt(precoAnualParcela)}` : `${fmt(precoMensal)}/mês`}
               </div>
@@ -110,7 +110,7 @@ export default function Assinatura() {
 
             {podeAssinar && cicloAtual === 'anual' && (
               <div className="rounded-2xl border border-border/60 bg-surface/70 p-4">
-                <div className="text-sm font-semibold text-foreground">Você está no melhor preço (Anual) 🏆</div>
+                <div className="text-sm font-semibold text-foreground">Você está no melhor preço (Anual)</div>
                 <button
                   onClick={() => mudarPlano('mensal')}
                   disabled={loading}

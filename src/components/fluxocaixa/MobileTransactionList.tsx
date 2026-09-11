@@ -91,7 +91,6 @@ export function MobileTransactionList({
       {/* Transaction list */}
       {transactions.length === 0 ? (
         <EmptyState
-          emoji="📊"
           title="Nenhuma transação encontrada"
           description="Registre receitas ou despesas para visualizar o fluxo."
           action={

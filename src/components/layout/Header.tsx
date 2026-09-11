@@ -1,5 +1,4 @@
 import { useLocation } from 'react-router-dom';
-import { SidebarTrigger } from '@/components/ui/sidebar';
 import { NotificationBell } from './NotificationBell';
 
 const routeLabels: Record<string, { group: string; label: string }> = {
@@ -30,7 +29,6 @@ export function Header() {
     >
       {/* Desktop: trigger do sidebar + breadcrumb. Mobile: sem hambúrguer/título (o cabeçalho da tela já traz o título, igual mockup) */}
       <div className="hidden md:flex items-center gap-2 min-w-0 flex-1">
-        <SidebarTrigger className="text-foreground-muted hover:text-foreground shrink-0" />
         {showBreadcrumb && route && (
           <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm min-w-0">
             <span className="text-foreground-muted">{route.group}</span>

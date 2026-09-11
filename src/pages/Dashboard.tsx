@@ -184,7 +184,7 @@ export default function Dashboard() {
 
         {proximos.length === 0 ? (
           <div className="rounded-2xl border border-border bg-surface px-4 py-6 text-center text-sm text-foreground-muted">
-            Nada vencendo nos próximos 7 dias 🎉
+            Nada vencendo nos próximos 7 dias
           </div>
         ) : (
           <div className="space-y-2">

@@ -53,7 +53,7 @@ export function AlertsWidget({ alerts, title = 'Alertas' }: AlertsWidgetProps) {
             Nenhum alerta no momento
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Tudo em dia! 🎉
+            Tudo em dia!
           </p>
         </div>
       </Card>

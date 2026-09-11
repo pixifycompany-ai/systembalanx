@@ -133,7 +133,7 @@ export function MobileReceitasList({ receitas, isLoading, onEdit, onConfirm, onD
 
   if (receitas.length === 0) {
     return (
-      <EmptyState emoji="📊" title="Nenhuma receita encontrada" description="Crie sua primeira receita."
+      <EmptyState title="Nenhuma receita encontrada" description="Crie sua primeira receita."
         action={<Button onClick={onNew} className="gap-2"><Plus className="h-4 w-4" />Nova Receita</Button>}
       />
     );

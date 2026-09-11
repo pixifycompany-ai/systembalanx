@@ -172,7 +172,7 @@ async function fetchRelatoriosData(period: PeriodFilter, customStart?: Date, cus
   });
 
   const dreRows: DRERow[] = [
-    { label: 'RECEITA BRUTA', type: 'group', icon: '📈', values: receitaBruta },
+    { label: 'RECEITA BRUTA', type: 'group', values: receitaBruta },
     { label: 'Prestação de Serviços', type: 'item', values: prestacaoServicos },
     { label: 'Outras Receitas', type: 'item', values: outrasReceitas },
     { label: 'DEDUÇÕES DA RECEITA', type: 'group', icon: '⊖', values: impostos },
@@ -181,7 +181,7 @@ async function fetchRelatoriosData(period: PeriodFilter, customStart?: Date, cus
     { label: 'CUSTOS VARIÁVEIS', type: 'group', icon: '⊖', values: custosVariaveis },
     { label: 'Custos Variáveis', type: 'item', values: custosVariaveis },
     { label: 'Lucro Bruto', type: 'result', icon: '%', values: lucroBruto },
-    { label: 'DESPESAS OPERACIONAIS', type: 'group', icon: '📋', values: despOperacionais },
+    { label: 'DESPESAS OPERACIONAIS', type: 'group', values: despOperacionais },
     { label: 'Despesas Comerciais / Marketing', type: 'item', values: despComerciais },
     { label: 'Despesas Administrativas', type: 'item', values: despAdministrativas },
     { label: 'Despesas com Pessoal', type: 'item', values: despPessoal },

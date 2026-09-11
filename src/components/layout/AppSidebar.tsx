@@ -33,6 +33,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
 
@@ -98,10 +99,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2 overflow-hidden">
-          <PixifyLogo size="sm" iconOnly={isCollapsed} />
-        </div>
+      <SidebarHeader className="p-3">
+        {isCollapsed ? (
+          <div className="flex flex-col items-center gap-2">
+            <PixifyLogo size="sm" iconOnly />
+            <SidebarTrigger className="h-8 w-8 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground" />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 overflow-hidden">
+            <PixifyLogo size="sm" />
+            <SidebarTrigger className="ml-auto h-8 w-8 shrink-0 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground" />
+          </div>
+        )}
       </SidebarHeader>
 
       <SidebarSeparator />

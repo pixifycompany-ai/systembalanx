@@ -560,7 +560,6 @@ export default function Receitas() {
             <SkeletonTable rows={5} />
           ) : sortedReceitas.length === 0 ? (
             <EmptyState
-              emoji="📊"
               title="Nenhuma receita encontrada"
               description="Crie sua primeira receita para começar a acompanhar seus recebimentos."
               action={

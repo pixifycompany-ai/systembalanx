@@ -392,7 +392,6 @@ function CategoriaGrid({
   if (categorias.length === 0) {
     return (
       <EmptyState
-        emoji="🏷️"
         title="Nenhuma categoria encontrada"
         description="Crie sua primeira categoria personalizada."
         action={

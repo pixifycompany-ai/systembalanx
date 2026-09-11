@@ -542,7 +542,6 @@ export default function Despesas() {
             <SkeletonTable rows={5} />
           ) : sortedDespesas.length === 0 ? (
             <EmptyState
-              emoji="💸"
               title="Nenhuma despesa encontrada"
               description="Registre suas despesas para controlar seus gastos."
               action={

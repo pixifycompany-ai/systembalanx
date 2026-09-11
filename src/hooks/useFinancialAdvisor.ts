@@ -167,7 +167,7 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
       // Update assistant message with error
       setMessages(prev => prev.map(m =>
         m.id === assistantMessageId 
-          ? { ...m, content: `❌ ${errorMessage}` }
+          ? { ...m, content: `${errorMessage}` }
           : m
       ));
     } finally {

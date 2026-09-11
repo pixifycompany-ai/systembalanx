@@ -360,7 +360,7 @@ export default function LancarVoz() {
                       </span>
                       {it.categoria_nome && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-primary/25 px-2 py-1 text-[10px] font-bold text-[hsl(var(--primary))]">
-                          ✦ sugerida
+                          sugerida
                         </span>
                       )}
                       <button onClick={() => setEditIdx(editing ? null : idx)} className="ml-auto text-[11.5px] font-semibold text-foreground-muted">

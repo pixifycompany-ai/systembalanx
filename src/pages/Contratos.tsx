@@ -517,7 +517,6 @@ export default function Contratos() {
             <SkeletonTable rows={5} />
           ) : filteredContratos.length === 0 ? (
             <EmptyState
-              emoji="📄"
               title="Nenhum contrato encontrado"
               description="Crie seu primeiro contrato para acompanhar seus acordos com clientes."
               action={

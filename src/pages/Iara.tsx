@@ -233,7 +233,6 @@ export default function Iara() {
             disabled={isLoading}
             className="shrink-0 text-[11.5px] font-semibold text-foreground bg-surface/55 backdrop-blur-xl border border-border/60 rounded-full px-3.5 py-2 hover:border-border-strong transition-colors disabled:opacity-50"
           >
-            {i === 0 && <span className="mr-1.5 font-extrabold text-[hsl(var(--primary))]">✦</span>}
             {s}
           </button>
         ))}

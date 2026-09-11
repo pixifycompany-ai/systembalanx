@@ -1219,8 +1219,7 @@ export default function FluxoCaixa() {
           {isLoading ? (
             <SkeletonTable rows={5} />
           ) : filteredTransacoes.length === 0 ? (
-            <EmptyState 
-              emoji="📊" 
+            <EmptyState  
               title="Nenhuma transação encontrada" 
               description="Registre receitas ou despesas para visualizar o fluxo."
               action={

@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils';
+import { Inbox } from 'lucide-react';
 
 interface EmptyStateProps {
   icon?: React.ReactNode;
-  emoji?: string;
   title: string;
   description?: string;
   action?: React.ReactNode;
@@ -11,7 +11,6 @@ interface EmptyStateProps {
 
 export function EmptyState({
   icon,
-  emoji,
   title,
   description,
   action,
@@ -22,12 +21,10 @@ export function EmptyState({
       'flex flex-col items-center justify-center py-12 px-4 text-center',
       className
     )}>
-      {emoji ? (
-        <span className="text-5xl mb-4">{emoji}</span>
-      ) : icon ? (
-        <div className="mb-4 text-muted-foreground">{icon}</div>
-      ) : null}
-      
+      <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-border/60 bg-surface/60 text-muted-foreground backdrop-blur-sm">
+        {icon ?? <Inbox className="h-6 w-6" strokeWidth={1.6} />}
+      </div>
+
       <h3 className="text-lg font-medium text-foreground mb-1">{title}</h3>
       
       {description && (

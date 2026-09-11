@@ -534,6 +534,8 @@
   transition: opacity 0.15s;
 }
 .sb-nav-item[data-active="true"]::before { opacity: 1; }
+/* No modo reduzido (rail de ícones) a barra de acento fica esquisita: esconde. */
+[data-collapsible="icon"] .sb-nav-item::before { display: none; }
 
 /* ===== Anel-cometa (loading premium AURO) ===== */
 @keyframes balanx-spin { to { transform: rotate(1turn); } }

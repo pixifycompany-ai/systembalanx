@@ -35,7 +35,17 @@ function DuplicateDetailsList({ details }: { details: DuplicateDetail[] }) {
           className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-left text-xs hover:bg-accent/50 transition-colors"
         >
           <div className="min-w-0 flex-1">
-            <p className="font-medium truncate">{d.descricao}</p>
+            <div className="flex items-center gap-1.5">
+              <span
+                className={cn(
+                  'shrink-0 rounded px-1 py-px text-[9px] font-bold uppercase tracking-wide',
+                  d.tipo === 'receita' ? 'bg-primary/15 text-primary' : 'bg-destructive/15 text-destructive',
+                )}
+              >
+                {d.tipo === 'receita' ? 'Receita' : 'Despesa'}
+              </span>
+              <p className="font-medium truncate">{d.descricao}</p>
+            </div>
             <p className="text-muted-foreground">
               {d.fornecedor_cliente} · {format(parseISO(d.data_vencimento), 'dd/MM/yy', { locale: ptBR })}
             </p>

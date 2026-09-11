@@ -133,7 +133,7 @@ export function MobileDespesasList({ despesas, isLoading, onEdit, onConfirm, onD
 
   if (despesas.length === 0) {
     return (
-      <EmptyState emoji="💸" title="Nenhuma despesa encontrada" description="Registre suas despesas."
+      <EmptyState title="Nenhuma despesa encontrada" description="Registre suas despesas."
         action={<Button onClick={onNew} className="gap-2"><Plus className="h-4 w-4" />Nova Despesa</Button>}
       />
     );
