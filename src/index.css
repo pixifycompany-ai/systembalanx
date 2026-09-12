@@ -292,8 +292,8 @@
     letter-spacing: -0.02em;
   }
 
-  h1 { @apply font-semibold; }
-  h2 { @apply font-semibold; }
+  h1 { @apply font-medium; }
+  h2 { @apply font-medium; }
   h3 { @apply font-semibold; }
 
   /* Tabular numbers everywhere by default for financial UI */
@@ -329,8 +329,8 @@
 
 @layer components {
   /* Typography scale tokens — reduced ~12% for higher density */
-  .text-display { font-size: 2.5rem; line-height: 1.05; font-weight: 600; letter-spacing: -0.02em; }
-  .text-h1 { font-size: 1.75rem; line-height: 1.15; font-weight: 600; letter-spacing: -0.015em; }
+  .text-display { font-size: 2.5rem; line-height: 1.05; font-weight: 500; letter-spacing: -0.02em; }
+  .text-h1 { font-size: 1.75rem; line-height: 1.15; font-weight: 500; letter-spacing: -0.015em; }
   .text-h2 { font-size: 1.25rem; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; }
   .text-h3 { font-size: 1rem; line-height: 1.35; font-weight: 600; }
   .text-body { font-size: 0.8125rem; line-height: 1.5; font-weight: 400; }
