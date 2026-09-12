@@ -1464,11 +1464,6 @@ export default function FluxoCaixa() {
                                   </TooltipContent>
                                 </Tooltip>
                               )}
-                              {!isTransfer && (t.status === 'recebido' || t.status === 'pago') && (
-                                <span className="inline-flex h-8 w-8 items-center justify-center text-emerald-500/50" aria-label="Liquidado">
-                                  <CheckCircle2 className="h-4 w-4" />
-                                </span>
-                              )}
                               {!isTransfer && (
                                 <Button
                                   variant="ghost"
