@@ -43,7 +43,7 @@ export function ConsolidatedBalanceCard({ accounts, total, history }: Consolidat
 
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm font-semibold text-foreground">Total</span>
-        <span className="text-lg font-bold tabular-nums text-foreground">
+        <span className="text-lg font-semibold tabular-nums text-foreground">
           {formatCurrency(total)}
         </span>
       </div>

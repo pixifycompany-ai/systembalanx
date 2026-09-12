@@ -25,7 +25,7 @@ export function ChurnRateChart({ churnData }: ChurnRateChartProps) {
       <CardContent>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="text-3xl font-bold">{taxaChurnMensal.toFixed(1)}%</div>
+            <div className="text-3xl font-semibold">{taxaChurnMensal.toFixed(1)}%</div>
             <div className={`flex items-center gap-1 text-sm ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
               {isPositive ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
               {variacao >= 0 ? '+' : ''}{variacao.toFixed(1)}% vs mês anterior

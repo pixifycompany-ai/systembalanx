@@ -84,9 +84,9 @@ export function WeeklyForecast({
                 <span className={cn('text-[13px] font-semibold', w.isCurrent ? 'text-primary' : 'text-foreground')}>
                   {w.label}
                 </span>
-                {w.isCurrent && <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary">ATUAL</span>}
+                {w.isCurrent && <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary">ATUAL</span>}
               </div>
-              <span className={cn('text-sm font-bold tabular-nums', w.saldo >= 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]')}>
+              <span className={cn('text-sm font-semibold tabular-nums', w.saldo >= 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]')}>
                 {w.saldo >= 0 ? '+' : '−'}{formatCurrency(Math.abs(w.saldo))}
               </span>
             </div>

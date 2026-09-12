@@ -142,12 +142,12 @@ export default function Assinatura() {
                   ciclo === 'anual' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border/60 bg-surface/70')}
               >
                 {precoMensal > precoAnualParcela && (
-                  <span className="absolute top-2 right-2 text-[9px] font-bold uppercase bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] px-1.5 py-0.5 rounded-full">
+                  <span className="absolute top-2 right-2 text-[9px] font-semibold uppercase bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] px-1.5 py-0.5 rounded-full">
                     -{Math.round((1 - precoAnualParcela / precoMensal) * 100)}%
                   </span>
                 )}
                 <div className="text-xs text-foreground-muted">Anual</div>
-                <div className="text-lg font-bold text-foreground">12× {fmt(precoAnualParcela)}</div>
+                <div className="text-lg font-semibold text-foreground">12× {fmt(precoAnualParcela)}</div>
                 <div className="text-[11px] text-foreground-muted">{fmt(precoAnualTotal)}/ano</div>
               </button>
               <button
@@ -156,7 +156,7 @@ export default function Assinatura() {
                   ciclo === 'mensal' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border/60 bg-surface/70')}
               >
                 <div className="text-xs text-foreground-muted">Mensal</div>
-                <div className="text-lg font-bold text-foreground">{fmt(precoMensal)}</div>
+                <div className="text-lg font-semibold text-foreground">{fmt(precoMensal)}</div>
                 <div className="text-[11px] text-foreground-muted">por mês</div>
               </button>
             </div>

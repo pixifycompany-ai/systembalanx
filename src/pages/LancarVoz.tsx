@@ -248,7 +248,7 @@ export default function LancarVoz() {
                 <Sparkle className="h-4 w-4" />
               </div>
               <div>
-                <div className="text-[15.5px] font-[670] leading-tight tracking-[-0.02em] text-foreground">IARA</div>
+                <div className="text-[15.5px] font-semibold leading-tight tracking-[-0.02em] text-foreground">IARA</div>
                 {ouvindo ? (
                   <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-[hsl(var(--success))]">
                     <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />ouvindo
@@ -275,7 +275,7 @@ export default function LancarVoz() {
           {/* Voicedock */}
           <div className="mb-4 mt-auto rounded-[24px] border border-border/70 bg-surface/80 px-4 pb-4 pt-[18px] shadow-[0_-10px_30px_-14px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
             <div className="mb-3 flex items-center gap-2">
-              <span className="flex items-center gap-1.5 text-[11px] font-bold tracking-[0.04em] text-[hsl(var(--danger))]">
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.04em] text-[hsl(var(--danger))]">
                 <span className={cn('h-2 w-2 rounded-full bg-[hsl(var(--danger))]', gravando && 'animate-pulse')} />
                 {processando ? 'Transcrevendo' : gravando ? 'Gravando' : 'Pronto'}
               </span>
@@ -329,7 +329,7 @@ export default function LancarVoz() {
             </div>
             <div className="grid h-[30px] w-[30px] place-items-center rounded-[9px] bg-primary text-white"><Sparkle className="h-4 w-4" /></div>
             <div>
-              <div className="text-[15.5px] font-[670] text-foreground">IARA</div>
+              <div className="text-[15.5px] font-semibold text-foreground">IARA</div>
               <div className="text-[10.5px] font-semibold text-foreground-muted">processou seu áudio</div>
             </div>
           </div>
@@ -345,7 +345,7 @@ export default function LancarVoz() {
                 <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground-muted">
                   <Sparkle className="h-3 w-3 text-primary" />Reconhecido por voz · IARA
                 </div>
-                <h4 className="mt-[3px] text-[19px] font-[670] tracking-[-0.02em] text-foreground">Revisar lançamentos</h4>
+                <h4 className="mt-[3px] text-[19px] font-semibold tracking-[-0.02em] text-foreground">Revisar lançamentos</h4>
               </div>
               <button onClick={() => refazer()} aria-label="Fechar" className="grid h-[30px] w-[30px] flex-none place-items-center rounded-full bg-surface-2 text-foreground-muted">
                 <XMarkIcon className="h-4 w-4" />
@@ -362,7 +362,7 @@ export default function LancarVoz() {
               {/* Padrão para todos: conta/cartão + status. Cartão de crédito cai na fatura aberta. */}
               {itens.length > 0 && (
                 <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-surface-2/60 px-2.5 py-2">
-                  <span className="flex-none text-[10.5px] font-bold uppercase tracking-wide text-foreground-subtle">Todos</span>
+                  <span className="flex-none text-[10.5px] font-semibold uppercase tracking-wide text-foreground-subtle">Todos</span>
                   <Select value={itens[0]?.conta_id || 'none'} onValueChange={(v) => aplicarContaTodos(v)}>
                     <SelectTrigger className="h-8 flex-1 text-[12.5px]"><SelectValue placeholder="Conta/Cartão" /></SelectTrigger>
                     <SelectContent>
@@ -377,7 +377,7 @@ export default function LancarVoz() {
                         key={String(q)}
                         onClick={() => aplicarQuitadoTodos(q)}
                         className={cn(
-                          'rounded-[7px] px-2 py-[5px] text-[10.5px] font-bold transition-colors',
+                          'rounded-[7px] px-2 py-[5px] text-[10.5px] font-semibold transition-colors',
                           itens.every((x) => x.quitado === q) ? (q ? 'bg-[hsl(var(--success))] text-white' : 'bg-surface-2 text-foreground') : 'text-foreground-muted',
                         )}
                       >
@@ -404,7 +404,7 @@ export default function LancarVoz() {
                               key={tp}
                               onClick={() => setItens((prev) => prev.map((x, i) => i === idx ? { ...x, tipo: tp, categoria_id: null } : x))}
                               className={cn(
-                                'rounded-[7px] px-2.5 py-[5px] text-[10.5px] font-bold transition-colors',
+                                'rounded-[7px] px-2.5 py-[5px] text-[10.5px] font-semibold transition-colors',
                                 active
                                   ? tp === 'despesa' ? 'bg-[hsl(var(--danger))] text-white' : 'bg-[hsl(var(--success))] text-white'
                                   : 'text-foreground-muted',
@@ -415,8 +415,8 @@ export default function LancarVoz() {
                           );
                         })}
                       </div>
-                      <div className="min-w-0 flex-1 truncate text-[14px] font-[640] capitalize text-foreground">{it.descricao}</div>
-                      <div className={cn('flex-none text-[15px] font-bold tabular-nums', isReceita ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]')}>
+                      <div className="min-w-0 flex-1 truncate text-[14px] font-semibold capitalize text-foreground">{it.descricao}</div>
+                      <div className={cn('flex-none text-[15px] font-semibold tabular-nums', isReceita ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]')}>
                         {isReceita ? '+' : '−'}{formatCurrency(it.valor).replace('R$', 'R$ ')}
                       </div>
                     </div>
@@ -427,7 +427,7 @@ export default function LancarVoz() {
                         {it.categoria_nome || 'Sem categoria'}
                       </span>
                       {it.categoria_nome && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/25 px-2 py-1 text-[10px] font-bold text-[hsl(var(--primary))]">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/25 px-2 py-1 text-[10px] font-semibold text-[hsl(var(--primary))]">
                           sugerida
                         </span>
                       )}
@@ -444,7 +444,7 @@ export default function LancarVoz() {
                       </span>
                       <span
                         className={cn(
-                          'rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide',
+                          'rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide',
                           it.tipo === 'despesa' && isCartao(it.conta_id)
                             ? 'bg-primary/15 text-[hsl(var(--primary))]'
                             : it.quitado
@@ -493,7 +493,7 @@ export default function LancarVoz() {
                                 key={String(q)}
                                 onClick={() => setItem(idx, { quitado: q })}
                                 className={cn(
-                                  'rounded-[7px] px-3 py-[6px] text-[11px] font-bold transition-colors',
+                                  'rounded-[7px] px-3 py-[6px] text-[11px] font-semibold transition-colors',
                                   it.quitado === q ? (q ? 'bg-[hsl(var(--success))] text-white' : 'bg-[hsl(var(--warning))] text-white') : 'text-foreground-muted',
                                 )}
                               >

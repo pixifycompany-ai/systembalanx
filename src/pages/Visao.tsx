@@ -111,7 +111,7 @@ export default function Visao() {
       <div className="md:hidden auro-card rounded-[24px] border border-border/60 bg-surface/55 backdrop-blur-xl px-4 pt-4 pb-2 overflow-hidden">
         <div className="text-[11.5px] text-foreground-muted">Receita recorrente (MRR)</div>
         <div className="mt-1 flex items-baseline gap-2.5">
-          <span className="text-[30px] font-[680] tracking-[-0.03em] tabular-nums text-foreground">{formatCurrency(contractsData.mrrTotal)}</span>
+          <span className="text-[30px] font-semibold tracking-[-0.03em] tabular-nums text-foreground">{formatCurrency(contractsData.mrrTotal)}</span>
           {deltaPct !== null && (
             <span className={cn('text-[13px] font-semibold', deltaPct >= 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]')}>
               {deltaPct >= 0 ? '+' : ''}{deltaPct.toFixed(1).replace('.', ',')}%
@@ -162,7 +162,7 @@ export default function Visao() {
                     <div className="text-sm font-semibold text-foreground truncate">{c.categoria}</div>
                     <div className="text-[11px] text-foreground-muted">{pct}%</div>
                   </div>
-                  <div className="text-sm font-bold tabular-nums text-[hsl(var(--danger))]">−{formatCurrency(c.valor)}</div>
+                  <div className="text-sm font-semibold tabular-nums text-[hsl(var(--danger))]">−{formatCurrency(c.valor)}</div>
                 </div>
               );
             })}

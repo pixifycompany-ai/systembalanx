@@ -36,7 +36,7 @@ export function TopClientsTable({ clients, title = 'Top Clientes' }: TopClientsT
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   {/* Rank Number */}
                   <span className={cn(
-                    "text-lg font-bold tabular-nums w-6 text-center",
+                    "text-lg font-semibold tabular-nums w-6 text-center",
                     index === 0 && "text-primary",
                     index === 1 && "text-primary/80",
                     index === 2 && "text-primary/60",

@@ -38,7 +38,7 @@ function DuplicateDetailsList({ details }: { details: DuplicateDetail[] }) {
             <div className="flex items-center gap-1.5">
               <span
                 className={cn(
-                  'shrink-0 rounded px-1 py-px text-[9px] font-bold uppercase tracking-wide',
+                  'shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide',
                   d.tipo === 'receita' ? 'bg-primary/15 text-primary' : 'bg-destructive/15 text-destructive',
                 )}
               >

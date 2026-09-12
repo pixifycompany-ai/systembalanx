@@ -101,7 +101,7 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
       <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[520px] sm:mx-auto">
         <div className="px-5 pt-1 pb-1">
           <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
-          <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">{cartao ? 'Editar cartão' : 'Novo cartão'}</h2>
+          <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">{cartao ? 'Editar cartão' : 'Novo cartão'}</h2>
         </div>
 
         <div className="space-y-4 px-5 pt-3">
@@ -118,7 +118,7 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
                 </div>
                 <div className="mt-4 font-mono tracking-[0.18em] text-white/80 text-sm">•••• •••• •••• ••••</div>
                 <div className="mt-2 text-[10px] uppercase tracking-wide text-white/55">Limite</div>
-                <div className="text-lg font-bold tabular-nums">{form.limite ? formatCurrency(Number(form.limite)) : 'R$ —'}</div>
+                <div className="text-lg font-semibold tabular-nums">{form.limite ? formatCurrency(Number(form.limite)) : 'R$ —'}</div>
               </div>
             );
           })()}

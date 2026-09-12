@@ -91,7 +91,7 @@ export function CalendarGrid({ year, month, days, onPrev, onNext }: CalendarGrid
                 <span
                   className={`text-[11px] font-medium ${
                     cell.currentMonth ? 'text-foreground' : 'text-muted-foreground/50'
-                  } ${isToday ? 'text-primary font-bold' : ''}`}
+                  } ${isToday ? 'text-primary font-semibold' : ''}`}
                 >
                   {cell.day}
                 </span>

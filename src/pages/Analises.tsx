@@ -45,7 +45,7 @@ export default function Analises() {
         <MobilePageHeader eyebrow="Insights profundos" title="Análises" />
       </div>
       <div className="hidden md:block mb-6">
-        <h1 className="text-xl md:text-2xl font-bold tracking-tight">Análises Avançadas</h1>
+        <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Análises Avançadas</h1>
         <p className="text-sm text-muted-foreground">
           Métricas detalhadas e insights sobre seu negócio
         </p>

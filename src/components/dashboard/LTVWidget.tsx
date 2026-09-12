@@ -51,7 +51,7 @@ export function LTVWidget({ data }: LTVWidgetProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="cursor-help">
-                  <p className="text-3xl font-bold text-foreground tabular-nums">
+                  <p className="text-3xl font-semibold text-foreground tabular-nums">
                     {formatCurrency(ltvMedio)}
                   </p>
                   <p className="text-xs text-muted-foreground">

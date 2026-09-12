@@ -168,7 +168,7 @@ function StatCard({ label, value, tone }: { label: string; value: string; tone: 
     <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl px-3 py-3.5">
       <span className={cn('absolute inset-x-0 top-0 h-[3px]', bar)} />
       <div className="text-[10px] font-semibold uppercase tracking-wide text-foreground-muted">{label}</div>
-      <div className="mt-1.5 text-lg font-bold tabular-nums text-foreground">{value}</div>
+      <div className="mt-1.5 text-lg font-semibold tabular-nums text-foreground">{value}</div>
     </div>
   );
 }
@@ -179,7 +179,7 @@ function TenantRow({ t, count, onClick }: { t: Tenant; count: number; onClick: (
       onClick={onClick}
       className="w-full flex items-center gap-3 rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl px-4 py-3 text-left hover:border-primary/40 transition-colors"
     >
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary text-xs font-bold">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary text-xs font-semibold">
         {initials(t.nome)}
       </span>
       <div className="flex-1 min-w-0">
@@ -350,7 +350,7 @@ function PagamentosTab() {
       {/* ASAAS status */}
       <div className="rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl p-5">
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#1f50e2] text-white font-extrabold">a</div>
+          <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#1f50e2] text-white font-semibold">a</div>
           <div>
             <div className="text-sm font-semibold text-foreground">ASAAS</div>
             <div className="text-xs text-foreground-muted">Gateway de cobrança recorrente</div>

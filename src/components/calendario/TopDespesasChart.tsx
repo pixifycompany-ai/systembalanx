@@ -63,7 +63,7 @@ export function TopDespesasChart({ data, total }: TopDespesasChartProps) {
           {/* Center text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-xs text-muted-foreground">Total</span>
-            <span className="text-sm font-bold text-foreground">{formatCurrencyShort(total)}</span>
+            <span className="text-sm font-semibold text-foreground">{formatCurrencyShort(total)}</span>
           </div>
         </div>
 

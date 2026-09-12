@@ -79,7 +79,7 @@ export function DRETable({ rows, months }: DRETableProps) {
                 <span
                   className={cn(
                     'min-w-0 truncate',
-                    isGroup && 'text-[11px] font-bold uppercase tracking-wide text-foreground',
+                    isGroup && 'text-[11px] font-semibold uppercase tracking-wide text-foreground',
                     isResult && 'text-sm font-semibold text-foreground',
                     isItem && 'pl-3 text-xs text-muted-foreground',
                   )}
@@ -141,7 +141,7 @@ export function DRETable({ rows, months }: DRETableProps) {
                   <td
                     className={cn(
                       'px-3 py-2',
-                      isGroup && 'text-xs font-bold uppercase tracking-wide text-foreground',
+                      isGroup && 'text-xs font-semibold uppercase tracking-wide text-foreground',
                       isResult && 'text-sm font-semibold text-foreground',
                       isItem && 'pl-7 text-sm text-muted-foreground',
                     )}

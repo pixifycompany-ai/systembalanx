@@ -155,21 +155,21 @@ export function FluxoCaixaReport({ open, onOpenChange, transacoes, contas }: Flu
 
         {/* Report content (printable) */}
         <div ref={printRef} className="print-area space-y-6">
-          <h2 className="text-xl font-bold text-center hidden print:block">Relatório de Fluxo de Caixa</h2>
+          <h2 className="text-xl font-semibold text-center hidden print:block">Relatório de Fluxo de Caixa</h2>
           
           {/* Summary */}
           <div className="grid grid-cols-3 gap-4">
             <div className="rounded-lg border p-4 text-center">
               <p className="text-xs text-muted-foreground">Entradas</p>
-              <p className="text-lg font-bold text-emerald-600">{formatCurrency(totals.entradas)}</p>
+              <p className="text-lg font-semibold text-emerald-600">{formatCurrency(totals.entradas)}</p>
             </div>
             <div className="rounded-lg border p-4 text-center">
               <p className="text-xs text-muted-foreground">Saídas</p>
-              <p className="text-lg font-bold text-rose-600">{formatCurrency(totals.saidas)}</p>
+              <p className="text-lg font-semibold text-rose-600">{formatCurrency(totals.saidas)}</p>
             </div>
             <div className="rounded-lg border p-4 text-center">
               <p className="text-xs text-muted-foreground">Saldo</p>
-              <p className={cn("text-lg font-bold", totals.saldo >= 0 ? 'text-emerald-600' : 'text-rose-600')}>
+              <p className={cn("text-lg font-semibold", totals.saldo >= 0 ? 'text-emerald-600' : 'text-rose-600')}>
                 {formatCurrency(totals.saldo)}
               </p>
             </div>

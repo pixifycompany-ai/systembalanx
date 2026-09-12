@@ -894,7 +894,7 @@ export default function FluxoCaixa() {
         </div>
         <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-foreground">Fluxo de Caixa</h1>
+            <h1 className="text-xl md:text-2xl font-semibold text-foreground">Fluxo de Caixa</h1>
             <p className="text-sm text-muted-foreground">Visualize todas as movimentações financeiras</p>
           </div>
           <div className="hidden md:flex items-center gap-1.5 flex-wrap">
@@ -1347,7 +1347,7 @@ export default function FluxoCaixa() {
                                         saldo >= 0 ? "text-foreground" : "text-rose-600 dark:text-rose-400"
                                       )}>
                                         <span className="opacity-60 uppercase mr-1">Saldo</span>
-                                        <span className="font-bold">{formatCurrency(saldo)}</span>
+                                        <span className="font-semibold">{formatCurrency(saldo)}</span>
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -1509,7 +1509,7 @@ export default function FluxoCaixa() {
               <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[hsl(var(--success))]">
                 <span className="h-2 w-2 rounded-full bg-[hsl(var(--success))]" />Receita
               </div>
-              <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">
+              <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
                 {editingItem ? 'Editar entrada' : 'Nova entrada'}
               </h2>
             </div>
@@ -1526,7 +1526,7 @@ export default function FluxoCaixa() {
                   onChange={(e) => setFormEntrada(prev => ({ ...prev, valor: parseFloat(e.target.value) || 0 }))}
                   placeholder="R$ 0,00"
                   required
-                  className="h-14 text-2xl font-bold tabular-nums text-[hsl(var(--success))]"
+                  className="h-14 text-2xl font-semibold tabular-nums text-[hsl(var(--success))]"
                 />
               </div>
 
@@ -1747,7 +1747,7 @@ export default function FluxoCaixa() {
               <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[hsl(var(--danger))]">
                 <span className="h-2 w-2 rounded-full bg-[hsl(var(--danger))]" />Despesa
               </div>
-              <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">
+              <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
                 {editingItem ? 'Editar saída' : 'Nova saída'}
               </h2>
             </div>
@@ -1763,7 +1763,7 @@ export default function FluxoCaixa() {
                   onChange={(e) => setFormSaida(prev => ({ ...prev, valor: parseFloat(e.target.value) || 0 }))}
                   placeholder="R$ 0,00"
                   required
-                  className="h-14 text-2xl font-bold tabular-nums text-[hsl(var(--danger))]"
+                  className="h-14 text-2xl font-semibold tabular-nums text-[hsl(var(--danger))]"
                 />
               </div>
 

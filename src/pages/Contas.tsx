@@ -199,7 +199,7 @@ export default function Contas() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Saldo Total (Contas)</p>
-                  <p className="text-3xl font-bold text-foreground">{formatCurrency(getTotalBalance())}</p>
+                  <p className="text-3xl font-semibold text-foreground">{formatCurrency(getTotalBalance())}</p>
                 </div>
                 <Wallet className="h-10 w-10 text-primary/50" />
               </div>
@@ -287,7 +287,7 @@ export default function Contas() {
         <TabsContent value="cartoes">
           <div className="md:hidden mb-3 auro-card rounded-[20px] border border-border/60 bg-surface/55 backdrop-blur-xl px-4 py-[15px]">
             <div className="text-[11.5px] font-medium text-foreground-muted">Total em Faturas Abertas</div>
-            <div className="mt-[5px] whitespace-nowrap text-[26px] font-[680] tracking-[-0.03em] tabular-nums text-[hsl(var(--danger))]">
+            <div className="mt-[5px] whitespace-nowrap text-[26px] font-semibold tracking-[-0.03em] tabular-nums text-[hsl(var(--danger))]">
               {formatCurrency(totalCartoes)}
             </div>
             <div className="mt-[3px] text-[11.5px] text-foreground-subtle">
@@ -299,7 +299,7 @@ export default function Contas() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total em Faturas Abertas</p>
-                  <p className="text-3xl font-bold text-foreground">{formatCurrency(totalCartoes)}</p>
+                  <p className="text-3xl font-semibold text-foreground">{formatCurrency(totalCartoes)}</p>
                 </div>
                 <CreditCard className="h-10 w-10 text-purple-500/50" />
               </div>
@@ -345,7 +345,7 @@ export default function Contas() {
         <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[480px] sm:mx-auto">
           <div className="pb-1">
             <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
-            <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">{editingConta ? 'Editar conta' : 'Nova conta'}</h2>
+            <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">{editingConta ? 'Editar conta' : 'Nova conta'}</h2>
           </div>
 
           <div className="space-y-4 pt-3">

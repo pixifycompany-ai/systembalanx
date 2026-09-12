@@ -120,7 +120,7 @@ export function AppSidebar() {
       <SidebarContent>
         {navGroups.map((group) => (
           <SidebarGroup key={group.label} className="py-1.5">
-            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-bold uppercase tracking-[0.13em] text-sidebar-foreground/45">
+            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-semibold uppercase tracking-[0.13em] text-sidebar-foreground/45">
               {group.label}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -145,7 +145,7 @@ export function AppSidebar() {
 
         {isSuperadmin && (
           <SidebarGroup className="py-1.5">
-            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-bold uppercase tracking-[0.13em] text-sidebar-foreground/45">
+            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-semibold uppercase tracking-[0.13em] text-sidebar-foreground/45">
               Plataforma
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -192,7 +192,7 @@ export function AppSidebar() {
                     <span className="truncate text-[11px] text-sidebar-foreground/60">{activeTenant.nome}</span>
                     <span
                       className={cn(
-                        'shrink-0 rounded-full px-1.5 py-px text-[9px] font-bold uppercase tracking-wide',
+                        'shrink-0 rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide',
                         activeTenant.cortesia || activeTenant.status_assinatura === 'ativa'
                           ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]'
                           : activeTenant.status_assinatura === 'inadimplente'
@@ -229,7 +229,7 @@ function Avatar({ url, inicial }: { url: string | null; inicial: string }) {
   }
   return (
     <div
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] text-[13px] font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] text-[13px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
       style={{ background: 'linear-gradient(140deg, hsl(var(--primary)), hsl(212 87% 42%))' }}
     >
       {inicial}

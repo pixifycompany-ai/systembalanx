@@ -73,7 +73,7 @@ export function PagarFaturaDialog({ open, onOpenChange, cartao, fatura, contasBa
           <div className="text-[11.5px] font-medium text-foreground-muted">
             {cartao.nome} · {format(parseISO(fatura.competencia), "MMMM", { locale: ptBR })}
           </div>
-          <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">Pagar fatura</h2>
+          <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Pagar fatura</h2>
         </div>
 
         <div className="px-5 pb-5 space-y-4">
@@ -83,7 +83,7 @@ export function PagarFaturaDialog({ open, onOpenChange, cartao, fatura, contasBa
               <div key={m.lab} className="auro-card relative overflow-hidden rounded-2xl border border-border/60 bg-surface/55 px-3 py-2.5">
                 <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: m.accent }} />
                 <div className="text-[9.5px] font-semibold uppercase tracking-wide text-foreground-muted">{m.lab}</div>
-                <div className={`mt-1 text-[14px] font-bold tabular-nums ${m.danger ? 'text-[hsl(var(--danger))]' : 'text-foreground'}`}>{m.val}</div>
+                <div className={`mt-1 text-[14px] font-semibold tabular-nums ${m.danger ? 'text-[hsl(var(--danger))]' : 'text-foreground'}`}>{m.val}</div>
               </div>
             ))}
           </div>
@@ -133,7 +133,7 @@ export function PagarFaturaDialog({ open, onOpenChange, cartao, fatura, contasBa
           <div className="auro-card rounded-2xl border border-border/60 bg-surface/55 px-4 py-3.5 space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-foreground-muted">Total selecionado</span>
-              <span className={`font-bold tabular-nums ${total > restante + 0.001 ? 'text-[hsl(var(--danger))]' : 'text-foreground'}`}>{formatCurrency(total)}</span>
+              <span className={`font-semibold tabular-nums ${total > restante + 0.001 ? 'text-[hsl(var(--danger))]' : 'text-foreground'}`}>{formatCurrency(total)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-foreground-muted">Saldo após pagamento</span>

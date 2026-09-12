@@ -187,7 +187,7 @@ export function FaturaDetailDialog({
       <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-primary">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
       </span>
-      <h2 className="text-[18px] font-[670] tracking-[-0.02em] text-foreground">Faturas — {cartao.nome}</h2>
+      <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-foreground">Faturas — {cartao.nome}</h2>
     </div>
   );
 
@@ -305,7 +305,7 @@ export function FaturaDetailDialog({
                           {l.fornecedor ? ` · ${l.fornecedor}` : ''}
                         </p>
                       </div>
-                      <span className="shrink-0 text-sm font-bold tabular-nums text-foreground">{formatCurrency(Number(l.valor))}</span>
+                      <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatCurrency(Number(l.valor))}</span>
                       <div className="flex shrink-0 items-center gap-1">
                         <button onClick={() => openEdit(l)} aria-label="Editar" className="grid h-8 w-8 place-items-center rounded-lg text-foreground-muted hover:bg-white/5 hover:text-foreground">
                           <Pencil className="h-4 w-4" />
@@ -333,7 +333,7 @@ export function FaturaDetailDialog({
                           <p className="text-sm font-semibold text-foreground">{conta?.nome || 'Conta'}</p>
                           <p className="text-[11px] text-foreground-muted">{format(parseISO(p.data_pagamento), 'dd/MM/yyyy')}</p>
                         </div>
-                        <span className="text-sm font-bold tabular-nums text-[hsl(var(--success))]">{formatCurrency(Number(p.valor))}</span>
+                        <span className="text-sm font-semibold tabular-nums text-[hsl(var(--success))]">{formatCurrency(Number(p.valor))}</span>
                       </div>
                     );
                   })}
@@ -370,7 +370,7 @@ function Summary({ lab, val, strong, danger, capitalize }: { lab: string; val: s
   return (
     <div>
       <p className="text-[10.5px] text-foreground-muted">{lab}</p>
-      <p className={`mt-0.5 text-[13.5px] tabular-nums ${strong ? 'font-bold' : 'font-semibold'} ${danger ? 'text-[hsl(var(--danger))]' : 'text-foreground'} ${capitalize ? 'capitalize' : ''}`}>
+      <p className={`mt-0.5 text-[13.5px] tabular-nums ${strong ? 'font-semibold' : 'font-semibold'} ${danger ? 'text-[hsl(var(--danger))]' : 'text-foreground'} ${capitalize ? 'capitalize' : ''}`}>
         {val}
       </p>
     </div>
@@ -422,7 +422,7 @@ function LancamentoFormInline({
             value={form.valor}
             onChange={(e) => setForm((p: any) => ({ ...p, valor: e.target.value }))}
             placeholder="R$ 0,00"
-            className="h-12 text-lg font-bold tabular-nums text-[hsl(var(--danger))]"
+            className="h-12 text-lg font-semibold tabular-nums text-[hsl(var(--danger))]"
           />
         </div>
         {!editing && (

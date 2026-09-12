@@ -168,7 +168,7 @@ export default function Onboarding() {
 
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-5 mb-2">Já na conta</p>
             <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl px-4 py-3">
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-primary/15 text-primary text-xs font-bold">
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-primary/15 text-primary text-xs font-semibold">
                 {(primeiroNome[0] || 'V').toUpperCase()}
               </span>
               <div className="min-w-0">
@@ -272,7 +272,7 @@ function StepRow({
     <div className="flex items-start gap-3 py-3.5 border-b border-border/50 last:border-b-0">
       <span
         className={cn(
-          'grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full text-[11.5px] font-bold',
+          'grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full text-[11.5px] font-semibold',
           state === 'done' && 'bg-[hsl(var(--success))] text-[#04120b]',
           state === 'now' && 'bg-primary text-primary-foreground',
           state === 'next' && 'bg-surface-2 text-foreground-muted',

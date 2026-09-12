@@ -34,7 +34,7 @@ export function KpiTriple({ items, className }: { items: KpiItem[]; className?: 
           <div className="truncate text-[8.5px] md:text-[10px] font-semibold uppercase tracking-wide text-foreground-muted">
             {k.label}
           </div>
-          <div className="mt-1.5 whitespace-nowrap text-[11px] md:text-lg font-bold tabular-nums tracking-tight text-foreground">
+          <div className="mt-1.5 whitespace-nowrap text-[11px] md:text-lg font-semibold tabular-nums tracking-tight text-foreground">
             {k.format === 'count' ? k.value : formatCurrency(k.value)}
           </div>
         </div>

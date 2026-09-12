@@ -24,7 +24,7 @@ export function MobilePageHeader({ eyebrow, title, actions, className }: MobileP
         {eyebrow && (
           <p className="text-xs text-foreground-muted mb-0.5 font-medium">{eyebrow}</p>
         )}
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground truncate">
+        <h1 className="text-2xl md:text-3xl font-medium tracking-tight text-foreground truncate">
           {title}
         </h1>
       </div>

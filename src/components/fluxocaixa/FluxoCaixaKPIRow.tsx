@@ -59,7 +59,7 @@ export function FluxoCaixaKPIRow({ entradas, saidas, saldo, itemCount }: FluxoCa
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {label}
                 </span>
-                <span className={cn('text-2xl font-bold tabular-nums leading-tight', valueCls)}>
+                <span className={cn('text-2xl font-semibold tabular-nums leading-tight', valueCls)}>
                   {formatCurrency(value)}
                 </span>
               </div>

@@ -119,7 +119,7 @@ export function ClientProfitabilityTable({ clients }: ClientProfitabilityTablePr
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <span className={cn(
-                        "flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold",
+                        "flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold",
                         index === 0 ? "bg-yellow-500/20 text-yellow-600" :
                         index === 1 ? "bg-gray-400/20 text-gray-500" :
                         index === 2 ? "bg-orange-500/20 text-orange-600" :

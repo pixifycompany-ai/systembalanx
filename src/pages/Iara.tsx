@@ -139,7 +139,7 @@ export default function Iara() {
           <Sparkle className="h-4 w-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[15.5px] font-[670] leading-tight tracking-[-0.02em]">IARA</div>
+          <div className="text-[15.5px] font-semibold leading-tight tracking-[-0.02em]">IARA</div>
           <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-[hsl(var(--success))] whitespace-nowrap">
             <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />online
           </div>

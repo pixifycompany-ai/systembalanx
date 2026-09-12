@@ -59,7 +59,7 @@ export function TransactionDetailSheet({
           <div className="text-[11.5px] font-medium text-foreground-muted">
             {statusLabel[t.status] || t.status} · {format(parseISO(t.data_vencimento), "dd MMM", { locale: ptBR })}
           </div>
-          <h2 className="mt-0.5 truncate text-[22px] font-[670] tracking-[-0.02em] text-foreground uppercase">
+          <h2 className="mt-0.5 truncate text-[22px] font-semibold tracking-[-0.02em] text-foreground uppercase">
             {clienteNome || t.descricao}
           </h2>
         </div>
@@ -74,7 +74,7 @@ export function TransactionDetailSheet({
                 : 'linear-gradient(150deg, hsl(4 70% 42% / 0.9), hsl(4 55% 20% / 0.85))',
             }}
           >
-            <div className="text-[30px] font-[700] tabular-nums text-white">
+            <div className="text-[30px] font-semibold tabular-nums text-white">
               {isReceita ? '+' : '−'}{formatCurrency(t.valor)}
             </div>
             <span className="mt-2 inline-block rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold text-white">

@@ -72,7 +72,7 @@ export function FinancialHealthScore({ healthScore }: FinancialHealthScoreProps)
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={cn("text-3xl font-bold", config.color)}>{score}</span>
+              <span className={cn("text-3xl font-semibold", config.color)}>{score}</span>
               <span className="text-xs text-muted-foreground">de 100</span>
             </div>
           </div>

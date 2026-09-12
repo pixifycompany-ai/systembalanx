@@ -126,7 +126,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
         <SheetContent side="bottom" className="rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8]" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)' }}>
           <SheetHeader className="text-left space-y-0 pb-3.5">
             <span className="text-[11px] font-medium text-foreground-muted">Adicionar</span>
-            <SheetTitle className="text-[19px] font-[670] tracking-[-0.02em]">Novo lançamento</SheetTitle>
+            <SheetTitle className="text-[19px] font-semibold tracking-[-0.02em]">Novo lançamento</SheetTitle>
           </SheetHeader>
 
           <div className="flex gap-2.5">

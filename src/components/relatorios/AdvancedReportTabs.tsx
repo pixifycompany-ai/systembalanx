@@ -17,7 +17,7 @@ const KPI = ({ label, value, hint }: { label: string; value: string; hint?: stri
   <Card>
     <CardHeader className="pb-2"><CardDescription className="text-xs">{label}</CardDescription></CardHeader>
     <CardContent>
-      <p className="text-2xl font-bold tracking-tight">{value}</p>
+      <p className="text-2xl font-semibold tracking-tight">{value}</p>
       {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
     </CardContent>
   </Card>

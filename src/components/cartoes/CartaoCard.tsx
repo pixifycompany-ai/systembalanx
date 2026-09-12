@@ -40,7 +40,7 @@ export function CartaoCard({ cartao, faturaAtual, onPagar, onLancamentos, onImpo
           <CreditCardIcon className="h-[18px] w-[18px] text-[#fff5e9]" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[14px] font-[660]">{cartao.nome}</div>
+          <div className="truncate text-[14px] font-semibold">{cartao.nome}</div>
           <div className="truncate text-[10.5px] text-[rgba(255,245,233,0.7)]">
             {[cartao.bandeira, cartao.banco].filter(Boolean).join(' • ') || 'Cartão de crédito'}
           </div>
@@ -49,7 +49,7 @@ export function CartaoCard({ cartao, faturaAtual, onPagar, onLancamentos, onImpo
 
       {/* Fatura atual */}
       <div className="relative mt-3.5 text-[9.5px] uppercase tracking-[0.1em] text-[rgba(255,245,233,0.7)]">Fatura atual</div>
-      <div className="relative mt-0.5 text-[24px] font-[680] tracking-[-0.02em] tabular-nums">{formatCurrency(usado)}</div>
+      <div className="relative mt-0.5 text-[24px] font-semibold tracking-[-0.02em] tabular-nums">{formatCurrency(usado)}</div>
       <div className="relative mt-[3px] text-[10.5px] text-[rgba(255,245,233,0.75)]">
         {faturaAtual
           ? `Vence em ${format(parseISO(faturaAtual.data_vencimento), "dd 'de' MMMM", { locale: ptBR })}`

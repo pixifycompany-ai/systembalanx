@@ -308,7 +308,7 @@ export default function Clientes() {
         <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[520px] sm:mx-auto">
           <div className="pb-1">
             <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
-            <h2 className="mt-0.5 text-[22px] font-[670] tracking-[-0.02em] text-foreground">
+            <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
               {editingCliente ? 'Editar cliente' : 'Novo cliente'}
             </h2>
           </div>

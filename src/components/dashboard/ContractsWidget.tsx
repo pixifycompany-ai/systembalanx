@@ -40,7 +40,7 @@ export function ContractsWidget({ data }: ContractsWidgetProps) {
 
         <div className="space-y-3">
           <div>
-            <p className="text-2xl md:text-3xl font-bold text-foreground tabular-nums">
+            <p className="text-2xl md:text-3xl font-semibold text-foreground tabular-nums">
               {data.contratosAtivos}
             </p>
             <p className="text-xs text-muted-foreground">contratos em vigor</p>
@@ -76,7 +76,7 @@ export function ContractsWidget({ data }: ContractsWidgetProps) {
 
         <div className="space-y-3">
           <div>
-            <p className="text-2xl md:text-3xl font-bold text-foreground tabular-nums">
+            <p className="text-2xl md:text-3xl font-semibold text-foreground tabular-nums">
               {data.clientesAtivos}
             </p>
             <p className="text-xs text-muted-foreground">clientes na base</p>

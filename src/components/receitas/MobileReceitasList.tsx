@@ -99,7 +99,7 @@ function SwipeCard({ item, onConfirm, onDelete, onClick }: { item: Receita; onCo
         onTouchEnd={handleTouchEnd}
         onClick={handleClick}
       >
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold" style={{ backgroundColor: `${catColor}20`, color: catColor }}>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold" style={{ backgroundColor: `${catColor}20`, color: catColor }}>
           {item.categoria?.nome?.charAt(0)?.toUpperCase() || '↑'}
         </div>
         <div className="flex-1 min-w-0">
