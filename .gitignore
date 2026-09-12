@@ -29,3 +29,4 @@ dist-ssr
 !.env.example
 supabase/.temp/
 deno.lock
+landing/dist/
