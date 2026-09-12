@@ -202,8 +202,8 @@ export function SwipeableTransactionCard({
 
         {/* Descrição + conta · status */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate text-foreground">{t.descricao}</p>
-          <p className="text-[11px] text-foreground-muted truncate mt-0.5">
+          <p className="text-sm font-medium truncate text-foreground uppercase">{t.descricao}</p>
+          <p className="text-[11px] text-foreground-muted truncate mt-0.5 uppercase">
             {[contaNome, statusLabel(t)].filter(Boolean).join(' · ')}
           </p>
         </div>
@@ -245,8 +245,8 @@ export function SwipeableTransactionCard({
                 {isTransfer ? <CreditCard className="h-[18px] w-[18px]" /> : <ArrowUpRight className="h-[18px] w-[18px]" />}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-foreground">{t.descricao}</p>
-                <p className="truncate text-[11px] text-foreground-muted">{[contaNome, statusLabel(t)].filter(Boolean).join(' · ')}</p>
+                <p className="truncate text-sm font-semibold text-foreground uppercase">{t.descricao}</p>
+                <p className="truncate text-[11px] text-foreground-muted uppercase">{[contaNome, statusLabel(t)].filter(Boolean).join(' · ')}</p>
               </div>
               <span className={cn(
                 'text-sm font-semibold tabular-nums',

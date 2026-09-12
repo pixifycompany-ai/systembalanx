@@ -13,6 +13,7 @@ import {
   UserCircle,
   LineChart,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -42,6 +43,7 @@ const navGroups = [
     label: 'Principal',
     items: [
       { href: '/', label: 'Início', icon: LayoutDashboard },
+      { href: '/iara', label: 'IARA · Assistente', icon: Sparkles },
       { href: '/fluxo-caixa', label: 'Fluxo de Caixa', icon: ArrowLeftRight },
       { href: '/visao', label: 'Visão', icon: LineChart },
       { href: '/calendario', label: 'Calendário', icon: CalendarDays },

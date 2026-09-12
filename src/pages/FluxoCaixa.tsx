@@ -996,15 +996,36 @@ export default function FluxoCaixa() {
             <div className="py-4 space-y-4">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted mb-2">Período</p>
-                <div className="inline-flex items-center gap-2">
-                  <button aria-label="Mês anterior" onClick={() => { setDateFilterMode('month'); setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), -1), 'yyyy-MM')); }}
-                    className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-border/60"><ChevronLeft className="h-4 w-4" /></button>
-                  <span className="h-9 px-4 inline-flex items-center rounded-full border border-border/60 text-sm font-medium capitalize">
-                    {format(parseISO(`${monthFilter}-01`), 'MMMM yyyy', { locale: ptBR })}
-                  </span>
-                  <button aria-label="Próximo mês" onClick={() => { setDateFilterMode('month'); setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), 1), 'yyyy-MM')); }}
-                    className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-border/60"><ChevronRight className="h-4 w-4" /></button>
+                {/* Alterna entre navegação por mês e período personalizado */}
+                <div className="mb-2.5 inline-flex rounded-full border border-border/60 p-0.5">
+                  <button onClick={() => setDateFilterMode('month')}
+                    className={cn('h-7 rounded-full px-3 text-xs font-semibold transition-colors', dateFilterMode === 'month' ? 'bg-primary text-primary-foreground' : 'text-foreground-muted')}>Mês</button>
+                  <button onClick={() => setDateFilterMode('range')}
+                    className={cn('h-7 rounded-full px-3 text-xs font-semibold transition-colors', dateFilterMode === 'range' ? 'bg-primary text-primary-foreground' : 'text-foreground-muted')}>Personalizado</button>
                 </div>
+                {dateFilterMode === 'month' ? (
+                  <div className="flex items-center gap-2">
+                    <button aria-label="Mês anterior" onClick={() => setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), -1), 'yyyy-MM'))}
+                      className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-border/60"><ChevronLeft className="h-4 w-4" /></button>
+                    <span className="h-9 flex-1 px-4 inline-flex items-center justify-center rounded-full border border-border/60 text-sm font-medium capitalize">
+                      {format(parseISO(`${monthFilter}-01`), 'MMMM yyyy', { locale: ptBR })}
+                    </span>
+                    <button aria-label="Próximo mês" onClick={() => setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), 1), 'yyyy-MM'))}
+                      className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-border/60"><ChevronRight className="h-4 w-4" /></button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input type="date" aria-label="Data inicial"
+                      value={dateRangeStart ? format(dateRangeStart, 'yyyy-MM-dd') : ''}
+                      onChange={(e) => setDateRangeStart(e.target.value ? parseISO(e.target.value) : undefined)}
+                      className="h-9 flex-1 rounded-lg border border-border/60 bg-transparent px-2.5 text-sm text-foreground [color-scheme:dark]" />
+                    <span className="text-xs text-foreground-muted">até</span>
+                    <input type="date" aria-label="Data final"
+                      value={dateRangeEnd ? format(dateRangeEnd, 'yyyy-MM-dd') : ''}
+                      onChange={(e) => setDateRangeEnd(e.target.value ? parseISO(e.target.value) : undefined)}
+                      className="h-9 flex-1 rounded-lg border border-border/60 bg-transparent px-2.5 text-sm text-foreground [color-scheme:dark]" />
+                  </div>
+                )}
               </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted mb-2">Conta</p>
@@ -1384,8 +1405,8 @@ export default function FluxoCaixa() {
                               </span>
                             )}
                           </td>
-                          <td className="p-3 text-sm max-w-[260px] truncate font-medium text-foreground">{t.descricao}</td>
-                          <td className="p-3 text-sm text-muted-foreground truncate max-w-[150px]">
+                          <td className="p-3 text-sm max-w-[260px] truncate font-medium text-foreground uppercase">{t.descricao}</td>
+                          <td className="p-3 text-sm text-muted-foreground truncate max-w-[150px] uppercase">
                             {isTransfer ? '—' : (t.cliente?.nome || t.fornecedor || '-')}
                           </td>
                           <td className="p-3">

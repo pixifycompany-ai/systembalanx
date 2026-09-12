@@ -157,9 +157,11 @@ export default {
       },
 
       fontFamily: {
-        sans: ["-apple-system", "BlinkMacSystemFont", "SF Pro Display", "Segoe UI", "system-ui", "sans-serif"],
-        heading: ["-apple-system", "BlinkMacSystemFont", "SF Pro Display", "Segoe UI", "system-ui", "sans-serif"],
-        mono: ["-apple-system", "BlinkMacSystemFont", "SF Pro Display", "Segoe UI", "system-ui", "sans-serif"],
+        // Corpo e números: Inter. Títulos: Sora (identidade). Fallback system.
+        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
+        heading: ["Sora", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
+        display: ["Sora", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
+        mono: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
       },
 
       transitionTimingFunction: {

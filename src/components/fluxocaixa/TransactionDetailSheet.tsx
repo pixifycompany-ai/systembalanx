@@ -59,7 +59,7 @@ export function TransactionDetailSheet({
           <div className="text-[11.5px] font-medium text-foreground-muted">
             {statusLabel[t.status] || t.status} · {format(parseISO(t.data_vencimento), "dd MMM", { locale: ptBR })}
           </div>
-          <h2 className="mt-0.5 truncate text-[22px] font-[670] tracking-[-0.02em] text-foreground">
+          <h2 className="mt-0.5 truncate text-[22px] font-[670] tracking-[-0.02em] text-foreground uppercase">
             {clienteNome || t.descricao}
           </h2>
         </div>

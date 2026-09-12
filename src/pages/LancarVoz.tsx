@@ -8,6 +8,7 @@ import { CometSpinner } from '@/components/shared/BalanxLoader';
 import { useToast } from '@/hooks/use-toast';
 import { useReceitas } from '@/hooks/useReceitas';
 import { useDespesas } from '@/hooks/useDespesas';
+import { useContas } from '@/hooks/useContas';
 import { formatCurrency } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,9 @@ interface ItemVoz {
   categoria_id: string | null;
   categoria_nome: string | null;
   data: string;
+  conta_id: string | null;
+  /** true = já pago/recebido (padrão); false = pendente. Cartão de crédito sempre vira fatura. */
+  quitado: boolean;
 }
 
 /** Estrelinha de 4 pontas (isotipo IARA), igual mockup. */
@@ -36,6 +40,19 @@ export default function LancarVoz() {
   const { toast } = useToast();
   const { categorias: catReceita, createReceita } = useReceitas();
   const { categorias: catDespesa, createDespesa } = useDespesas();
+  const { contas } = useContas();
+
+  // Contas ativas (inclui cartões de crédito, que caem na fatura aberta ao salvar).
+  const contasAtivas = useMemo(() => (contas || []).filter((c) => c.ativa), [contas]);
+  const isCartao = (contaId: string | null | undefined) =>
+    !!contaId && contasAtivas.find((c) => c.id === contaId)?.tipo === 'cartao_credito';
+  const nomeConta = (contaId: string | null | undefined) =>
+    contasAtivas.find((c) => c.id === contaId)?.nome || 'Sem conta';
+  // Conta padrão: primeira conta corrente (não-cartão); senão a primeira conta.
+  const contaPadraoId = useMemo(() => {
+    const corrente = contasAtivas.find((c) => c.tipo === 'corrente') || contasAtivas.find((c) => c.tipo !== 'cartao_credito');
+    return corrente?.id || contasAtivas[0]?.id || null;
+  }, [contasAtivas]);
 
   const [fase, setFase] = useState<Fase>('ouvindo');
   const [gravando, setGravando] = useState(false);
@@ -93,7 +110,8 @@ export default function LancarVoz() {
       if (!texto) { toast({ title: 'Não entendi o áudio', description: 'Toque no microfone e fale de novo.' }); setFase('ouvindo'); return; }
       const list = await interpretar(texto);
       if (!list.length) { toast({ title: 'Nada reconhecido', description: 'Ex.: "paguei 320 de energia hoje".' }); setFase('ouvindo'); setTranscript(''); return; }
-      setItens(list);
+      // Preenche padrão: conta corrente e status "quitado" (pago/recebido). Editável por item.
+      setItens(list.map((it) => ({ ...it, conta_id: it.conta_id ?? contaPadraoId, quitado: it.quitado ?? true })));
       setFase('revisar');
     } catch (e) {
       toast({ title: 'Erro', description: e instanceof Error ? e.message : 'Falha ao processar', variant: 'destructive' });
@@ -147,23 +165,44 @@ export default function LancarVoz() {
     setFase('ouvindo'); setItens([]); setEditIdx(null); setTranscript(''); setGravando(false);
   };
 
+  const statusLabel = (it: ItemVoz) => {
+    if (it.tipo === 'despesa' && isCartao(it.conta_id)) return 'Na fatura';
+    if (!it.quitado) return 'Pendente';
+    return it.tipo === 'receita' ? 'Recebido' : 'Pago';
+  };
+  const setItem = (idx: number, patch: Partial<ItemVoz>) =>
+    setItens((prev) => prev.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
+  const aplicarContaTodos = (id: string) => setItens((prev) => prev.map((x) => ({ ...x, conta_id: id })));
+  const aplicarQuitadoTodos = (q: boolean) => setItens((prev) => prev.map((x) => ({ ...x, quitado: q })));
+
   const salvarTudo = async () => {
     setSalvando(true);
     let ok = 0;
     for (const it of itens) {
       try {
+        const card = isCartao(it.conta_id);
         if (it.tipo === 'receita') {
-          await createReceita({
+          const status = it.quitado ? 'recebido' : 'pendente';
+          const r = await createReceita({
             descricao: it.descricao, valor: it.valor, categoria_id: it.categoria_id || undefined,
-            data_competencia: it.data, data_vencimento: it.data, status: 'pendente',
-          } as any);
+            conta_id: it.conta_id || undefined,
+            data_competencia: it.data, data_vencimento: it.data,
+            data_recebimento: it.quitado ? it.data : undefined,
+            status,
+          } as any, true);
+          if (r?.success) ok++;
         } else {
-          await createDespesa({
+          // Cartão de crédito: createDespesa detecta e joga na fatura aberta (força 'pendente').
+          const status = it.quitado ? 'pago' : 'pendente';
+          const r = await createDespesa({
             descricao: it.descricao, valor: it.valor, categoria_id: it.categoria_id || undefined,
-            data_competencia: it.data, data_vencimento: it.data, status: 'pendente', tipo: 'variavel',
-          } as any);
+            conta_id: it.conta_id || undefined,
+            data_competencia: it.data, data_vencimento: it.data,
+            data_pagamento: (!card && it.quitado) ? it.data : undefined,
+            status, tipo: 'variavel',
+          } as any, true);
+          if (r?.success) ok++;
         }
-        ok++;
       } catch { /* segue */ }
     }
     setSalvando(false);
@@ -320,6 +359,35 @@ export default function LancarVoz() {
                 <span>"{transcript}"</span>
               </div>
 
+              {/* Padrão para todos: conta/cartão + status. Cartão de crédito cai na fatura aberta. */}
+              {itens.length > 0 && (
+                <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-surface-2/60 px-2.5 py-2">
+                  <span className="flex-none text-[10.5px] font-bold uppercase tracking-wide text-foreground-subtle">Todos</span>
+                  <Select value={itens[0]?.conta_id || 'none'} onValueChange={(v) => aplicarContaTodos(v)}>
+                    <SelectTrigger className="h-8 flex-1 text-[12.5px]"><SelectValue placeholder="Conta/Cartão" /></SelectTrigger>
+                    <SelectContent>
+                      {contasAtivas.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.nome}{c.tipo === 'cartao_credito' ? ' · cartão' : ''}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="inline-flex flex-none rounded-[9px] border border-border/60 bg-surface p-0.5">
+                    {([true, false] as const).map((q) => (
+                      <button
+                        key={String(q)}
+                        onClick={() => aplicarQuitadoTodos(q)}
+                        className={cn(
+                          'rounded-[7px] px-2 py-[5px] text-[10.5px] font-bold transition-colors',
+                          itens.every((x) => x.quitado === q) ? (q ? 'bg-[hsl(var(--success))] text-white' : 'bg-surface-2 text-foreground') : 'text-foreground-muted',
+                        )}
+                      >
+                        {q ? 'Quitado' : 'Pendente'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Itens */}
               {itens.map((it, idx) => {
                 const isReceita = it.tipo === 'receita';
@@ -368,6 +436,26 @@ export default function LancarVoz() {
                       </button>
                     </div>
 
+                    {/* Conta/cartão + status do item */}
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-foreground">
+                        <span className="h-2 w-2 rounded-full" style={{ background: contasAtivas.find((c) => c.id === it.conta_id)?.cor || '#8fb0f0' }} />
+                        {nomeConta(it.conta_id)}{isCartao(it.conta_id) ? ' · cartão' : ''}
+                      </span>
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide',
+                          it.tipo === 'despesa' && isCartao(it.conta_id)
+                            ? 'bg-primary/15 text-[hsl(var(--primary))]'
+                            : it.quitado
+                              ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]'
+                              : 'bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]',
+                        )}
+                      >
+                        {statusLabel(it)}
+                      </span>
+                    </div>
+
                     {editing && (
                       <div className="mt-3 space-y-2 border-t border-border/60 pt-3">
                         <Input value={it.descricao} onChange={(e) => setItens((prev) => prev.map((x, i) => i === idx ? { ...x, descricao: e.target.value } : x))} placeholder="Descrição" />
@@ -382,7 +470,40 @@ export default function LancarVoz() {
                             {catsFor(it.tipo).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                           </SelectContent>
                         </Select>
-                        <button onClick={() => setItens((prev) => prev.filter((_, i) => i !== idx))} className="text-[11.5px] font-semibold text-[hsl(var(--danger))]">
+                        {/* Conta / cartão */}
+                        <Select value={it.conta_id || 'none'} onValueChange={(v) => setItem(idx, { conta_id: v === 'none' ? null : v })}>
+                          <SelectTrigger className="text-sm"><SelectValue placeholder="Conta/Cartão" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sem conta</SelectItem>
+                            {contasAtivas.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>{c.nome}{c.tipo === 'cartao_credito' ? ' · cartão' : ''}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {/* Status */}
+                        {it.tipo === 'despesa' && isCartao(it.conta_id) ? (
+                          <p className="rounded-lg bg-primary/10 px-2.5 py-2 text-[11px] leading-[1.4] text-[hsl(var(--primary))]">
+                            Cartão de crédito → entra na <b>fatura aberta</b>. Fica pendente até você pagar a fatura.
+                          </p>
+                        ) : (
+                          <div className="inline-flex rounded-[9px] border border-border/60 bg-surface p-0.5">
+                            {([true, false] as const).map((q) => (
+                              <button
+                                key={String(q)}
+                                onClick={() => setItem(idx, { quitado: q })}
+                                className={cn(
+                                  'rounded-[7px] px-3 py-[6px] text-[11px] font-bold transition-colors',
+                                  it.quitado === q ? (q ? 'bg-[hsl(var(--success))] text-white' : 'bg-[hsl(var(--warning))] text-white') : 'text-foreground-muted',
+                                )}
+                              >
+                                {q ? (it.tipo === 'receita' ? 'Recebido' : 'Pago') : 'Pendente'}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        <button onClick={() => setItens((prev) => prev.filter((_, i) => i !== idx))} className="block text-[11.5px] font-semibold text-[hsl(var(--danger))]">
                           Remover item
                         </button>
                       </div>
