@@ -8,6 +8,9 @@ import type { FaturaDB } from '@/hooks/useFaturas';
 interface CartaoCardProps {
   cartao: ContaDB;
   faturaAtual?: FaturaDB | null;
+  /** Limite usado = soma do que está em aberto em TODAS as faturas não pagas.
+   *  Derivado das faturas na página (fresco/consistente). Fallback: saldo_atual. */
+  usado?: number;
   onEdit: () => void;
   onDelete: () => void;
   onPagar: () => void;
@@ -16,13 +19,14 @@ interface CartaoCardProps {
   onImportCsv?: () => void;
 }
 
-export function CartaoCard({ cartao, faturaAtual, onPagar, onLancamentos, onImportCsv }: CartaoCardProps) {
+export function CartaoCard({ cartao, faturaAtual, usado: usadoProp, onPagar, onLancamentos, onImportCsv }: CartaoCardProps) {
   const limite = Number(cartao.limite || 0);
   // Valor da fatura ATUAL (para o card "Fatura atual" e o botão Pagar).
   const faturaAtualValor = faturaAtual ? Math.max(Number(faturaAtual.valor_total) - Number(faturaAtual.valor_pago), 0) : 0;
   // Limite USADO = TODAS as faturas em aberto (parcelas futuras também ocupam o
-  // limite), não só a atual. saldo_atual do cartão já é -(total em aberto).
-  const usado = Math.max(-Number(cartao.saldo_atual ?? 0), 0);
+  // limite). Pagar uma fatura reduz esse total → libera o limite. Usa o valor
+  // vindo das faturas (fresco); se ausente, cai no saldo_atual do cartão.
+  const usado = Math.max(usadoProp ?? -Number(cartao.saldo_atual ?? 0), 0);
   const disponivel = Math.max(limite - usado, 0);
   const pct = limite > 0 ? Math.min((usado / limite) * 100, 100) : 0;
   const cor = cartao.cor || '#7a2ea8';

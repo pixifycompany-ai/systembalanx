@@ -77,6 +77,19 @@ export default function Contas() {
     return map;
   }, [creditCards, faturas]);
 
+  // Limite USADO por cartão = soma do que está em aberto em TODAS as faturas
+  // não pagas (parcelas futuras também ocupam limite). Derivado das faturas
+  // (mesma fonte do card) → consistente e atualiza ao pagar/lançar.
+  const usadoPorCartao = useMemo(() => {
+    const map = new Map<string, number>();
+    faturas.forEach((f: any) => {
+      if (f.status === 'paga') return;
+      const restante = Number(f.valor_total) - Number(f.valor_pago);
+      map.set(f.cartao_id, (map.get(f.cartao_id) || 0) + Math.max(restante, 0));
+    });
+    return map;
+  }, [faturas]);
+
   const handleOpenForm = (conta?: ContaDB) => {
     if (conta) {
       setEditingConta(conta);
@@ -324,6 +337,7 @@ export default function Contas() {
                   key={cartao.id}
                   cartao={cartao}
                   faturaAtual={faturaAtualPorCartao.get(cartao.id) || null}
+                  usado={usadoPorCartao.get(cartao.id) ?? 0}
                   onEdit={() => { setEditingCartao(cartao); setIsCartaoFormOpen(true); }}
                   onImportCsv={() => setCsvImportCartao(cartao)}
                   onDelete={() => setDeleteCartaoConfirm({ open: true, cartao })}

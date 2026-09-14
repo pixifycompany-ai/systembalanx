@@ -260,10 +260,11 @@
     background-color: hsl(var(--background));
     font-size: 13px;
   }
-  /* Desktop: "zoom out" ~90% — tudo um pouco menor e com mais respiro,
-     equivalente ao navegador em 90% (inclui modais/menus, que ficam no body). */
+  /* Desktop: reduz a fonte-raiz p/ ~90% — encolhe tudo que usa rem (texto,
+     espaçamentos, tamanhos do Tailwind) mas os containers seguem em 100% da
+     largura (preenche a tela toda, sem sobrar faixa vazia como o `zoom` fazia). */
   @media (min-width: 768px) {
-    body { zoom: 0.9; }
+    html { font-size: 90%; }
   }
   /* Mobile: corpo na fonte do sistema (San Francisco no iOS) = toque nativo Apple.
      Títulos seguem em Sora (identidade da marca). */
