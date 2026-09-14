@@ -907,6 +907,21 @@ export default function FluxoCaixa() {
               </>
             }
           />
+          {/* Totais do período (mesma fórmula/filtro do desktop) — números pequenos, sem card */}
+          <div className="-mt-2 mb-5 flex items-center gap-5">
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-foreground-muted">Receitas</p>
+              <p className="text-[15px] font-semibold tabular-nums text-[hsl(var(--success))]">{formatCurrency(totals.entradas)}</p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-foreground-muted">Despesas</p>
+              <p className="text-[15px] font-semibold tabular-nums text-[hsl(var(--danger))]">{formatCurrency(totals.saidas)}</p>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-foreground-muted">Saldo do período</p>
+              <p className={cn('text-[15px] font-semibold tabular-nums', totals.saldo >= 0 ? 'text-foreground' : 'text-[hsl(var(--danger))]')}>{formatCurrency(totals.saldo)}</p>
+            </div>
+          </div>
         </div>
         <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
