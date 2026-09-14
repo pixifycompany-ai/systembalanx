@@ -28,7 +28,10 @@ export function BalanxLoader({
     <div
       className={cn(
         'w-full flex flex-col items-center justify-center relative overflow-hidden',
-        fullscreen ? 'min-h-[100dvh] bg-background' : 'min-h-[60vh]',
+        // fixed inset-0 preenche a viewport visível real (acima da barra do
+        // navegador) em qualquer browser mobile — sem depender do dvh, que
+        // falha em alguns e deixa uma faixa sem fundo no rodapé.
+        fullscreen ? 'fixed inset-0 z-50 bg-background' : 'min-h-[60vh]',
       )}
     >
       {/* Glow ambiente AURO — só no modo tela cheia (inline usa o glow do body) */}
