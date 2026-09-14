@@ -879,16 +879,32 @@ export default function FluxoCaixa() {
             eyebrow="Extrato"
             title="Lançamentos"
             actions={
-              <button
-                onClick={() => setFiltersOpen(true)}
-                aria-label="Filtros"
-                className="relative grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground"
-              >
-                <SlidersHorizontal className="h-[18px] w-[18px]" />
-                {(contaFilter !== 'all' || statusFilter.length > 0) && (
-                  <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[hsl(var(--warning))]" />
-                )}
-              </button>
+              <>
+                <button
+                  onClick={() => setReportOpen(true)}
+                  aria-label="Relatório"
+                  className="grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground"
+                >
+                  <BarChart3 className="h-[18px] w-[18px]" />
+                </button>
+                <button
+                  onClick={() => setImportDialogOpen(true)}
+                  aria-label="Importar lançamentos"
+                  className="grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground"
+                >
+                  <Upload className="h-[18px] w-[18px]" />
+                </button>
+                <button
+                  onClick={() => setFiltersOpen(true)}
+                  aria-label="Filtros"
+                  className="relative grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground"
+                >
+                  <SlidersHorizontal className="h-[18px] w-[18px]" />
+                  {(contaFilter !== 'all' || statusFilter.length > 0) && (
+                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[hsl(var(--warning))]" />
+                  )}
+                </button>
+              </>
             }
           />
         </div>

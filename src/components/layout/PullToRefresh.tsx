@@ -16,7 +16,7 @@ interface PullToRefreshProps {
  * drags down. On release past the threshold, reloads the page (which always
  * pulls the freshest build in the PWA shortcut since we use no service worker).
  */
-export function PullToRefresh({ children, threshold = 70, maxPull = 140 }: PullToRefreshProps) {
+export function PullToRefresh({ children, threshold = 90, maxPull = 150 }: PullToRefreshProps) {
   const [pull, setPull] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const startY = useRef<number | null>(null);
@@ -43,12 +43,15 @@ export function PullToRefresh({ children, threshold = 70, maxPull = 140 }: PullT
     const onTouchMove = (e: TouchEvent) => {
       if (!tracking.current || startY.current === null) return;
       const dy = e.touches[0].clientY - startY.current;
-      if (dy <= 0) {
+      // Se o dedo subiu (scroll pra cima) ou a página saiu do topo, NÃO é um
+      // pull-to-refresh — aborta o gesto (evita recarregar sem querer ao rolar).
+      if (dy <= 0 || (window.scrollY || document.documentElement.scrollTop) > 0) {
+        tracking.current = false;
         setPull(0);
         return;
       }
-      // Rubber-band resistance
-      const resisted = Math.min(maxPull, dy * 0.5);
+      // Zona morta inicial + resistência → precisa de um pull deliberado (~200px).
+      const resisted = Math.min(maxPull, Math.max(0, dy - 20) * 0.5);
       setPull(resisted);
     };
 
