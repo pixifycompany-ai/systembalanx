@@ -163,8 +163,15 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
         <SheetContent
           side="bottom"
           showHandle={false}
-          className="inset-0 h-auto w-auto max-w-none rounded-none border-0 flex flex-col gap-0 px-5 pb-safe data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
-          style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+          className="inset-0 h-auto w-auto max-w-none rounded-none border-0 flex flex-col gap-0 px-5 pb-safe bg-background backdrop-blur-none data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
+          style={{
+            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
+            // Mesmo glow ambiente das páginas (body::before) — o menu vira uma
+            // página cheia opaca (sem faixa translúcida na área da status bar).
+            backgroundImage:
+              'radial-gradient(125% 78% at 12% -4%, hsl(var(--primary) / 0.22), transparent 56%), radial-gradient(115% 62% at 99% 0%, hsl(38 82% 55% / 0.16), transparent 54%)',
+            backgroundRepeat: 'no-repeat',
+          }}
         >
           <SheetHeader className="shrink-0 text-left space-y-0">
             <span className="text-xs font-medium text-foreground-muted">Tudo do BALANX</span>

@@ -28,11 +28,14 @@ export function BalanxLoader({
     <div
       className={cn(
         'w-full flex flex-col items-center justify-center relative overflow-hidden',
-        // fixed inset-0 preenche a viewport visível real (acima da barra do
-        // navegador) em qualquer browser mobile — sem depender do dvh, que
-        // falha em alguns e deixa uma faixa sem fundo no rodapé.
+        // fixed inset-0 preenche a viewport inteira (inclusive sob a status bar
+        // no PWA black-translucent) — sem depender do dvh, que falha em alguns
+        // browsers e deixa uma faixa sem fundo no rodapé.
         fullscreen ? 'fixed inset-0 z-50 bg-background' : 'min-h-[60vh]',
       )}
+      // No PWA (status bar translúcida) o conteúdo não pode encostar na status
+      // bar / home indicator — respeita as safe areas do iPhone.
+      style={fullscreen ? { paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' } : undefined}
     >
       {/* Glow ambiente AURO — só no modo tela cheia (inline usa o glow do body) */}
       {fullscreen && (
