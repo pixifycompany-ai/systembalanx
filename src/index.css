@@ -240,6 +240,9 @@
     overflow-x: hidden;
     max-width: 100vw;
   }
+  /* Fundo garantido em html E body: cobre overscroll (rubber-band no iOS) e
+     qualquer área abaixo do conteúdo — nunca aparece "vazio" no rodapé. */
+  html { background-color: hsl(var(--background)); min-height: 100%; }
 
   /* Recharts: never overflow parent on mobile */
   .recharts-responsive-container,

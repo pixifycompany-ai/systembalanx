@@ -83,7 +83,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
   return (
     <>
       <nav
-        className="fixed left-3 right-3 z-50 flex md:hidden items-center justify-between px-3 py-2 rounded-[24px] border border-border/60 bg-card/70 backdrop-blur-2xl shadow-[0_18px_40px_-12px_rgba(0,0,0,0.55)]"
+        className="fixed left-1/2 z-50 flex md:hidden w-[min(88%,360px)] -translate-x-1/2 items-center justify-between px-3 py-2 rounded-[24px] border border-border/60 bg-card/70 backdrop-blur-2xl shadow-[0_18px_40px_-12px_rgba(0,0,0,0.55)]"
         style={{ bottom: 'calc(0.9rem + env(safe-area-inset-bottom, 0px))' }}
       >
         {mainItems.map((item) => {
