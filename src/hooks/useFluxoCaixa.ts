@@ -553,6 +553,10 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
         if (k in formData) payload[k] = (formData as Record<string, unknown>)[k];
       }
 
+      // Captura a fatura ANTES (se mudar valor/conta, precisa recalcular a fatura).
+      const { data: antiga } = await supabase.from('despesas').select('fatura_id').eq('id', id).single();
+      const faturaAntiga = (antiga as any)?.fatura_id ?? null;
+
       const { data, error } = await supabase
         .from('despesas')
         .update(payload as never)
@@ -561,6 +565,11 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
         .single();
 
       if (error) throw error;
+
+      // Recalcula o total das faturas afetadas (cartão de crédito).
+      const faturaNova = (data as any)?.fatura_id ?? null;
+      if (faturaAntiga) await recalcularFatura(faturaAntiga);
+      if (faturaNova && faturaNova !== faturaAntiga) await recalcularFatura(faturaNova);
 
       setDespesas(prev => prev.map(d => d.id === id ? data as unknown as DespesaInternal : d));
       invalidateDerived();
@@ -575,8 +584,14 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
 
   const deleteDespesa = async (id: string): Promise<boolean> => {
     try {
+      // Captura a fatura antes de excluir (cartão) pra recalcular o total depois.
+      const { data: d0 } = await supabase.from('despesas').select('fatura_id').eq('id', id).single();
+      const faturaId = (d0 as any)?.fatura_id ?? null;
+
       const { error } = await supabase.from('despesas').delete().eq('id', id);
       if (error) throw error;
+
+      if (faturaId) await recalcularFatura(faturaId);
 
       setDespesas(prev => prev.filter(d => d.id !== id));
       invalidateDerived();
@@ -591,8 +606,14 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
 
   const deleteMultipleDespesas = async (ids: string[]): Promise<boolean> => {
     try {
+      // Captura as faturas afetadas antes de excluir (cartão) pra recalcular.
+      const { data: afetadas } = await supabase.from('despesas').select('fatura_id').in('id', ids);
+      const faturaIds = [...new Set((afetadas || []).map((d: any) => d.fatura_id).filter(Boolean))];
+
       const { error } = await supabase.from('despesas').delete().in('id', ids);
       if (error) throw error;
+
+      for (const fId of faturaIds) await recalcularFatura(fId as string);
 
       setDespesas(prev => prev.filter(d => !ids.includes(d.id)));
       invalidateDerived();
