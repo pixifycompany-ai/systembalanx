@@ -33,6 +33,16 @@ function cleanDocument(doc: string): string {
   return (doc || '').replace(/\D/g, '');
 }
 
+// Valor com decimal brasileiro: "1.234,56" -> 1234.56 · "573,41" -> 573.41 · "573.41" -> 573.41
+function parseValor(v: unknown): number {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  let s = String(v ?? '').trim().replace(/[^\d.,-]/g, '');
+  if (!s) return 0;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.'); // vírgula = decimal; pontos = milhar
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
 // Format CNPJ for display
 function formatCNPJ(cnpj: string): string {
   const clean = cleanDocument(cnpj);
@@ -217,8 +227,8 @@ Retorne APENAS o JSON, sem markdown ou explicação.`;
     // Clean and validate the data
     const contract: ParsedContract = {
       objeto_contrato: parsed.objeto_contrato || '',
-      valor_mensal: typeof parsed.valor_mensal === 'number' ? parsed.valor_mensal : parseFloat(String(parsed.valor_mensal).replace(/[^\d.,]/g, '').replace(',', '.')) || 0,
-      valor_total: parsed.valor_total || null,
+      valor_mensal: parseValor(parsed.valor_mensal),
+      valor_total: parsed.valor_total == null ? null : parseValor(parsed.valor_total),
       tipo_recorrencia: ['mensal', 'trimestral', 'semestral', 'anual', 'unico'].includes(parsed.tipo_recorrencia) 
         ? parsed.tipo_recorrencia 
         : 'mensal',
