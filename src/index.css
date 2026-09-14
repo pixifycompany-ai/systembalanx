@@ -285,7 +285,14 @@
   body::before {
     content: '';
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    /* Altura na viewport GRANDE (barra do navegador escondida) — assim o glow
+       cobre o rodapé mesmo quando a barra some ao rolar (inset:0/bottom:0
+       ancorava na viewport pequena e deixava uma faixa sem fundo no iOS). */
+    height: 100vh;
+    height: 100lvh;
     z-index: -1;
     pointer-events: none;
     background-repeat: no-repeat;
