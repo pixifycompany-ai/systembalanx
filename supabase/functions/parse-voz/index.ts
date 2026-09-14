@@ -6,6 +6,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Converte valor em número tratando decimal brasileiro:
+// "573,41" -> 573.41 · "1.234,56" -> 1234.56 · "573.41" -> 573.41 · 320 -> 320
+function parseValor(v: unknown): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  let s = String(v ?? "").trim().replace(/[^\d.,-]/g, "");
+  if (!s) return 0;
+  if (s.includes(",")) {
+    // Vírgula = decimal (BR); pontos são separador de milhar → remover.
+    s = s.replace(/\./g, "").replace(",", ".");
+  }
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -44,7 +58,10 @@ serve(async (req) => {
 Retorne SOMENTE JSON no formato: {"itens":[{"tipo":"receita"|"despesa","descricao":string,"valor":number,"categoria_id":string|null,"categoria_nome":string|null,"data":"YYYY-MM-DD"}]}.
 Regras:
 - Cada item é uma receita (entrada/recebi/ganhei) ou despesa (paguei/gastei/comprei/saída). Na dúvida entre entrada e saída, use o verbo.
-- "valor" em reais como número (ex.: "trezentos e vinte reais" -> 320). Sem símbolo.
+- "valor" em reais como número com ponto decimal (ex.: "trezentos e vinte reais" -> 320; "573,41" -> 573.41). Sem símbolo e sem separador de milhar.
+- DECIMAIS/CENTAVOS: vírgula é decimal. "573,41" é UM valor = 573.41. Falado "quinhentos e setenta e três e quarenta e um" (ou "...e quarenta e um centavos") também é 573.41 — o "e quarenta e um" são os CENTAVOS, NUNCA um segundo valor. JAMAIS divida um único valor em dois lançamentos.
+- Se o MESMO valor aparecer em dígitos e por extenso (ex.: "573,41 (quinhentos e setenta e três e quarenta e um)"), é o mesmo valor: crie APENAS UM lançamento.
+- Um lançamento por ação/verbo. Só crie vários itens quando houver claramente vários gastos/recebimentos distintos (ex.: "paguei 20 de mercado e 50 de uber").
 - "data": interprete "hoje", "ontem", "amanhã", "dia 5" etc. a partir de ${hoje}. Se não disser, use ${hoje}.
 - "categoria_id": escolha o id da lista de categorias que melhor casa com a descrição E com o tipo; se nenhuma casar, use null e preencha "categoria_nome" com um nome sugerido.
 - Se a fala não contiver nenhum lançamento, retorne {"itens":[]}.
@@ -82,7 +99,7 @@ ${categorias.map((c) => `${c.id} · ${c.nome} · ${c.tipo}`).join("\n") || "(nen
       .map((i: any) => ({
         tipo: i.tipo,
         descricao: String(i.descricao || "").slice(0, 200) || "Lançamento",
-        valor: Number(i.valor) || 0,
+        valor: parseValor(i.valor),
         categoria_id: i.categoria_id && idset.has(i.categoria_id) ? i.categoria_id : null,
         categoria_nome: i.categoria_nome || null,
         data: /^\d{4}-\d{2}-\d{2}$/.test(i.data) ? i.data : hoje,
