@@ -431,6 +431,10 @@
   .safe-area-top { padding-top: env(safe-area-inset-top, 0px); }
   .pb-safe { padding-bottom: max(env(safe-area-inset-bottom, 0px), 22px); }
   .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  /* Altura = viewport GRANDE (barra do navegador escondida), igual body::before.
+     Overlays full-screen (loader, menu) usam isto pra cobrir até o rodapé real
+     e não deixar faixa/limite quando a barra do Safari aparece/some. */
+  .h-lvh { height: 100vh; height: 100lvh; }
 
   /* Animations */
   .animate-fade-in { animation: fadeIn var(--duration-normal) var(--ease-out-expo); }

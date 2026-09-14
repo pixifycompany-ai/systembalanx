@@ -31,10 +31,12 @@ export function BalanxLoader({
         // fixed inset-0 preenche a viewport inteira (inclusive sob a status bar
         // no PWA black-translucent) — sem depender do dvh, que falha em alguns
         // browsers e deixa uma faixa sem fundo no rodapé.
-        fullscreen ? 'fixed inset-0 z-50 bg-background' : 'min-h-[60vh]',
+        // .h-lvh cobre a viewport GRANDE (100lvh, fallback 100vh) igual ao
+        // body::before — sem faixa/limite no rodapé quando a barra do Safari
+        // aparece/some.
+        fullscreen ? 'fixed top-0 left-0 right-0 h-lvh z-50 bg-background' : 'min-h-[60vh]',
       )}
-      // No PWA (status bar translúcida) o conteúdo não pode encostar na status
-      // bar / home indicator — respeita as safe areas do iPhone.
+      // Safe-area no conteúdo pra não encostar na status bar / home indicator.
       style={fullscreen ? { paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' } : undefined}
     >
       {/* Glow ambiente AURO — só no modo tela cheia (inline usa o glow do body) */}
