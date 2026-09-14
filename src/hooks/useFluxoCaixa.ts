@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { ensureFaturaForLancamento, recalcularFatura } from '@/hooks/useFaturas';
+import type { ContaDB } from '@/hooks/useContas';
 import { parseISO, startOfDay, isBefore } from 'date-fns';
 import type { TransacaoUnificada, TipoTransacao } from '@/types/fluxoCaixa';
 
@@ -484,6 +486,20 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuário não autenticado');
 
+      // Cartão de crédito: a despesa entra na FATURA ABERTA (não é caixa direto).
+      let faturaId: string | null = null;
+      if (formData.conta_id) {
+        const { data: contaInfo } = await supabase.from('contas').select('*').eq('id', formData.conta_id).single();
+        if (contaInfo && (contaInfo as any).tipo === 'cartao_credito') {
+          const fatura = await ensureFaturaForLancamento(
+            contaInfo as unknown as ContaDB,
+            formData.data_competencia || formData.data_vencimento,
+            user.id,
+          );
+          if (fatura) faturaId = fatura.id;
+        }
+      }
+
       const { data, error } = await supabase
         .from('despesas')
         .insert({
@@ -496,15 +512,19 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
           valor: formData.valor,
           data_competencia: formData.data_competencia,
           data_vencimento: formData.data_vencimento,
-          data_pagamento: formData.data_pagamento || null,
-          status: formData.status,
+          // Cartão: sem data_pagamento e sempre 'pendente' (baixa acontece ao pagar a fatura).
+          data_pagamento: faturaId ? null : (formData.data_pagamento || null),
+          status: faturaId ? 'pendente' : formData.status,
           tipo: formData.tipo,
           forma_pagamento: formData.forma_pagamento || null,
-        })
+          fatura_id: faturaId,
+        } as never)
         .select('*, categoria:categorias(id, nome, cor), cliente:clientes(id, nome)')
         .single();
 
       if (error) throw error;
+
+      if (faturaId) await recalcularFatura(faturaId);
 
       setDespesas(prev => [data as unknown as DespesaInternal, ...prev]);
       invalidateDerived();

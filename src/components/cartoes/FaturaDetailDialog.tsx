@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
@@ -95,9 +95,10 @@ export function FaturaDetailDialog({
     fetchLancamentos(fatura.id);
   }, [open, fatura?.id]);
 
+  const initRef = useRef(false);
   useEffect(() => {
     if (open) {
-      setIdx(0);
+      initRef.current = false; // recalcula a fatura inicial nesta abertura
       if (startInCreate) {
         setTimeout(() => openCreate(), 50);
       }
@@ -107,6 +108,18 @@ export function FaturaDetailDialog({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Abre na FATURA ATUAL (competência <= mês corrente) e não na mais futura
+  // (que seria a última parcela). Roda uma vez por abertura, quando as faturas chegam.
+  useEffect(() => {
+    if (!open || initRef.current || cartaoFaturas.length === 0) return;
+    const nowYM = new Date().toISOString().slice(0, 7); // YYYY-MM
+    let target = cartaoFaturas.findIndex((f) => (f.competencia || '').slice(0, 7) <= nowYM);
+    if (target < 0) target = cartaoFaturas.length - 1; // todas futuras → a mais próxima do hoje
+    setIdx(target);
+    initRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, cartaoFaturas]);
 
   const resetForm = () => {
     setForm({
