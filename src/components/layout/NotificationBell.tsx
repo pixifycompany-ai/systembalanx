@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Copy, HeartPulse, AlertTriangle, X, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Clock, Copy, HeartPulse, X, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
 import { useNotifications, type Notification, type DuplicateDetail } from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -15,10 +14,11 @@ const typeConfig: Record<Notification['type'], { icon: typeof Clock; colorClass:
   saude: { icon: HeartPulse, colorClass: 'text-muted-foreground' },
 };
 
-const severityBg: Record<Notification['severity'], string> = {
-  error: 'bg-destructive/10',
-  warning: 'bg-muted',
-  info: 'bg-secondary',
+// Chip de ícone por severidade (tint sutil, sem fundo pesado na linha inteira)
+const chipTint: Record<Notification['severity'], string> = {
+  error: 'bg-[hsl(var(--danger))]/14 text-[hsl(var(--danger))]',
+  warning: 'bg-[hsl(var(--warning))]/14 text-[hsl(var(--warning))]',
+  info: 'bg-primary/14 text-primary',
 };
 
 function DuplicateDetailsList({ details }: { details: DuplicateDetail[] }) {
@@ -87,32 +87,39 @@ export function NotificationBell() {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0 overflow-hidden rounded-2xl border-border/60 bg-surface/95 backdrop-blur-xl shadow-2xl">
-        <div className="border-b border-border/60 px-4 py-3 flex items-center justify-between">
+      <PopoverContent align="end" sideOffset={8} className="w-[22rem] p-0 overflow-hidden rounded-2xl border border-border/60 bg-surface/95 backdrop-blur-2xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.65)]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/50">
           <div>
-            <h4 className="text-sm font-semibold">Notificações</h4>
-            {totalCount > 0 && (
-              <p className="text-xs text-muted-foreground">{totalCount} pendente{totalCount > 1 ? 's' : ''}</p>
-            )}
+            <h4 className="text-[15px] font-semibold text-foreground">Notificações</h4>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {totalCount > 0 ? `${totalCount} pendente${totalCount > 1 ? 's' : ''}` : 'Tudo em dia'}
+            </p>
           </div>
           {notifications.length > 0 && (
-            <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={clearAll}>
-              <Trash2 className="h-3 w-3 mr-1" />
+            <button
+              onClick={clearAll}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-border-strong"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
               Limpar
-            </Button>
+            </button>
           )}
         </div>
 
-        <div className="max-h-80 overflow-y-auto">
+        {/* Lista */}
+        <div className="max-h-[22rem] overflow-y-auto p-1.5">
           {isLoading ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">Carregando...</div>
+            <div className="p-6 text-center text-sm text-muted-foreground">Carregando…</div>
           ) : notifications.length === 0 ? (
-            <div className="p-6 text-center">
-              <BellIcon className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+            <div className="flex flex-col items-center py-10 text-center">
+              <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-white/5 text-muted-foreground/50">
+                <BellIcon className="h-6 w-6" />
+              </div>
               <p className="text-sm text-muted-foreground">Nenhuma notificação</p>
             </div>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="space-y-0.5">
               {notifications.map((notif) => {
                 const config = typeConfig[notif.type];
                 const Icon = config.icon;
@@ -120,37 +127,35 @@ export function NotificationBell() {
                 const hasDupeDetails = !!notif.details?.length;
 
                 return (
-                  <div key={notif.id} className={cn(severityBg[notif.severity])}>
-                    <div className="flex items-start gap-3 px-4 py-3">
+                  <div key={notif.id} className="rounded-xl">
+                    <div className="group flex items-start gap-3 rounded-xl px-2.5 py-2.5 transition-colors hover:bg-white/[0.04]">
                       <button
                         onClick={() => handleClick(notif)}
-                        className="flex items-start gap-3 flex-1 text-left min-w-0"
+                        className="flex flex-1 items-start gap-3 text-left min-w-0"
                       >
-                        <div className={cn("mt-0.5 shrink-0", config.colorClass)}>
-                          <Icon className="h-4 w-4" />
-                        </div>
+                        <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-[11px]', chipTint[notif.severity])}>
+                          <Icon className="h-[18px] w-[18px]" />
+                        </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium leading-tight">{notif.title}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{notif.description}</p>
+                          <p className="text-[13.5px] font-medium leading-snug text-foreground">{notif.title}</p>
+                          <p className="mt-0.5 text-[11.5px] text-muted-foreground">{notif.description}</p>
                         </div>
                         {hasDupeDetails && (
-                          <div className="shrink-0 mt-0.5 text-muted-foreground">
-                            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                          </div>
-                        )}
-                        {notif.severity === 'error' && !hasDupeDetails && (
-                          <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                          <span className="mt-0.5 shrink-0 text-muted-foreground/70">
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </span>
                         )}
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); dismissNotification(notif.id); }}
-                        className="shrink-0 mt-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label="Dispensar"
+                        className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground/60 opacity-0 transition hover:bg-white/5 hover:text-foreground group-hover:opacity-100"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
                     </div>
                     {hasDupeDetails && isExpanded && (
-                      <div className="px-4 pb-3">
+                      <div className="px-2.5 pb-2">
                         <DuplicateDetailsList details={notif.details!} />
                       </div>
                     )}
