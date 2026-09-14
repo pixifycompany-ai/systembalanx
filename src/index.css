@@ -260,6 +260,19 @@
     background-color: hsl(var(--background));
     font-size: 13px;
   }
+  /* Desktop: "zoom out" ~90% — tudo um pouco menor e com mais respiro,
+     equivalente ao navegador em 90% (inclui modais/menus, que ficam no body). */
+  @media (min-width: 768px) {
+    body { zoom: 0.9; }
+  }
+  /* Mobile: corpo na fonte do sistema (San Francisco no iOS) = toque nativo Apple.
+     Títulos seguem em Sora (identidade da marca). */
+  @media (max-width: 767px) {
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+  }
   /* Glow ambiente AURO num layer FIXO (position:fixed) em vez de
      background-attachment:fixed — este último quebra no Safari iOS e deixa o
      fundo achatado/escuro ao rolar páginas longas. Assim o glow (inclusive os
