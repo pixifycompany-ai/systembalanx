@@ -57,10 +57,10 @@ export function HeroStatCard({
     <div className={cn('relative', className)}>
       <div
         className={cn(
-          'auro-card relative overflow-hidden rounded-3xl px-5 py-5 md:px-7 md:py-6 animate-fade-in',
+          'relative overflow-hidden rounded-3xl px-5 py-5 md:px-7 md:py-6 animate-fade-in',
           isDark
-            ? 'text-white border border-white/10'
-            : 'bg-surface text-foreground border border-border',
+            ? 'text-white border border-white/10 shadow-[0_18px_44px_-20px_rgba(0,0,0,0.7)]'
+            : 'auro-card bg-surface text-foreground border border-border',
         )}
         style={
           isDark

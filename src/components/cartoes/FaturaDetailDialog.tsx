@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
@@ -59,7 +59,21 @@ export function FaturaDetailDialog({
     () => faturas.filter(f => f.cartao_id === cartao.id).sort((a, b) => b.competencia.localeCompare(a.competencia)),
     [faturas, cartao.id]
   );
-  const [idx, setIdx] = useState(0);
+  // Índice da fatura ATUAL (competência <= mês corrente). Calculado já na 1ª
+  // renderização → abre direto na atual, sem flash na última parcela.
+  const targetIdx = useMemo(() => {
+    if (cartaoFaturas.length === 0) return 0;
+    const nowYM = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const t = cartaoFaturas.findIndex((f) => (f.competencia || '').slice(0, 7) <= nowYM);
+    return t < 0 ? cartaoFaturas.length - 1 : t;
+  }, [cartaoFaturas]);
+  const [idxOverride, setIdxOverride] = useState<number | null>(null);
+  const idx = idxOverride ?? targetIdx;
+  const setIdx = (fn: number | ((prev: number) => number)) =>
+    setIdxOverride((prev) => {
+      const cur = prev ?? targetIdx;
+      return typeof fn === 'function' ? fn(cur) : fn;
+    });
   const fatura = cartaoFaturas[idx];
 
   const [lancamentos, setLancamentos] = useState<LancamentoLite[]>([]);
@@ -95,10 +109,9 @@ export function FaturaDetailDialog({
     fetchLancamentos(fatura.id);
   }, [open, fatura?.id]);
 
-  const initRef = useRef(false);
   useEffect(() => {
     if (open) {
-      initRef.current = false; // recalcula a fatura inicial nesta abertura
+      setIdxOverride(null); // volta pra fatura atual a cada abertura
       if (startInCreate) {
         setTimeout(() => openCreate(), 50);
       }
@@ -108,18 +121,6 @@ export function FaturaDetailDialog({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  // Abre na FATURA ATUAL (competência <= mês corrente) e não na mais futura
-  // (que seria a última parcela). Roda uma vez por abertura, quando as faturas chegam.
-  useEffect(() => {
-    if (!open || initRef.current || cartaoFaturas.length === 0) return;
-    const nowYM = new Date().toISOString().slice(0, 7); // YYYY-MM
-    let target = cartaoFaturas.findIndex((f) => (f.competencia || '').slice(0, 7) <= nowYM);
-    if (target < 0) target = cartaoFaturas.length - 1; // todas futuras → a mais próxima do hoje
-    setIdx(target);
-    initRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, cartaoFaturas]);
 
   const resetForm = () => {
     setForm({
