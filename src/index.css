@@ -271,6 +271,7 @@
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
       -webkit-font-smoothing: antialiased;
+      font-size: 15px; /* corpo maior, mais confortável/iOS */
     }
   }
   /* Glow ambiente AURO num layer FIXO (position:fixed) em vez de
