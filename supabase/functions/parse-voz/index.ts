@@ -20,6 +20,18 @@ function parseValor(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// Corrige o caso da transcrição de voz onde a vírgula dos centavos vira " e ":
+// falar "305,22" costuma virar o texto "305 e 22". Junta "<reais> e <2 dígitos>"
+// num único valor decimal ("305 e 22" -> "305,22") — só quando os centavos têm
+// exatamente 2 dígitos E estão num limite de valor (fim, pontuação, ou seguido de
+// "reais"/"centavos"), pra NÃO afetar itens distintos como "20 e 50 de uber".
+function normalizarCentavosFalados(texto: string): string {
+  return String(texto ?? "").replace(
+    /(\d[\d.]*)\s+e\s+(\d{2})(?=\s*(?:reais?\b|centavos?\b|[.,;:!?)]|$))/gi,
+    (_m, reais, cent) => `${reais},${cent}`,
+  );
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -37,10 +49,12 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { transcript } = await req.json();
-    if (!transcript || !String(transcript).trim()) {
+    const { transcript: transcriptRaw } = await req.json();
+    if (!transcriptRaw || !String(transcriptRaw).trim()) {
       return new Response(JSON.stringify({ itens: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    // "305 e 22" (vírgula falada) -> "305,22" antes de mandar pra IA.
+    const transcript = normalizarCentavosFalados(String(transcriptRaw));
 
     // Categorias do usuário (pra sugerir uma real)
     const { data: cats } = await supabase.from("categorias").select("id, nome, tipo");
@@ -60,6 +74,7 @@ Regras:
 - Cada item é uma receita (entrada/recebi/ganhei) ou despesa (paguei/gastei/comprei/saída). Na dúvida entre entrada e saída, use o verbo.
 - "valor" em reais como número com ponto decimal (ex.: "trezentos e vinte reais" -> 320; "573,41" -> 573.41). Sem símbolo e sem separador de milhar.
 - DECIMAIS/CENTAVOS: vírgula é decimal. "573,41" é UM valor = 573.41. Falado "quinhentos e setenta e três e quarenta e um" (ou "...e quarenta e um centavos") também é 573.41 — o "e quarenta e um" são os CENTAVOS, NUNCA um segundo valor. JAMAIS divida um único valor em dois lançamentos.
+- CENTAVOS COM "E" (transcrição de voz): a vírgula falada costuma virar " e " no texto. "<reais> e <dois dígitos>" SEM nova ação/descrição depois é UM único valor (reais e centavos): "305 e 22" = 305.22; "1250 e 05" = 1250.05; "trezentos e cinco e vinte e dois" = 305.22. Só vira DOIS lançamentos se depois do "e" houver outra ação/coisa (ex.: "20 e 50 de uber" = duas despesas).
 - Se o MESMO valor aparecer em dígitos e por extenso (ex.: "573,41 (quinhentos e setenta e três e quarenta e um)"), é o mesmo valor: crie APENAS UM lançamento.
 - Um lançamento por ação/verbo. Só crie vários itens quando houver claramente vários gastos/recebimentos distintos (ex.: "paguei 20 de mercado e 50 de uber").
 - "data": interprete "hoje", "ontem", "amanhã", "dia 5" etc. a partir de ${hoje}. Se não disser, use ${hoje}.
