@@ -311,8 +311,8 @@ export function FaturaDetailDialog({
                   {lancamentos.map((l) => (
                     <div key={l.id} className="flex items-center gap-3 px-4 py-3">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">{l.descricao}</p>
-                        <p className="truncate text-[11px] text-foreground-muted">
+                        <p className="truncate text-sm font-semibold text-foreground uppercase">{l.descricao}</p>
+                        <p className="truncate text-[11px] text-foreground-muted uppercase">
                           {format(parseISO(l.data_competencia), "dd 'de' MMM", { locale: ptBR })}
                           {l.categoria?.nome ? ` · ${l.categoria.nome}` : ''}
                           {l.fornecedor ? ` · ${l.fornecedor}` : ''}
