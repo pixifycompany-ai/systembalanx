@@ -18,7 +18,11 @@ interface CartaoCardProps {
 
 export function CartaoCard({ cartao, faturaAtual, onPagar, onLancamentos, onImportCsv }: CartaoCardProps) {
   const limite = Number(cartao.limite || 0);
-  const usado = faturaAtual ? Math.max(Number(faturaAtual.valor_total) - Number(faturaAtual.valor_pago), 0) : 0;
+  // Valor da fatura ATUAL (para o card "Fatura atual" e o botão Pagar).
+  const faturaAtualValor = faturaAtual ? Math.max(Number(faturaAtual.valor_total) - Number(faturaAtual.valor_pago), 0) : 0;
+  // Limite USADO = TODAS as faturas em aberto (parcelas futuras também ocupam o
+  // limite), não só a atual. saldo_atual do cartão já é -(total em aberto).
+  const usado = Math.max(-Number(cartao.saldo_atual ?? 0), 0);
   const disponivel = Math.max(limite - usado, 0);
   const pct = limite > 0 ? Math.min((usado / limite) * 100, 100) : 0;
   const cor = cartao.cor || '#7a2ea8';
@@ -49,7 +53,7 @@ export function CartaoCard({ cartao, faturaAtual, onPagar, onLancamentos, onImpo
 
       {/* Fatura atual */}
       <div className="relative mt-3.5 text-[9.5px] uppercase tracking-[0.1em] text-[rgba(255,245,233,0.7)]">Fatura atual</div>
-      <div className="relative mt-0.5 text-[24px] font-semibold tracking-[-0.02em] tabular-nums">{formatCurrency(usado)}</div>
+      <div className="relative mt-0.5 text-[24px] font-semibold tracking-[-0.02em] tabular-nums">{formatCurrency(faturaAtualValor)}</div>
       <div className="relative mt-[3px] text-[10.5px] text-[rgba(255,245,233,0.75)]">
         {faturaAtual
           ? `Vence em ${format(parseISO(faturaAtual.data_vencimento), "dd 'de' MMMM", { locale: ptBR })}`
@@ -73,7 +77,7 @@ export function CartaoCard({ cartao, faturaAtual, onPagar, onLancamentos, onImpo
       <div className="relative mt-3 flex gap-1.5">
         <button
           onClick={onPagar}
-          disabled={!faturaAtual || usado <= 0}
+          disabled={!faturaAtual || faturaAtualValor <= 0}
           className="flex-1 rounded-[11px] bg-[#eef2f8] px-1 py-2 text-center text-[10.5px] font-semibold text-[#241606] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Pagar fatura
