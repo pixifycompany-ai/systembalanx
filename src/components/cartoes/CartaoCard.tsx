@@ -67,12 +67,15 @@ export function CartaoCard({ cartao, faturaAtual, usado: usadoProp, onPagar, onL
       {/* Barra de limite */}
       {limite > 0 && (
         <>
-          <div className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.18]">
+          <div className="relative mt-3 flex justify-between text-[10px] text-[rgba(255,245,233,0.72)]">
+            <span>Utilizado <b className="font-semibold text-white tabular-nums">{formatCurrency(usado)}</b></span>
+            <span>Disponível <b className="font-semibold text-white tabular-nums">{formatCurrency(disponivel)}</b></span>
+          </div>
+          <div className="relative mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.18]">
             <div className="h-full rounded-full bg-white/90" style={{ width: `${pct}%` }} />
           </div>
-          <div className="relative mt-1.5 flex justify-between text-[10px] text-[rgba(255,245,233,0.72)]">
-            <span>Disponível {formatCurrency(disponivel)}</span>
-            <span>Limite {formatCurrency(limite)}</span>
+          <div className="relative mt-1.5 text-right text-[10px] text-[rgba(255,245,233,0.72)]">
+            Limite {formatCurrency(limite)}
           </div>
         </>
       )}
