@@ -53,7 +53,11 @@ export default function Contas() {
   const creditCards = getCreditCards();
 
   const [tab, setTab] = useState<'contas' | 'cartoes'>('contas');
-  useActionParam('novo', () => handleOpenForm());
+  // FAB "+" adaptativo à aba: em Cartões cria um cartão; em Contas, uma conta.
+  useActionParam('novo', () => {
+    if (tab === 'cartoes') { setEditingCartao(null); setIsCartaoFormOpen(true); }
+    else handleOpenForm();
+  });
 
   // Conta bancária state
   const [isFormOpen, setIsFormOpen] = useState(false);
