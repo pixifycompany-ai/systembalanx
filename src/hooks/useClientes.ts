@@ -51,9 +51,12 @@ export function useClientes() {
       const { data, error: fetchError } = await supabase
         .from('clientes')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('nome', { ascending: true });
       if (fetchError) throw fetchError;
-      setClientes((data || []) as ClienteDB[]);
+      // Ordem alfabética pt-BR (acentos/maiúsculas) em todas as listas e modais.
+      const ordered = ((data || []) as ClienteDB[]).sort((a, b) =>
+        (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' }));
+      setClientes(ordered);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar clientes';
       setError(message);

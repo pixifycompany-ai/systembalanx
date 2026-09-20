@@ -220,6 +220,24 @@ export function useContas() {
     };
   };
 
+  // Arquivar/reativar: conta com lançamentos não pode ser excluída, mas pode ser
+  // arquivada (ativa=false) — some das listas ativas e mantém o histórico.
+  const setContaArquivada = async (id: string, arquivada: boolean): Promise<boolean> => {
+    try {
+      const { error } = await supabase.from('contas').update({ ativa: !arquivada } as never).eq('id', id);
+      if (error) throw error;
+      await invalidate();
+      toast({
+        title: arquivada ? 'Conta arquivada' : 'Conta reativada',
+        description: arquivada ? 'Ela sai das listas ativas; o histórico é mantido.' : undefined,
+      });
+      return true;
+    } catch (err) {
+      toast({ title: 'Erro', description: err instanceof Error ? err.message : 'Erro ao arquivar', variant: 'destructive' });
+      return false;
+    }
+  };
+
   const deleteConta = async (id: string): Promise<boolean> => {
     try {
       const links = await countContaLinks(id);
@@ -334,6 +352,7 @@ export function useContas() {
     createConta,
     updateConta,
     deleteConta,
+    setContaArquivada,
     countContaLinks,
     deleteCartao,
     getActiveContas,

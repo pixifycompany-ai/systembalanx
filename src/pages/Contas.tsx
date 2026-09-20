@@ -46,7 +46,7 @@ const defaultFormData: ContaFormData = {
 };
 
 export default function Contas() {
-  const { contas, isLoading, createConta, updateConta, deleteConta, deleteCartao, countContaLinks, getTotalBalance, getBankAccounts, getCreditCards, refetch } = useContas();
+  const { contas, isLoading, createConta, updateConta, deleteConta, setContaArquivada, deleteCartao, countContaLinks, getTotalBalance, getBankAccounts, getCreditCards, refetch } = useContas();
   const { faturas, pagamentos, refetch: refetchFaturas } = useFaturas();
 
   const bankAccounts = getBankAccounts();
@@ -137,10 +137,17 @@ export default function Contas() {
   };
 
   const handleDelete = async () => {
-    if (deleteConfirm.conta) {
-      await deleteConta(deleteConfirm.conta.id);
-      setDeleteConfirm({ open: false, conta: null, links: null });
+    const conta = deleteConfirm.conta;
+    const l = deleteConfirm.links;
+    if (!conta) return;
+    const temLancamentos = !!l && (l.receitas + l.despesas + l.transferencias) > 0;
+    if (temLancamentos) {
+      // Não exclui (há lançamentos): arquiva pra manter o histórico.
+      await setContaArquivada(conta.id, true);
+    } else {
+      await deleteConta(conta.id);
     }
+    setDeleteConfirm({ open: false, conta: null, links: null });
   };
 
   if (isLoading) {
@@ -464,24 +471,22 @@ export default function Contas() {
         open={deleteConfirm.open}
         onOpenChange={(open) => setDeleteConfirm({ open, conta: open ? deleteConfirm.conta : null, links: open ? deleteConfirm.links : null })}
         onConfirm={handleDelete}
-        title="Excluir Conta"
+        title={deleteConfirm.links && (deleteConfirm.links.receitas + deleteConfirm.links.despesas + deleteConfirm.links.transferencias) > 0 ? 'Arquivar Conta' : 'Excluir Conta'}
         description={(() => {
           const l = deleteConfirm.links;
           const nome = deleteConfirm.conta?.nome ?? '';
           if (!l) return `Excluir "${nome}"?`;
-          if (l.transferencias > 0) {
-            return `"${nome}" possui ${l.transferencias} transferência(s) vinculada(s). Exclua ou edite as transferências antes de remover esta conta.`;
-          }
-          const total = l.receitas + l.despesas;
+          const total = l.receitas + l.despesas + l.transferencias;
           if (total === 0) return `Excluir "${nome}"? Esta ação não pode ser desfeita.`;
           const partes = [
             l.receitas > 0 ? `${l.receitas} receita(s)` : null,
             l.despesas > 0 ? `${l.despesas} despesa(s)` : null,
-          ].filter(Boolean).join(' e ');
-          return `"${nome}" possui ${partes} vinculada(s). Os lançamentos serão mantidos no histórico, mas ficarão sem conta. Deseja continuar?`;
+            l.transferencias > 0 ? `${l.transferencias} transferência(s)` : null,
+          ].filter(Boolean).join(', ');
+          return `"${nome}" possui ${partes} e não pode ser excluída. Você pode arquivá-la: ela sai das listas de seleção (novos lançamentos), mas o histórico é preservado. Dá pra reativar depois editando a conta.`;
         })()}
-        confirmLabel={deleteConfirm.links && deleteConfirm.links.transferencias > 0 ? 'Entendi' : 'Excluir'}
-        variant="destructive"
+        confirmLabel={deleteConfirm.links && (deleteConfirm.links.receitas + deleteConfirm.links.despesas + deleteConfirm.links.transferencias) > 0 ? 'Arquivar' : 'Excluir'}
+        variant={deleteConfirm.links && (deleteConfirm.links.receitas + deleteConfirm.links.despesas + deleteConfirm.links.transferencias) > 0 ? 'default' : 'destructive'}
       />
 
       <ConfirmDialog

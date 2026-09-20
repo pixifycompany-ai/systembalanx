@@ -72,7 +72,26 @@ export default function Contratos() {
   } = useContratos();
   
   const { createParcelas, deleteParcelas } = useContratoParcelas();
-  const { clientes } = useClientes();
+  const { clientes, createCliente } = useClientes();
+  // Criar cliente inline dentro do formulário de contrato
+  const [novoClienteOpen, setNovoClienteOpen] = useState(false);
+  const [novoClienteNome, setNovoClienteNome] = useState('');
+  const [criandoCliente, setCriandoCliente] = useState(false);
+  const handleCriarClienteInline = async () => {
+    const nome = novoClienteNome.trim();
+    if (!nome) return;
+    setCriandoCliente(true);
+    const novo = await createCliente({
+      nome, email: '', telefone: '', cpf_cnpj: '', tipo: 'PJ',
+      endereco: '', status: 'ativo', empresa_fonte: 'PIXIFY',
+    } as never);
+    setCriandoCliente(false);
+    if (novo) {
+      setFormData(prev => ({ ...prev, cliente_id: novo.id }));
+      setNovoClienteNome('');
+      setNovoClienteOpen(false);
+    }
+  };
   
   // Aditivos state
   const [editingContratoId, setEditingContratoId] = useState<string | undefined>(undefined);
@@ -606,22 +625,46 @@ export default function Contratos() {
 
             <form onSubmit={handleSubmit} className="space-y-4 p-5 pt-3">
               <div className="space-y-2">
-                <Label htmlFor="cliente_id">Cliente</Label>
-                <Select
-                  value={formData.cliente_id}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, cliente_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeClientes.map(cliente => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="cliente_id">Cliente</Label>
+                  <button
+                    type="button"
+                    onClick={() => setNovoClienteOpen(v => !v)}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    {novoClienteOpen ? 'Cancelar' : '+ Novo cliente'}
+                  </button>
+                </div>
+                {novoClienteOpen ? (
+                  <div className="flex gap-2">
+                    <Input
+                      autoFocus
+                      value={novoClienteNome}
+                      onChange={(e) => setNovoClienteNome(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCriarClienteInline(); } }}
+                      placeholder="Nome do novo cliente"
+                    />
+                    <Button type="button" onClick={handleCriarClienteInline} disabled={criandoCliente || !novoClienteNome.trim()}>
+                      {criandoCliente ? 'Criando…' : 'Criar'}
+                    </Button>
+                  </div>
+                ) : (
+                  <Select
+                    value={formData.cliente_id}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, cliente_id: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeClientes.map(cliente => (
+                        <SelectItem key={cliente.id} value={cliente.id}>
+                          {cliente.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-2">
