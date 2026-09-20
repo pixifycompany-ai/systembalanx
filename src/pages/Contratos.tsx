@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useActionParam } from '@/hooks/useActionParam';
 import { IconButton } from '@/components/shared/IconButton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -88,6 +89,7 @@ export default function Contratos() {
   
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
+  useActionParam('novo', () => handleNew());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingContrato, setEditingContrato] = useState<{ id: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);

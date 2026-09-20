@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useActionParam } from '@/hooks/useActionParam';
 import { IconButton } from '@/components/shared/IconButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ export default function Contas() {
   const creditCards = getCreditCards();
 
   const [tab, setTab] = useState<'contas' | 'cartoes'>('contas');
+  useActionParam('novo', () => handleOpenForm());
 
   // Conta bancária state
   const [isFormOpen, setIsFormOpen] = useState(false);

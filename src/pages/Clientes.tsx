@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useActionParam } from '@/hooks/useActionParam';
 import { IconButton } from '@/components/shared/IconButton';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -43,6 +44,7 @@ export default function Clientes() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const [modalOpen, setModalOpen] = useState(false);
+  useActionParam('novo', () => handleNew());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<{ id: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);

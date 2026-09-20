@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useActionParam } from '@/hooks/useActionParam';
 import { IconButton } from '@/components/shared/IconButton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -38,6 +39,7 @@ export default function Categorias() {
   
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
+  useActionParam('novo', () => handleNew());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingCategoria, setEditingCategoria] = useState<Categoria | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);

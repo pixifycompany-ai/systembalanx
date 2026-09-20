@@ -14,7 +14,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Switch } from '@/components/ui/switch';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTenant } from '@/contexts/TenantContext';
-import { ShieldCheckIcon, MicrophoneIcon } from '@heroicons/react/24/outline';
+import { ShieldCheckIcon, MicrophoneIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { Sparkle } from '@/components/shared/Sparkle';
 import { cn } from '@/lib/utils';
 
@@ -61,6 +61,17 @@ const moreSections = [
 
 const allMoreHrefs = moreSections.flatMap(s => s.items.map(i => i.href));
 
+// FAB adaptativo: em telas de cadastro o "+" cria o item daquela tela; nas
+// telas de finanças (início, fluxo, visão…) abre o seletor de lançamento.
+type FabAction = { kind: 'sheet' } | { kind: 'nav'; label: string; to: string };
+function fabForPath(pathname: string): FabAction {
+  if (pathname.startsWith('/contratos')) return { kind: 'nav', label: 'Novo contrato', to: '/contratos?action=novo' };
+  if (pathname.startsWith('/clientes')) return { kind: 'nav', label: 'Novo cliente', to: '/clientes?action=novo' };
+  if (pathname.startsWith('/categorias')) return { kind: 'nav', label: 'Nova categoria', to: '/categorias?action=novo' };
+  if (pathname.startsWith('/contas')) return { kind: 'nav', label: 'Nova conta', to: '/contas?action=novo' };
+  return { kind: 'sheet' };
+}
+
 export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }: MobileBottomNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -69,9 +80,15 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
   const [moreOpen, setMoreOpen] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
 
+  const fab = fabForPath(location.pathname);
+  const handleFab = () => {
+    if (fab.kind === 'nav') navigate(fab.to);
+    else setFabOpen(true);
+  };
+
   const handleNavClick = (href: string) => {
     if (href === '__more__') { setMoreOpen(true); return; }
-    if (href === '__fab__') { setFabOpen(true); return; }
+    if (href === '__fab__') { handleFab(); return; }
     navigate(href);
   };
 
@@ -91,8 +108,8 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
             return (
               <button
                 key="fab"
-                onClick={() => setFabOpen(true)}
-                aria-label="Novo lançamento"
+                onClick={handleFab}
+                aria-label={fab.kind === 'nav' ? fab.label : 'Novo lançamento'}
                 className="mx-0.5 flex h-12 w-12 items-center justify-center rounded-[16px] bg-primary text-primary-foreground shadow-[0_10px_24px_hsl(var(--primary)/0.45)] active:scale-95 transition-transform"
               >
                 <PlusIcon className="h-6 w-6" strokeWidth={2.4} />
@@ -148,13 +165,22 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
             ))}
           </div>
 
-          <button
-            onClick={() => { setFabOpen(false); navigate('/lancar-voz'); }}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-border/60 bg-surface/55 py-3 text-[13px] font-semibold text-foreground backdrop-blur-xl transition-transform active:scale-[0.99]"
-          >
-            <MicrophoneIcon className="h-4 w-4 text-primary" />
-            Lançar por voz
-          </button>
+          <div className="mt-3 grid grid-cols-2 gap-2.5">
+            <button
+              onClick={() => { setFabOpen(false); navigate('/lancar-voz'); }}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-surface/55 py-3 text-[13px] font-semibold text-foreground backdrop-blur-xl transition-transform active:scale-[0.99]"
+            >
+              <MicrophoneIcon className="h-4 w-4 text-primary" />
+              Lançar por voz
+            </button>
+            <button
+              onClick={() => { setFabOpen(false); navigate('/fluxo-caixa?action=importar'); }}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-surface/55 py-3 text-[13px] font-semibold text-foreground backdrop-blur-xl transition-transform active:scale-[0.99]"
+            >
+              <ArrowUpTrayIcon className="h-4 w-4 text-primary" />
+              Subir print
+            </button>
+          </div>
         </SheetContent>
       </Sheet>
 

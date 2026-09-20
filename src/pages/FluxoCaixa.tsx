@@ -829,6 +829,11 @@ export default function FluxoCaixa() {
       setTransferModalOpen(true);
       searchParams.delete('action');
       setSearchParams(searchParams, { replace: true });
+    } else if (actionParam === 'importar') {
+      // Vindo do FAB mobile ("Subir print/comprovante") — abre o upload direto
+      setImportDialogOpen(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
     }
   }, [actionParam]);
 
