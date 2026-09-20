@@ -492,8 +492,11 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
   despesas
     .filter(d => {
       const vencimento = parseISO(d.data_vencimento);
-      return d.status === 'pendente' && 
-        vencimento >= today && 
+      return d.status === 'pendente' &&
+        // Itens de fatura de cartão NÃO aparecem individualmente — a fatura
+        // fechada entra como 1 item de total (abaixo).
+        d.fatura_id == null &&
+        vencimento >= today &&
         vencimento <= in7Days;
     })
     .forEach(d => {
@@ -507,7 +510,31 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
       });
     });
 
-  upcomingItems.sort((a, b) => 
+  // Faturas de cartão FECHADAS (fechamento já passou) e ainda não quitadas:
+  // entram como 1 item = total da fatura (não as parcelas individuais).
+  const contaById = new Map(contas.map((c: any) => [c.id, c]));
+  faturas
+    .filter((f: any) => {
+      const restante = Number(f.valor_total || 0) - Number(f.valor_pago || 0);
+      const fechada = f.data_fechamento && parseISO(f.data_fechamento) <= today;
+      const venc = f.data_vencimento ? parseISO(f.data_vencimento) : null;
+      return fechada && f.status !== 'paga' && restante > 0.005 && !!venc && venc <= in7Days;
+    })
+    .forEach((f: any) => {
+      const cartao = contaById.get(f.cartao_id);
+      const nome = cartao?.nome || 'Cartão de crédito';
+      upcomingItems.push({
+        id: `fatura-${f.id}`,
+        tipo: 'despesa',
+        descricao: `Fatura ${nome}`,
+        valor: Number(f.valor_total || 0) - Number(f.valor_pago || 0),
+        data_vencimento: f.data_vencimento,
+        cliente_ou_fornecedor: nome,
+        href: '/contas',
+      });
+    });
+
+  upcomingItems.sort((a, b) =>
     parseISO(a.data_vencimento).getTime() - parseISO(b.data_vencimento).getTime()
   );
 

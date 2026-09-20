@@ -488,6 +488,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
 
       // Cartão de crédito: a despesa entra na FATURA ABERTA (não é caixa direto).
       let faturaId: string | null = null;
+      let faturaVenc: string | null = null;
       if (formData.conta_id) {
         const { data: contaInfo } = await supabase.from('contas').select('*').eq('id', formData.conta_id).single();
         if (contaInfo && (contaInfo as any).tipo === 'cartao_credito') {
@@ -496,7 +497,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
             formData.data_competencia || formData.data_vencimento,
             user.id,
           );
-          if (fatura) faturaId = fatura.id;
+          if (fatura) { faturaId = fatura.id; faturaVenc = fatura.data_vencimento; }
         }
       }
 
@@ -511,7 +512,8 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
           descricao: formData.descricao,
           valor: formData.valor,
           data_competencia: formData.data_competencia,
-          data_vencimento: formData.data_vencimento,
+          // Cartão: o "vencimento" real é o da FATURA (não a data da compra/importação).
+          data_vencimento: faturaVenc ?? formData.data_vencimento,
           // Cartão: sem data_pagamento e sempre 'pendente' (baixa acontece ao pagar a fatura).
           data_pagamento: faturaId ? null : (formData.data_pagamento || null),
           status: faturaId ? 'pendente' : formData.status,

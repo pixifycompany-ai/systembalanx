@@ -13,6 +13,8 @@ export interface UpcomingItem {
   valor: number;
   data_vencimento: string;
   cliente_ou_fornecedor: string;
+  /** Destino ao clicar (ex.: fatura de cartão → /contas). Se ausente, usa o padrão. */
+  href?: string;
 }
 
 interface UpcomingDueWidgetProps {

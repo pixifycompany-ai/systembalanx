@@ -190,6 +190,7 @@ export function useDespesas() {
 
       // Detecta se conta_id é um cartão de crédito
       let faturaId: string | null = null;
+      let faturaVenc: string | null = null;
       if (formData.conta_id) {
         const { data: contaInfo } = await supabase
           .from('contas')
@@ -202,7 +203,7 @@ export function useDespesas() {
             formData.data_competencia || formData.data_vencimento,
             user.id
           );
-          if (fatura) faturaId = fatura.id;
+          if (fatura) { faturaId = fatura.id; faturaVenc = fatura.data_vencimento; }
         }
       }
 
@@ -217,7 +218,9 @@ export function useDespesas() {
           descricao: formData.descricao,
           valor: formData.valor,
           data_competencia: formData.data_competencia,
-          data_vencimento: formData.data_vencimento,
+          // Cartão: o "vencimento" real é o da FATURA (não a data da compra/importação),
+          // senão a despesa sobe com a data da compra (às vezes dia 1 do mês).
+          data_vencimento: faturaVenc ?? formData.data_vencimento,
           data_pagamento: faturaId ? null : (formData.data_pagamento || null),
           // Lançamentos de cartão sempre 'pendente' (a baixa acontece quando a fatura é paga)
           status: faturaId ? 'pendente' : formData.status,

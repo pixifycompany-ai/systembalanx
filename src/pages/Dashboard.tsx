@@ -13,6 +13,12 @@ import { NotificationBell } from '@/components/layout/NotificationBell';
 import { DetailSheet } from '@/components/shared/DetailSheet';
 import { ProgressGoal } from '@/components/dashboard/ProgressGoal';
 import { AlertsWidget } from '@/components/dashboard/AlertsWidget';
+import { MetricCard } from '@/components/dashboard/MetricCard';
+import { RevenueAreaChart } from '@/components/dashboard/RevenueAreaChart';
+import { ExpensesByCategoryChart } from '@/components/dashboard/ExpensesByCategoryChart';
+import { TopClientsTable } from '@/components/dashboard/TopClientsTable';
+import { UpcomingDueWidget } from '@/components/dashboard/UpcomingDueWidget';
+import { AIAdvisorWidget } from '@/components/dashboard/AIAdvisorWidget';
 import { SkeletonCard } from '@/components/shared/LoadingSpinner';
 
 import { useDashboard } from '@/hooks/useDashboard';
@@ -46,6 +52,10 @@ export default function Dashboard() {
     consolidatedHistory,
     upcomingItems,
     alerts,
+    expensesByCategory,
+    revenueData3m,
+    revenueData6m,
+    revenueData12m,
     isLoading,
     error,
   } = useDashboard();
@@ -76,14 +86,17 @@ export default function Dashboard() {
     return <main className="container py-6"><p className="text-muted-foreground">{error}</p></main>;
   }
 
-  const { resumo, meta_faturamento } = dashboardData;
+  const { resumo, meta_faturamento, top_clientes } = dashboardData;
   const totalBalance = accountBalances.reduce((s, a) => s + a.saldo, 0);
   const proximos = upcomingItems.slice(0, 5);
   const metaValor = getMetaValor('faturamento', currentPeriodo, 15000);
+  const metaSubtitle = mesNome.charAt(0).toUpperCase() + mesNome.slice(1);
 
   // Fluxo dia (já é hook que carrega tudo — usa só pra "últimas transações")
   return (
     <main className="container py-4 md:py-6">
+      {/* ===== MOBILE: overview em coluna (mantido) ===== */}
+      <div className="md:hidden">
       <MobilePageHeader
         eyebrow={`${greeting()},`}
         title={primeiroNome}
@@ -201,7 +214,7 @@ export default function Dashboard() {
                   value={`${isReceita ? '+ ' : '- '}${formatCurrency(item.valor)}`}
                   meta={diasParaVencer(item.data_vencimento)}
                   onClick={() =>
-                    navigate(`/fluxo-caixa?tipo=${tipo}&search=${encodeURIComponent(item.descricao)}`)
+                    navigate(item.href ?? `/fluxo-caixa?tipo=${tipo}&search=${encodeURIComponent(item.descricao)}`)
                   }
                 />
               );
@@ -228,6 +241,70 @@ export default function Dashboard() {
         </div>
         <ArrowRight className="h-4 w-4 text-foreground-muted" />
       </button>
+      </div>
+
+      {/* ===== DESKTOP: overview com gráficos ===== */}
+      <div className="hidden md:block space-y-6">
+        {/* Header */}
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-sm text-foreground-muted">{greeting()},</p>
+            <h1 className="text-3xl font-medium tracking-tight text-foreground">{primeiroNome}</h1>
+          </div>
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted px-3 py-2 rounded-full border border-border/60 bg-surface/70 backdrop-blur-xl">
+            {mesAtual}
+          </span>
+        </div>
+
+        {/* KPIs */}
+        <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            title="Saldo consolidado"
+            value={totalBalance}
+            subtitle={`${accountBalances.length} ${accountBalances.length === 1 ? 'conta ativa' : 'contas ativas'}`}
+            variant="info"
+            onClick={() => setSaldoSheetOpen(true)}
+          />
+          <MetricCard title="Receitas do mês" value={resumo.faturamento_mes} subtitle={mesNome} variant="positive" />
+          <MetricCard title="Despesas do mês" value={resumo.despesas_mes} subtitle={mesNome} variant="negative" />
+          <MetricCard
+            title="Lucro do mês"
+            value={resumo.lucro_mensal}
+            subtitle={`Margem ${resumo.lucro_mensal_percentual}%`}
+            variant={resumo.lucro_mensal >= 0 ? 'positive' : 'negative'}
+          />
+        </div>
+
+        {/* Receita vs Despesas */}
+        <RevenueAreaChart data3m={revenueData3m} data6m={revenueData6m} data12m={revenueData12m} />
+
+        {/* Despesas por categoria + Ranking de clientes */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ExpensesByCategoryChart data={expensesByCategory} />
+          <TopClientsTable clients={top_clientes} title="Ranking de clientes" />
+        </div>
+
+        {/* Próximos vencimentos + Meta / IA */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <UpcomingDueWidget
+            items={upcomingItems}
+            title="Próximos vencimentos"
+            onItemClick={(it) => navigate(it.href ?? '/fluxo-caixa')}
+          />
+          <div className="space-y-6">
+            <ProgressGoal
+              title="Meta de Faturamento"
+              current={meta_faturamento.valor_realizado}
+              target={metaValor}
+              subtitle={metaSubtitle}
+              editable
+              onEditTarget={(v) => upsertMeta.mutate({ tipo: 'faturamento', periodo: currentPeriodo, valor_meta: v })}
+            />
+            {alerts.length > 0 && <AlertsWidget alerts={alerts} />}
+            <AIAdvisorWidget />
+          </div>
+        </div>
+      </div>
 
       {/* Bottom sheet — Saldo detalhado */}
       <DetailSheet
