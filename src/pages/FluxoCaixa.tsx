@@ -1887,12 +1887,24 @@ export default function FluxoCaixa() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs">Conta</Label>
-                  <Select value={formSaida.conta_id || 'none'} onValueChange={(v) => setFormSaida(prev => ({ ...prev, conta_id: v === 'none' ? undefined : v }))}>
+                  <Select
+                    value={formSaida.conta_id || 'none'}
+                    onValueChange={(v) => {
+                      const novaConta = v === 'none' ? undefined : v;
+                      const isCartao = activeContas.some(c => c.id === novaConta && c.tipo === 'cartao_credito');
+                      setFormSaida(prev => ({
+                        ...prev,
+                        conta_id: novaConta,
+                        // Cartão → forma trava em 'cartao_credito'. Saindo do cartão, limpa se estava travada.
+                        forma_pagamento: isCartao ? 'cartao_credito' : (prev.forma_pagamento === 'cartao_credito' ? undefined : prev.forma_pagamento),
+                      }));
+                    }}
+                  >
                     <SelectTrigger>
                       {(() => {
                         const sel = contas.find(c => c.id === formSaida.conta_id);
                         return sel
-                          ? <span className="flex items-center gap-2 min-w-0"><span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: sel.cor }} /><span className="truncate">{sel.nome}</span></span>
+                          ? <span className="flex items-center gap-2 min-w-0"><span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: sel.cor }} /><span className="truncate">{sel.nome}</span>{sel.tipo === 'cartao_credito' && <span className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Cartão crédito</span>}</span>
                           : <SelectValue placeholder="Conta" />;
                       })()}
                     </SelectTrigger>
@@ -1900,7 +1912,7 @@ export default function FluxoCaixa() {
                       <SelectItem value="none">Nenhuma</SelectItem>
                       {contas.map(c => (
                         <SelectItem key={c.id} value={c.id}>
-                          <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full" style={{ background: c.cor }} />{c.nome}</span>
+                          <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full" style={{ background: c.cor }} /><span className="truncate">{c.nome}</span>{c.tipo === 'cartao_credito' && <span className="ml-auto rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Crédito</span>}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1908,13 +1920,19 @@ export default function FluxoCaixa() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs">Forma de pagamento</Label>
-                  <Select value={formSaida.forma_pagamento || 'none'} onValueChange={(v) => setFormSaida(prev => ({ ...prev, forma_pagamento: v === 'none' ? undefined : v }))}>
+                  <Select
+                    value={saidaContaIsCartao ? 'cartao_credito' : (formSaida.forma_pagamento || 'none')}
+                    onValueChange={(v) => setFormSaida(prev => ({ ...prev, forma_pagamento: v === 'none' ? undefined : v }))}
+                    disabled={saidaContaIsCartao}
+                  >
                     <SelectTrigger><SelectValue placeholder="Selecionar forma" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhuma</SelectItem>
-                      {FORMA_PAGAMENTO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                      {/* 'Cartão Crédito' só aparece quando a conta é um cartão de crédito */}
+                      {FORMA_PAGAMENTO_OPTIONS.filter(o => saidaContaIsCartao || o.value !== 'cartao_credito').map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {saidaContaIsCartao && <p className="text-[10px] text-foreground-muted">Definido automaticamente: conta é cartão de crédito.</p>}
                 </div>
               </div>
 
