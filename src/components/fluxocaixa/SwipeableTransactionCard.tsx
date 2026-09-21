@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { parseISO } from 'date-fns';
-import { Check, Trash2, ArrowUpRight, ArrowDownLeft, ArrowLeftRight } from 'lucide-react';
+import { Check, Trash2, ArrowUp, ArrowDown, ArrowLeftRight } from 'lucide-react';
 import { EyeIcon, DocumentDuplicateIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '@/utils/formatters';
 import type { TransacaoUnificada } from '@/types/fluxoCaixa';
@@ -197,7 +197,7 @@ export function SwipeableTransactionCard({
             : t.tipo === 'entrada' ? "bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]"
               : "bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]",
         )}>
-          {isTransfer ? <ArrowLeftRight className="h-[18px] w-[18px]" /> : t.tipo === 'entrada' ? <ArrowDownLeft className="h-[18px] w-[18px]" /> : <ArrowUpRight className="h-[18px] w-[18px]" />}
+          {isTransfer ? <ArrowLeftRight className="h-[18px] w-[18px]" strokeWidth={2.2} /> : t.tipo === 'entrada' ? <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.4} /> : <ArrowDown className="h-[18px] w-[18px]" strokeWidth={2.4} />}
         </div>
 
         {/* Descrição + conta · status */}
@@ -242,7 +242,7 @@ export function SwipeableTransactionCard({
                   : t.tipo === 'entrada' ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]'
                     : 'bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]',
               )}>
-                {isTransfer ? <ArrowLeftRight className="h-[18px] w-[18px]" /> : t.tipo === 'entrada' ? <ArrowDownLeft className="h-[18px] w-[18px]" /> : <ArrowUpRight className="h-[18px] w-[18px]" />}
+                {isTransfer ? <ArrowLeftRight className="h-[18px] w-[18px]" strokeWidth={2.2} /> : t.tipo === 'entrada' ? <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.4} /> : <ArrowDown className="h-[18px] w-[18px]" strokeWidth={2.4} />}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground uppercase">{t.descricao}</p>
