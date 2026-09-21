@@ -19,7 +19,7 @@ interface IconButtonProps extends Omit<ButtonProps, 'size'> {
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
   ({ label, tooltipSide = 'bottom', emphasis = 'default', className, children, variant, ...props }, ref) => {
     const computedVariant: ButtonProps['variant'] =
-      variant ?? (emphasis === 'primary' ? 'default' : emphasis === 'destructive' ? 'ghost' : 'outline');
+      variant ?? (emphasis === 'primary' ? 'default' : 'ghost');
 
     return (
       <Tooltip delayDuration={250}>
@@ -31,8 +31,14 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
             size="icon"
             aria-label={label}
             className={cn(
-              'h-9 w-9 shrink-0',
-              emphasis === 'destructive' && 'text-destructive hover:bg-destructive/10 hover:text-destructive',
+              // Tile de vidro (combina com o tema azul): borda sutil + surface
+              // translúcido + blur; hover suave.
+              'h-9 w-9 shrink-0 rounded-xl transition-colors',
+              emphasis === 'primary'
+                ? 'shadow-[0_8px_22px_-8px_hsl(var(--primary)/0.6)] hover:bg-primary/90'
+                : emphasis === 'destructive'
+                  ? 'border border-border/60 bg-surface/55 backdrop-blur-xl text-destructive hover:bg-[hsl(var(--danger))]/12 hover:text-destructive'
+                  : 'border border-border/60 bg-surface/55 backdrop-blur-xl text-foreground shadow-sm hover:bg-surface-2 hover:text-foreground',
               className,
             )}
             {...props}
