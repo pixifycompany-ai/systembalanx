@@ -4,7 +4,7 @@ import {
   HomeIcon, DocumentTextIcon, ChartBarIcon, Squares2X2Icon, PlusIcon,
   WalletIcon, CalendarDaysIcon, DocumentChartBarIcon, PresentationChartLineIcon,
   UsersIcon, TagIcon, Cog6ToothIcon, ChevronRightIcon, MoonIcon,
-  ChevronUpIcon, ChevronDownIcon, ArrowsUpDownIcon,
+  ArrowUpIcon, ArrowDownIcon, ArrowsRightLeftIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeSolid, DocumentTextIcon as DocumentSolid,
@@ -148,9 +148,9 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
 
           <div className="flex gap-2.5">
             {[
-              { label: 'Receita', icon: ChevronUpIcon, tint: 'bg-[hsl(var(--success)/0.24)] text-[hsl(var(--success))]', onClick: onNewEntrada },
-              { label: 'Despesa', icon: ChevronDownIcon, tint: 'bg-[hsl(var(--danger)/0.24)] text-[hsl(var(--danger))]', onClick: onNewSaida },
-              { label: 'Transferência', icon: ArrowsUpDownIcon, tint: 'bg-primary/25 text-[hsl(var(--primary))]', onClick: onNewTransferencia },
+              { label: 'Receita', icon: ArrowUpIcon, tint: 'bg-[hsl(var(--success)/0.24)] text-[hsl(var(--success))]', onClick: onNewEntrada },
+              { label: 'Despesa', icon: ArrowDownIcon, tint: 'bg-[hsl(var(--danger)/0.24)] text-[hsl(var(--danger))]', onClick: onNewSaida },
+              { label: 'Transferência', icon: ArrowsRightLeftIcon, tint: 'bg-primary/25 text-[hsl(var(--primary))]', onClick: onNewTransferencia },
             ].map((t) => (
               <button
                 key={t.label}
