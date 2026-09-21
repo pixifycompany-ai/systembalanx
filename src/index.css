@@ -260,7 +260,9 @@
 
   body {
     @apply text-foreground;
-    background-color: hsl(var(--background));
+    /* TRANSPARENTE de propósito: o fundo opaco do body pintava POR CIMA do glow
+       (body::before, z-index:-1). A cor-base fica no html e no body::before. */
+    background-color: transparent;
     font-size: 13px;
   }
   /* Desktop: reduz a fonte-raiz p/ ~90% — encolhe tudo que usa rem (texto,
