@@ -298,13 +298,30 @@
     background-repeat: no-repeat;
     background-color: hsl(var(--background));
   }
+  /* Fundo azul-profundo (estilo app fintech): glow azul dominante, com um toque
+     de âmbar bem sutil só pra manter a identidade da marca. */
   .dark body::before {
     background-image:
-      radial-gradient(125% 82% at 14% -6%, rgba(58, 120, 205, 0.48), transparent 58%),
-      radial-gradient(120% 68% at 99% 0%, rgba(216, 152, 70, 0.38), transparent 55%),
-      radial-gradient(90% 60% at 50% 116%, rgba(58, 120, 205, 0.30), transparent 62%),
-      radial-gradient(70% 52% at 4% 106%, rgba(58, 120, 205, 0.24), transparent 60%),
-      radial-gradient(74% 54% at 98% 112%, rgba(216, 152, 70, 0.20), transparent 60%);
+      radial-gradient(120% 80% at 20% -10%, rgba(41, 110, 224, 0.55), transparent 56%),
+      radial-gradient(115% 72% at 86% -6%, rgba(56, 122, 216, 0.34), transparent 55%),
+      radial-gradient(95% 62% at 50% 118%, rgba(41, 110, 224, 0.30), transparent 60%),
+      radial-gradient(70% 52% at 2% 104%, rgba(56, 122, 216, 0.22), transparent 60%),
+      radial-gradient(72% 54% at 99% 110%, rgba(214, 150, 70, 0.10), transparent 60%);
+  }
+  /* Grade sutil (techy), some suave no meio — igual referência fintech. */
+  .dark body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 100vh; height: 100lvh;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(140, 180, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(140, 180, 255, 0.05) 1px, transparent 1px);
+    background-size: 46px 46px;
+    -webkit-mask-image: radial-gradient(90% 62% at 50% -6%, #000, transparent 72%);
+    mask-image: radial-gradient(90% 62% at 50% -6%, #000, transparent 72%);
   }
   .light body::before {
     background-image:
