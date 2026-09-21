@@ -28,7 +28,7 @@ import { useClientes } from '@/hooks/useClientes';
 import { useContas, useAccountRunningBalance } from '@/hooks/useContas';
 import { useTransferencias, type TransferenciaFormData } from '@/hooks/useTransferencias';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
-import { TrendingUp, TrendingDown, ArrowLeftRight, ArrowRightLeft, Filter, Plus, Pencil, Trash2, Upload, CalendarIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarRange, X, FileText, BarChart3, Repeat, SlidersHorizontal, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowLeftRight, ArrowRightLeft, Filter, Plus, Pencil, Trash2, Upload, CalendarIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarRange, X, FileText, BarChart3, Repeat, SlidersHorizontal, CheckCircle2, CreditCard } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FluxoCaixaKPIRow } from '@/components/fluxocaixa/FluxoCaixaKPIRow';
 import { ReceiptGenerator, type ReceiptData } from '@/components/shared/ReceiptGenerator';
@@ -98,6 +98,7 @@ export default function FluxoCaixa() {
     deleteReceita,
     deleteMultipleReceitas,
     createDespesa,
+    createDespesaParcelada,
     updateDespesa,
     deleteDespesa,
     deleteMultipleDespesas,
@@ -176,6 +177,7 @@ export default function FluxoCaixa() {
   const [saidaRecurrence, setSaidaRecurrence] = useState<'unico' | 'recorrente'>('unico');
   const [saidaFrequency, setSaidaFrequency] = useState('mensal');
   const [saidaRepeatTimes, setSaidaRepeatTimes] = useState(12);
+  const [saidaParcelas, setSaidaParcelas] = useState(1);
 
   // Juros/Multa, Tarifa e Imposto states
   const [entradaValorJuros, setEntradaValorJuros] = useState('');
@@ -393,6 +395,9 @@ export default function FluxoCaixa() {
   };
 
   const activeContas = contas.filter(c => c.ativa);
+  // Saída no cartão de crédito: muda o comportamento do modal (parcelas, sem
+  // Pago/Pendente — vai pra fatura, sem recorrência).
+  const saidaContaIsCartao = activeContas.some(c => c.id === formSaida.conta_id && c.tipo === 'cartao_credito');
 
   const handleTransfer = async () => {
     if (!transferData.conta_origem_id || !transferData.conta_destino_id || transferData.valor <= 0) return;
@@ -462,6 +467,7 @@ export default function FluxoCaixa() {
     setSaidaRecurrence('unico');
     setSaidaFrequency('mensal');
     setSaidaRepeatTimes(12);
+    setSaidaParcelas(1);
     setFormSaida({
       descricao: '',
       valor: 0,
@@ -585,6 +591,9 @@ export default function FluxoCaixa() {
     
     if (editingItem) {
       success = await updateDespesa(editingItem.id, formSaida);
+    } else if (saidaContaIsCartao && saidaParcelas > 1) {
+      // Cartão parcelado: distribui nas faturas dos próximos meses.
+      success = await createDespesaParcelada(formSaida, saidaParcelas);
     } else if (saidaRecurrence === 'recorrente' && saidaRepeatTimes > 1) {
       const groupId = crypto.randomUUID();
       success = true;
@@ -1909,6 +1918,35 @@ export default function FluxoCaixa() {
                 </div>
               </div>
 
+              {/* Cartão de crédito: parcelas + aviso de fatura (sem Pago/Pendente) */}
+              {saidaContaIsCartao && (
+                <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/[0.06] p-3">
+                  <div className="flex items-start gap-2 text-[12px] leading-snug text-foreground">
+                    <CreditCard className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                    <span>Este lançamento entra na <b>fatura do cartão</b>. A baixa acontece quando você <b>pagar a fatura</b> — não precisa marcar Pago/Pendente.</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Parcelas</Label>
+                    <div className="flex items-center gap-2.5">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={48}
+                        step={1}
+                        value={saidaParcelas}
+                        onChange={(e) => setSaidaParcelas(Math.max(1, Math.min(48, parseInt(e.target.value, 10) || 1)))}
+                        className="h-10 w-20 text-center tabular-nums"
+                      />
+                      <span className="text-xs text-foreground-muted">
+                        {saidaParcelas > 1 && formSaida.valor > 0
+                          ? `${saidaParcelas}× de ${formatCurrency(formSaida.valor / saidaParcelas)} · 1ª na fatura atual`
+                          : 'À vista (1 parcela)'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label className="text-xs">Tipo de despesa</Label>
                 <div className="grid grid-cols-2 gap-2">
@@ -1928,6 +1966,7 @@ export default function FluxoCaixa() {
                 </div>
               </div>
 
+              {!saidaContaIsCartao && (<>
               <div className="space-y-2">
                 <Label className="text-xs">Status</Label>
                 <div className="grid grid-cols-3 gap-2">
@@ -1979,9 +2018,10 @@ export default function FluxoCaixa() {
                   </p>
                 </div>
               )}
+              </>)}
 
-              {/* Recurrence (only for new) */}
-              {!editingItem && (
+              {/* Recurrence (only for new) — não aparece pra cartão (usa Parcelas) */}
+              {!editingItem && !saidaContaIsCartao && (
                 <RecurrenceSection
                   recurrence={saidaRecurrence}
                   setRecurrence={setSaidaRecurrence}

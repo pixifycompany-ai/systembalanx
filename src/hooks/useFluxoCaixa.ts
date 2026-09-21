@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { ensureFaturaForLancamento, recalcularFatura } from '@/hooks/useFaturas';
+import { ensureFaturaForLancamento, ensureFaturaForCompetencia, recalcularFatura } from '@/hooks/useFaturas';
+import { calcularCompetenciaFatura, toISODate } from '@/utils/faturaCalculator';
 import type { ContaDB } from '@/hooks/useContas';
-import { parseISO, startOfDay, isBefore } from 'date-fns';
+import { parseISO, startOfDay, isBefore, addMonths } from 'date-fns';
 import type { TransacaoUnificada, TipoTransacao } from '@/types/fluxoCaixa';
 
 // Internal types - different from the exported hook types
@@ -106,6 +107,7 @@ interface UseFluxoCaixaReturn {
   
   // Despesa operations  
   createDespesa: (data: DespesaFormData) => Promise<boolean>;
+  createDespesaParcelada: (data: DespesaFormData, numParcelas: number) => Promise<boolean>;
   updateDespesa: (id: string, data: Partial<DespesaFormData>) => Promise<boolean>;
   deleteDespesa: (id: string) => Promise<boolean>;
   deleteMultipleDespesas: (ids: string[]) => Promise<boolean>;
@@ -539,6 +541,72 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
     }
   };
 
+  // Compra PARCELADA no cartão: cria N despesas, uma por fatura (mês). Parcela 1
+  // na fatura atual; 2..N nas faturas seguintes. Se não for cartão ou N<=1, cai
+  // no createDespesa normal.
+  const createDespesaParcelada = async (formData: DespesaFormData, numParcelas: number): Promise<boolean> => {
+    const N = Math.max(1, Math.floor(numParcelas || 1));
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Usuário não autenticado');
+      if (!formData.conta_id || N <= 1) return await createDespesa(formData);
+
+      const { data: contaInfo } = await supabase.from('contas').select('*').eq('id', formData.conta_id).single();
+      const cartao = contaInfo as unknown as ContaDB | null;
+      if (!cartao || (cartao as any).tipo !== 'cartao_credito') return await createDespesa(formData);
+
+      const total = Number(formData.valor);
+      const parcelaBase = Math.round((total / N) * 100) / 100;
+      const ultima = Math.round((total - parcelaBase * (N - 1)) * 100) / 100;
+      const grupo = crypto.randomUUID();
+      const dataCompra = formData.data_competencia || formData.data_vencimento;
+      const baseComp = calcularCompetenciaFatura(dataCompra, (cartao as any).dia_fechamento);
+
+      const criadas: DespesaInternal[] = [];
+      for (let i = 0; i < N; i++) {
+        const comp = addMonths(baseComp, i);
+        const fatura = await ensureFaturaForCompetencia(cartao, comp, user.id);
+        if (!fatura) throw new Error('Não foi possível gerar a fatura da parcela');
+        const valorParcela = i === N - 1 ? ultima : parcelaBase;
+        const { data, error } = await supabase
+          .from('despesas')
+          .insert({
+            user_id: user.id,
+            categoria_id: formData.categoria_id || null,
+            conta_id: formData.conta_id,
+            cliente_id: formData.cliente_id || null,
+            fornecedor: formData.fornecedor || null,
+            descricao: `${formData.descricao} (${i + 1}/${N})`,
+            valor: valorParcela,
+            data_competencia: toISODate(comp),
+            data_vencimento: fatura.data_vencimento,
+            data_pagamento: null,
+            status: 'pendente',
+            tipo: formData.tipo,
+            forma_pagamento: formData.forma_pagamento || null,
+            fatura_id: fatura.id,
+            parcela_num: i + 1,
+            parcela_total: N,
+            parcela_grupo_id: grupo,
+          } as never)
+          .select('*, categoria:categorias(id, nome, cor), cliente:clientes(id, nome)')
+          .single();
+        if (error) throw error;
+        criadas.push(data as unknown as DespesaInternal);
+        await recalcularFatura(fatura.id);
+      }
+
+      setDespesas(prev => [...criadas, ...prev]);
+      invalidateDerived();
+      toast({ title: `Compra parcelada em ${N}x criada!`, description: 'Parcela 1 na fatura atual; as demais nas próximas faturas.' });
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao parcelar despesa';
+      toast({ title: 'Erro', description: message, variant: 'destructive' });
+      return false;
+    }
+  };
+
   const updateDespesa = async (id: string, formData: Partial<DespesaFormData>): Promise<boolean> => {
     try {
       // UPDATE PARCIAL: só envia campos presentes (não apaga categoria/conta/cliente
@@ -776,6 +844,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
     deleteReceita,
     deleteMultipleReceitas,
     createDespesa,
+    createDespesaParcelada,
     updateDespesa,
     deleteDespesa,
     deleteMultipleDespesas,
