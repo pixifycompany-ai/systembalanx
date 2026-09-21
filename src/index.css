@@ -431,6 +431,12 @@
   .safe-area-top { padding-top: env(safe-area-inset-top, 0px); }
   .pb-safe { padding-bottom: max(env(safe-area-inset-bottom, 0px), 22px); }
   .pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+  /* No PWA instalado (status bar translúcida) o conteúdo do app começa embaixo
+     da status bar/ilha — senão o header (sino, busca) fica sob o relógio e não dá
+     pra tocar. Só no mobile; NÃO mexe no fundo (que é fixo em body::before). */
+  @media (max-width: 767px) {
+    .app-safe-top { padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem) !important; }
+  }
   /* Altura = viewport GRANDE (barra do navegador escondida), igual body::before.
      Overlays full-screen (loader, menu) usam isto pra cobrir até o rodapé real
      e não deixar faixa/limite quando a barra do Safari aparece/some. */

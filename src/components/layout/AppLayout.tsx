@@ -30,7 +30,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <SidebarInset className="bg-transparent">
 
           <Header />
-          <main className="flex-1 px-3 py-3 md:px-10 md:py-8 pb-24 md:pb-8 overflow-x-hidden max-w-full">
+          <main className="app-safe-top flex-1 px-3 py-3 md:px-10 md:py-8 pb-24 md:pb-8 overflow-x-hidden max-w-full">
             {children}
           </main>
         </SidebarInset>
