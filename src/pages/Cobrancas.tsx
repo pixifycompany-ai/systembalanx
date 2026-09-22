@@ -24,7 +24,7 @@ import { useClientes } from '@/hooks/useClientes';
 import { useContas } from '@/hooks/useContas';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
-  XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Repeat, Receipt,
+  XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Repeat, Receipt, Wallet,
 } from 'lucide-react';
 
 const toneCls: Record<string, string> = {
@@ -57,7 +57,7 @@ export default function Cobrancas() {
   const isMobile = useIsMobile();
   const {
     cobrancas, loading, busyId,
-    criarAvulsa, cancelar, excluir, sincronizar, receberManual, enviarWhatsapp, whatsappTemplate,
+    criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, enviarWhatsapp, whatsappTemplate,
   } = useCobrancas();
   const { clientes } = useClientes();
   const { contas } = useContas();
@@ -174,6 +174,20 @@ export default function Cobrancas() {
 
   const contasRecebimento = useMemo(() => contas.filter((c) => c.tipo !== 'cartao_credito' && c.ativa), [contas]);
 
+  // ===== Definir/alterar conta de recebimento =====
+  const [contaOpen, setContaOpen] = useState(false);
+  const [contaCob, setContaCob] = useState<Cobranca | null>(null);
+  const [contaSel, setContaSel] = useState('');
+  const [contaSaving, setContaSaving] = useState(false);
+  const abrirConta = (cob: Cobranca) => { setContaCob(cob); setContaSel(cob.conta_id || ''); setContaOpen(true); };
+  const handleSalvarConta = async () => {
+    if (!contaCob) return;
+    setContaSaving(true);
+    const ok = await atualizarConta(contaCob.id, contaSel || null);
+    setContaSaving(false);
+    if (ok) setContaOpen(false);
+  };
+
   // ===== Menu de ações por cobrança =====
   const AcoesMenu = ({ cob }: { cob: Cobranca }) => {
     const busy = busyId === cob.id;
@@ -198,6 +212,9 @@ export default function Cobrancas() {
               <HandCoins className="h-4 w-4 text-[hsl(var(--success))]" /> Identificar pagamento manual
             </button>
           )}
+          <button onClick={() => abrirConta(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+            <Wallet className="h-4 w-4 text-foreground-muted" /> {cob.conta_id ? 'Alterar conta de recebimento' : 'Definir conta de recebimento'}
+          </button>
           <button onClick={() => sincronizar(cob.contrato_id || undefined)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
             <RefreshCw className="h-4 w-4 text-foreground-muted" /> Sincronizar status
           </button>
@@ -352,7 +369,11 @@ export default function Cobrancas() {
                     <td className="px-3 py-3 text-right font-semibold tabular-nums text-foreground">{formatCurrency(Number(cob.valor))}</td>
                     <td className="px-3 py-3 text-foreground-muted">{formatDate(cob.vencimento)}</td>
                     <td className="px-3 py-3 text-foreground-muted">{FORMA_LABEL[cob.forma_pagamento] || cob.forma_pagamento}</td>
-                    <td className="px-3 py-3 text-foreground-muted">{conta?.nome || '—'}</td>
+                    <td className="px-3 py-3">
+                      <button onClick={() => abrirConta(cob)} className={cn('rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-white/5', conta ? 'text-foreground-muted' : 'text-primary')}>
+                        {conta?.nome || 'Definir'}
+                      </button>
+                    </td>
                     <td className="px-3 py-3">{statusPill(cob.status)}</td>
                     <td className="px-3 py-3 text-right"><AcoesMenu cob={cob} /></td>
                   </tr>
@@ -441,6 +462,37 @@ export default function Cobrancas() {
               >
                 {avulsaSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Criar cobrança no Asaas
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: definir/alterar conta de recebimento */}
+      <Sheet open={contaOpen} onOpenChange={setContaOpen}>
+        <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.95] backdrop-blur-2xl sm:max-w-[460px] sm:mx-auto">
+          <div className="mx-auto w-full max-w-[420px] pb-6 pt-1">
+            <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
+            <h2 className="mt-0.5 mb-1 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Conta de recebimento</h2>
+            {contaCob && (
+              <p className="mb-4 text-sm text-foreground-muted">
+                {(contaCob.cliente_id && clienteById.get(contaCob.cliente_id)?.nome) || '—'} · {formatCurrency(Number(contaCob.valor))}
+              </p>
+            )}
+            <Label className="text-xs">Conta</Label>
+            <select
+              value={contaSel}
+              onChange={(e) => setContaSel(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-border/60 bg-surface/60 px-3 py-2.5 text-sm text-foreground outline-none focus:border-border-strong"
+            >
+              <option value="">Sem conta</option>
+              {contasRecebimento.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+            <p className="mt-2 text-[11px] text-foreground-muted">Atualiza também a receita "a receber" vinculada.</p>
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setContaOpen(false)}>Cancelar</Button>
+              <Button className="flex-1" onClick={handleSalvarConta} disabled={contaSaving}>
+                {contaSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Salvar
               </Button>
             </div>
           </div>

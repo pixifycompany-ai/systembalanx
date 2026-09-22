@@ -360,6 +360,16 @@ serve(async (req) => {
       return json({ ok: true });
     }
 
+    // ===== ATUALIZAR CONTA de recebimento (cobrança + receita vinculada) =====
+    if (action === "atualizar-conta") {
+      const { cobranca_id, conta_id } = body;
+      const { data: cob } = await admin.from("cobrancas").select("*").eq("id", cobranca_id).eq("user_id", user.id).maybeSingle();
+      if (!cob) return json({ error: "Cobrança não encontrada." }, 404);
+      await admin.from("cobrancas").update({ conta_id: conta_id || null, updated_at: new Date().toISOString() }).eq("id", cob.id);
+      if (cob.receita_id) await admin.from("receitas").update({ conta_id: conta_id || null }).eq("id", cob.receita_id);
+      return json({ ok: true });
+    }
+
     // ===== RECEBER MANUAL (pagou por fora, ex.: Pix em outro banco) =====
     // Marca no Asaas como recebido em dinheiro (receiveInCash) e baixa a receita.
     if (action === "receber-manual") {

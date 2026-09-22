@@ -142,6 +142,23 @@ export function useCobrancas() {
     }
   };
 
+  // Definir/alterar a conta de recebimento de uma cobrança já criada
+  // (ex.: foi vinculada sem informar conta). Atualiza a receita vinculada também.
+  const atualizarConta = async (cobranca_id: string, conta_id: string | null) => {
+    setBusyId(cobranca_id);
+    try {
+      await invoke({ action: 'atualizar-conta', cobranca_id, conta_id: conta_id || null });
+      toast.success('Conta de recebimento atualizada.');
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao atualizar conta');
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const cancelar = async (cobranca_id: string) => {
     setBusyId(cobranca_id);
     try {
@@ -211,7 +228,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, enviarWhatsapp, whatsappTemplate, reload: load };
+  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, enviarWhatsapp, whatsappTemplate, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =
