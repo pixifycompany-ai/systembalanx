@@ -1029,7 +1029,7 @@ export default function Contratos() {
                         <div><Label className="text-xs">Multa atraso (%)</Label><Input type="number" step="0.01" min="0" value={ncMulta} onChange={(e) => setNcMulta(e.target.value)} placeholder="0" className="mt-1" /></div>
                         <div><Label className="text-xs">Juros ao mês (%)</Label><Input type="number" step="0.01" min="0" value={ncJuros} onChange={(e) => setNcJuros(e.target.value)} placeholder="0" className="mt-1" /></div>
                       </div>
-                      <p className="text-[11px] text-foreground-muted">Cria a assinatura no Asaas e lança a receita a receber. Multa/juros só incidem se atrasar.</p>
+                      <p className="text-[11px] text-foreground-muted">Cria a assinatura no Asaas e lança a receita a receber. Multa/juros só incidem se atrasar — juros é <b>ao mês</b> (proporcional aos dias). O juros/multa recebido entra como receita extra na baixa.</p>
                     </div>
                   )}
                 </div>

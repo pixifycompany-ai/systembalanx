@@ -95,10 +95,11 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
                   <Input type="number" step="0.01" min="0" value={multa} onChange={(e) => setMulta(e.target.value)} placeholder="0" className="h-9 text-sm" />
                 </div>
                 <div>
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-foreground-muted">Juros/mês %</p>
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-foreground-muted">Juros ao mês %</p>
                   <Input type="number" step="0.01" min="0" value={juros} onChange={(e) => setJuros(e.target.value)} placeholder="0" className="h-9 text-sm" />
                 </div>
               </div>
+              <p className="mt-1.5 text-[10px] leading-snug text-foreground-muted">Multa/juros só incidem se atrasar. Juros é <b>ao mês</b> (proporcional aos dias de atraso).</p>
               <button onClick={() => onCobrar(forma, contaId || null, { multa_percent: parseFloat(multa) || 0, juros_percent: parseFloat(juros) || 0 })} className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white transition-transform active:scale-[0.99]">
                 Criar cobrança nova
               </button>

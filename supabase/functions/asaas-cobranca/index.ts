@@ -148,6 +148,36 @@ serve(async (req) => {
       return cob;
     }
 
+    // Lança o juros/multa efetivamente recebido (informado pelo Asaas) como
+    // receita EXTRA na categoria "Juros/Multa", vinculada à receita principal —
+    // espelha o campo "Juros/Multa" do lançamento manual do Fluxo de Caixa.
+    async function lancarJurosMulta(cob: any, p: any, dataPag: string | null) {
+      if (!cob?.receita_id) return;
+      let extra = Number(p?.interestValue) || 0;
+      if (!extra && p?.originalValue != null) extra = Number(p.value) - Number(p.originalValue);
+      extra = Math.round((extra + Number.EPSILON) * 100) / 100;
+      if (!(extra > 0)) return;
+      // Idempotência: não duplica o juros dessa receita em re-sincronizações.
+      const { data: existente } = await admin.from("receitas")
+        .select("id").eq("origem_receita_id", cob.receita_id).ilike("descricao", "Juros/Multa%").limit(1).maybeSingle();
+      if (existente) return;
+      const { data: cat } = await admin.from("categorias")
+        .select("id").eq("nome", "Juros/Multa").eq("tipo", "receita").eq("is_padrao", true).is("user_id", null).limit(1).maybeSingle();
+      const dia = dataPag || cob.vencimento;
+      await admin.from("receitas").insert({
+        user_id: cob.user_id,
+        cliente_id: cob.cliente_id,
+        conta_id: cob.conta_id,
+        categoria_id: cat?.id ?? null,
+        descricao: `Juros/Multa - ${cob.descricao || "Cobrança"}`,
+        valor: extra,
+        data_vencimento: dia,
+        data_recebimento: dia,
+        status: "recebido",
+        origem_receita_id: cob.receita_id,
+      } as never);
+    }
+
     // ===== CRIAR RECORRENTE (a partir de um contrato) =====
     if (action === "criar-contrato") {
       const { contrato_id, forma_pagamento, conta_id } = body;
@@ -413,7 +443,9 @@ serve(async (req) => {
           // Baixa/reabre a receita conforme o pagamento
           if (c.receita_id) {
             if (isPago(p.status)) {
-              await admin.from("receitas").update({ status: "recebido", data_recebimento: p.paymentDate || p.clientPaymentDate || c.vencimento }).eq("id", c.receita_id);
+              const dp = p.paymentDate || p.clientPaymentDate || c.vencimento;
+              await admin.from("receitas").update({ status: "recebido", data_recebimento: dp }).eq("id", c.receita_id);
+              await lancarJurosMulta(c, p, dp); // juros/multa de atraso → receita extra
             }
           }
         } catch (_) { /* ignore item */ }

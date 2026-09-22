@@ -450,10 +450,11 @@ export default function Cobrancas() {
                   <Input type="number" step="0.01" min="0" value={avulsa.multa} onChange={(e) => setAvulsa((p) => ({ ...p, multa: e.target.value }))} placeholder="0" className="mt-1" />
                 </div>
                 <div>
-                  <Label className="text-xs">Juros/mês %</Label>
+                  <Label className="text-xs">Juros ao mês %</Label>
                   <Input type="number" step="0.01" min="0" value={avulsa.juros} onChange={(e) => setAvulsa((p) => ({ ...p, juros: e.target.value }))} placeholder="0" className="mt-1" />
                 </div>
               </div>
+              <p className="-mt-1 text-[11px] leading-snug text-foreground-muted">Multa/juros só incidem se atrasar. Juros é <b>ao mês</b> (proporcional aos dias de atraso). O valor recebido de juros/multa entra como receita extra na baixa.</p>
 
               <Button
                 className="w-full"

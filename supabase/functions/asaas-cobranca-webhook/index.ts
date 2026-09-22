@@ -26,6 +26,36 @@ function mapStatus(s: string): string {
 }
 const isPago = (s: string) => ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(s);
 
+// Lança o juros/multa efetivamente recebido (informado pelo Asaas) como receita
+// EXTRA na categoria "Juros/Multa", vinculada à receita principal — espelha o
+// campo "Juros/Multa" do lançamento manual do Fluxo de Caixa.
+// deno-lint-ignore no-explicit-any
+async function lancarJurosMulta(admin: any, cob: any, p: any, dataPag: string | null) {
+  if (!cob?.receita_id) return;
+  let extra = Number(p?.interestValue) || 0;
+  if (!extra && p?.originalValue != null) extra = Number(p.value) - Number(p.originalValue);
+  extra = Math.round((extra + Number.EPSILON) * 100) / 100;
+  if (!(extra > 0)) return;
+  const { data: existente } = await admin.from("receitas")
+    .select("id").eq("origem_receita_id", cob.receita_id).ilike("descricao", "Juros/Multa%").limit(1).maybeSingle();
+  if (existente) return;
+  const { data: cat } = await admin.from("categorias")
+    .select("id").eq("nome", "Juros/Multa").eq("tipo", "receita").eq("is_padrao", true).is("user_id", null).limit(1).maybeSingle();
+  const dia = dataPag || cob.vencimento;
+  await admin.from("receitas").insert({
+    user_id: cob.user_id,
+    cliente_id: cob.cliente_id,
+    conta_id: cob.conta_id,
+    categoria_id: cat?.id ?? null,
+    descricao: `Juros/Multa - ${cob.descricao || "Cobrança"}`,
+    valor: extra,
+    data_vencimento: dia,
+    data_recebimento: dia,
+    status: "recebido",
+    origem_receita_id: cob.receita_id,
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
   try {
@@ -109,6 +139,7 @@ serve(async (req) => {
     if (cob.receita_id) {
       if (pago) {
         await admin.from("receitas").update({ status: "recebido", data_recebimento: dataPag || cob.vencimento }).eq("id", cob.receita_id);
+        await lancarJurosMulta(admin, cob, payment, dataPag); // juros/multa de atraso → receita extra
       } else if (payment.status === "OVERDUE") {
         await admin.from("receitas").update({ status: "atrasado" }).eq("id", cob.receita_id);
       } else if (["REFUNDED", "REFUND_REQUESTED"].includes(payment.status)) {
