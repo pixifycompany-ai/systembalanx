@@ -14,6 +14,7 @@ import {
   LineChart,
   ShieldCheck,
   Sparkles,
+  Receipt,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -56,6 +57,7 @@ const navGroups = [
     items: [
       { href: '/clientes', label: 'Clientes', icon: Users },
       { href: '/contratos', label: 'Contratos', icon: FileText },
+      { href: '/cobrancas', label: 'Cobranças', icon: Receipt },
     ],
   },
   {

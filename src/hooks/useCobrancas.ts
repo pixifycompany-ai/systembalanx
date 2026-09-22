@@ -7,6 +7,7 @@ export interface Cobranca {
   cliente_id: string | null;
   contrato_id: string | null;
   receita_id: string | null;
+  conta_id: string | null;
   tipo: string;
   asaas_payment_id: string | null;
   asaas_subscription_id: string | null;
@@ -17,6 +18,7 @@ export interface Cobranca {
   status: string; // pendente | pago | vencido | estornado | cancelado
   invoice_url: string | null;
   data_pagamento: string | null;
+  created_at?: string | null;
 }
 
 export interface AsaasAssinatura {
@@ -93,7 +95,7 @@ export function useCobrancas() {
     }
   };
 
-  const criarAvulsa = async (payload: { cliente_id: string; valor: number; vencimento: string; descricao?: string; forma_pagamento: string; multa_percent?: number; juros_percent?: number }) => {
+  const criarAvulsa = async (payload: { cliente_id: string; valor: number; vencimento: string; descricao?: string; forma_pagamento: string; conta_id?: string | null; multa_percent?: number; juros_percent?: number }) => {
     setBusyId('avulsa');
     try {
       const d = await invoke({ action: 'criar-avulsa', ...payload });

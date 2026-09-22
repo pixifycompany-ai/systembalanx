@@ -16,6 +16,7 @@ import Despesas from "./pages/Despesas";
 import FluxoCaixa from "./pages/FluxoCaixa";
 import Clientes from "./pages/Clientes";
 import Contratos from "./pages/Contratos";
+import Cobrancas from "./pages/Cobrancas";
 import Calendario from "./pages/Calendario";
 import Relatorios from "./pages/Relatorios";
 import Categorias from "./pages/Categorias";
@@ -81,6 +82,7 @@ const App = () => (
               <Route path="/despesas" element={<ProtectedRoute><AppLayout><Despesas /></AppLayout></ProtectedRoute>} />
               <Route path="/clientes" element={<ProtectedRoute><AppLayout><Clientes /></AppLayout></ProtectedRoute>} />
               <Route path="/contratos" element={<ProtectedRoute><AppLayout><Contratos /></AppLayout></ProtectedRoute>} />
+              <Route path="/cobrancas" element={<ProtectedRoute><AppLayout><Cobrancas /></AppLayout></ProtectedRoute>} />
               <Route path="/categorias" element={<ProtectedRoute><AppLayout><Categorias /></AppLayout></ProtectedRoute>} />
               <Route path="/contas" element={<ProtectedRoute><AppLayout><Contas /></AppLayout></ProtectedRoute>} />
               <Route path="/perfil" element={<ProtectedRoute><AppLayout><MeuPerfil /></AppLayout></ProtectedRoute>} />

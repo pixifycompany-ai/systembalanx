@@ -4,7 +4,7 @@ import {
   HomeIcon, DocumentTextIcon, ChartBarIcon, Squares2X2Icon, PlusIcon,
   WalletIcon, CalendarDaysIcon, DocumentChartBarIcon, PresentationChartLineIcon,
   UsersIcon, TagIcon, Cog6ToothIcon, ChevronRightIcon, MoonIcon,
-  ArrowUpIcon, ArrowDownIcon, ArrowsRightLeftIcon,
+  ArrowUpIcon, ArrowDownIcon, ArrowsRightLeftIcon, BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeSolid, DocumentTextIcon as DocumentSolid,
@@ -48,6 +48,7 @@ const moreSections = [
     items: [
       { href: '/clientes', label: 'Clientes', icon: UsersIcon },
       { href: '/contratos', label: 'Contratos', icon: DocumentTextIcon },
+      { href: '/cobrancas', label: 'Cobranças', icon: BanknotesIcon },
     ],
   },
   {
@@ -66,6 +67,7 @@ const allMoreHrefs = moreSections.flatMap(s => s.items.map(i => i.href));
 type FabAction = { kind: 'sheet' } | { kind: 'nav'; label: string; to: string };
 function fabForPath(pathname: string): FabAction {
   if (pathname.startsWith('/contratos')) return { kind: 'nav', label: 'Novo contrato', to: '/contratos?action=novo' };
+  if (pathname.startsWith('/cobrancas')) return { kind: 'nav', label: 'Nova cobrança', to: '/cobrancas?action=novo' };
   if (pathname.startsWith('/clientes')) return { kind: 'nav', label: 'Novo cliente', to: '/clientes?action=novo' };
   if (pathname.startsWith('/categorias')) return { kind: 'nav', label: 'Nova categoria', to: '/categorias?action=novo' };
   if (pathname.startsWith('/contas')) return { kind: 'nav', label: 'Nova conta', to: '/contas?action=novo' };
