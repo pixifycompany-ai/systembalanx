@@ -19,6 +19,17 @@ export interface Cobranca {
   data_pagamento: string | null;
 }
 
+export interface AsaasAssinatura {
+  id: string;
+  value: number;
+  cycle: string;
+  description: string | null;
+  status: string;
+  nextDueDate: string | null;
+  billingType: string;
+  vinculada: boolean;
+}
+
 export function useCobrancas() {
   const [cobrancas, setCobrancas] = useState<Cobranca[]>([]);
   const [loading, setLoading] = useState(false);
@@ -52,6 +63,31 @@ export function useCobrancas() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao criar cobrança');
       return null;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const listarAssinaturas = async (cliente_id?: string): Promise<AsaasAssinatura[]> => {
+    try {
+      const d = await invoke({ action: 'listar-assinaturas', cliente_id });
+      return ((d as { assinaturas?: AsaasAssinatura[] })?.assinaturas) || [];
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao listar assinaturas');
+      return [];
+    }
+  };
+
+  const vincularAssinatura = async (contrato_id: string, asaas_subscription_id: string, conta_id?: string | null) => {
+    setBusyId(contrato_id);
+    try {
+      await invoke({ action: 'vincular-assinatura', contrato_id, asaas_subscription_id, conta_id: conta_id || null });
+      toast.success('Assinatura vinculada!', { description: 'Valor do contrato atualizado pelo Asaas.' });
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao vincular');
+      return false;
     } finally {
       setBusyId(null);
     }
@@ -120,7 +156,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, cancelar, excluir, sincronizar, reload: load };
+  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, cancelar, excluir, sincronizar, reload: load };
 }
 
 export const COBRANCA_STATUS_LABEL: Record<string, { label: string; tone: 'success' | 'warning' | 'danger' | 'muted' }> = {

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, ExternalLink, RefreshCw, XCircle, Trash2, Zap } from 'lucide-react';
+import { Loader2, ExternalLink, RefreshCw, XCircle, Trash2, Zap, Link2, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { COBRANCA_STATUS_LABEL, type Cobranca } from '@/hooks/useCobrancas';
+import { formatCurrency } from '@/utils/formatters';
+import { COBRANCA_STATUS_LABEL, type Cobranca, type AsaasAssinatura } from '@/hooks/useCobrancas';
 
 const FORMAS: { value: string; label: string }[] = [
   { value: 'UNDEFINED', label: 'Cliente escolhe' },
@@ -24,56 +25,104 @@ interface Props {
   busy?: boolean;
   contas: { id: string; nome: string; cor?: string | null }[];
   onCobrar: (forma: string, contaId: string | null) => void;
+  onListarAssinaturas: () => Promise<AsaasAssinatura[]>;
+  onVincular: (subId: string, contaId: string | null) => void;
   onCancelar: () => void;
   onExcluir: () => void;
   onSincronizar: () => void;
 }
 
-export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCobrar, onCancelar, onExcluir, onSincronizar }: Props) {
+export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCobrar, onListarAssinaturas, onVincular, onCancelar, onExcluir, onSincronizar }: Props) {
   const [forma, setForma] = useState('UNDEFINED');
   const [contaId, setContaId] = useState('');
+  const [mode, setMode] = useState<'criar' | 'vincular'>('criar');
+  const [assinaturas, setAssinaturas] = useState<AsaasAssinatura[] | null>(null);
+  const [loadingList, setLoadingList] = useState(false);
+
+  const abrirVincular = async () => {
+    setMode('vincular');
+    setLoadingList(true);
+    const list = await onListarAssinaturas();
+    setAssinaturas(list);
+    setLoadingList(false);
+  };
 
   if (busy) {
     return <span className="inline-flex items-center gap-1.5 text-xs text-foreground-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> …</span>;
   }
 
-  // Sem cobrança → escolher forma + conta e criar
+  const contaSelect = (
+    <select
+      value={contaId}
+      onChange={(e) => setContaId(e.target.value)}
+      className="w-full rounded-lg border border-border/60 bg-surface/60 px-2.5 py-2 text-sm text-foreground outline-none focus:border-border-strong"
+    >
+      <option value="">Sem conta (defino depois)</option>
+      {contas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+    </select>
+  );
+
+  // Sem cobrança → criar nova OU vincular existente
   if (!cobranca) {
     return (
-      <Popover>
+      <Popover onOpenChange={(o) => { if (!o) { setMode('criar'); setAssinaturas(null); } }}>
         <PopoverTrigger asChild>
           <button className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-surface/60 px-2.5 py-1.5 text-xs font-semibold text-foreground backdrop-blur-xl transition-colors hover:bg-surface-2">
             <Zap className="h-3.5 w-3.5 text-primary" /> Cobrar via Asaas
           </button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-64 p-3 rounded-xl border border-border/60 bg-surface/95 backdrop-blur-2xl">
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Forma de pagamento</p>
-          <div className="grid grid-cols-2 gap-1.5">
-            {FORMAS.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => setForma(f.value)}
-                className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', forma === f.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}
-              >
-                {f.label}
+          {mode === 'criar' ? (
+            <>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Forma de pagamento</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {FORMAS.map((f) => (
+                  <button key={f.value} onClick={() => setForma(f.value)} className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', forma === f.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Conta (recebimento)</p>
+              {contaSelect}
+              <button onClick={() => onCobrar(forma, contaId || null)} className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white transition-transform active:scale-[0.99]">
+                Criar cobrança nova
               </button>
-            ))}
-          </div>
-          <p className="mt-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Conta (recebimento)</p>
-          <select
-            value={contaId}
-            onChange={(e) => setContaId(e.target.value)}
-            className="w-full rounded-lg border border-border/60 bg-surface/60 px-2.5 py-2 text-sm text-foreground outline-none focus:border-border-strong"
-          >
-            <option value="">Sem conta (defino depois)</option>
-            {contas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </select>
-          <button
-            onClick={() => onCobrar(forma, contaId || null)}
-            className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white transition-transform active:scale-[0.99]"
-          >
-            Criar cobrança
-          </button>
+              <button onClick={abrirVincular} className="mt-2 flex w-full items-center justify-center gap-1.5 text-[11px] font-medium text-primary hover:underline">
+                <Link2 className="h-3.5 w-3.5" /> Já existe no Asaas? Vincular
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setMode('criar')} className="mb-2 flex items-center gap-1 text-[11px] font-medium text-foreground-muted hover:text-foreground">
+                <ChevronLeft className="h-3.5 w-3.5" /> Voltar
+              </button>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Conta (recebimento)</p>
+              {contaSelect}
+              <p className="mt-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Assinaturas no Asaas</p>
+              {loadingList ? (
+                <div className="flex items-center gap-2 py-3 text-xs text-foreground-muted"><Loader2 className="h-4 w-4 animate-spin" /> Buscando…</div>
+              ) : !assinaturas || assinaturas.length === 0 ? (
+                <p className="py-2 text-xs text-foreground-muted">Nenhuma assinatura encontrada pra este cliente no Asaas.</p>
+              ) : (
+                <div className="max-h-52 space-y-1 overflow-y-auto">
+                  {assinaturas.map((s) => (
+                    <button
+                      key={s.id}
+                      disabled={s.vinculada}
+                      onClick={() => onVincular(s.id, contaId || null)}
+                      className={cn('w-full rounded-lg border border-border/60 bg-surface/60 px-2.5 py-2 text-left transition-colors', s.vinculada ? 'opacity-50 cursor-not-allowed' : 'hover:bg-surface-2')}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-foreground">{formatCurrency(Number(s.value))}</span>
+                        <span className="text-[10px] text-foreground-muted">{s.vinculada ? 'já vinculada' : (s.nextDueDate || '')}</span>
+                      </div>
+                      <div className="truncate text-[11px] text-foreground-muted">{s.description || 'Sem descrição'}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </PopoverContent>
       </Popover>
     );

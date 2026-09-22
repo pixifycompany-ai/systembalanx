@@ -203,6 +203,75 @@ serve(async (req) => {
       return json({ ok: true, cobranca: cob, invoiceUrl: pay.invoiceUrl ?? null });
     }
 
+    // ===== LISTAR ASSINATURAS existentes no Asaas (do cliente) =====
+    if (action === "listar-assinaturas") {
+      const { cliente_id } = body;
+      let customerId: string | null = null;
+      if (cliente_id) {
+        const { data: cli } = await admin.from("clientes").select("asaas_customer_id, cpf_cnpj").eq("id", cliente_id).eq("user_id", user.id).maybeSingle();
+        customerId = (cli?.asaas_customer_id as string) ?? null;
+        if (!customerId && cli?.cpf_cnpj) {
+          const cpf = String(cli.cpf_cnpj).replace(/\D/g, "");
+          if (cpf) {
+            const cr = await fetch(`${base}/customers?cpfCnpj=${cpf}`, { headers });
+            const cj = await cr.json();
+            customerId = cj?.data?.[0]?.id ?? null;
+            if (customerId) await admin.from("clientes").update({ asaas_customer_id: customerId }).eq("id", cliente_id);
+          }
+        }
+      }
+      const url = customerId ? `${base}/subscriptions?customer=${customerId}&limit=100` : `${base}/subscriptions?limit=100`;
+      const r = await fetch(url, { headers });
+      const j = await r.json();
+      if (!r.ok) return json({ error: j?.errors?.[0]?.description || "Erro ao listar assinaturas." }, 400);
+      const subs = (j?.data || []).map((s: any) => ({ id: s.id, value: s.value, cycle: s.cycle, description: s.description, status: s.status, nextDueDate: s.nextDueDate, billingType: s.billingType }));
+      const ids = subs.map((s: any) => s.id);
+      const { data: usadas } = await admin.from("contratos").select("asaas_subscription_id").eq("user_id", user.id).in("asaas_subscription_id", ids.length ? ids : ["-"]);
+      const usadasSet = new Set((usadas || []).map((u: any) => u.asaas_subscription_id));
+      return json({ ok: true, assinaturas: subs.map((s: any) => ({ ...s, vinculada: usadasSet.has(s.id) })) });
+    }
+
+    // ===== VINCULAR assinatura existente a um contrato =====
+    if (action === "vincular-assinatura") {
+      const { contrato_id, asaas_subscription_id, conta_id } = body;
+      const { data: contrato } = await admin.from("contratos").select("*").eq("id", contrato_id).eq("user_id", user.id).maybeSingle();
+      if (!contrato) return json({ error: "Contrato não encontrado." }, 404);
+      if (contrato.asaas_subscription_id) return json({ error: "Este contrato já tem cobrança vinculada." }, 400);
+
+      const sr = await fetch(`${base}/subscriptions/${asaas_subscription_id}`, { headers });
+      const sub = await sr.json();
+      if (!sr.ok) return json({ error: sub?.errors?.[0]?.description || "Assinatura não encontrada no Asaas." }, 400);
+
+      // Vincula + puxa o valor do Asaas pro contrato
+      await admin.from("contratos").update({ asaas_subscription_id: sub.id, valor: Number(sub.value) }).eq("id", contrato.id);
+      if (contrato.cliente_id && sub.customer) {
+        await admin.from("clientes").update({ asaas_customer_id: sub.customer }).eq("id", contrato.cliente_id).is("asaas_customer_id", null);
+      }
+
+      // Próxima cobrança em aberto vira receita "a receber"
+      let pay: any = null;
+      try {
+        const pr = await fetch(`${base}/subscriptions/${sub.id}/payments`, { headers });
+        const pj = await pr.json();
+        const pays = pj?.data || [];
+        pay = pays.find((p: any) => ["PENDING", "OVERDUE", "AWAITING_RISK_ANALYSIS"].includes(p.status)) || pays[0] || null;
+      } catch (_) { /* ignore */ }
+
+      if (pay) {
+        const { data: existe } = await admin.from("cobrancas").select("id").eq("asaas_payment_id", pay.id).eq("user_id", user.id).maybeSingle();
+        if (!existe) {
+          await registrar({
+            cliente_id: contrato.cliente_id, contrato_id: contrato.id, conta_id: conta_id || null, tipo: "recorrente",
+            asaas_payment_id: pay.id, asaas_subscription_id: sub.id,
+            descricao: contrato.descricao || sub.description || "Assinatura", valor: Number(pay.value),
+            vencimento: pay.dueDate, forma: pay.billingType || sub.billingType || "UNDEFINED",
+            status: mapStatus(pay.status), invoice_url: pay.invoiceUrl ?? null,
+          });
+        }
+      }
+      return json({ ok: true, valor: Number(sub.value) });
+    }
+
     // ===== CANCELAR / EXCLUIR (some no Asaas também) =====
     if (action === "cancelar" || action === "excluir") {
       const { cobranca_id } = body;
