@@ -53,10 +53,10 @@ export function useCobrancas() {
     return data;
   };
 
-  const criarDoContrato = async (contrato_id: string, forma_pagamento: string, conta_id?: string | null) => {
+  const criarDoContrato = async (contrato_id: string, forma_pagamento: string, conta_id?: string | null, extra?: { multa_percent?: number; juros_percent?: number }) => {
     setBusyId(contrato_id);
     try {
-      const d = await invoke({ action: 'criar-contrato', contrato_id, forma_pagamento, conta_id: conta_id || null });
+      const d = await invoke({ action: 'criar-contrato', contrato_id, forma_pagamento, conta_id: conta_id || null, multa_percent: extra?.multa_percent || 0, juros_percent: extra?.juros_percent || 0 });
       toast.success('Cobrança criada no Asaas!', { description: 'Receita "a receber" lançada no financeiro.' });
       await load();
       return d;
@@ -93,7 +93,7 @@ export function useCobrancas() {
     }
   };
 
-  const criarAvulsa = async (payload: { cliente_id: string; valor: number; vencimento: string; descricao?: string; forma_pagamento: string }) => {
+  const criarAvulsa = async (payload: { cliente_id: string; valor: number; vencimento: string; descricao?: string; forma_pagamento: string; multa_percent?: number; juros_percent?: number }) => {
     setBusyId('avulsa');
     try {
       const d = await invoke({ action: 'criar-avulsa', ...payload });

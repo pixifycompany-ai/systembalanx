@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Loader2, ExternalLink, RefreshCw, XCircle, Trash2, Zap, Link2, ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -24,7 +25,7 @@ interface Props {
   cobranca?: Cobranca;
   busy?: boolean;
   contas: { id: string; nome: string; cor?: string | null }[];
-  onCobrar: (forma: string, contaId: string | null) => void;
+  onCobrar: (forma: string, contaId: string | null, extra: { multa_percent: number; juros_percent: number }) => void;
   onListarAssinaturas: () => Promise<AsaasAssinatura[]>;
   onVincular: (subId: string, contaId: string | null) => void;
   onCancelar: () => void;
@@ -35,6 +36,8 @@ interface Props {
 export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCobrar, onListarAssinaturas, onVincular, onCancelar, onExcluir, onSincronizar }: Props) {
   const [forma, setForma] = useState('UNDEFINED');
   const [contaId, setContaId] = useState('');
+  const [multa, setMulta] = useState('');
+  const [juros, setJuros] = useState('');
   const [mode, setMode] = useState<'criar' | 'vincular'>('criar');
   const [assinaturas, setAssinaturas] = useState<AsaasAssinatura[] | null>(null);
   const [loadingList, setLoadingList] = useState(false);
@@ -84,7 +87,17 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
               </div>
               <p className="mt-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Conta (recebimento)</p>
               {contaSelect}
-              <button onClick={() => onCobrar(forma, contaId || null)} className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white transition-transform active:scale-[0.99]">
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div>
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-foreground-muted">Multa atraso %</p>
+                  <Input type="number" step="0.01" min="0" value={multa} onChange={(e) => setMulta(e.target.value)} placeholder="0" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-foreground-muted">Juros/mês %</p>
+                  <Input type="number" step="0.01" min="0" value={juros} onChange={(e) => setJuros(e.target.value)} placeholder="0" className="h-9 text-sm" />
+                </div>
+              </div>
+              <button onClick={() => onCobrar(forma, contaId || null, { multa_percent: parseFloat(multa) || 0, juros_percent: parseFloat(juros) || 0 })} className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white transition-transform active:scale-[0.99]">
                 Criar cobrança nova
               </button>
               <button onClick={abrirVincular} className="mt-2 flex w-full items-center justify-center gap-1.5 text-[11px] font-medium text-primary hover:underline">

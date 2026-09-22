@@ -38,7 +38,8 @@ import { useContas } from '@/hooks/useContas';
 import { ContratoCobrancaCell } from '@/components/contratos/ContratoCobrancaCell';
 import { useContratoParcelas, gerarParcelas, type ParcelaFormData } from '@/hooks/useContratoParcelas';
 import { useClientes } from '@/hooks/useClientes';
-import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X, Zap } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { ContractImportDialog } from '@/components/import/ContractImportDialog';
 import { useContratoAditivos, type AditivoFormData } from '@/hooks/useContratoAditivos';
@@ -81,6 +82,12 @@ export default function Contratos() {
     () => contas.filter((c) => c.ativa && c.tipo !== 'cartao_credito').map((c) => ({ id: c.id, nome: c.nome, cor: c.cor })),
     [contas],
   );
+  // Criar a cobrança no Asaas junto com o contrato (opcional)
+  const [novoContratoCobranca, setNovoContratoCobranca] = useState(false);
+  const [ncForma, setNcForma] = useState('UNDEFINED');
+  const [ncConta, setNcConta] = useState('');
+  const [ncMulta, setNcMulta] = useState('');
+  const [ncJuros, setNcJuros] = useState('');
   // Cobrança recorrente via Asaas (por contrato)
   const {
     byContrato,
@@ -366,8 +373,19 @@ export default function Contratos() {
       await createParcelas(contratoResult.id, parcelas);
     }
 
+    // Já criar a cobrança recorrente no Asaas junto com o contrato (opcional)
+    if (contratoResult && !editingContrato && novoContratoCobranca && formData.recorrencia !== 'unico') {
+      await criarCobranca(contratoResult.id, ncForma, ncConta || null, {
+        multa_percent: parseFloat(ncMulta) || 0,
+        juros_percent: parseFloat(ncJuros) || 0,
+      });
+    }
+
     setModalOpen(false);
     setIsSaving(false);
+    setNovoContratoCobranca(false);
+    setNcForma('UNDEFINED');
+    setNcConta('');
   };
 
   // Handle form submit
@@ -566,7 +584,7 @@ export default function Contratos() {
                 cobranca={byContrato.get(c.id)}
                 busy={cobrBusyId === c.id || cobrBusyId === byContrato.get(c.id)?.id}
                 contas={contasRecebimento}
-                onCobrar={(forma, contaId) => criarCobranca(c.id, forma, contaId)}
+                onCobrar={(forma, contaId, extra) => criarCobranca(c.id, forma, contaId, extra)}
                 onListarAssinaturas={() => listarAssinaturas(c.cliente_id)}
                 onVincular={async (subId, contaId) => { await vincularAssinatura(c.id, subId, contaId); refetchContratos(); }}
                 onCancelar={() => { const cb = byContrato.get(c.id); if (cb) cancelarCobranca(cb.id); }}
@@ -644,7 +662,7 @@ export default function Contratos() {
                           cobranca={byContrato.get(contrato.id)}
                           busy={cobrBusyId === contrato.id || cobrBusyId === byContrato.get(contrato.id)?.id}
                           contas={contasRecebimento}
-                          onCobrar={(forma, contaId) => criarCobranca(contrato.id, forma, contaId)}
+                          onCobrar={(forma, contaId, extra) => criarCobranca(contrato.id, forma, contaId, extra)}
                           onListarAssinaturas={() => listarAssinaturas(contrato.cliente_id)}
                           onVincular={async (subId, contaId) => { await vincularAssinatura(contrato.id, subId, contaId); refetchContratos(); }}
                           onCancelar={() => { const c = byContrato.get(contrato.id); if (c) cancelarCobranca(c.id); }}
@@ -917,6 +935,42 @@ export default function Contratos() {
                   <p className="text-xs text-muted-foreground">
                     Data efetiva de encerramento/cancelamento. Se não informada, será usada a data atual.
                   </p>
+                </div>
+              )}
+
+              {/* Criar cobrança no Asaas junto com o contrato (só na criação, recorrente) */}
+              {!editingContrato && formData.recorrencia !== 'unico' && (
+                <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/[0.05] p-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2 text-sm font-semibold">
+                      <Zap className="h-4 w-4 text-primary" /> Criar cobrança no Asaas
+                    </Label>
+                    <Switch checked={novoContratoCobranca} onCheckedChange={setNovoContratoCobranca} />
+                  </div>
+                  {novoContratoCobranca && (
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs">Forma de pagamento</Label>
+                        <div className="mt-1 grid grid-cols-2 gap-1.5">
+                          {[['UNDEFINED', 'Cliente escolhe'], ['PIX', 'Pix'], ['BOLETO', 'Boleto'], ['CREDIT_CARD', 'Cartão']].map(([v, l]) => (
+                            <button key={v} type="button" onClick={() => setNcForma(v)} className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', ncForma === v ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>{l}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Conta de recebimento</Label>
+                        <select value={ncConta} onChange={(e) => setNcConta(e.target.value)} className="mt-1 w-full rounded-lg border border-border/60 bg-surface/60 px-2.5 py-2 text-sm text-foreground outline-none">
+                          <option value="">Sem conta (defino depois)</option>
+                          {contasRecebimento.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><Label className="text-xs">Multa atraso (%)</Label><Input type="number" step="0.01" min="0" value={ncMulta} onChange={(e) => setNcMulta(e.target.value)} placeholder="0" className="mt-1" /></div>
+                        <div><Label className="text-xs">Juros ao mês (%)</Label><Input type="number" step="0.01" min="0" value={ncJuros} onChange={(e) => setNcJuros(e.target.value)} placeholder="0" className="mt-1" /></div>
+                      </div>
+                      <p className="text-[11px] text-foreground-muted">Cria a assinatura no Asaas e lança a receita a receber. Multa/juros só incidem se atrasar.</p>
+                    </div>
+                  )}
                 </div>
               )}
 

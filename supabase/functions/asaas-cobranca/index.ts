@@ -52,6 +52,16 @@ function cicloAsaas(recorrencia: string): string {
   }
 }
 
+// Multa (fine) e juros ao mês (interest) por atraso — só entram se > 0.
+function multaJuros(body: any) {
+  const multa = Number(body?.multa_percent) || 0;
+  const juros = Number(body?.juros_percent) || 0;
+  const extra: Record<string, unknown> = {};
+  if (multa > 0) extra.fine = { value: multa, type: "PERCENTAGE" };
+  if (juros > 0) extra.interest = { value: juros };
+  return extra;
+}
+
 // Próxima data de vencimento a partir do dia (1..31), no formato YYYY-MM-DD.
 function proximoVencimento(dia: number): string {
   const hoje = new Date();
@@ -93,7 +103,8 @@ serve(async (req) => {
       const res = await fetch(`${base}/customers`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ name: cli.nome, cpfCnpj: cpf || undefined, email: cli.email || undefined, externalReference: cli.id }),
+        // notificationDisabled: true → Asaas NÃO manda email/SMS/WhatsApp. Usamos só o link.
+        body: JSON.stringify({ name: cli.nome, cpfCnpj: cpf || undefined, email: cli.email || undefined, externalReference: cli.id, notificationDisabled: true }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j?.errors?.[0]?.description || "Erro ao criar cliente no Asaas.");
@@ -159,6 +170,7 @@ serve(async (req) => {
           cycle: cicloAsaas(contrato.recorrencia),
           description: contrato.descricao || "Assinatura",
           externalReference: contrato.id,
+          ...multaJuros(body),
         }),
       });
       const sub = await subRes.json();
@@ -206,6 +218,7 @@ serve(async (req) => {
           dueDate: vencimento,
           description: descricao || "Cobrança",
           externalReference: cliente_id,
+          ...multaJuros(body),
         }),
       });
       const pay = await payRes.json();
@@ -262,6 +275,10 @@ serve(async (req) => {
       await admin.from("contratos").update({ asaas_subscription_id: sub.id, valor: Number(sub.value) }).eq("id", contrato.id);
       if (contrato.cliente_id && sub.customer) {
         await admin.from("clientes").update({ asaas_customer_id: sub.customer }).eq("id", contrato.cliente_id).is("asaas_customer_id", null);
+      }
+      // Desliga as notificações do Asaas pra esse cliente (email/SMS/WhatsApp)
+      if (sub.customer) {
+        await fetch(`${base}/customers/${sub.customer}`, { method: "POST", headers, body: JSON.stringify({ notificationDisabled: true }) }).catch(() => {});
       }
 
       // Próxima cobrança em aberto vira receita "a receber"
