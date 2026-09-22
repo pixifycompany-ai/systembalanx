@@ -36,6 +36,22 @@ function mapStatus(s: string): string {
 }
 const isPago = (s: string) => ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(s);
 
+// Recorrência do contrato -> cycle do Asaas.
+// Asaas aceita: WEEKLY(7d), BIWEEKLY(15d), MONTHLY, BIMONTHLY, QUARTERLY, SEMIANNUALLY, YEARLY.
+// Intervalos arbitrários (21d, 28d...) NÃO existem como cycle nativo.
+function cicloAsaas(recorrencia: string): string {
+  switch (recorrencia) {
+    case "semanal": return "WEEKLY";
+    case "quinzenal": return "BIWEEKLY";
+    case "mensal": return "MONTHLY";
+    case "bimestral": return "BIMONTHLY";
+    case "trimestral": return "QUARTERLY";
+    case "semestral": return "SEMIANNUALLY";
+    case "anual": return "YEARLY";
+    default: return "MONTHLY";
+  }
+}
+
 // Próxima data de vencimento a partir do dia (1..31), no formato YYYY-MM-DD.
 function proximoVencimento(dia: number): string {
   const hoje = new Date();
@@ -140,7 +156,7 @@ serve(async (req) => {
           billingType: forma,
           value: Number(contrato.valor),
           nextDueDate,
-          cycle: "MONTHLY",
+          cycle: cicloAsaas(contrato.recorrencia),
           description: contrato.descricao || "Assinatura",
           externalReference: contrato.id,
         }),
