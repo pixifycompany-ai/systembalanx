@@ -33,12 +33,12 @@ import { formatCurrency, formatDate } from '@/utils/formatters';
 import { exportContratos } from '@/utils/exportCSV';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
 import { useContratos, type ContratoFormData } from '@/hooks/useContratos';
-import { useCobrancas } from '@/hooks/useCobrancas';
+import { useCobrancas, preencherTemplate, type Cobranca } from '@/hooks/useCobrancas';
 import { useContas } from '@/hooks/useContas';
 import { ContratoCobrancaCell } from '@/components/contratos/ContratoCobrancaCell';
 import { useContratoParcelas, gerarParcelas, type ParcelaFormData } from '@/hooks/useContratoParcelas';
 import { useClientes } from '@/hooks/useClientes';
-import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X, Zap, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X, Zap, ChevronUp, ChevronDown, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { ContractImportDialog } from '@/components/import/ContractImportDialog';
@@ -102,7 +102,34 @@ export default function Contratos() {
     cancelar: cancelarCobranca,
     excluir: excluirCobranca,
     sincronizar: sincronizarCobrancas,
+    enviarWhatsapp,
+    whatsappTemplate,
   } = useCobrancas();
+
+  // WhatsApp da cobrança (mensagem editável antes de enviar)
+  const [whatsappOpen, setWhatsappOpen] = useState(false);
+  const [whatsappTel, setWhatsappTel] = useState('');
+  const [whatsappText, setWhatsappText] = useState('');
+  const [whatsappSending, setWhatsappSending] = useState(false);
+  const openWhatsapp = (cob?: Cobranca) => {
+    if (!cob) return;
+    const cli = clientes.find((c) => c.id === cob.cliente_id);
+    setWhatsappTel(cli?.telefone || '');
+    setWhatsappText(preencherTemplate(whatsappTemplate, {
+      cliente: cli?.nome || 'cliente',
+      descricao: cob.descricao || 'cobrança',
+      valor: formatCurrency(Number(cob.valor)),
+      vencimento: formatDate(cob.vencimento),
+      link: cob.invoice_url || '',
+    }));
+    setWhatsappOpen(true);
+  };
+  const handleEnviarWhatsapp = async () => {
+    setWhatsappSending(true);
+    const ok = await enviarWhatsapp(whatsappTel, whatsappText);
+    setWhatsappSending(false);
+    if (ok) setWhatsappOpen(false);
+  };
   // Criar cliente inline dentro do formulário de contrato
   const [novoClienteOpen, setNovoClienteOpen] = useState(false);
   const [novoClienteNome, setNovoClienteNome] = useState('');
@@ -619,6 +646,7 @@ export default function Contratos() {
                 onCancelar={() => { const cb = byContrato.get(c.id); if (cb) cancelarCobranca(cb.id); }}
                 onExcluir={() => { const cb = byContrato.get(c.id); if (cb) excluirCobranca(cb.id); }}
                 onSincronizar={() => sincronizarCobrancas(c.id)}
+                onWhatsapp={() => openWhatsapp(byContrato.get(c.id))}
               />
             )}
           />
@@ -697,6 +725,7 @@ export default function Contratos() {
                           onCancelar={() => { const c = byContrato.get(contrato.id); if (c) cancelarCobranca(c.id); }}
                           onExcluir={() => { const c = byContrato.get(contrato.id); if (c) excluirCobranca(c.id); }}
                           onSincronizar={() => sincronizarCobrancas(contrato.id)}
+                          onWhatsapp={() => openWhatsapp(byContrato.get(contrato.id))}
                         />
                       </td>
                       <td>
@@ -1174,6 +1203,34 @@ export default function Contratos() {
             // Refetch will happen automatically via React Query
           }}
         />
+
+        {/* Enviar cobrança por WhatsApp (mensagem editável) */}
+        <Sheet open={whatsappOpen} onOpenChange={setWhatsappOpen}>
+          <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.9] backdrop-blur-2xl sm:max-w-[520px] sm:mx-auto">
+            <div className="pb-1">
+              <div className="text-[11.5px] font-medium text-foreground-muted">Cobrança</div>
+              <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Enviar por WhatsApp</h2>
+            </div>
+            <div className="space-y-3 pt-3">
+              <div className="space-y-1.5">
+                <Label>WhatsApp do cliente</Label>
+                <Input value={whatsappTel} onChange={(e) => setWhatsappTel(e.target.value)} placeholder="(65) 99902-0102" />
+                <p className="text-[11px] text-foreground-muted">Vem do cadastro do cliente. Enviamos com DDI+DDD, sem o nono dígito.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Mensagem</Label>
+                <Textarea value={whatsappText} onChange={(e) => setWhatsappText(e.target.value)} rows={10} className="font-mono text-[13px] leading-relaxed" />
+                <p className="text-[11px] text-foreground-muted">Aceita *negrito*, _itálico_ e quebra de linha. Edite à vontade — o padrão vem de Meu Perfil.</p>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setWhatsappOpen(false)}>Cancelar</Button>
+                <Button className="flex-1" onClick={handleEnviarWhatsapp} disabled={whatsappSending || !whatsappTel.trim() || !whatsappText.trim()}>
+                  {whatsappSending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Enviar
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* Duplicate contract detection dialog */}
         <Dialog

@@ -162,6 +162,27 @@ export function useCobrancas() {
     }
   };
 
+  // Template do WhatsApp (editável em Meu Perfil)
+  const [whatsappTemplate, setWhatsappTemplate] = useState<string>('');
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any).from('cobranca_config').select('whatsapp_template').maybeSingle();
+      if (data?.whatsapp_template) setWhatsappTemplate(data.whatsapp_template);
+    })();
+  }, []);
+
+  const enviarWhatsapp = async (telefone: string, text: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-enviar', { body: { telefone, text } });
+      if (error || (data as { error?: string })?.error) throw new Error((data as { error?: string })?.error || error?.message || 'Falha ao enviar');
+      toast.success('WhatsApp enviado!');
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao enviar WhatsApp');
+      return false;
+    }
+  };
+
   // Cobrança (mais recente) por contrato, ignorando canceladas.
   const byContrato = useMemo(() => {
     const m = new Map<string, Cobranca>();
@@ -171,7 +192,19 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, reload: load };
+  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, enviarWhatsapp, whatsappTemplate, reload: load };
+}
+
+export const WHATSAPP_TEMPLATE_PADRAO =
+  'Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!';
+
+export function preencherTemplate(tpl: string, d: { cliente: string; descricao: string; valor: string; vencimento: string; link: string }): string {
+  return (tpl || WHATSAPP_TEMPLATE_PADRAO)
+    .replace(/\{cliente\}/g, d.cliente)
+    .replace(/\{descricao\}/g, d.descricao)
+    .replace(/\{valor\}/g, d.valor)
+    .replace(/\{vencimento\}/g, d.vencimento)
+    .replace(/\{link\}/g, d.link);
 }
 
 export const COBRANCA_STATUS_LABEL: Record<string, { label: string; tone: 'success' | 'warning' | 'danger' | 'muted' }> = {

@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { DetailSheet } from '@/components/shared/DetailSheet';
@@ -47,14 +48,31 @@ export default function MeuPerfil() {
   const [asaasConnecting, setAsaasConnecting] = useState(false);
   const [asaasStatus, setAsaasStatus] = useState<{ connected: boolean; accountName: string | null; env: string; webhookToken: string | null } | null>(null);
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-cobranca-webhook`;
+  const WHATSAPP_TPL_PADRAO = 'Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!';
+  const [whatsappTpl, setWhatsappTpl] = useState('');
+  const [savingTpl, setSavingTpl] = useState(false);
 
   const loadAsaasStatus = async () => {
     const { data } = await (supabase as any)
       .from('cobranca_config')
-      .select('asaas_account_name, asaas_env, webhook_token')
+      .select('asaas_account_name, asaas_env, webhook_token, whatsapp_template')
       .maybeSingle();
-    if (data) setAsaasStatus({ connected: true, accountName: data.asaas_account_name ?? null, env: data.asaas_env ?? 'production', webhookToken: data.webhook_token ?? null });
-    else setAsaasStatus({ connected: false, accountName: null, env: 'production', webhookToken: null });
+    if (data) {
+      setAsaasStatus({ connected: true, accountName: data.asaas_account_name ?? null, env: data.asaas_env ?? 'production', webhookToken: data.webhook_token ?? null });
+      setWhatsappTpl(data.whatsapp_template || WHATSAPP_TPL_PADRAO);
+    } else {
+      setAsaasStatus({ connected: false, accountName: null, env: 'production', webhookToken: null });
+      setWhatsappTpl(WHATSAPP_TPL_PADRAO);
+    }
+  };
+
+  const salvarWhatsappTpl = async () => {
+    if (!user) return;
+    setSavingTpl(true);
+    const { error } = await (supabase as any).from('cobranca_config').update({ whatsapp_template: whatsappTpl }).eq('user_id', user.id);
+    setSavingTpl(false);
+    if (error) toast.error('Erro ao salvar mensagem');
+    else toast.success('Mensagem padrão salva');
   };
   useEffect(() => { loadAsaasStatus(); }, []);
 
@@ -320,6 +338,16 @@ export default function MeuPerfil() {
                   <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(asaasStatus.webhookToken || ''); toast.success('Token copiado'); }}>Copiar</Button>
                 </div>
               </div>
+            </div>
+
+            {/* Mensagem padrão do WhatsApp */}
+            <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-2">
+              <p className="text-xs font-semibold text-foreground">Mensagem padrão do WhatsApp</p>
+              <p className="text-[11px] text-foreground-muted">Usada ao enviar a cobrança. Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{link}'}</b>. Aceita *negrito*, _itálico_ e quebra de linha.</p>
+              <Textarea value={whatsappTpl} onChange={(e) => setWhatsappTpl(e.target.value)} rows={8} className="font-mono text-[12px] leading-relaxed" />
+              <Button size="sm" className="w-full" onClick={salvarWhatsappTpl} disabled={savingTpl}>
+                {savingTpl && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar mensagem
+              </Button>
             </div>
 
             <Button variant="outline" className="w-full text-[hsl(var(--danger))]" onClick={handleDesconectarAsaas} disabled={asaasConnecting}>
