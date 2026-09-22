@@ -33,6 +33,8 @@ import { formatCurrency, formatDate } from '@/utils/formatters';
 import { exportContratos } from '@/utils/exportCSV';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
 import { useContratos, type ContratoFormData } from '@/hooks/useContratos';
+import { useCobrancas } from '@/hooks/useCobrancas';
+import { ContratoCobrancaCell } from '@/components/contratos/ContratoCobrancaCell';
 import { useContratoParcelas, gerarParcelas, type ParcelaFormData } from '@/hooks/useContratoParcelas';
 import { useClientes } from '@/hooks/useClientes';
 import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X } from 'lucide-react';
@@ -73,6 +75,16 @@ export default function Contratos() {
   
   const { createParcelas, deleteParcelas } = useContratoParcelas();
   const { clientes, createCliente } = useClientes();
+  // Cobrança recorrente via Asaas (por contrato)
+  const {
+    byContrato,
+    busyId: cobrBusyId,
+    loading: cobrLoading,
+    criarDoContrato: criarCobranca,
+    cancelar: cancelarCobranca,
+    excluir: excluirCobranca,
+    sincronizar: sincronizarCobrancas,
+  } = useCobrancas();
   // Criar cliente inline dentro do formulário de contrato
   const [novoClienteOpen, setNovoClienteOpen] = useState(false);
   const [novoClienteNome, setNovoClienteNome] = useState('');
@@ -442,6 +454,9 @@ export default function Contratos() {
           title="Contratos"
           actions={
             <>
+              <IconButton label="Sincronizar cobranças (Asaas)" onClick={() => sincronizarCobrancas()} disabled={cobrLoading}>
+                <RefreshCw className={cn('h-4 w-4', cobrLoading && 'animate-spin')} />
+              </IconButton>
               <IconButton label="Importar contrato (PDF)" onClick={() => setImportDialogOpen(true)}>
                 <Upload className="h-4 w-4" />
               </IconButton>
@@ -566,6 +581,7 @@ export default function Contratos() {
                     <th className="w-[140px] text-right">Valor</th>
                     <th className="hidden md:table-cell w-[120px]">Início</th>
                     <th className="w-[110px]">Status</th>
+                    <th className="w-[160px]">Cobrança</th>
                     <th className="w-[100px] text-right">Ações</th>
                   </tr>
                 </thead>
@@ -593,6 +609,17 @@ export default function Contratos() {
                       <td className="hidden md:table-cell">{formatDate(contrato.data_inicio)}</td>
                       <td>
                         <StatusBadge status={contrato.status} />
+                      </td>
+                      <td>
+                        <ContratoCobrancaCell
+                          contratoId={contrato.id}
+                          cobranca={byContrato.get(contrato.id)}
+                          busy={cobrBusyId === contrato.id || cobrBusyId === byContrato.get(contrato.id)?.id}
+                          onCobrar={(forma) => criarCobranca(contrato.id, forma)}
+                          onCancelar={() => { const c = byContrato.get(contrato.id); if (c) cancelarCobranca(c.id); }}
+                          onExcluir={() => { const c = byContrato.get(contrato.id); if (c) excluirCobranca(c.id); }}
+                          onSincronizar={() => sincronizarCobrancas(contrato.id)}
+                        />
                       </td>
                       <td>
                         <div className="flex items-center justify-end gap-1">
