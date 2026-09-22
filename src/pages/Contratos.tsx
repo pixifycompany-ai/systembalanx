@@ -568,7 +568,7 @@ export default function Contratos() {
                 contas={contasRecebimento}
                 onCobrar={(forma, contaId) => criarCobranca(c.id, forma, contaId)}
                 onListarAssinaturas={() => listarAssinaturas(c.cliente_id)}
-                onVincular={(subId, contaId) => vincularAssinatura(c.id, subId, contaId)}
+                onVincular={async (subId, contaId) => { await vincularAssinatura(c.id, subId, contaId); refetchContratos(); }}
                 onCancelar={() => { const cb = byContrato.get(c.id); if (cb) cancelarCobranca(cb.id); }}
                 onExcluir={() => { const cb = byContrato.get(c.id); if (cb) excluirCobranca(cb.id); }}
                 onSincronizar={() => sincronizarCobrancas(c.id)}
@@ -646,7 +646,7 @@ export default function Contratos() {
                           contas={contasRecebimento}
                           onCobrar={(forma, contaId) => criarCobranca(contrato.id, forma, contaId)}
                           onListarAssinaturas={() => listarAssinaturas(contrato.cliente_id)}
-                          onVincular={(subId, contaId) => vincularAssinatura(contrato.id, subId, contaId)}
+                          onVincular={async (subId, contaId) => { await vincularAssinatura(contrato.id, subId, contaId); refetchContratos(); }}
                           onCancelar={() => { const c = byContrato.get(contrato.id); if (c) cancelarCobranca(c.id); }}
                           onExcluir={() => { const c = byContrato.get(contrato.id); if (c) excluirCobranca(c.id); }}
                           onSincronizar={() => sincronizarCobrancas(contrato.id)}
