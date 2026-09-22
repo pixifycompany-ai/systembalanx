@@ -38,7 +38,7 @@ import { useContas } from '@/hooks/useContas';
 import { ContratoCobrancaCell } from '@/components/contratos/ContratoCobrancaCell';
 import { useContratoParcelas, gerarParcelas, type ParcelaFormData } from '@/hooks/useContratoParcelas';
 import { useClientes } from '@/hooks/useClientes';
-import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X, Zap } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X, Zap, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { ContractImportDialog } from '@/components/import/ContractImportDialog';
@@ -197,6 +197,33 @@ export default function Contratos() {
       return matchesStatus && matchesSearch;
     });
   }, [contratos, statusFilter, searchTerm]);
+
+  // Ordenação por coluna (clicando no cabeçalho)
+  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null);
+  const toggleSort = (key: string) => setSort((p) => (p?.key === key ? { key, dir: p.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
+  const sortedContratos = useMemo(() => {
+    if (!sort) return filteredContratos;
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const val = (c: any): string | number => {
+      switch (sort.key) {
+        case 'cliente': return (c.cliente?.nome || '').toLowerCase();
+        case 'descricao': return (c.descricao || '').toLowerCase();
+        case 'recorrencia': return c.recorrencia || '';
+        case 'valor': return Number(c.valor) || 0;
+        case 'inicio': return c.data_inicio || '';
+        case 'status': return c.status || '';
+        default: return '';
+      }
+    };
+    return [...filteredContratos].sort((a, b) => {
+      const va = val(a), vb = val(b);
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), 'pt-BR') * dir;
+    });
+  }, [filteredContratos, sort]);
+  const sortIcon = (key: string) => sort?.key === key
+    ? (sort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />)
+    : <ChevronsUpDown className="h-3.5 w-3.5 opacity-30" />;
 
   // Calculate totals using actual vigência (status + dates) so MRR matches reality
   const totals = useMemo(() => {
@@ -621,18 +648,18 @@ export default function Contratos() {
                         className={isSomeSelected ? 'data-[state=checked]:bg-primary/50' : ''}
                       />
                     </th>
-                    <th className="min-w-[240px]">Cliente</th>
-                    <th className="hidden md:table-cell min-w-[280px]">Descrição</th>
-                    <th className="hidden sm:table-cell w-[130px]">Recorrência</th>
-                    <th className="w-[140px] text-right">Valor</th>
-                    <th className="hidden md:table-cell w-[120px]">Início</th>
-                    <th className="w-[110px]">Status</th>
+                    <th className="min-w-[240px]"><button type="button" onClick={() => toggleSort('cliente')} className="inline-flex items-center gap-1 hover:text-foreground">Cliente {sortIcon('cliente')}</button></th>
+                    <th className="hidden md:table-cell min-w-[280px]"><button type="button" onClick={() => toggleSort('descricao')} className="inline-flex items-center gap-1 hover:text-foreground">Descrição {sortIcon('descricao')}</button></th>
+                    <th className="hidden sm:table-cell w-[130px]"><button type="button" onClick={() => toggleSort('recorrencia')} className="inline-flex items-center gap-1 hover:text-foreground">Recorrência {sortIcon('recorrencia')}</button></th>
+                    <th className="w-[140px] text-right"><button type="button" onClick={() => toggleSort('valor')} className="inline-flex items-center gap-1 ml-auto hover:text-foreground">Valor {sortIcon('valor')}</button></th>
+                    <th className="hidden md:table-cell w-[120px]"><button type="button" onClick={() => toggleSort('inicio')} className="inline-flex items-center gap-1 hover:text-foreground">Início {sortIcon('inicio')}</button></th>
+                    <th className="w-[110px]"><button type="button" onClick={() => toggleSort('status')} className="inline-flex items-center gap-1 hover:text-foreground">Status {sortIcon('status')}</button></th>
                     <th className="w-[160px]">Cobrança</th>
                     <th className="w-[100px] text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredContratos.map(contrato => (
+                  {sortedContratos.map(contrato => (
                     <tr key={contrato.id} className={cn(
                       contrato.recorrencia === 'mensal' && 'bg-primary/5',
                       isSelected(contrato.id) && 'ring-2 ring-primary'
