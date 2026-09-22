@@ -272,6 +272,33 @@ serve(async (req) => {
       return json({ ok: true, valor: Number(sub.value) });
     }
 
+    // ===== REAJUSTAR: muda o valor da assinatura E das faturas PENDENTES =====
+    if (action === "reajustar-assinatura") {
+      const { contrato_id, novo_valor } = body;
+      const valor = Number(novo_valor);
+      if (!valor || valor <= 0) return json({ error: "Valor inválido." }, 400);
+      const { data: contrato } = await admin.from("contratos").select("asaas_subscription_id").eq("id", contrato_id).eq("user_id", user.id).maybeSingle();
+      if (!contrato?.asaas_subscription_id) return json({ ok: true, updated: false });
+
+      // updatePendingPayments:true → Asaas atualiza a assinatura E as cobranças pendentes.
+      const r = await fetch(`${base}/subscriptions/${contrato.asaas_subscription_id}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ value: valor, updatePendingPayments: true }),
+      });
+      const j = await r.json();
+      if (!r.ok) return json({ error: j?.errors?.[0]?.description || "Erro ao reajustar no Asaas." }, 400);
+
+      // Reflete localmente: cobranças ainda em aberto + suas receitas a receber
+      const { data: cobs } = await admin.from("cobrancas").select("id, receita_id")
+        .eq("user_id", user.id).eq("asaas_subscription_id", contrato.asaas_subscription_id).in("status", ["pendente", "vencido"]);
+      for (const c of cobs || []) {
+        await admin.from("cobrancas").update({ valor, updated_at: new Date().toISOString() }).eq("id", c.id);
+        if (c.receita_id) await admin.from("receitas").update({ valor }).eq("id", c.receita_id).in("status", ["pendente", "atrasado"]);
+      }
+      return json({ ok: true, updated: true });
+    }
+
     // ===== CANCELAR / EXCLUIR (some no Asaas também) =====
     if (action === "cancelar" || action === "excluir") {
       const { cobranca_id } = body;

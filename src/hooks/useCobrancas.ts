@@ -108,6 +108,21 @@ export function useCobrancas() {
     }
   };
 
+  // Reajuste: atualiza o valor da assinatura + faturas pendentes no Asaas.
+  const reajustarAssinatura = async (contrato_id: string, novo_valor: number) => {
+    try {
+      const d = await invoke({ action: 'reajustar-assinatura', contrato_id, novo_valor });
+      if ((d as { updated?: boolean })?.updated) {
+        toast.success('Valor reajustado no Asaas', { description: 'Assinatura e faturas pendentes atualizadas.' });
+        await load();
+      }
+      return d;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao reajustar no Asaas');
+      return null;
+    }
+  };
+
   const cancelar = async (cobranca_id: string) => {
     setBusyId(cobranca_id);
     try {
@@ -156,7 +171,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, cancelar, excluir, sincronizar, reload: load };
+  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, reload: load };
 }
 
 export const COBRANCA_STATUS_LABEL: Record<string, { label: string; tone: 'success' | 'warning' | 'danger' | 'muted' }> = {

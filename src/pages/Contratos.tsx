@@ -89,6 +89,7 @@ export default function Contratos() {
     criarDoContrato: criarCobranca,
     listarAssinaturas,
     vincularAssinatura,
+    reajustarAssinatura,
     cancelar: cancelarCobranca,
     excluir: excluirCobranca,
     sincronizar: sincronizarCobrancas,
@@ -338,10 +339,15 @@ export default function Contratos() {
       }
     );
     if (success) {
+      const novoValor = parseFloat(aditivoData.valor_novo);
       setFormData(prev => ({ ...prev, valor: aditivoData.valor_novo }));
       setShowAditivoForm(false);
       setAditivoData({ valor_novo: '', data_vigencia: '', motivo: '' });
       refetchContratos();
+      // Se há cobrança Asaas vinculada, reajusta a assinatura + faturas pendentes lá também
+      if (byContrato.get(editingContratoId)) {
+        await reajustarAssinatura(editingContratoId, novoValor);
+      }
     }
     setIsSaving(false);
   };
