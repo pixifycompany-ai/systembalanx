@@ -1,4 +1,4 @@
-import { useState, useRef, ChangeEvent, ReactNode } from 'react';
+import { useState, useRef, useEffect, ChangeEvent, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
@@ -15,10 +15,11 @@ import { Loader2 } from 'lucide-react';
 import {
   EnvelopeIcon, LockClosedIcon, BellAlertIcon, PaperAirplaneIcon,
   ChevronRightIcon, ArrowRightOnRectangleIcon, CameraIcon, ArrowPathIcon,
+  CreditCardIcon, CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 
-type Sheet = null | 'nome' | 'email' | 'senha' | 'excluir';
+type Sheet = null | 'nome' | 'email' | 'senha' | 'excluir' | 'asaas';
 
 export default function MeuPerfil() {
   const { user, signOut } = useAuth();
@@ -39,6 +40,53 @@ export default function MeuPerfil() {
   const [pushSaving, setPushSaving] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+
+  // ===== Cobrança (Asaas) =====
+  const [asaasKey, setAsaasKey] = useState('');
+  const [asaasEnv, setAsaasEnv] = useState<'production' | 'sandbox'>('production');
+  const [asaasConnecting, setAsaasConnecting] = useState(false);
+  const [asaasStatus, setAsaasStatus] = useState<{ connected: boolean; accountName: string | null; env: string } | null>(null);
+
+  const loadAsaasStatus = async () => {
+    const { data } = await (supabase as any)
+      .from('cobranca_config')
+      .select('asaas_account_name, asaas_env')
+      .maybeSingle();
+    if (data) setAsaasStatus({ connected: true, accountName: data.asaas_account_name ?? null, env: data.asaas_env ?? 'production' });
+    else setAsaasStatus({ connected: false, accountName: null, env: 'production' });
+  };
+  useEffect(() => { loadAsaasStatus(); }, []);
+
+  const handleConectarAsaas = async () => {
+    if (!asaasKey.trim()) return;
+    setAsaasConnecting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('asaas-cobranca-conectar', {
+        body: { action: 'conectar', apiKey: asaasKey.trim(), env: asaasEnv },
+      });
+      if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message || 'Falha ao conectar');
+      toast.success('Asaas conectado!', { description: (data as any)?.accountName ? `Conta: ${(data as any).accountName}` : undefined });
+      setAsaasKey('');
+      await loadAsaasStatus();
+      setSheet(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao conectar');
+    } finally {
+      setAsaasConnecting(false);
+    }
+  };
+
+  const handleDesconectarAsaas = async () => {
+    setAsaasConnecting(true);
+    try {
+      await supabase.functions.invoke('asaas-cobranca-conectar', { body: { action: 'desconectar' } });
+      toast.success('Asaas desconectado');
+      await loadAsaasStatus();
+      setSheet(null);
+    } finally {
+      setAsaasConnecting(false);
+    }
+  };
 
   const handleExcluirConta = async () => {
     if (confirmText.trim().toUpperCase() !== 'EXCLUIR') return;
@@ -202,6 +250,20 @@ export default function MeuPerfil() {
         )}
       </SetGroup>
 
+      {/* Grupo: cobrança (Asaas) */}
+      <SetGroup>
+        <SetRow
+          icon={<CreditCardIcon className="h-[18px] w-[18px]" />}
+          title="Cobrança automática (Asaas)"
+          sub={asaasStatus?.connected
+            ? `Conectado${asaasStatus.accountName ? ` · ${asaasStatus.accountName}` : ''}${asaasStatus.env === 'sandbox' ? ' (sandbox)' : ''}`
+            : 'Conecte sua conta Asaas para cobrar seus clientes'}
+          right={asaasStatus?.connected ? <CheckCircleIcon className="h-5 w-5 text-[hsl(var(--success))]" /> : undefined}
+          onClick={() => setSheet('asaas')}
+          chevron
+        />
+      </SetGroup>
+
       {/* Sair */}
       <button
         onClick={() => signOut()}
@@ -227,6 +289,40 @@ export default function MeuPerfil() {
             {savingNome && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar
           </Button>
         </div>
+      </DetailSheet>
+
+      {/* Sheet: Cobrança (Asaas) */}
+      <DetailSheet open={sheet === 'asaas'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Cobrança" title="Conta Asaas">
+        {asaasStatus?.connected ? (
+          <div className="space-y-4 pb-2">
+            <div className="rounded-xl border border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-semibold text-[hsl(var(--success))]"><CheckCircleIcon className="h-4 w-4" /> Conectado</div>
+              <p className="mt-1 text-foreground-muted">{asaasStatus.accountName || 'Conta Asaas'} · {asaasStatus.env === 'sandbox' ? 'Sandbox (teste)' : 'Produção'}</p>
+            </div>
+            <p className="text-xs text-foreground-muted">As cobranças dos seus clientes vão pra ESTA conta Asaas — o dinheiro cai direto pra você.</p>
+            <Button variant="outline" className="w-full text-[hsl(var(--danger))]" onClick={handleDesconectarAsaas} disabled={asaasConnecting}>
+              {asaasConnecting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Desconectar
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3 pb-2">
+            <p className="text-xs text-foreground-muted">Cole a chave de API da sua conta Asaas. Ela fica guardada com segurança e é usada só pra criar as cobranças dos seus clientes — o dinheiro cai direto na sua conta.</p>
+            <Label>Ambiente</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['production', 'sandbox'] as const).map((e) => (
+                <button key={e} type="button" onClick={() => setAsaasEnv(e)} className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', asaasEnv === e ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
+                  {e === 'production' ? 'Produção' : 'Sandbox (teste)'}
+                </button>
+              ))}
+            </div>
+            <Label>Chave de API (access token)</Label>
+            <Input type="password" value={asaasKey} onChange={(e) => setAsaasKey(e.target.value)} placeholder="$aact_..." autoComplete="off" />
+            <Button className="w-full" onClick={handleConectarAsaas} disabled={asaasConnecting || !asaasKey.trim()}>
+              {asaasConnecting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Conectar e testar
+            </Button>
+            <p className="text-[11px] text-foreground-muted">Pegue a chave no Asaas → Configurações → Integrações → API. Comece no Sandbox pra testar sem cobrar de verdade.</p>
+          </div>
+        )}
       </DetailSheet>
 
       {/* Sheet: email */}
