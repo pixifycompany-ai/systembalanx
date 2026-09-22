@@ -49,6 +49,8 @@ import { isContratoAtivoHoje } from '@/utils/contractUtils';
 import { AlertTriangle } from 'lucide-react';
 
 const RECORRENCIA_OPTIONS = [
+  { value: 'semanal', label: 'Semanal (7 dias)' },
+  { value: 'quinzenal', label: 'Quinzenal (15 dias)' },
   { value: 'mensal', label: 'Mensal' },
   { value: 'trimestral', label: 'Trimestral' },
   { value: 'semestral', label: 'Semestral' },
@@ -153,7 +155,7 @@ export default function Contratos() {
     data_inicio: string;
     data_fim: string;
     dia_vencimento: string;
-    recorrencia: 'mensal' | 'trimestral' | 'semestral' | 'anual' | 'unico';
+    recorrencia: 'semanal' | 'quinzenal' | 'mensal' | 'trimestral' | 'semestral' | 'anual' | 'unico';
     status: 'ativo' | 'cancelado' | 'encerrado';
     num_parcelas: string;
     data_inativacao: string;
