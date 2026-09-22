@@ -87,7 +87,7 @@ serve(async (req) => {
 
     // Cria a cobrança interna + a receita "a receber" pendente
     async function registrar(opts: {
-      cliente_id: string; contrato_id: string | null; tipo: string;
+      cliente_id: string; contrato_id: string | null; conta_id: string | null; tipo: string;
       asaas_payment_id: string | null; asaas_subscription_id: string | null;
       descricao: string; valor: number; vencimento: string; forma: string;
       status: string; invoice_url: string | null;
@@ -95,6 +95,7 @@ serve(async (req) => {
       const { data: rec } = await admin.from("receitas").insert({
         user_id: user.id,
         cliente_id: opts.cliente_id,
+        conta_id: opts.conta_id,
         descricao: opts.descricao,
         valor: opts.valor,
         data_vencimento: opts.vencimento,
@@ -105,6 +106,7 @@ serve(async (req) => {
         user_id: user.id,
         cliente_id: opts.cliente_id,
         contrato_id: opts.contrato_id,
+        conta_id: opts.conta_id,
         receita_id: rec?.id ?? null,
         tipo: opts.tipo,
         asaas_payment_id: opts.asaas_payment_id,
@@ -121,7 +123,7 @@ serve(async (req) => {
 
     // ===== CRIAR RECORRENTE (a partir de um contrato) =====
     if (action === "criar-contrato") {
-      const { contrato_id, forma_pagamento } = body;
+      const { contrato_id, forma_pagamento, conta_id } = body;
       const forma = (forma_pagamento || "UNDEFINED") as string;
       const { data: contrato } = await admin.from("contratos").select("*").eq("id", contrato_id).eq("user_id", user.id).maybeSingle();
       if (!contrato) return json({ error: "Contrato não encontrado." }, 404);
@@ -158,6 +160,7 @@ serve(async (req) => {
       const cob = await registrar({
         cliente_id: contrato.cliente_id,
         contrato_id: contrato.id,
+        conta_id: conta_id || null,
         tipo: "recorrente",
         asaas_payment_id: pay?.id ?? null,
         asaas_subscription_id: sub.id,
@@ -173,7 +176,7 @@ serve(async (req) => {
 
     // ===== CRIAR AVULSA (cobrança única) =====
     if (action === "criar-avulsa") {
-      const { cliente_id, valor, vencimento, descricao, forma_pagamento } = body;
+      const { cliente_id, valor, vencimento, descricao, forma_pagamento, conta_id } = body;
       if (!cliente_id || !valor || !vencimento) return json({ error: "Informe cliente, valor e vencimento." }, 400);
       const forma = (forma_pagamento || "UNDEFINED") as string;
       const customer = await ensureCustomer(cliente_id);
@@ -192,7 +195,7 @@ serve(async (req) => {
       const pay = await payRes.json();
       if (!payRes.ok) return json({ error: pay?.errors?.[0]?.description || "Erro ao criar cobrança no Asaas." }, 400);
       const cob = await registrar({
-        cliente_id, contrato_id: null, tipo: "avulsa",
+        cliente_id, contrato_id: null, conta_id: conta_id || null, tipo: "avulsa",
         asaas_payment_id: pay.id, asaas_subscription_id: null,
         descricao: descricao || "Cobrança", valor: Number(valor), vencimento,
         forma, status: mapStatus(pay.status), invoice_url: pay.invoiceUrl ?? null,

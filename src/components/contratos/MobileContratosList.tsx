@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { ReactNode } from 'react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SkeletonTable } from '@/components/shared/LoadingSpinner';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -24,6 +24,7 @@ interface MobileContratosListProps {
   onEdit: (c: Contrato) => void;
   onDelete: (id: string) => void;
   onNew: () => void;
+  renderCobranca?: (c: Contrato) => ReactNode;
 }
 
 const recorrenciaLabels: Record<string, string> = {
@@ -34,7 +35,7 @@ const recorrenciaLabels: Record<string, string> = {
   unico: 'Único',
 };
 
-export function MobileContratosList({ contratos, isLoading, onEdit, onDelete, onNew }: MobileContratosListProps) {
+export function MobileContratosList({ contratos, isLoading, onEdit, onDelete, onNew, renderCobranca }: MobileContratosListProps) {
   if (isLoading) return <SkeletonTable rows={5} />;
 
   if (contratos.length === 0) {
@@ -70,6 +71,9 @@ export function MobileContratosList({ contratos, isLoading, onEdit, onDelete, on
               {recorrenciaLabels[c.recorrencia] || c.recorrencia}
             </span>
             <StatusBadge status={c.status} />
+            {renderCobranca && (
+              <span onClick={(e) => e.stopPropagation()}>{renderCobranca(c)}</span>
+            )}
             <span className="text-[11px] text-muted-foreground ml-auto flex items-center gap-1">
               <Calendar className="h-3 w-3" />
               {formatDate(c.data_inicio)}

@@ -34,6 +34,7 @@ import { exportContratos } from '@/utils/exportCSV';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
 import { useContratos, type ContratoFormData } from '@/hooks/useContratos';
 import { useCobrancas } from '@/hooks/useCobrancas';
+import { useContas } from '@/hooks/useContas';
 import { ContratoCobrancaCell } from '@/components/contratos/ContratoCobrancaCell';
 import { useContratoParcelas, gerarParcelas, type ParcelaFormData } from '@/hooks/useContratoParcelas';
 import { useClientes } from '@/hooks/useClientes';
@@ -75,6 +76,11 @@ export default function Contratos() {
   
   const { createParcelas, deleteParcelas } = useContratoParcelas();
   const { clientes, createCliente } = useClientes();
+  const { contas } = useContas();
+  const contasRecebimento = useMemo(
+    () => contas.filter((c) => c.ativa && c.tipo !== 'cartao_credito').map((c) => ({ id: c.id, nome: c.nome, cor: c.cor })),
+    [contas],
+  );
   // Cobrança recorrente via Asaas (por contrato)
   const {
     byContrato,
@@ -546,6 +552,18 @@ export default function Contratos() {
             onEdit={(c: any) => handleEdit(c)}
             onDelete={(id) => { setDeletingId(id); setDeleteDialogOpen(true); }}
             onNew={handleNew}
+            renderCobranca={(c: any) => (
+              <ContratoCobrancaCell
+                contratoId={c.id}
+                cobranca={byContrato.get(c.id)}
+                busy={cobrBusyId === c.id || cobrBusyId === byContrato.get(c.id)?.id}
+                contas={contasRecebimento}
+                onCobrar={(forma, contaId) => criarCobranca(c.id, forma, contaId)}
+                onCancelar={() => { const cb = byContrato.get(c.id); if (cb) cancelarCobranca(cb.id); }}
+                onExcluir={() => { const cb = byContrato.get(c.id); if (cb) excluirCobranca(cb.id); }}
+                onSincronizar={() => sincronizarCobrancas(c.id)}
+              />
+            )}
           />
         ) : (
         <div className="metric-card overflow-hidden">
@@ -615,7 +633,8 @@ export default function Contratos() {
                           contratoId={contrato.id}
                           cobranca={byContrato.get(contrato.id)}
                           busy={cobrBusyId === contrato.id || cobrBusyId === byContrato.get(contrato.id)?.id}
-                          onCobrar={(forma) => criarCobranca(contrato.id, forma)}
+                          contas={contasRecebimento}
+                          onCobrar={(forma, contaId) => criarCobranca(contrato.id, forma, contaId)}
                           onCancelar={() => { const c = byContrato.get(contrato.id); if (c) cancelarCobranca(c.id); }}
                           onExcluir={() => { const c = byContrato.get(contrato.id); if (c) excluirCobranca(c.id); }}
                           onSincronizar={() => sincronizarCobrancas(contrato.id)}

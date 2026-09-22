@@ -45,15 +45,16 @@ export default function MeuPerfil() {
   const [asaasKey, setAsaasKey] = useState('');
   const [asaasEnv, setAsaasEnv] = useState<'production' | 'sandbox'>('production');
   const [asaasConnecting, setAsaasConnecting] = useState(false);
-  const [asaasStatus, setAsaasStatus] = useState<{ connected: boolean; accountName: string | null; env: string } | null>(null);
+  const [asaasStatus, setAsaasStatus] = useState<{ connected: boolean; accountName: string | null; env: string; webhookToken: string | null } | null>(null);
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-cobranca-webhook`;
 
   const loadAsaasStatus = async () => {
     const { data } = await (supabase as any)
       .from('cobranca_config')
-      .select('asaas_account_name, asaas_env')
+      .select('asaas_account_name, asaas_env, webhook_token')
       .maybeSingle();
-    if (data) setAsaasStatus({ connected: true, accountName: data.asaas_account_name ?? null, env: data.asaas_env ?? 'production' });
-    else setAsaasStatus({ connected: false, accountName: null, env: 'production' });
+    if (data) setAsaasStatus({ connected: true, accountName: data.asaas_account_name ?? null, env: data.asaas_env ?? 'production', webhookToken: data.webhook_token ?? null });
+    else setAsaasStatus({ connected: false, accountName: null, env: 'production', webhookToken: null });
   };
   useEffect(() => { loadAsaasStatus(); }, []);
 
@@ -300,6 +301,27 @@ export default function MeuPerfil() {
               <p className="mt-1 text-foreground-muted">{asaasStatus.accountName || 'Conta Asaas'} · {asaasStatus.env === 'sandbox' ? 'Sandbox (teste)' : 'Produção'}</p>
             </div>
             <p className="text-xs text-foreground-muted">As cobranças dos seus clientes vão pra ESTA conta Asaas — o dinheiro cai direto pra você.</p>
+
+            {/* Webhook: baixa automática */}
+            <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-2.5">
+              <p className="text-xs font-semibold text-foreground">Baixa automática (webhook)</p>
+              <p className="text-[11px] text-foreground-muted">No Asaas → <b>Configurações → Integrações → Webhooks</b>, cadastre esta URL e cole o token no campo de autenticação. Aí, quando o cliente pagar, a receita baixa sozinha.</p>
+              <div className="space-y-1">
+                <Label className="text-[11px]">URL do webhook</Label>
+                <div className="flex gap-2">
+                  <Input readOnly value={webhookUrl} className="text-[11px]" onFocus={(e) => e.currentTarget.select()} />
+                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(webhookUrl); toast.success('URL copiada'); }}>Copiar</Button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px]">Token (autenticação)</Label>
+                <div className="flex gap-2">
+                  <Input readOnly value={asaasStatus.webhookToken || '—'} className="text-[11px]" onFocus={(e) => e.currentTarget.select()} />
+                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(asaasStatus.webhookToken || ''); toast.success('Token copiado'); }}>Copiar</Button>
+                </div>
+              </div>
+            </div>
+
             <Button variant="outline" className="w-full text-[hsl(var(--danger))]" onClick={handleDesconectarAsaas} disabled={asaasConnecting}>
               {asaasConnecting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Desconectar
             </Button>

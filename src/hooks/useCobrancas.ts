@@ -42,10 +42,10 @@ export function useCobrancas() {
     return data;
   };
 
-  const criarDoContrato = async (contrato_id: string, forma_pagamento: string) => {
+  const criarDoContrato = async (contrato_id: string, forma_pagamento: string, conta_id?: string | null) => {
     setBusyId(contrato_id);
     try {
-      const d = await invoke({ action: 'criar-contrato', contrato_id, forma_pagamento });
+      const d = await invoke({ action: 'criar-contrato', contrato_id, forma_pagamento, conta_id: conta_id || null });
       toast.success('Cobrança criada no Asaas!', { description: 'Receita "a receber" lançada no financeiro.' });
       await load();
       return d;
