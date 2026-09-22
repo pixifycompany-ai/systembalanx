@@ -360,6 +360,29 @@ serve(async (req) => {
       return json({ ok: true });
     }
 
+    // ===== RECEBER MANUAL (pagou por fora, ex.: Pix em outro banco) =====
+    // Marca no Asaas como recebido em dinheiro (receiveInCash) e baixa a receita.
+    if (action === "receber-manual") {
+      const { cobranca_id, data_pagamento } = body;
+      const { data: cob } = await admin.from("cobrancas").select("*").eq("id", cobranca_id).eq("user_id", user.id).maybeSingle();
+      if (!cob) return json({ error: "Cobrança não encontrada." }, 404);
+      if (cob.status === "pago") return json({ ok: true, jaPago: true });
+      if (!cob.asaas_payment_id) return json({ error: "Cobrança sem pagamento no Asaas." }, 400);
+      const dia = data_pagamento || new Date().toISOString().split("T")[0];
+
+      const r = await fetch(`${base}/payments/${cob.asaas_payment_id}/receiveInCash`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ paymentDate: dia, value: Number(cob.valor), notifyCustomer: false }),
+      });
+      const j = await r.json();
+      if (!r.ok) return json({ error: j?.errors?.[0]?.description || "Erro ao registrar pagamento no Asaas." }, 400);
+
+      await admin.from("cobrancas").update({ status: "pago", data_pagamento: dia, updated_at: new Date().toISOString() }).eq("id", cob.id);
+      if (cob.receita_id) await admin.from("receitas").update({ status: "recebido", data_recebimento: dia }).eq("id", cob.receita_id);
+      return json({ ok: true });
+    }
+
     // ===== SINCRONIZAR status (puxa do Asaas) =====
     if (action === "sincronizar") {
       const filtro = admin.from("cobrancas").select("*").eq("user_id", user.id).not("asaas_payment_id", "is", null);

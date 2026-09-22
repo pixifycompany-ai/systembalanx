@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
-import { formatPhone } from '@/utils/formatters';
+import { formatPhone, maskCpfCnpj, onlyDigits } from '@/utils/formatters';
 import { exportClientes } from '@/utils/exportCSV';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
 import { useClientes, type ClienteFormData } from '@/hooks/useClientes';
@@ -377,10 +377,11 @@ export default function Clientes() {
               <Label htmlFor="cpf_cnpj">{formData.tipo === 'PJ' ? 'CNPJ' : 'CPF'}</Label>
               <Input
                 id="cpf_cnpj"
-                value={formData.cpf_cnpj || ''}
-                onChange={(e) => setFormData((p) => ({ ...p, cpf_cnpj: e.target.value.replace(/\D/g, '') }))}
+                inputMode="numeric"
+                value={maskCpfCnpj(formData.cpf_cnpj || '', formData.tipo)}
+                onChange={(e) => setFormData((p) => ({ ...p, cpf_cnpj: onlyDigits(e.target.value).slice(0, p.tipo === 'PJ' ? 14 : 11) }))}
                 placeholder={formData.tipo === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
-                maxLength={formData.tipo === 'PJ' ? 14 : 11}
+                maxLength={formData.tipo === 'PJ' ? 18 : 14}
               />
             </div>
 

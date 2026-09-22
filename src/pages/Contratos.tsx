@@ -102,6 +102,7 @@ export default function Contratos() {
     cancelar: cancelarCobranca,
     excluir: excluirCobranca,
     sincronizar: sincronizarCobrancas,
+    receberManual: receberManualCobranca,
     enviarWhatsapp,
     whatsappTemplate,
   } = useCobrancas();
@@ -646,6 +647,7 @@ export default function Contratos() {
                 onCancelar={() => { const cb = byContrato.get(c.id); if (cb) cancelarCobranca(cb.id); }}
                 onExcluir={() => { const cb = byContrato.get(c.id); if (cb) excluirCobranca(cb.id); }}
                 onSincronizar={() => sincronizarCobrancas(c.id)}
+                onReceberManual={() => { const cb = byContrato.get(c.id); if (cb) receberManualCobranca(cb.id); }}
                 onWhatsapp={() => openWhatsapp(byContrato.get(c.id))}
               />
             )}
@@ -725,6 +727,7 @@ export default function Contratos() {
                           onCancelar={() => { const c = byContrato.get(contrato.id); if (c) cancelarCobranca(c.id); }}
                           onExcluir={() => { const c = byContrato.get(contrato.id); if (c) excluirCobranca(c.id); }}
                           onSincronizar={() => sincronizarCobrancas(contrato.id)}
+                          onReceberManual={() => { const c = byContrato.get(contrato.id); if (c) receberManualCobranca(c.id); }}
                           onWhatsapp={() => openWhatsapp(byContrato.get(contrato.id))}
                         />
                       </td>

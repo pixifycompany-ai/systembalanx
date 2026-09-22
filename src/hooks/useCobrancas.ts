@@ -123,6 +123,23 @@ export function useCobrancas() {
     }
   };
 
+  // Identificar pagamento manual: pagou por fora (ex.: Pix em outro banco).
+  // Marca no Asaas (receiveInCash) e baixa a receita como recebida.
+  const receberManual = async (cobranca_id: string) => {
+    setBusyId(cobranca_id);
+    try {
+      await invoke({ action: 'receber-manual', cobranca_id });
+      toast.success('Pagamento identificado!', { description: 'Baixado como recebido aqui e no Asaas.' });
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao identificar pagamento');
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const cancelar = async (cobranca_id: string) => {
     setBusyId(cobranca_id);
     try {

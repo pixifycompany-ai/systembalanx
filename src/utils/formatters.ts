@@ -77,6 +77,31 @@ export function formatCPFCNPJ(value: string): string {
 }
 
 /**
+ * Máscara progressiva de CPF/CNPJ para inputs ao vivo.
+ * Aceita valor com pontuação (paste), remove tudo que não é dígito,
+ * limita ao tamanho do tipo e aplica a máscara parcial conforme digita.
+ */
+export function maskCpfCnpj(value: string, tipo: 'PF' | 'PJ'): string {
+  const d = (value || '').replace(/\D/g, '').slice(0, tipo === 'PJ' ? 14 : 11);
+  if (tipo === 'PJ') {
+    return d
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  }
+  return d
+    .replace(/^(\d{3})(\d)/, '$1.$2')
+    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1-$2');
+}
+
+/** Só os dígitos de um CPF/CNPJ (para armazenar/comparar). */
+export function onlyDigits(value: string): string {
+  return (value || '').replace(/\D/g, '');
+}
+
+/**
  * Format number as percentage
  */
 export function formatPercentage(value: number, decimals = 1): string {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, ExternalLink, RefreshCw, XCircle, Trash2, Zap, Link2, ChevronLeft, MessageCircle } from 'lucide-react';
+import { Loader2, ExternalLink, RefreshCw, XCircle, Trash2, Zap, Link2, ChevronLeft, MessageCircle, HandCoins } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
 import { COBRANCA_STATUS_LABEL, type Cobranca, type AsaasAssinatura } from '@/hooks/useCobrancas';
@@ -32,9 +32,10 @@ interface Props {
   onExcluir: () => void;
   onSincronizar: () => void;
   onWhatsapp: () => void;
+  onReceberManual: () => void;
 }
 
-export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCobrar, onListarAssinaturas, onVincular, onCancelar, onExcluir, onSincronizar, onWhatsapp }: Props) {
+export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCobrar, onListarAssinaturas, onVincular, onCancelar, onExcluir, onSincronizar, onWhatsapp, onReceberManual }: Props) {
   const [forma, setForma] = useState('UNDEFINED');
   const [contaId, setContaId] = useState('');
   const [multa, setMulta] = useState('');
@@ -160,6 +161,11 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
         <button onClick={onWhatsapp} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
           <MessageCircle className="h-4 w-4 text-[hsl(var(--success))]" /> Enviar por WhatsApp
         </button>
+        {cobranca.status !== 'pago' && (
+          <button onClick={onReceberManual} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+            <HandCoins className="h-4 w-4 text-[hsl(var(--success))]" /> Identificar pagamento manual
+          </button>
+        )}
         <button onClick={onSincronizar} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
           <RefreshCw className="h-4 w-4 text-foreground-muted" /> Sincronizar status
         </button>
