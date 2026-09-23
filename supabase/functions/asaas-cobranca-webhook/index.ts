@@ -1,63 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { vincularOuCriarReceita } from "../_shared/conciliar.ts";
+import { apagarReceitaSeCriada, isPago, lancarJurosMulta, mapStatus, registrarFatura } from "../_shared/faturas.ts";
 
 // Webhook das COBRANÇAS dos clientes (conta Asaas do próprio tenant).
 // Cada tenant configura, no Asaas dele, esta URL + o token (asaas-access-token).
 // Identificamos o tenant pelo token e atualizamos a cobrança + a receita.
-
-function mapStatus(s: string): string {
-  switch (s) {
-    case "RECEIVED":
-    case "CONFIRMED":
-    case "RECEIVED_IN_CASH":
-      return "pago";
-    case "OVERDUE":
-      return "vencido";
-    case "REFUNDED":
-    case "REFUND_REQUESTED":
-    case "CHARGEBACK_REQUESTED":
-    case "CHARGEBACK_DISPUTE":
-      return "estornado";
-    case "DELETED":
-      return "cancelado";
-    default:
-      return "pendente";
-  }
-}
-const isPago = (s: string) => ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(s);
-
-// Lança o juros/multa efetivamente recebido (informado pelo Asaas) como receita
-// EXTRA na categoria "Juros/Multa", vinculada à receita principal — espelha o
-// campo "Juros/Multa" do lançamento manual do Fluxo de Caixa.
-// deno-lint-ignore no-explicit-any
-async function lancarJurosMulta(admin: any, cob: any, p: any, dataPag: string | null) {
-  if (!cob?.receita_id) return;
-  let extra = Number(p?.interestValue) || 0;
-  if (!extra && p?.originalValue != null) extra = Number(p.value) - Number(p.originalValue);
-  extra = Math.round((extra + Number.EPSILON) * 100) / 100;
-  if (!(extra > 0)) return;
-  const { data: existente } = await admin.from("receitas")
-    .select("id").eq("origem_receita_id", cob.receita_id).ilike("descricao", "Juros/Multa%").limit(1).maybeSingle();
-  if (existente) return;
-  const { data: cat } = await admin.from("categorias")
-    .select("id").eq("nome", "Juros/Multa").eq("tipo", "receita").eq("is_padrao", true).is("user_id", null).limit(1).maybeSingle();
-  const dia = dataPag || cob.vencimento;
-  await admin.from("receitas").insert({
-    user_id: cob.user_id,
-    cliente_id: cob.cliente_id,
-    contrato_id: cob.contrato_id ?? null,
-    conta_id: cob.conta_id,
-    categoria_id: cat?.id ?? null,
-    descricao: `Juros/Multa - ${cob.descricao || "Cobrança"}`,
-    valor: extra,
-    data_competencia: dia,
-    data_vencimento: dia,
-    data_recebimento: dia,
-    status: "recebido",
-    origem_receita_id: cob.receita_id,
-  });
-}
+// Uma fatura pode ter várias linhas (contratos agrupados numa assinatura só).
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204 });
@@ -81,77 +29,58 @@ serve(async (req) => {
     const pago = isPago(payment.status);
     const dataPag = payment.paymentDate || payment.clientPaymentDate || null;
 
-    // Acha a cobrança existente por payment id
-    let { data: cob } = await admin.from("cobrancas").select("*").eq("asaas_payment_id", payment.id).eq("user_id", userId).maybeSingle();
+    // Todas as linhas desta fatura (1 normalmente; N quando os contratos são agrupados)
+    const { data: linhas } = await admin.from("cobrancas").select("*")
+      .eq("asaas_payment_id", payment.id).eq("user_id", userId)
+      .order("created_at", { ascending: true }).order("id", { ascending: true });
 
-    // Cobrança nova gerada por uma assinatura recorrente → cria cobrança + receita a receber
-    if (!cob && payment.subscription) {
+    // Fatura nova de uma assinatura → cria as linhas + receitas (vinculando as já lançadas)
+    if (!linhas?.length && payment.subscription) {
       const { data: base } = await admin.from("cobrancas")
         .select("cliente_id, contrato_id, conta_id, descricao, exigir_nf")
         .eq("asaas_subscription_id", payment.subscription).eq("user_id", userId)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
-      // Vincula a receita a receber já lançada (se houver) em vez de duplicar.
-      const rec = await vincularOuCriarReceita(admin, {
-        user_id: userId,
-        cliente_id: base?.cliente_id ?? null,
-        contrato_id: base?.contrato_id ?? null,
+      await registrarFatura(admin, userId, payment, payment.subscription, {
         conta_id: base?.conta_id ?? null,
-        descricao: base?.descricao || payment.description || "Assinatura",
-        valor: Number(payment.value),
-        vencimento: payment.dueDate,
-        pago,
-        data_pagamento: dataPag,
+        fallback: base
+          ? { contrato_id: base.contrato_id, cliente_id: base.cliente_id, descricao: base.descricao, exigir_nf: !!base.exigir_nf }
+          : undefined,
       });
-      const { data: novo } = await admin.from("cobrancas").insert({
-        user_id: userId,
-        cliente_id: base?.cliente_id ?? null,
-        contrato_id: base?.contrato_id ?? null,
-        conta_id: base?.conta_id ?? null,
-        receita_id: rec.receita_id,
-        exigir_nf: !!base?.exigir_nf,
-        tipo: "recorrente",
-        asaas_payment_id: payment.id,
-        asaas_subscription_id: payment.subscription,
-        descricao: base?.descricao || payment.description || "Assinatura",
-        valor: Number(payment.value),
-        vencimento: payment.dueDate,
-        forma_pagamento: payment.billingType || "UNDEFINED",
-        status: novoStatus,
-        invoice_url: payment.invoiceUrl ?? null,
-        data_pagamento: pago ? dataPag : null,
-      } as never).select("*").single();
-      cob = novo;
       return new Response(JSON.stringify({ ok: true, created: true }), { status: 200 });
     }
 
-    if (!cob) return new Response(JSON.stringify({ ok: true, notfound: true }), { status: 200 });
+    if (!linhas?.length) return new Response(JSON.stringify({ ok: true, notfound: true }), { status: 200 });
 
-    // Evento de exclusão → cancela e remove receita pendente
+    // Exclusão → cancela; a receita só some se foi criada pela integração
+    // (parcela lançada à mão fica, apenas desvinculada).
     if (event === "PAYMENT_DELETED" || payment.status === "DELETED") {
-      if (cob.receita_id) await admin.from("receitas").delete().eq("id", cob.receita_id).eq("status", "pendente");
-      await admin.from("cobrancas").update({ status: "cancelado", updated_at: new Date().toISOString() }).eq("id", cob.id);
+      for (const cob of linhas) {
+        await apagarReceitaSeCriada(admin, cob);
+        await admin.from("cobrancas").update({ status: "cancelado", receita_id: null, updated_at: new Date().toISOString() }).eq("id", cob.id);
+      }
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
 
-    // Atualiza cobrança
-    await admin.from("cobrancas").update({
-      status: novoStatus,
-      invoice_url: payment.invoiceUrl ?? cob.invoice_url,
-      data_pagamento: pago ? dataPag : null,
-      updated_at: new Date().toISOString(),
-    }).eq("id", cob.id);
+    for (const cob of linhas) {
+      await admin.from("cobrancas").update({
+        status: novoStatus,
+        invoice_url: payment.invoiceUrl ?? cob.invoice_url,
+        data_pagamento: pago ? dataPag : null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", cob.id);
 
-    // Baixa / atualiza a receita vinculada
-    if (cob.receita_id) {
+      // Baixa / atualiza a receita de cada contrato
+      if (!cob.receita_id) continue;
       if (pago) {
         await admin.from("receitas").update({ status: "recebido", data_recebimento: dataPag || cob.vencimento }).eq("id", cob.receita_id);
-        await lancarJurosMulta(admin, cob, payment, dataPag); // juros/multa de atraso → receita extra
       } else if (payment.status === "OVERDUE") {
         await admin.from("receitas").update({ status: "atrasado" }).eq("id", cob.receita_id);
       } else if (["REFUNDED", "REFUND_REQUESTED"].includes(payment.status)) {
         await admin.from("receitas").update({ status: "pendente", data_recebimento: null }).eq("id", cob.receita_id);
       }
     }
+    // Juros/multa de atraso → receita extra, uma vez por fatura
+    if (pago) await lancarJurosMulta(admin, linhas[0], payment, dataPag);
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   } catch (e) {

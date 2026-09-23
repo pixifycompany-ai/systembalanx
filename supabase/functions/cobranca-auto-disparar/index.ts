@@ -74,14 +74,26 @@ serve(async (req) => {
   const cfgBy = new Map((cfgs || []).map((c) => [c.user_id, c]));
 
   const { data: cobs } = await admin.from("cobrancas")
-    .select("id, user_id, cliente_id, contrato_id, descricao, valor, vencimento, invoice_url, status, exigir_nf, nota_fiscal_path, nota_fiscal_nome, nota_fiscal_enviada, auto_wpp_ultimo_dia, clientes(nome, telefone), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
-    .in("status", ["pendente", "vencido"]);
+    .select("id, user_id, cliente_id, contrato_id, asaas_payment_id, descricao, valor, vencimento, invoice_url, status, exigir_nf, nota_fiscal_path, nota_fiscal_nome, nota_fiscal_enviada, auto_wpp_ultimo_dia, created_at, clientes(nome, telefone), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
+    .in("status", ["pendente", "vencido"])
+    .order("created_at", { ascending: true });
+
+  // Uma mensagem por FATURA: contratos agrupados numa assinatura têm várias linhas
+  // para a mesma fatura (valor = soma; descrição = "A + B"; regra do 1º contrato).
+  // deno-lint-ignore no-explicit-any
+  const faturas = new Map<string, any[]>();
+  for (const c of cobs || []) {
+    const k = c.asaas_payment_id || c.id;
+    if (!faturas.has(k)) faturas.set(k, []);
+    faturas.get(k)!.push(c);
+  }
 
   let enviados = 0, pulados = 0, faltaNf = 0, erros = 0;
 
-  for (const cob of cobs || []) {
+  for (const linhas of faturas.values()) {
+    const cob = linhas[0];
     try {
-      if (cob.auto_wpp_ultimo_dia === hoje) { pulados++; continue; } // já enviou hoje
+      if (linhas.some((l) => l.auto_wpp_ultimo_dia === hoje)) { pulados++; continue; } // já enviou hoje
       const cfg = cfgBy.get(cob.user_id);
       // deno-lint-ignore no-explicit-any
       const regra = regraEfetiva(cob.contratos as any, cfg);
@@ -102,12 +114,15 @@ serve(async (req) => {
       const to = normalizarWhats(cli?.telefone || "");
       if (!to) { pulados++; continue; }
 
-      if (cob.exigir_nf && !cob.nota_fiscal_path && !cob.nota_fiscal_enviada) { faltaNf++; continue; } // exige NF e não tem
+      const comNf = linhas.find((l) => l.nota_fiscal_path);
+      const exigeNf = linhas.some((l) => l.exigir_nf);
+      const nfJaEnviada = linhas.some((l) => l.nota_fiscal_enviada);
+      if (exigeNf && !comNf && !nfJaEnviada) { faltaNf++; continue; } // exige NF e não tem
 
       const text = preencher(cfg?.whatsapp_template || TPL_PADRAO, {
         cliente: cli?.nome || "cliente",
-        descricao: cob.descricao || "cobrança",
-        valor: brl(Number(cob.valor)),
+        descricao: linhas.map((l) => l.descricao).filter(Boolean).join(" + ") || "cobrança",
+        valor: brl(linhas.reduce((s, l) => s + (Number(l.valor) || 0), 0)),
         vencimento: dataBR(cob.vencimento),
         link: cob.invoice_url || "",
       });
@@ -121,24 +136,24 @@ serve(async (req) => {
 
       // Anexa a NF (PDF) se houver; se enviar com sucesso, apaga do Storage.
       let removerNf = false;
-      const nfPath: string | null = cob.nota_fiscal_path;
+      const nfPath: string | null = comNf?.nota_fiscal_path ?? null;
       if (nfPath) {
         const { data: signed } = await admin.storage.from("notas-fiscais").createSignedUrl(nfPath, 600);
         if (signed?.signedUrl) {
           const dr = await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/document`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
-            body: JSON.stringify({ to, url: signed.signedUrl, filename: cob.nota_fiscal_nome || "nota-fiscal.pdf", mimetype: "application/pdf" }),
+            body: JSON.stringify({ to, url: signed.signedUrl, filename: comNf.nota_fiscal_nome || "nota-fiscal.pdf", mimetype: "application/pdf" }),
           }).catch(() => null);
           if (dr && dr.ok) removerNf = true;
         }
       }
 
-      await admin.from("cobrancas").update({
-        auto_wpp_ultimo_dia: hoje,
-        ...(removerNf ? { nota_fiscal_path: null, nota_fiscal_nome: null, nota_fiscal_enviada: true } : {}),
-      }).eq("id", cob.id);
-      if (removerNf && nfPath) await admin.storage.from("notas-fiscais").remove([nfPath]).catch(() => {});
+      await admin.from("cobrancas").update({ auto_wpp_ultimo_dia: hoje }).in("id", linhas.map((l) => l.id));
+      if (removerNf && comNf && nfPath) {
+        await admin.from("cobrancas").update({ nota_fiscal_path: null, nota_fiscal_nome: null, nota_fiscal_enviada: true }).eq("id", comNf.id);
+        await admin.storage.from("notas-fiscais").remove([nfPath]).catch(() => {});
+      }
       enviados++;
     } catch (e) {
       erros++;
@@ -146,7 +161,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ ok: true, hoje, total: (cobs || []).length, enviados, pulados, faltaNf, erros }), {
+  return new Response(JSON.stringify({ ok: true, hoje, total: faturas.size, enviados, pulados, faltaNf, erros }), {
     status: 200, headers: { "Content-Type": "application/json" },
   });
 });

@@ -27,7 +27,7 @@ import { ConciliacaoSheet } from '@/components/cobrancas/ConciliacaoSheet';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
   XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Repeat, Receipt, Wallet, CreditCard,
-  Paperclip, FileText, ShieldCheck, ShieldOff,
+  Paperclip, FileText, ShieldCheck, ShieldOff, Layers,
 } from 'lucide-react';
 
 const toneCls: Record<string, string> = {
@@ -49,6 +49,8 @@ const FORMAS = [
 ];
 
 type TipoFiltro = 'todas' | 'recorrente' | 'avulsa';
+// Cobrança exibida = fatura; `linhas` = uma por contrato quando agrupada.
+type FaturaView = Cobranca & { linhas: Cobranca[] };
 type SortKey = 'cliente' | 'descricao' | 'tipo' | 'valor' | 'vencimento' | 'status';
 
 function statusPill(status: string) {
@@ -97,9 +99,36 @@ export default function Cobrancas() {
     return { aReceber, vencido, recebido };
   }, [cobrancas]);
 
+  // Uma linha por FATURA: contratos agrupados numa assinatura dividem um boleto
+  // (valor = soma das partes, descrição "A + B"); as ações valem para o grupo.
+  const faturasView = useMemo<FaturaView[]>(() => {
+    const grupos = new Map<string, Cobranca[]>();
+    for (const c of cobrancas) {
+      const k = c.asaas_payment_id || c.id;
+      grupos.set(k, [...(grupos.get(k) || []), c]);
+    }
+    return [...grupos.values()].map((ls) => {
+      const linhas = [...ls].sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')) || a.id.localeCompare(b.id));
+      const p = linhas[0];
+      if (linhas.length === 1) return { ...p, linhas };
+      const comNf = linhas.find((l) => l.nota_fiscal_path);
+      return {
+        ...p,
+        valor: Math.round(linhas.reduce((s, l) => s + (Number(l.valor) || 0), 0) * 100) / 100,
+        descricao: linhas.map((l) => l.descricao).filter(Boolean).join(' + '),
+        receita_id: linhas.every((l) => l.receita_id) ? p.receita_id : null,
+        nota_fiscal_path: comNf?.nota_fiscal_path ?? null,
+        nota_fiscal_nome: comNf?.nota_fiscal_nome ?? null,
+        nota_fiscal_enviada: linhas.some((l) => l.nota_fiscal_enviada),
+        exigir_nf: linhas.some((l) => l.exigir_nf),
+        linhas,
+      };
+    });
+  }, [cobrancas]);
+
   const filtradas = useMemo(() => {
     const term = busca.trim().toLowerCase();
-    const list = cobrancas.filter((c) => {
+    const list = faturasView.filter((c) => {
       if (tipoFiltro === 'recorrente' && c.tipo !== 'recorrente') return false;
       if (tipoFiltro === 'avulsa' && c.tipo === 'recorrente') return false;
       if (statusFiltro !== 'todos' && c.status !== statusFiltro) return false;
@@ -126,7 +155,7 @@ export default function Cobrancas() {
       if (va > vb) return 1 * dir;
       return 0;
     });
-  }, [cobrancas, tipoFiltro, statusFiltro, busca, sort, clienteById]);
+  }, [faturasView, tipoFiltro, statusFiltro, busca, sort, clienteById]);
 
   // ===== WhatsApp =====
   const [waOpen, setWaOpen] = useState(false);
@@ -134,9 +163,11 @@ export default function Cobrancas() {
   const [waText, setWaText] = useState('');
   const [waSending, setWaSending] = useState(false);
   const [waCob, setWaCob] = useState<Cobranca | null>(null);
-  const openWhatsapp = (cob: Cobranca) => {
+  const [waNfLinhaId, setWaNfLinhaId] = useState<string | null>(null); // linha que guarda o PDF
+  const openWhatsapp = (cob: FaturaView) => {
     const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
     setWaCob(cob);
+    setWaNfLinhaId(cob.linhas.find((l) => l.nota_fiscal_path)?.id ?? null);
     setWaTel(cli?.telefone || '');
     setWaText(preencherTemplate(whatsappTemplate, {
       cliente: cli?.nome || 'cliente',
@@ -161,7 +192,7 @@ export default function Cobrancas() {
     setWaSending(false);
     if (res) {
       // Envio confirmado do PDF → apaga do Storage pra não ocupar espaço.
-      if (res.docEnviado && waCob.nota_fiscal_path) await marcarNotaEnviada(waCob.id, waCob.nota_fiscal_path);
+      if (res.docEnviado && waCob.nota_fiscal_path) await marcarNotaEnviada(waNfLinhaId || waCob.id, waCob.nota_fiscal_path);
       setWaOpen(false);
     }
   };
@@ -241,7 +272,7 @@ export default function Cobrancas() {
   };
 
   // ===== Menu de ações por cobrança =====
-  const AcoesMenu = ({ cob }: { cob: Cobranca }) => {
+  const AcoesMenu = ({ cob }: { cob: FaturaView }) => {
     const busy = busyId === cob.id;
     return (
       <Popover>
@@ -273,7 +304,7 @@ export default function Cobrancas() {
               <button onClick={() => pedirUploadNota(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
                 <Paperclip className="h-4 w-4 text-foreground-muted" /> Trocar nota fiscal
               </button>
-              <button onClick={() => removerNota(cob.id, cob.nota_fiscal_path)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-[hsl(var(--danger))] transition-colors hover:bg-[hsl(var(--danger))]/10">
+              <button onClick={() => removerNota(cob.linhas.find((l) => l.nota_fiscal_path)?.id || cob.id, cob.nota_fiscal_path)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-[hsl(var(--danger))] transition-colors hover:bg-[hsl(var(--danger))]/10">
                 <Trash2 className="h-4 w-4" /> Remover nota fiscal
               </button>
             </>
@@ -282,7 +313,7 @@ export default function Cobrancas() {
               <Paperclip className="h-4 w-4 text-foreground-muted" /> Anexar nota fiscal (PDF)
             </button>
           )}
-          <button onClick={() => setExigirNf(cob.id, !cob.exigir_nf)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+          <button onClick={() => setExigirNf(cob.linhas.map((l) => l.id), !cob.exigir_nf)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
             {cob.exigir_nf ? <ShieldOff className="h-4 w-4 text-foreground-muted" /> : <ShieldCheck className="h-4 w-4 text-foreground-muted" />}
             {cob.exigir_nf ? 'Não exigir NF p/ disparar' : 'Exigir NF p/ disparar'}
           </button>
@@ -414,7 +445,10 @@ export default function Cobrancas() {
               <div key={cob.id} className="rounded-2xl border border-border/60 bg-surface/70 p-3.5 backdrop-blur-xl">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-foreground">{cli?.nome || '—'}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-semibold text-foreground">{cli?.nome || '—'}</span>
+                      {cob.linhas.length > 1 && <GrupoChip qtd={cob.linhas.length} />}
+                    </div>
                     <div className="truncate text-xs text-foreground-muted">{cob.descricao || 'Sem descrição'}</div>
                   </div>
                   <AcoesMenu cob={cob} />
@@ -458,6 +492,7 @@ export default function Cobrancas() {
                     <td className="px-3 py-3 font-medium text-foreground">
                       <div className="flex items-center gap-1.5">
                         <span className="truncate">{cli?.nome || '—'}</span>
+                        {cob.linhas.length > 1 && <GrupoChip qtd={cob.linhas.length} />}
                         {cob.nota_fiscal_path && <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Nota fiscal anexada" />}
                         {!cob.nota_fiscal_path && cob.nota_fiscal_enviada && <FileText className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--success))]" aria-label="Nota fiscal enviada" />}
                         {cob.exigir_nf && !cob.nota_fiscal_path && !cob.nota_fiscal_enviada && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--warning))]" aria-label="Exige nota fiscal" />}
@@ -698,6 +733,15 @@ export default function Cobrancas() {
         </SheetContent>
       </Sheet>
     </main>
+  );
+}
+
+// Fatura que cobra vários contratos num boleto só
+function GrupoChip({ qtd }: { qtd: number }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/12 px-1.5 py-px text-[10px] font-semibold text-primary" title="Boleto único de vários contratos">
+      <Layers className="h-3 w-3" /> {qtd} contratos
+    </span>
   );
 }
 

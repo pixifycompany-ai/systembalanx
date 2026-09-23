@@ -36,9 +36,10 @@ import { useContratos, type ContratoFormData } from '@/hooks/useContratos';
 import { useCobrancas, preencherTemplate, type Cobranca } from '@/hooks/useCobrancas';
 import { useContas } from '@/hooks/useContas';
 import { ContratoCobrancaCell } from '@/components/contratos/ContratoCobrancaCell';
+import { AgruparCobrancaSheet, type ContratoParaAgrupar } from '@/components/contratos/AgruparCobrancaSheet';
 import { useContratoParcelas, gerarParcelas, type ParcelaFormData } from '@/hooks/useContratoParcelas';
 import { useClientes } from '@/hooks/useClientes';
-import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X, Zap, ChevronUp, ChevronDown, ChevronsUpDown, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X, Zap, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Layers } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -100,7 +101,9 @@ export default function Contratos() {
   const [caExigirNf, setCaExigirNf] = useState(false);
   // Cobrança recorrente via Asaas (por contrato)
   const {
+    cobrancas,
     byContrato,
+    agrupar: agruparContratos,
     busyId: cobrBusyId,
     loading: cobrLoading,
     criarDoContrato: criarCobranca,
@@ -123,21 +126,31 @@ export default function Contratos() {
   const [whatsappText, setWhatsappText] = useState('');
   const [whatsappSending, setWhatsappSending] = useState(false);
   const [whatsappCob, setWhatsappCob] = useState<Cobranca | null>(null);
+  const [whatsappGrupo, setWhatsappGrupo] = useState<Cobranca[]>([]);
+  // Linhas da mesma fatura: contratos agrupados numa assinatura dividem um boleto.
+  const linhasDaFatura = (cob: Cobranca): Cobranca[] => {
+    if (!cob.asaas_payment_id) return [cob];
+    const linhas = cobrancas.filter((c) => c.asaas_payment_id === cob.asaas_payment_id && c.status !== 'cancelado');
+    return linhas.length ? linhas : [cob];
+  };
   const openWhatsapp = (cob?: Cobranca) => {
     if (!cob) return;
     const cli = clientes.find((c) => c.id === cob.cliente_id);
-    setWhatsappCob(cob);
+    const grupo = linhasDaFatura(cob);
+    setWhatsappGrupo(grupo);
+    setWhatsappCob(grupo.find((l) => l.nota_fiscal_path) ?? cob);
     setWhatsappTel(cli?.telefone || '');
     setWhatsappText(preencherTemplate(whatsappTemplate, {
       cliente: cli?.nome || 'cliente',
-      descricao: cob.descricao || 'cobrança',
-      valor: formatCurrency(Number(cob.valor)),
+      descricao: grupo.map((l) => l.descricao).filter(Boolean).join(' + ') || 'cobrança',
+      valor: formatCurrency(grupo.reduce((s, l) => s + (Number(l.valor) || 0), 0)),
       vencimento: formatDate(cob.vencimento),
       link: cob.invoice_url || '',
     }));
     setWhatsappOpen(true);
   };
-  const whatsappBloqueado = !!whatsappCob?.exigir_nf && !whatsappCob?.nota_fiscal_path && !whatsappCob?.nota_fiscal_enviada;
+  const whatsappBloqueado = whatsappGrupo.some((l) => l.exigir_nf)
+    && !whatsappGrupo.some((l) => l.nota_fiscal_path || l.nota_fiscal_enviada);
   const handleEnviarWhatsapp = async () => {
     if (!whatsappCob) return;
     if (whatsappBloqueado) { toast.error('Esta cobrança exige nota fiscal anexada para disparar.'); return; }
@@ -344,6 +357,22 @@ export default function Contratos() {
     items: filteredContratos,
     getItemId: (item) => item.id,
   });
+
+  // Cobrar vários contratos juntos (uma assinatura / um boleto)
+  const [agruparOpen, setAgruparOpen] = useState(false);
+  const contratosParaAgrupar = useMemo<ContratoParaAgrupar[]>(
+    () => selectedItems.map((c) => ({
+      id: c.id,
+      cliente_id: c.cliente_id,
+      descricao: c.descricao,
+      valor: Number(c.valor),
+      recorrencia: c.recorrencia,
+      dia_vencimento: c.dia_vencimento ?? null,
+      status: c.status,
+      cobrado: !!(c as { asaas_subscription_id?: string | null }).asaas_subscription_id || byContrato.has(c.id),
+    })),
+    [selectedItems, byContrato],
+  );
 
   // Bulk delete
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
@@ -690,6 +719,7 @@ export default function Contratos() {
                 onSincronizar={() => sincronizarCobrancas(c.id)}
                 onReceberManual={() => { const cb = byContrato.get(c.id); if (cb) receberManualCobranca(cb.id); }}
                 onWhatsapp={() => openWhatsapp(byContrato.get(c.id))}
+                grupoQtd={(() => { const cb = byContrato.get(c.id); return cb ? linhasDaFatura(cb).length : 1; })()}
               />
             )}
           />
@@ -770,6 +800,7 @@ export default function Contratos() {
                           onSincronizar={() => sincronizarCobrancas(contrato.id)}
                           onReceberManual={() => { const c = byContrato.get(contrato.id); if (c) receberManualCobranca(c.id); }}
                           onWhatsapp={() => openWhatsapp(byContrato.get(contrato.id))}
+                          grupoQtd={(() => { const cb = byContrato.get(contrato.id); return cb ? linhasDaFatura(cb).length : 1; })()}
                         />
                       </td>
                       <td>
@@ -1273,6 +1304,25 @@ export default function Contratos() {
           onClear={clearSelection}
           onDelete={() => setBulkDeleteDialogOpen(true)}
           onExport={handleExport}
+          customActions={selectedIds.size >= 2 ? [{
+            label: 'Cobrar juntos',
+            icon: <Layers className="h-4 w-4" />,
+            onClick: () => setAgruparOpen(true),
+          }] : undefined}
+        />
+
+        <AgruparCobrancaSheet
+          open={agruparOpen}
+          onOpenChange={setAgruparOpen}
+          contratos={contratosParaAgrupar}
+          nomeCliente={(id) => clientes.find((c) => c.id === id)?.nome || '—'}
+          contas={contasRecebimento}
+          listarAssinaturas={listarAssinaturas}
+          agrupar={async (p) => {
+            const ok = await agruparContratos(p);
+            if (ok) { clearSelection(); refetchContratos(); }
+            return ok;
+          }}
         />
 
         {/* Contract Import Dialog */}
@@ -1307,7 +1357,7 @@ export default function Contratos() {
                   <FileText className="h-4 w-4 shrink-0 text-primary" />
                   <span className="truncate">Vai anexar: {whatsappCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
                 </div>
-              ) : whatsappCob?.exigir_nf && !whatsappCob?.nota_fiscal_enviada ? (
+              ) : whatsappBloqueado ? (
                 <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning))]">
                   <FileText className="h-4 w-4 shrink-0" />
                   <span>Esta cobrança exige nota fiscal anexada. Anexe na tela de Cobranças.</span>

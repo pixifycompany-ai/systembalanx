@@ -63,7 +63,8 @@ export async function buscarCandidatas(admin: any, alvo: AlvoReceita, janelaDias
   if (!recs?.length) return [];
 
   const { data: ligadas } = await admin.from("cobrancas")
-    .select("receita_id").eq("user_id", alvo.user_id).not("receita_id", "is", null);
+    .select("receita_id").eq("user_id", alvo.user_id).not("receita_id", "is", null)
+    .not("status", "in", "(cancelado,estornado)");
   const usadas = new Set((ligadas || []).map((l: any) => l.receita_id));
 
   return recs
@@ -111,7 +112,8 @@ export async function propagarSerie(admin: any, receitaId: string, alvo: AlvoRec
     .in("status", ["pendente", "atrasado"]).is("origem_receita_id", null).neq("id", receitaId);
   if (!irmas?.length) return;
   const { data: ligadas } = await admin.from("cobrancas")
-    .select("receita_id").eq("user_id", alvo.user_id).not("receita_id", "is", null);
+    .select("receita_id").eq("user_id", alvo.user_id).not("receita_id", "is", null)
+    .not("status", "in", "(cancelado,estornado)");
   const usadas = new Set((ligadas || []).map((l: any) => l.receita_id));
 
   for (const r of irmas) {

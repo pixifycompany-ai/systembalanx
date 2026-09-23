@@ -180,6 +180,39 @@ export function useCobrancas() {
     }
   };
 
+  // Agrupar vários contratos do mesmo cliente numa assinatura só (um boleto).
+  const agrupar = async (payload: {
+    contrato_ids: string[];
+    modo: 'criar' | 'vincular';
+    asaas_subscription_id?: string;
+    forma_pagamento?: string;
+    conta_id?: string | null;
+    dia_vencimento?: number;
+    multa_percent?: number;
+    juros_percent?: number;
+  }) => {
+    setBusyId('agrupar');
+    try {
+      const d = (await invoke({ action: 'agrupar', ...payload })) as {
+        total: number; faturas: number; ajustes: { descricao: string; de: number; para: number }[];
+      };
+      const ajuste = d.ajustes?.length
+        ? ` Valores ajustados ao Asaas: ${d.ajustes.map((a) => `${a.descricao} ${a.de.toFixed(2)} → ${a.para.toFixed(2)}`).join('; ')}.`
+        : '';
+      toast.success('Contratos agrupados numa cobrança só!', {
+        description: `Assinatura de R$ ${Number(d.total).toFixed(2)}, ${d.faturas} fatura(s) importada(s).${ajuste}`,
+        duration: 8000,
+      });
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao agrupar', { duration: 8000 });
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   // Conciliação: cobranças sem receita ↔ receitas a receber já lançadas à mão.
   const conciliarListar = async (): Promise<ItemConciliacao[]> => {
     try {
@@ -312,9 +345,11 @@ export function useCobrancas() {
     }
   };
 
-  const setExigirNf = async (cobranca_id: string, value: boolean) => {
+  // Aceita várias linhas (fatura agrupada: vale para todos os contratos dela).
+  const setExigirNf = async (cobranca_ids: string | string[], value: boolean) => {
     try {
-      await (supabase as any).from('cobrancas').update({ exigir_nf: value }).eq('id', cobranca_id);
+      const ids = Array.isArray(cobranca_ids) ? cobranca_ids : [cobranca_ids];
+      await (supabase as any).from('cobrancas').update({ exigir_nf: value }).in('id', ids);
       toast.success(value ? 'Passou a exigir nota fiscal para disparar.' : 'Nota fiscal não é mais obrigatória.');
       await load();
     } catch (e) {
@@ -370,7 +405,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate, reload: load };
+  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, whatsappTemplate, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

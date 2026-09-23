@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, ExternalLink, RefreshCw, XCircle, Trash2, Zap, Link2, ChevronLeft, MessageCircle, HandCoins } from 'lucide-react';
+import { Loader2, ExternalLink, RefreshCw, XCircle, Trash2, Zap, Link2, ChevronLeft, MessageCircle, HandCoins, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
 import { COBRANCA_STATUS_LABEL, type Cobranca, type AsaasAssinatura } from '@/hooks/useCobrancas';
@@ -33,9 +33,11 @@ interface Props {
   onSincronizar: () => void;
   onWhatsapp: () => void;
   onReceberManual: () => void;
+  /** Quantos contratos dividem esta fatura (agrupamento). 1 = cobrança normal. */
+  grupoQtd?: number;
 }
 
-export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCobrar, onListarAssinaturas, onVincular, onCancelar, onExcluir, onSincronizar, onWhatsapp, onReceberManual }: Props) {
+export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCobrar, onListarAssinaturas, onVincular, onCancelar, onExcluir, onSincronizar, onWhatsapp, onReceberManual, grupoQtd = 1 }: Props) {
   const [forma, setForma] = useState('UNDEFINED');
   const [contaId, setContaId] = useState('');
   const [multa, setMulta] = useState('');
@@ -150,10 +152,18 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
       <PopoverTrigger asChild>
         <button className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition-opacity hover:opacity-80', toneCls[meta.tone])}>
           {meta.label}
-          {cobranca.tipo === 'recorrente' && <RefreshCw className="h-3 w-3 opacity-70" />}
+          {grupoQtd > 1
+            ? <span className="inline-flex items-center gap-0.5 opacity-80"><Layers className="h-3 w-3" />{grupoQtd}</span>
+            : cobranca.tipo === 'recorrente' && <RefreshCw className="h-3 w-3 opacity-70" />}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-48 p-1.5 rounded-xl border border-border/60 bg-surface/95 backdrop-blur-2xl">
+      <PopoverContent align="end" className="w-56 p-1.5 rounded-xl border border-border/60 bg-surface/95 backdrop-blur-2xl">
+        {grupoQtd > 1 && (
+          <p className="mb-1 flex items-start gap-1.5 rounded-lg bg-primary/10 px-2.5 py-2 text-[11px] leading-snug text-foreground">
+            <Layers className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+            Boleto único de {grupoQtd} contratos. As ações abaixo valem para todos.
+          </p>
+        )}
         {cobranca.invoice_url && (
           <a href={cobranca.invoice_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-white/5">
             <ExternalLink className="h-4 w-4 text-foreground-muted" /> Abrir link de pagamento
