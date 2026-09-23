@@ -86,6 +86,45 @@ export async function buscarCandidatas(admin: any, alvo: AlvoReceita, janelaDias
       Math.abs(a.diasDiferenca) - Math.abs(b.diasDiferenca));
 }
 
+// "Mensalidade Revvue (4/12)" → { base: "mensalidade revvue", n: 4, total: 12 }.
+// Parcelas lançadas à mão não têm grupo de recorrência gravado; a série é
+// reconhecida pelo nome + "(n/total)" (o que vier depois, ex. " - 08 USUARIOS", é ignorado).
+function parcela(desc: string): { base: string; n: number; total: number } | null {
+  const m = String(desc || "").match(/^(.*?)\s*\((\d+)\s*\/\s*(\d+)\)/);
+  if (!m) return null;
+  const base = m[1].normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+  return base ? { base, n: Number(m[2]), total: Number(m[3]) } : null;
+}
+
+// Ao vincular uma parcela de uma série, as demais parcelas em aberto (sem fatura)
+// passam a pertencer ao contrato e as FUTURAS espelham o valor da assinatura.
+// Assim cada nova fatura do Asaas encontra a parcela do seu mês sozinha.
+export async function propagarSerie(admin: any, receitaId: string, alvo: AlvoReceita) {
+  if (!alvo.contrato_id) return;
+  const { data: ref } = await admin.from("receitas").select("id, descricao, cliente_id").eq("id", receitaId).maybeSingle();
+  const p = ref ? parcela(ref.descricao) : null;
+  if (!ref?.cliente_id || !p) return;
+
+  const { data: irmas } = await admin.from("receitas")
+    .select("id, descricao, contrato_id")
+    .eq("user_id", alvo.user_id).eq("cliente_id", ref.cliente_id)
+    .in("status", ["pendente", "atrasado"]).is("origem_receita_id", null).neq("id", receitaId);
+  if (!irmas?.length) return;
+  const { data: ligadas } = await admin.from("cobrancas")
+    .select("receita_id").eq("user_id", alvo.user_id).not("receita_id", "is", null);
+  const usadas = new Set((ligadas || []).map((l: any) => l.receita_id));
+
+  for (const r of irmas) {
+    if (usadas.has(r.id)) continue; // já tem fatura própria: segue o valor dela
+    if (r.contrato_id && r.contrato_id !== alvo.contrato_id) continue;
+    const q = parcela(r.descricao);
+    if (!q || q.base !== p.base || q.total !== p.total) continue;
+    const upd: Record<string, unknown> = { contrato_id: alvo.contrato_id };
+    if (q.n > p.n) upd.valor = alvo.valor;
+    await admin.from("receitas").update(upd).eq("id", r.id);
+  }
+}
+
 // Liga a receita existente à cobrança: passa a refletir valor e vencimento do Asaas
 // (o que o cliente realmente vai pagar); mantém descrição e categoria.
 export async function vincularReceita(admin: any, receitaId: string, alvo: AlvoReceita, contaAtual: string | null) {
@@ -97,6 +136,7 @@ export async function vincularReceita(admin: any, receitaId: string, alvo: AlvoR
     upd.data_recebimento = alvo.data_pagamento || alvo.vencimento;
   }
   await admin.from("receitas").update(upd).eq("id", receitaId);
+  await propagarSerie(admin, receitaId, alvo);
 }
 
 export async function criarReceita(admin: any, alvo: AlvoReceita): Promise<string | null> {
@@ -125,7 +165,12 @@ export async function vincularOuCriarReceita(
   alvo: AlvoReceita,
 ): Promise<{ receita_id: string | null; modo: "vinculada" | "criada" | "conciliar" }> {
   const cands = await buscarCandidatas(admin, alvo);
-  const confiaveis = cands.filter((c) => c.confiavel);
+  let confiaveis = cands.filter((c) => c.confiavel);
+  // Série mensal: se mais de uma parcela é compatível, fica a do mesmo mês da fatura.
+  if (confiaveis.length > 1) {
+    const doMes = confiaveis.filter((c) => mes(c.data_vencimento) === mes(alvo.vencimento));
+    if (doMes.length === 1) confiaveis = doMes;
+  }
   if (confiaveis.length === 1) {
     await vincularReceita(admin, confiaveis[0].id, alvo, confiaveis[0].conta_id);
     return { receita_id: confiaveis[0].id, modo: "vinculada" };

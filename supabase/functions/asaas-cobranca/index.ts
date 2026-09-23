@@ -382,6 +382,10 @@ serve(async (req) => {
         await admin.from("cobrancas").update({ valor, updated_at: new Date().toISOString() }).eq("id", c.id);
         if (c.receita_id) await admin.from("receitas").update({ valor }).eq("id", c.receita_id).in("status", ["pendente", "atrasado"]);
       }
+      // Parcelas futuras do contrato ainda sem fatura (ex.: "(5/12)", "(6/12)") seguem o novo valor.
+      await admin.from("receitas").update({ valor })
+        .eq("user_id", user.id).eq("contrato_id", contrato_id).eq("status", "pendente")
+        .is("origem_receita_id", null).gte("data_vencimento", new Date().toISOString().slice(0, 10));
       return json({ ok: true, updated: true });
     }
 
@@ -569,7 +573,24 @@ serve(async (req) => {
           exigir_nf: !!ctx.exigir_nf,
         });
       }
-      return json({ ok: true, sincronizadas: (cobs || []).length, novas });
+
+      // Concilia sozinho as cobranças ainda sem receita quando é inequívoco
+      // (em ordem de vencimento, para a série de parcelas avançar mês a mês).
+      const qSem = admin.from("cobrancas").select("*")
+        .eq("user_id", user.id).is("receita_id", null)
+        .not("status", "in", "(cancelado,estornado)")
+        .order("vencimento", { ascending: true });
+      if (body.contrato_id) qSem.eq("contrato_id", body.contrato_id);
+      const { data: semRec } = await qSem;
+      let conciliadas = 0;
+      for (const c of semRec || []) {
+        const r = await vincularOuCriarReceita(admin, alvoDe(c));
+        if (r.receita_id) {
+          await admin.from("cobrancas").update({ receita_id: r.receita_id, updated_at: new Date().toISOString() }).eq("id", c.id);
+          conciliadas++;
+        }
+      }
+      return json({ ok: true, sincronizadas: (cobs || []).length, novas, conciliadas });
     }
 
     return json({ error: "Ação inválida." }, 400);

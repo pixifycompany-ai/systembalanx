@@ -250,9 +250,13 @@ export function useCobrancas() {
   const sincronizar = async (contrato_id?: string) => {
     setLoading(true);
     try {
-      await invoke({ action: 'sincronizar', contrato_id });
+      const d = (await invoke({ action: 'sincronizar', contrato_id })) as { novas?: number; conciliadas?: number };
       await load();
-      toast.success('Status das cobranças atualizado.');
+      const partes = [
+        d?.novas ? `${d.novas} fatura(s) nova(s) importada(s)` : '',
+        d?.conciliadas ? `${d.conciliadas} ligada(s) ao financeiro` : '',
+      ].filter(Boolean);
+      toast.success('Cobranças sincronizadas.', partes.length ? { description: partes.join(' · ') } : undefined);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao sincronizar');
     } finally {
