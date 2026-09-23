@@ -117,7 +117,7 @@ serve(async (req) => {
       cliente_id: string; contrato_id: string | null; conta_id: string | null; tipo: string;
       asaas_payment_id: string | null; asaas_subscription_id: string | null;
       descricao: string; valor: number; vencimento: string; forma: string;
-      status: string; invoice_url: string | null;
+      status: string; invoice_url: string | null; exigir_nf?: boolean;
     }) {
       const { data: rec } = await admin.from("receitas").insert({
         user_id: user.id,
@@ -144,6 +144,7 @@ serve(async (req) => {
         forma_pagamento: opts.forma,
         status: opts.status,
         invoice_url: opts.invoice_url,
+        exigir_nf: opts.exigir_nf ?? false,
       } as never).select("*").single();
       return cob;
     }
@@ -183,7 +184,7 @@ serve(async (req) => {
     // as pagas históricas ficam de fora pra não recriar receita já lançada.
     const STATUS_ABERTO = ["PENDING", "OVERDUE", "AWAITING_RISK_ANALYSIS", "AWAITING_CHARGEBACK_REVERSAL"];
     async function importarPagamentos(opts: {
-      subId: string; contrato_id: string | null; cliente_id: string | null; conta_id: string | null; descricao: string;
+      subId: string; contrato_id: string | null; cliente_id: string | null; conta_id: string | null; descricao: string; exigir_nf?: boolean;
     }): Promise<number> {
       let novas = 0;
       try {
@@ -201,6 +202,7 @@ serve(async (req) => {
             descricao: opts.descricao, valor: Number(pay.value),
             vencimento: pay.dueDate, forma: pay.billingType || "UNDEFINED",
             status: mapStatus(pay.status), invoice_url: pay.invoiceUrl ?? null,
+            exigir_nf: opts.exigir_nf ?? false,
           });
           novas++;
         }
@@ -258,6 +260,7 @@ serve(async (req) => {
         forma,
         status: pay ? mapStatus(pay.status) : "pendente",
         invoice_url: pay?.invoiceUrl ?? null,
+        exigir_nf: !!contrato.exigir_nf,
       });
       return json({ ok: true, cobranca: cob, invoiceUrl: pay?.invoiceUrl ?? null });
     }
@@ -345,6 +348,7 @@ serve(async (req) => {
       const novas = await importarPagamentos({
         subId: sub.id, contrato_id: contrato.id, cliente_id: contrato.cliente_id,
         conta_id: conta_id || null, descricao: contrato.descricao || sub.description || "Assinatura",
+        exigir_nf: !!contrato.exigir_nf,
       });
       return json({ ok: true, valor: Number(sub.value), cobrancas: novas });
     }
@@ -512,6 +516,7 @@ serve(async (req) => {
         novas += await importarPagamentos({
           subId, contrato_id: ctx.contrato_id, cliente_id: ctx.cliente_id,
           conta_id: ctx.conta_id, descricao: ctx.descricao || "Assinatura",
+          exigir_nf: !!ctx.exigir_nf,
         });
       }
       return json({ ok: true, sincronizadas: (cobs || []).length, novas });

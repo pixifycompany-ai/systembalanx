@@ -19,6 +19,9 @@ export interface Cobranca {
   invoice_url: string | null;
   data_pagamento: string | null;
   created_at?: string | null;
+  nota_fiscal_path?: string | null;
+  nota_fiscal_nome?: string | null;
+  exigir_nf?: boolean | null;
 }
 
 export interface AsaasAssinatura {
@@ -224,9 +227,65 @@ export function useCobrancas() {
     })();
   }, []);
 
-  const enviarWhatsapp = async (telefone: string, text: string) => {
+  // Anexa um PDF de nota fiscal à cobrança (Storage privado) e grava o path.
+  const anexarNota = async (cobranca_id: string, file: File) => {
+    setBusyId(cobranca_id);
     try {
-      const { data, error } = await supabase.functions.invoke('whatsapp-enviar', { body: { telefone, text } });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Sessão expirada.');
+      if (file.type && file.type !== 'application/pdf') throw new Error('Envie um arquivo PDF.');
+      const path = `${user.id}/${cobranca_id}-${Date.now()}.pdf`;
+      const { error: upErr } = await supabase.storage.from('notas-fiscais').upload(path, file, { contentType: 'application/pdf', upsert: true });
+      if (upErr) throw upErr;
+      const { error: updErr } = await (supabase as any).from('cobrancas').update({ nota_fiscal_path: path, nota_fiscal_nome: file.name }).eq('id', cobranca_id);
+      if (updErr) throw updErr;
+      toast.success('Nota fiscal anexada.');
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao anexar nota fiscal');
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const removerNota = async (cobranca_id: string, path?: string | null) => {
+    setBusyId(cobranca_id);
+    try {
+      if (path) await supabase.storage.from('notas-fiscais').remove([path]);
+      await (supabase as any).from('cobrancas').update({ nota_fiscal_path: null, nota_fiscal_nome: null }).eq('id', cobranca_id);
+      toast.success('Nota fiscal removida.');
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao remover');
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const setExigirNf = async (cobranca_id: string, value: boolean) => {
+    try {
+      await (supabase as any).from('cobrancas').update({ exigir_nf: value }).eq('id', cobranca_id);
+      toast.success(value ? 'Passou a exigir nota fiscal para disparar.' : 'Nota fiscal não é mais obrigatória.');
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao atualizar');
+    }
+  };
+
+  const notaSignedUrl = async (path: string): Promise<string | null> => {
+    const { data } = await supabase.storage.from('notas-fiscais').createSignedUrl(path, 600);
+    return data?.signedUrl || null;
+  };
+
+  const enviarWhatsapp = async (telefone: string, text: string, documento?: { url: string; nome: string } | null) => {
+    try {
+      const body: Record<string, unknown> = { telefone, text };
+      if (documento?.url) { body.documento_url = documento.url; body.documento_nome = documento.nome; }
+      const { data, error } = await supabase.functions.invoke('whatsapp-enviar', { body });
       if (error) {
         // supabase-js troca nosso JSON {error} por "non-2xx" genérico; lê o corpo real.
         let msg = error.message;
@@ -255,7 +314,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, whatsappTemplate, reload: load };
+  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, whatsappTemplate, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

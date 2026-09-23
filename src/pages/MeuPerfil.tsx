@@ -52,18 +52,44 @@ export default function MeuPerfil() {
   const [whatsappTpl, setWhatsappTpl] = useState('');
   const [savingTpl, setSavingTpl] = useState(false);
 
+  // Regras globais de envio automático por WhatsApp
+  const [autoCfg, setAutoCfg] = useState({ enabled: false, antesDias: 0, noDia: true, atrasoDiario: false, atrasoMax: 0 });
+  const [savingAuto, setSavingAuto] = useState(false);
+
   const loadAsaasStatus = async () => {
     const { data } = await (supabase as any)
       .from('cobranca_config')
-      .select('asaas_account_name, asaas_env, webhook_token, whatsapp_template')
+      .select('asaas_account_name, asaas_env, webhook_token, whatsapp_template, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias')
       .maybeSingle();
     if (data) {
       setAsaasStatus({ connected: true, accountName: data.asaas_account_name ?? null, env: data.asaas_env ?? 'production', webhookToken: data.webhook_token ?? null });
       setWhatsappTpl(data.whatsapp_template || WHATSAPP_TPL_PADRAO);
+      setAutoCfg({
+        enabled: !!data.auto_wpp_enabled,
+        antesDias: data.auto_wpp_antes_dias ?? 0,
+        noDia: data.auto_wpp_no_dia ?? true,
+        atrasoDiario: !!data.auto_wpp_atraso_diario,
+        atrasoMax: data.auto_wpp_atraso_max_dias ?? 0,
+      });
     } else {
       setAsaasStatus({ connected: false, accountName: null, env: 'production', webhookToken: null });
       setWhatsappTpl(WHATSAPP_TPL_PADRAO);
     }
+  };
+
+  const salvarAutoCfg = async () => {
+    if (!user) return;
+    setSavingAuto(true);
+    const { error } = await (supabase as any).from('cobranca_config').update({
+      auto_wpp_enabled: autoCfg.enabled,
+      auto_wpp_antes_dias: Math.max(0, Number(autoCfg.antesDias) || 0),
+      auto_wpp_no_dia: autoCfg.noDia,
+      auto_wpp_atraso_diario: autoCfg.atrasoDiario,
+      auto_wpp_atraso_max_dias: Math.max(0, Number(autoCfg.atrasoMax) || 0),
+    }).eq('user_id', user.id);
+    setSavingAuto(false);
+    if (error) toast.error('Erro ao salvar regras de envio');
+    else toast.success('Regras de envio automático salvas');
   };
 
   const salvarWhatsappTpl = async () => {
@@ -347,6 +373,46 @@ export default function MeuPerfil() {
               <Textarea value={whatsappTpl} onChange={(e) => setWhatsappTpl(e.target.value)} rows={8} className="font-mono text-[12px] leading-relaxed" />
               <Button size="sm" className="w-full" onClick={salvarWhatsappTpl} disabled={savingTpl}>
                 {savingTpl && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar mensagem
+              </Button>
+            </div>
+
+            {/* Envio automático por WhatsApp (regra global) */}
+            <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Envio automático por WhatsApp</p>
+                  <p className="text-[11px] text-foreground-muted">Regra padrão. Cada contrato pode ter exceção própria.</p>
+                </div>
+                <Switch checked={autoCfg.enabled} onCheckedChange={(v) => setAutoCfg((p) => ({ ...p, enabled: v }))} />
+              </div>
+
+              {autoCfg.enabled && (
+                <div className="space-y-2.5 border-t border-border/50 pt-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-xs font-normal">Enviar <b>X dias antes</b> do vencimento</Label>
+                    <Input type="number" min="0" value={autoCfg.antesDias} onChange={(e) => setAutoCfg((p) => ({ ...p, antesDias: parseInt(e.target.value) || 0 }))} className="h-8 w-16 text-center text-sm" />
+                  </div>
+                  <p className="-mt-1 text-[10px] text-foreground-muted">0 = não envia lembrete antecipado.</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-xs font-normal">Enviar <b>no dia</b> do vencimento</Label>
+                    <Switch checked={autoCfg.noDia} onCheckedChange={(v) => setAutoCfg((p) => ({ ...p, noDia: v }))} />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-xs font-normal">Reenviar <b>todo dia em atraso</b></Label>
+                    <Switch checked={autoCfg.atrasoDiario} onCheckedChange={(v) => setAutoCfg((p) => ({ ...p, atrasoDiario: v }))} />
+                  </div>
+                  {autoCfg.atrasoDiario && (
+                    <div className="flex items-center justify-between gap-3">
+                      <Label className="text-xs font-normal">Parar após <b>N dias</b> de atraso</Label>
+                      <Input type="number" min="0" value={autoCfg.atrasoMax} onChange={(e) => setAutoCfg((p) => ({ ...p, atrasoMax: parseInt(e.target.value) || 0 }))} className="h-8 w-16 text-center text-sm" />
+                    </div>
+                  )}
+                  <p className="text-[10px] text-foreground-muted">O disparo roda 1x/dia de manhã. Cobranças que exigem nota fiscal só são enviadas com o PDF anexado.</p>
+                </div>
+              )}
+
+              <Button size="sm" className="w-full" onClick={salvarAutoCfg} disabled={savingAuto}>
+                {savingAuto && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar regras
               </Button>
             </div>
 

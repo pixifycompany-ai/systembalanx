@@ -41,6 +41,8 @@ import { useClientes } from '@/hooks/useClientes';
 import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X, Zap, ChevronUp, ChevronDown, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { ContractImportDialog } from '@/components/import/ContractImportDialog';
 import { useContratoAditivos, type AditivoFormData } from '@/hooks/useContratoAditivos';
 import { DatePickerField } from '@/components/shared/DatePickerField';
@@ -90,6 +92,12 @@ export default function Contratos() {
   const [ncConta, setNcConta] = useState('');
   const [ncMulta, setNcMulta] = useState('');
   const [ncJuros, setNcJuros] = useState('');
+  // Exceção de envio automático + exigência de NF (por contrato)
+  const [caModo, setCaModo] = useState<'padrao' | 'off' | 'custom'>('padrao');
+  const [caAntes, setCaAntes] = useState('');
+  const [caNoDia, setCaNoDia] = useState(true);
+  const [caAtraso, setCaAtraso] = useState(false);
+  const [caExigirNf, setCaExigirNf] = useState(false);
   // Cobrança recorrente via Asaas (por contrato)
   const {
     byContrato,
@@ -104,6 +112,7 @@ export default function Contratos() {
     sincronizar: sincronizarCobrancas,
     receberManual: receberManualCobranca,
     enviarWhatsapp,
+    notaSignedUrl,
     whatsappTemplate,
   } = useCobrancas();
 
@@ -112,9 +121,11 @@ export default function Contratos() {
   const [whatsappTel, setWhatsappTel] = useState('');
   const [whatsappText, setWhatsappText] = useState('');
   const [whatsappSending, setWhatsappSending] = useState(false);
+  const [whatsappCob, setWhatsappCob] = useState<Cobranca | null>(null);
   const openWhatsapp = (cob?: Cobranca) => {
     if (!cob) return;
     const cli = clientes.find((c) => c.id === cob.cliente_id);
+    setWhatsappCob(cob);
     setWhatsappTel(cli?.telefone || '');
     setWhatsappText(preencherTemplate(whatsappTemplate, {
       cliente: cli?.nome || 'cliente',
@@ -125,9 +136,17 @@ export default function Contratos() {
     }));
     setWhatsappOpen(true);
   };
+  const whatsappBloqueado = !!whatsappCob?.exigir_nf && !whatsappCob?.nota_fiscal_path;
   const handleEnviarWhatsapp = async () => {
+    if (!whatsappCob) return;
+    if (whatsappBloqueado) { toast.error('Esta cobrança exige nota fiscal anexada para disparar.'); return; }
     setWhatsappSending(true);
-    const ok = await enviarWhatsapp(whatsappTel, whatsappText);
+    let doc: { url: string; nome: string } | null = null;
+    if (whatsappCob.nota_fiscal_path) {
+      const url = await notaSignedUrl(whatsappCob.nota_fiscal_path);
+      if (url) doc = { url, nome: whatsappCob.nota_fiscal_nome || 'nota-fiscal.pdf' };
+    }
+    const ok = await enviarWhatsapp(whatsappTel, whatsappText, doc);
     setWhatsappSending(false);
     if (ok) setWhatsappOpen(false);
   };
@@ -365,6 +384,7 @@ export default function Contratos() {
     });
     setParcelas([]);
     setShowAditivoForm(false);
+    setCaModo('padrao'); setCaAntes(''); setCaNoDia(true); setCaAtraso(false); setCaExigirNf(false);
     setModalOpen(true);
   };
 
@@ -387,6 +407,12 @@ export default function Contratos() {
     setParcelas([]);
     setShowAditivoForm(false);
     setAditivoData({ valor_novo: '', data_vigencia: '', motivo: '' });
+    const c = contrato as unknown as { cobranca_auto_modo?: string; cobranca_auto_antes_dias?: number | null; cobranca_auto_no_dia?: boolean | null; cobranca_auto_atraso_diario?: boolean | null; exigir_nf?: boolean | null };
+    setCaModo((c.cobranca_auto_modo as 'padrao' | 'off' | 'custom') || 'padrao');
+    setCaAntes(c.cobranca_auto_antes_dias != null ? String(c.cobranca_auto_antes_dias) : '');
+    setCaNoDia(c.cobranca_auto_no_dia ?? true);
+    setCaAtraso(!!c.cobranca_auto_atraso_diario);
+    setCaExigirNf(!!c.exigir_nf);
     setModalOpen(true);
   };
 
@@ -428,6 +454,17 @@ export default function Contratos() {
 
     if (contratoResult && !editingContrato && formData.recorrencia === 'unico' && parcelas.length > 0) {
       await createParcelas(contratoResult.id, parcelas);
+    }
+
+    // Exceção de envio automático + exigência de NF (grava direto na linha do contrato)
+    if (contratoResult) {
+      await (supabase as any).from('contratos').update({
+        cobranca_auto_modo: caModo,
+        cobranca_auto_antes_dias: caModo === 'custom' ? (parseInt(caAntes) || 0) : null,
+        cobranca_auto_no_dia: caModo === 'custom' ? caNoDia : null,
+        cobranca_auto_atraso_diario: caModo === 'custom' ? caAtraso : null,
+        exigir_nf: caExigirNf,
+      }).eq('id', contratoResult.id);
     }
 
     // Já criar a cobrança recorrente no Asaas junto com o contrato (opcional)
@@ -1035,6 +1072,42 @@ export default function Contratos() {
                 </div>
               )}
 
+              {/* Cobrança automática (exceção) + exigir nota fiscal — por contrato */}
+              {formData.recorrencia !== 'unico' && (
+                <div className="space-y-3 rounded-xl border border-border/60 bg-surface/40 p-3">
+                  <Label className="text-sm font-semibold">Cobrança automática (WhatsApp)</Label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[['padrao', 'Padrão'], ['off', 'Desligado'], ['custom', 'Personalizado']].map(([v, l]) => (
+                      <button key={v} type="button" onClick={() => setCaModo(v as 'padrao' | 'off' | 'custom')} className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', caModo === v ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>{l}</button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-foreground-muted">
+                    {caModo === 'padrao' ? 'Usa a regra global (Meu Perfil).' : caModo === 'off' ? 'Nunca dispara automático para este contrato.' : 'Define uma regra só para este contrato.'}
+                  </p>
+                  {caModo === 'custom' && (
+                    <div className="space-y-2.5 border-t border-border/50 pt-2.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-xs font-normal">Enviar <b>X dias antes</b></Label>
+                        <Input type="number" min="0" value={caAntes} onChange={(e) => setCaAntes(e.target.value)} placeholder="0" className="h-8 w-16 text-center text-sm" />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-xs font-normal">Enviar <b>no dia</b></Label>
+                        <Switch checked={caNoDia} onCheckedChange={setCaNoDia} />
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <Label className="text-xs font-normal">Reenviar <b>todo dia em atraso</b></Label>
+                        <Switch checked={caAtraso} onCheckedChange={setCaAtraso} />
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-2.5">
+                    <Label className="text-xs font-normal">Exigir <b>nota fiscal (PDF)</b> para disparar</Label>
+                    <Switch checked={caExigirNf} onCheckedChange={setCaExigirNf} />
+                  </div>
+                  <p className="text-[11px] text-foreground-muted">Vale para as próximas cobranças geradas deste contrato.</p>
+                </div>
+              )}
+
               {editingContrato && (
                 <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
                   <div className="flex items-center justify-between">
@@ -1225,9 +1298,20 @@ export default function Contratos() {
                 <Textarea value={whatsappText} onChange={(e) => setWhatsappText(e.target.value)} rows={10} className="font-mono text-[13px] leading-relaxed" />
                 <p className="text-[11px] text-foreground-muted">Aceita *negrito*, _itálico_ e quebra de linha. Edite à vontade — o padrão vem de Meu Perfil.</p>
               </div>
+              {whatsappCob?.nota_fiscal_path ? (
+                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-surface/60 px-3 py-2 text-xs text-foreground">
+                  <FileText className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="truncate">Vai anexar: {whatsappCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
+                </div>
+              ) : whatsappCob?.exigir_nf ? (
+                <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning))]">
+                  <FileText className="h-4 w-4 shrink-0" />
+                  <span>Esta cobrança exige nota fiscal anexada. Anexe na tela de Cobranças.</span>
+                </div>
+              ) : null}
               <div className="flex gap-2 pt-1">
                 <Button variant="outline" className="flex-1" onClick={() => setWhatsappOpen(false)}>Cancelar</Button>
-                <Button className="flex-1" onClick={handleEnviarWhatsapp} disabled={whatsappSending || !whatsappTel.trim() || !whatsappText.trim()}>
+                <Button className="flex-1" onClick={handleEnviarWhatsapp} disabled={whatsappSending || whatsappBloqueado || !whatsappTel.trim() || !whatsappText.trim()}>
                   {whatsappSending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Enviar
                 </Button>
               </div>

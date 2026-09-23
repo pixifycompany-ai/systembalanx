@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useActionParam } from '@/hooks/useActionParam';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import {
   useCobrancas,
   preencherTemplate,
@@ -25,6 +26,7 @@ import { useContas } from '@/hooks/useContas';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
   XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Repeat, Receipt, Wallet, CreditCard,
+  Paperclip, FileText, ShieldCheck, ShieldOff,
 } from 'lucide-react';
 
 const toneCls: Record<string, string> = {
@@ -57,7 +59,8 @@ export default function Cobrancas() {
   const isMobile = useIsMobile();
   const {
     cobrancas, loading, busyId,
-    criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, whatsappTemplate,
+    criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp,
+    anexarNota, removerNota, setExigirNf, notaSignedUrl, whatsappTemplate,
   } = useCobrancas();
   const { clientes } = useClientes();
   const { contas } = useContas();
@@ -124,8 +127,10 @@ export default function Cobrancas() {
   const [waTel, setWaTel] = useState('');
   const [waText, setWaText] = useState('');
   const [waSending, setWaSending] = useState(false);
+  const [waCob, setWaCob] = useState<Cobranca | null>(null);
   const openWhatsapp = (cob: Cobranca) => {
     const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
+    setWaCob(cob);
     setWaTel(cli?.telefone || '');
     setWaText(preencherTemplate(whatsappTemplate, {
       cliente: cli?.nome || 'cliente',
@@ -136,9 +141,17 @@ export default function Cobrancas() {
     }));
     setWaOpen(true);
   };
+  const waBloqueado = !!waCob?.exigir_nf && !waCob?.nota_fiscal_path;
   const handleEnviarWa = async () => {
+    if (!waCob) return;
+    if (waBloqueado) { toast.error('Esta cobrança exige nota fiscal anexada para disparar.'); return; }
     setWaSending(true);
-    const ok = await enviarWhatsapp(waTel, waText);
+    let doc: { url: string; nome: string } | null = null;
+    if (waCob.nota_fiscal_path) {
+      const url = await notaSignedUrl(waCob.nota_fiscal_path);
+      if (url) doc = { url, nome: waCob.nota_fiscal_nome || 'nota-fiscal.pdf' };
+    }
+    const ok = await enviarWhatsapp(waTel, waText, doc);
     setWaSending(false);
     if (ok) setWaOpen(false);
   };
@@ -202,6 +215,21 @@ export default function Cobrancas() {
     if (ok) setFormaOpen(false);
   };
 
+  // ===== Nota fiscal (PDF) =====
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetRef = useRef<string | null>(null);
+  const pedirUploadNota = (cobranca_id: string) => { uploadTargetRef.current = cobranca_id; fileInputRef.current?.click(); };
+  const onFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const id = uploadTargetRef.current;
+    e.target.value = '';
+    if (file && id) await anexarNota(id, file);
+  };
+  const abrirNota = async (path: string) => {
+    const url = await notaSignedUrl(path);
+    if (url) window.open(url, '_blank', 'noopener');
+  };
+
   // ===== Menu de ações por cobrança =====
   const AcoesMenu = ({ cob }: { cob: Cobranca }) => {
     const busy = busyId === cob.id;
@@ -226,6 +254,28 @@ export default function Cobrancas() {
               <HandCoins className="h-4 w-4 text-[hsl(var(--success))]" /> Identificar pagamento manual
             </button>
           )}
+          {/* Nota fiscal (PDF) */}
+          {cob.nota_fiscal_path ? (
+            <>
+              <button onClick={() => abrirNota(cob.nota_fiscal_path!)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+                <FileText className="h-4 w-4 text-primary" /> Ver nota fiscal
+              </button>
+              <button onClick={() => pedirUploadNota(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+                <Paperclip className="h-4 w-4 text-foreground-muted" /> Trocar nota fiscal
+              </button>
+              <button onClick={() => removerNota(cob.id, cob.nota_fiscal_path)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-[hsl(var(--danger))] transition-colors hover:bg-[hsl(var(--danger))]/10">
+                <Trash2 className="h-4 w-4" /> Remover nota fiscal
+              </button>
+            </>
+          ) : (
+            <button onClick={() => pedirUploadNota(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+              <Paperclip className="h-4 w-4 text-foreground-muted" /> Anexar nota fiscal (PDF)
+            </button>
+          )}
+          <button onClick={() => setExigirNf(cob.id, !cob.exigir_nf)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+            {cob.exigir_nf ? <ShieldOff className="h-4 w-4 text-foreground-muted" /> : <ShieldCheck className="h-4 w-4 text-foreground-muted" />}
+            {cob.exigir_nf ? 'Não exigir NF p/ disparar' : 'Exigir NF p/ disparar'}
+          </button>
           {cob.status !== 'pago' && cob.status !== 'cancelado' && (
             <button onClick={() => abrirForma(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
               <CreditCard className="h-4 w-4 text-foreground-muted" /> Alterar forma de recebimento
@@ -283,6 +333,8 @@ export default function Cobrancas() {
           </>
         }
       />
+
+      <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={onFileChosen} />
 
       <KpiTriple
         items={[
@@ -382,7 +434,13 @@ export default function Cobrancas() {
                 const conta = cob.conta_id ? contaById.get(cob.conta_id) : undefined;
                 return (
                   <tr key={cob.id} className="border-b border-border/40 last:border-0 transition-colors hover:bg-white/[0.02]">
-                    <td className="px-3 py-3 font-medium text-foreground">{cli?.nome || '—'}</td>
+                    <td className="px-3 py-3 font-medium text-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate">{cli?.nome || '—'}</span>
+                        {cob.nota_fiscal_path && <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Nota fiscal anexada" />}
+                        {cob.exigir_nf && !cob.nota_fiscal_path && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--warning))]" aria-label="Exige nota fiscal" />}
+                      </div>
+                    </td>
                     <td className="px-3 py-3 max-w-[220px] truncate text-foreground-muted">{cob.descricao || '—'}</td>
                     <td className="px-3 py-3"><TipoBadge tipo={cob.tipo} /></td>
                     <td className="px-3 py-3 text-right font-semibold tabular-nums text-foreground">{formatCurrency(Number(cob.valor))}</td>
@@ -577,9 +635,23 @@ export default function Cobrancas() {
                 <Label className="text-xs">Mensagem</Label>
                 <Textarea value={waText} onChange={(e) => setWaText(e.target.value)} rows={10} className="mt-1 font-mono text-[13px] leading-relaxed" />
               </div>
+              {/* Status da nota fiscal */}
+              {waCob?.nota_fiscal_path ? (
+                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-surface/60 px-3 py-2 text-xs text-foreground">
+                  <FileText className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="truncate">Vai anexar: {waCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
+                  <button onClick={() => abrirNota(waCob.nota_fiscal_path!)} className="ml-auto shrink-0 text-primary hover:underline">ver</button>
+                </div>
+              ) : waCob?.exigir_nf ? (
+                <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning))]">
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <span>Esta cobrança exige nota fiscal.</span>
+                  <button onClick={() => { setWaOpen(false); pedirUploadNota(waCob.id); }} className="ml-auto shrink-0 font-semibold hover:underline">Anexar</button>
+                </div>
+              ) : null}
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setWaOpen(false)}>Cancelar</Button>
-                <Button className="flex-1" onClick={handleEnviarWa} disabled={waSending || !waTel.trim() || !waText.trim()}>
+                <Button className="flex-1" onClick={handleEnviarWa} disabled={waSending || waBloqueado || !waTel.trim() || !waText.trim()}>
                   {waSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
                   Enviar
                 </Button>

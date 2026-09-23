@@ -34,7 +34,7 @@ serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) return json({ error: "Unauthorized" }, 401);
 
-    const { telefone, text } = await req.json().catch(() => ({}));
+    const { telefone, text, documento_url, documento_nome } = await req.json().catch(() => ({}));
     const to = normalizarWhats(String(telefone || ""));
     if (!to) return json({ error: "Telefone do cliente inválido/ausente. Cadastre o WhatsApp com DDD." }, 400);
     if (!text || !String(text).trim()) return json({ error: "Mensagem vazia." }, 400);
@@ -59,7 +59,19 @@ serve(async (req) => {
         : "";
       return json({ error: `Falha ao enviar (${resp.status})${dica}${detalhe}`, status: resp.status, to }, 400);
     }
-    return json({ ok: true, to });
+
+    // Envia o PDF (nota fiscal) como documento, logo após o texto.
+    let docEnviado = false;
+    if (documento_url) {
+      const dr = await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/document`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
+        body: JSON.stringify({ to, url: String(documento_url), filename: documento_nome || "documento.pdf", mimetype: "application/pdf" }),
+      });
+      if (dr.ok) docEnviado = true;
+      else console.error("whatsapp document error", dr.status, await dr.text().catch(() => ""));
+    }
+    return json({ ok: true, to, docEnviado });
   } catch (e) {
     console.error("whatsapp-enviar error", e);
     return json({ error: e instanceof Error ? e.message : "Erro" }, 500);
