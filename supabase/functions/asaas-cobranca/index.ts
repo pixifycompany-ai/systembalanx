@@ -128,8 +128,20 @@ serve(async (req) => {
       const forma = (forma_pagamento || "UNDEFINED") as string;
       const { data: contrato } = await admin.from("contratos").select("*").eq("id", contrato_id).eq("user_id", user.id).maybeSingle();
       if (!contrato) return json({ error: "Contrato não encontrado." }, 404);
-      if (contrato.asaas_subscription_id) return json({ error: "Este contrato já tem assinatura no Asaas. Clique em \"Sincronizar cobranças\" (topo) para importar as faturas." }, 400);
       if (!contrato.cliente_id) return json({ error: "Contrato sem cliente vinculado." }, 400);
+      // Já tem assinatura ligada? Confirma no Asaas se ela ainda existe.
+      // Se existir de verdade → bloqueia (senão cobraria em dobro).
+      // Se estiver apagada/inexistente (referência órfã) → limpa e segue criando.
+      if (contrato.asaas_subscription_id) {
+        const chk = await fetch(`${base}/subscriptions/${contrato.asaas_subscription_id}`, { headers });
+        const sj = chk.ok ? await chk.json().catch(() => null) : null;
+        const viva = chk.ok && sj && sj.deleted !== true && !["EXPIRED", "INACTIVE"].includes(sj.status);
+        if (viva) {
+          return json({ error: "Este contrato já tem assinatura ativa no Asaas. Clique em \"Sincronizar cobranças\" (topo) para importar as faturas." }, 400);
+        }
+        await admin.from("contratos").update({ asaas_subscription_id: null }).eq("id", contrato.id);
+        contrato.asaas_subscription_id = null;
+      }
 
       const customer = await ensureCustomer(contrato.cliente_id);
       const nextDueDate = proximoVencimento(Number(contrato.dia_vencimento) || 10);
