@@ -390,6 +390,43 @@ serve(async (req) => {
       return json({ ok: true });
     }
 
+    // ===== ATUALIZAR FORMA de recebimento (billingType no Asaas) =====
+    if (action === "atualizar-forma") {
+      const { cobranca_id, forma_pagamento } = body;
+      const forma = (forma_pagamento || "UNDEFINED") as string;
+      const { data: cob } = await admin.from("cobrancas").select("*").eq("id", cobranca_id).eq("user_id", user.id).maybeSingle();
+      if (!cob) return json({ error: "Cobrança não encontrada." }, 404);
+      if (["pago", "cancelado", "estornado"].includes(cob.status)) {
+        return json({ error: "Não dá pra alterar a forma de uma cobrança já paga/cancelada." }, 400);
+      }
+
+      if (cob.asaas_subscription_id) {
+        // updatePendingPayments:true → altera a assinatura E as faturas pendentes.
+        const r = await fetch(`${base}/subscriptions/${cob.asaas_subscription_id}`, {
+          method: "POST", headers,
+          body: JSON.stringify({ billingType: forma, updatePendingPayments: true }),
+        });
+        const j = await r.json();
+        if (!r.ok) return json({ error: j?.errors?.[0]?.description || "Erro ao alterar forma no Asaas." }, 400);
+        const { data: cobs } = await admin.from("cobrancas").select("id")
+          .eq("user_id", user.id).eq("asaas_subscription_id", cob.asaas_subscription_id).in("status", ["pendente", "vencido"]);
+        for (const c of cobs || []) {
+          await admin.from("cobrancas").update({ forma_pagamento: forma, updated_at: new Date().toISOString() }).eq("id", c.id);
+        }
+      } else if (cob.asaas_payment_id) {
+        const r = await fetch(`${base}/payments/${cob.asaas_payment_id}`, {
+          method: "POST", headers,
+          body: JSON.stringify({ billingType: forma }),
+        });
+        const j = await r.json();
+        if (!r.ok) return json({ error: j?.errors?.[0]?.description || "Erro ao alterar forma no Asaas." }, 400);
+        await admin.from("cobrancas").update({ forma_pagamento: forma, updated_at: new Date().toISOString() }).eq("id", cob.id);
+      } else {
+        await admin.from("cobrancas").update({ forma_pagamento: forma, updated_at: new Date().toISOString() }).eq("id", cob.id);
+      }
+      return json({ ok: true });
+    }
+
     // ===== ATUALIZAR CONTA de recebimento (cobrança + receita vinculada) =====
     if (action === "atualizar-conta") {
       const { cobranca_id, conta_id } = body;

@@ -24,7 +24,7 @@ import { useClientes } from '@/hooks/useClientes';
 import { useContas } from '@/hooks/useContas';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
-  XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Repeat, Receipt, Wallet,
+  XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Repeat, Receipt, Wallet, CreditCard,
 } from 'lucide-react';
 
 const toneCls: Record<string, string> = {
@@ -57,7 +57,7 @@ export default function Cobrancas() {
   const isMobile = useIsMobile();
   const {
     cobrancas, loading, busyId,
-    criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, enviarWhatsapp, whatsappTemplate,
+    criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, whatsappTemplate,
   } = useCobrancas();
   const { clientes } = useClientes();
   const { contas } = useContas();
@@ -188,6 +188,20 @@ export default function Cobrancas() {
     if (ok) setContaOpen(false);
   };
 
+  // ===== Alterar forma de recebimento =====
+  const [formaOpen, setFormaOpen] = useState(false);
+  const [formaCob, setFormaCob] = useState<Cobranca | null>(null);
+  const [formaSel, setFormaSel] = useState('UNDEFINED');
+  const [formaSaving, setFormaSaving] = useState(false);
+  const abrirForma = (cob: Cobranca) => { setFormaCob(cob); setFormaSel(cob.forma_pagamento || 'UNDEFINED'); setFormaOpen(true); };
+  const handleSalvarForma = async () => {
+    if (!formaCob) return;
+    setFormaSaving(true);
+    const ok = await atualizarForma(formaCob.id, formaSel);
+    setFormaSaving(false);
+    if (ok) setFormaOpen(false);
+  };
+
   // ===== Menu de ações por cobrança =====
   const AcoesMenu = ({ cob }: { cob: Cobranca }) => {
     const busy = busyId === cob.id;
@@ -210,6 +224,11 @@ export default function Cobrancas() {
           {cob.status !== 'pago' && (
             <button onClick={() => receberManual(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
               <HandCoins className="h-4 w-4 text-[hsl(var(--success))]" /> Identificar pagamento manual
+            </button>
+          )}
+          {cob.status !== 'pago' && cob.status !== 'cancelado' && (
+            <button onClick={() => abrirForma(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+              <CreditCard className="h-4 w-4 text-foreground-muted" /> Alterar forma de recebimento
             </button>
           )}
           <button onClick={() => abrirConta(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
@@ -368,7 +387,15 @@ export default function Cobrancas() {
                     <td className="px-3 py-3"><TipoBadge tipo={cob.tipo} /></td>
                     <td className="px-3 py-3 text-right font-semibold tabular-nums text-foreground">{formatCurrency(Number(cob.valor))}</td>
                     <td className="px-3 py-3 text-foreground-muted">{formatDate(cob.vencimento)}</td>
-                    <td className="px-3 py-3 text-foreground-muted">{FORMA_LABEL[cob.forma_pagamento] || cob.forma_pagamento}</td>
+                    <td className="px-3 py-3">
+                      {cob.status !== 'pago' && cob.status !== 'cancelado' ? (
+                        <button onClick={() => abrirForma(cob)} className="rounded-md px-1.5 py-0.5 text-left text-foreground-muted transition-colors hover:bg-white/5 hover:text-foreground">
+                          {FORMA_LABEL[cob.forma_pagamento] || cob.forma_pagamento}
+                        </button>
+                      ) : (
+                        <span className="px-1.5 text-foreground-muted">{FORMA_LABEL[cob.forma_pagamento] || cob.forma_pagamento}</span>
+                      )}
+                    </td>
                     <td className="px-3 py-3">
                       <button onClick={() => abrirConta(cob)} className={cn('rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-white/5', conta ? 'text-foreground-muted' : 'text-primary')}>
                         {conta?.nome || 'Definir'}
@@ -463,6 +490,41 @@ export default function Cobrancas() {
               >
                 {avulsaSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Criar cobrança no Asaas
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: alterar forma de recebimento */}
+      <Sheet open={formaOpen} onOpenChange={setFormaOpen}>
+        <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.95] backdrop-blur-2xl sm:max-w-[460px] sm:mx-auto">
+          <div className="mx-auto w-full max-w-[420px] pb-6 pt-1">
+            <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
+            <h2 className="mt-0.5 mb-1 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Forma de recebimento</h2>
+            {formaCob && (
+              <p className="mb-4 text-sm text-foreground-muted">
+                {(formaCob.cliente_id && clienteById.get(formaCob.cliente_id)?.nome) || '—'} · {formatCurrency(Number(formaCob.valor))}
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              {FORMAS.map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setFormaSel(f.value)}
+                  className={cn('rounded-lg border py-2.5 text-sm font-semibold transition-colors', formaSel === f.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted hover:bg-surface-2')}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-foreground-muted">
+              {formaCob?.tipo === 'recorrente' ? 'Atualiza a assinatura e as faturas pendentes no Asaas.' : 'Atualiza a fatura no Asaas.'} O link de pagamento continua o mesmo.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setFormaOpen(false)}>Cancelar</Button>
+              <Button className="flex-1" onClick={handleSalvarForma} disabled={formaSaving}>
+                {formaSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Salvar
               </Button>
             </div>
           </div>

@@ -159,6 +159,23 @@ export function useCobrancas() {
     }
   };
 
+  // Alterar a forma de recebimento (billingType) no Asaas — assinatura atualiza
+  // as faturas pendentes; avulsa atualiza a própria fatura.
+  const atualizarForma = async (cobranca_id: string, forma_pagamento: string) => {
+    setBusyId(cobranca_id);
+    try {
+      await invoke({ action: 'atualizar-forma', cobranca_id, forma_pagamento });
+      toast.success('Forma de recebimento atualizada no Asaas.');
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao alterar forma', { duration: 8000 });
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const cancelar = async (cobranca_id: string) => {
     setBusyId(cobranca_id);
     try {
@@ -238,7 +255,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, enviarWhatsapp, whatsappTemplate, reload: load };
+  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, whatsappTemplate, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =
