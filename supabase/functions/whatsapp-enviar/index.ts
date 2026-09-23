@@ -51,7 +51,13 @@ serve(async (req) => {
     const bodyText = await resp.text();
     if (!resp.ok) {
       console.error("whatsapp send error", resp.status, bodyText);
-      return json({ error: `Falha ao enviar (${resp.status}).` }, 400);
+      const detalhe = bodyText ? ` — ${bodyText.slice(0, 300)}` : "";
+      const dica = resp.status === 401
+        ? " (chave do WhatsApp inválida ou sessão do Pixify desconectada)"
+        : resp.status === 404
+        ? " (sessão do WhatsApp não encontrada — confira o SID)"
+        : "";
+      return json({ error: `Falha ao enviar (${resp.status})${dica}${detalhe}`, status: resp.status, to }, 400);
     }
     return json({ ok: true, to });
   } catch (e) {

@@ -210,11 +210,21 @@ export function useCobrancas() {
   const enviarWhatsapp = async (telefone: string, text: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-enviar', { body: { telefone, text } });
-      if (error || (data as { error?: string })?.error) throw new Error((data as { error?: string })?.error || error?.message || 'Falha ao enviar');
+      if (error) {
+        // supabase-js troca nosso JSON {error} por "non-2xx" genérico; lê o corpo real.
+        let msg = error.message;
+        try {
+          const ctx = (error as { context?: Response }).context;
+          const b = ctx && typeof ctx.json === 'function' ? await ctx.json() : null;
+          if (b?.error) msg = b.error;
+        } catch { /* mantém msg */ }
+        throw new Error(msg);
+      }
+      if ((data as { error?: string })?.error) throw new Error((data as { error?: string }).error);
       toast.success('WhatsApp enviado!');
       return true;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao enviar WhatsApp');
+      toast.error(e instanceof Error ? e.message : 'Erro ao enviar WhatsApp', { duration: 8000 });
       return false;
     }
   };
