@@ -3,7 +3,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, AlertTriangle, Layers } from 'lucide-react';
+import { Loader2, AlertTriangle, Layers, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
 import type { AsaasAssinatura } from '@/hooks/useCobrancas';
@@ -49,11 +49,16 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
   const [assinaturas, setAssinaturas] = useState<AsaasAssinatura[] | null>(null);
   const [subId, setSubId] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [cancelarExistentes, setCancelarExistentes] = useState(false);
 
   const total = useMemo(() => Math.round(contratos.reduce((s, c) => s + (Number(c.valor) || 0), 0) * 100) / 100, [contratos]);
   const clienteId = contratos[0]?.cliente_id;
 
-  // Mesmas regras que o servidor valida (a assinatura do Asaas é de um cliente e um ciclo só).
+  // Contratos que já têm assinatura no Asaas: não bloqueiam, mas exigem confirmação
+  // (a assinatura individual é cancelada e unificada na nova).
+  const cobrados = useMemo(() => contratos.filter((c) => c.cobrado), [contratos]);
+
+  // Bloqueios de verdade (a assinatura do Asaas é de um cliente e um ciclo só).
   const problemas = useMemo(() => {
     const p: string[] = [];
     if (contratos.length < 2) p.push('Selecione pelo menos 2 contratos.');
@@ -62,15 +67,13 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
     if (contratos.some((c) => c.recorrencia === 'unico')) p.push('Contrato de pagamento único não entra em assinatura.');
     const inativos = contratos.filter((c) => c.status !== 'ativo');
     if (inativos.length) p.push(`Só contratos ativos: ${inativos.map((c) => c.descricao).join(', ')}.`);
-    const cobrados = contratos.filter((c) => c.cobrado);
-    if (cobrados.length) p.push(`Já têm cobrança no Asaas (cancele antes): ${cobrados.map((c) => c.descricao).join(', ')}.`);
     return p;
   }, [contratos]);
 
   useEffect(() => {
     if (!open) return;
     setModo('criar'); setForma('UNDEFINED'); setContaId(''); setMulta(''); setJuros('');
-    setAssinaturas(null); setSubId('');
+    setAssinaturas(null); setSubId(''); setCancelarExistentes(false);
     setDia(String(Math.min(Math.max(Number(contratos[0]?.dia_vencimento) || 10, 1), 28)));
   }, [open, contratos]);
 
@@ -84,7 +87,9 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
   const sub = assinaturas?.find((s) => s.id === subId);
   const diverge = !!sub && Math.abs(Number(sub.value) - total) >= 0.01;
 
-  const podeEnviar = problemas.length === 0 && !salvando && (modo === 'criar' || !!subId);
+  const podeEnviar = problemas.length === 0 && !salvando
+    && (modo === 'criar' || !!subId)
+    && (cobrados.length === 0 || cancelarExistentes);
 
   const handleAgrupar = async () => {
     setSalvando(true);
@@ -97,6 +102,7 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
       dia_vencimento: Number(dia) || undefined,
       multa_percent: parseFloat(multa) || 0,
       juros_percent: parseFloat(juros) || 0,
+      cancelar_existentes: cobrados.length > 0 ? cancelarExistentes : undefined,
     });
     setSalvando(false);
     if (ok) onOpenChange(false);
@@ -138,6 +144,23 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
                 <p key={p} className="flex items-start gap-1.5 text-[12px] text-[hsl(var(--danger))]"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {p}</p>
               ))}
             </div>
+          )}
+
+          {/* Contratos que já têm assinatura individual: confirmar cancelamento */}
+          {problemas.length === 0 && cobrados.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setCancelarExistentes((v) => !v)}
+              className="mt-3 flex w-full items-start gap-2.5 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2.5 text-left"
+            >
+              <span className={cn('mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border', cancelarExistentes ? 'border-[hsl(var(--warning))] bg-[hsl(var(--warning))] text-black' : 'border-[hsl(var(--warning))]/60')}>
+                {cancelarExistentes && <Check className="h-3 w-3" strokeWidth={3} />}
+              </span>
+              <span className="text-[12px] leading-snug text-[hsl(var(--warning))]">
+                <b>{cobrados.map((c) => c.descricao).join(', ')}</b> já {cobrados.length > 1 ? 'têm' : 'tem'} assinatura no Asaas.
+                Confirmo <b>cancelar a(s) assinatura(s) individual(is)</b> e unificar nesta nova cobrança.
+              </span>
+            </button>
           )}
 
           {/* Modo */}

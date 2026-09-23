@@ -191,6 +191,7 @@ export function useCobrancas() {
     dia_vencimento?: number;
     multa_percent?: number;
     juros_percent?: number;
+    cancelar_existentes?: boolean;
   }) => {
     setBusyId('agrupar');
     try {

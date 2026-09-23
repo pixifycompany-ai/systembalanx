@@ -294,9 +294,26 @@ serve(async (req) => {
       }
       const inativos = contratos.filter((c) => c.status !== "ativo");
       if (inativos.length) return json({ error: `Só dá pra agrupar contratos ativos: ${inativos.map((c) => c.descricao).join(", ")}.` }, 400);
+
+      // Contratos que já têm assinatura individual no Asaas. Para unificar, essas
+      // assinaturas precisam ser canceladas antes (senão cobraria em duplicidade).
       const jaCobrados = contratos.filter((c) => c.asaas_subscription_id);
-      if (jaCobrados.length) {
-        return json({ error: `Já têm cobrança no Asaas: ${jaCobrados.map((c) => c.descricao).join(", ")}. Cancele antes de agrupar.` }, 400);
+      if (jaCobrados.length && !body.cancelar_existentes) {
+        return json({
+          error: `Estes contratos já têm assinatura no Asaas: ${jaCobrados.map((c) => c.descricao).join(", ")}.`,
+          precisaCancelar: jaCobrados.map((c) => c.descricao),
+        }, 409);
+      }
+      // Cancela as assinaturas individuais no Asaas e limpa cobranças/receitas pendentes.
+      for (const c of jaCobrados) {
+        await fetch(`${base}/subscriptions/${c.asaas_subscription_id}`, { method: "DELETE", headers }).catch(() => {});
+        const { data: velhas } = await admin.from("cobrancas").select("id, receita_id")
+          .eq("user_id", user.id).eq("asaas_subscription_id", c.asaas_subscription_id).in("status", ["pendente", "vencido"]);
+        for (const v of velhas || []) {
+          if (v.receita_id) await admin.from("receitas").delete().eq("id", v.receita_id).eq("status", "pendente");
+          await admin.from("cobrancas").update({ status: "cancelado", receita_id: null, updated_at: new Date().toISOString() }).eq("id", v.id);
+        }
+        await admin.from("contratos").update({ asaas_subscription_id: null }).eq("id", c.id);
       }
 
       let subId: string;
