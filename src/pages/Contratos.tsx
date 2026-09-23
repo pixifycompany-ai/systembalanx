@@ -37,6 +37,7 @@ import { useCobrancas, preencherTemplate, WHATSAPP_TEMPLATE_PIX_PADRAO, type Cob
 import { useContas } from '@/hooks/useContas';
 import { ContratoCobrancaCell } from '@/components/contratos/ContratoCobrancaCell';
 import { AgruparCobrancaSheet, type ContratoParaAgrupar } from '@/components/contratos/AgruparCobrancaSheet';
+import { EditarClienteSheet } from '@/components/clientes/EditarClienteSheet';
 import { useContratoParcelas, gerarParcelas, type ParcelaFormData } from '@/hooks/useContratoParcelas';
 import { useClientes } from '@/hooks/useClientes';
 import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X, Zap, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Layers } from 'lucide-react';
@@ -81,7 +82,8 @@ export default function Contratos() {
   } = useContratos();
   
   const { createParcelas, deleteParcelas } = useContratoParcelas();
-  const { clientes, createCliente } = useClientes();
+  const { clientes, createCliente, updateCliente } = useClientes();
+  const [editarClienteOpen, setEditarClienteOpen] = useState(false);
   const { contas } = useContas();
   const contasRecebimento = useMemo(
     () => contas.filter((c) => c.ativa && c.tipo !== 'cartao_credito').map((c) => ({ id: c.id, nome: c.nome, cor: c.cor })),
@@ -852,13 +854,24 @@ export default function Contratos() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="cliente_id">Cliente</Label>
-                  <button
-                    type="button"
-                    onClick={() => setNovoClienteOpen(v => !v)}
-                    className="text-xs font-medium text-primary hover:underline"
-                  >
-                    {novoClienteOpen ? 'Cancelar' : '+ Novo cliente'}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {formData.cliente_id && !novoClienteOpen && (
+                      <button
+                        type="button"
+                        onClick={() => setEditarClienteOpen(true)}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        <Pencil className="h-3 w-3" /> Editar cadastro
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setNovoClienteOpen(v => !v)}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      {novoClienteOpen ? 'Cancelar' : '+ Novo cliente'}
+                    </button>
+                  </div>
                 </div>
                 {novoClienteOpen ? (
                   <div className="flex gap-2">
@@ -1329,6 +1342,13 @@ export default function Contratos() {
             icon: <Layers className="h-4 w-4" />,
             onClick: () => setAgruparOpen(true),
           }] : undefined}
+        />
+
+        <EditarClienteSheet
+          open={editarClienteOpen}
+          onOpenChange={setEditarClienteOpen}
+          cliente={clientes.find((c) => c.id === formData.cliente_id) ?? null}
+          onSalvar={updateCliente}
         />
 
         <AgruparCobrancaSheet
