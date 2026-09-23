@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { vincularOuCriarReceita } from "../_shared/conciliar.ts";
 
 // Webhook das COBRANÇAS dos clientes (conta Asaas do próprio tenant).
 // Cada tenant configura, no Asaas dele, esta URL + o token (asaas-access-token).
@@ -45,10 +46,12 @@ async function lancarJurosMulta(admin: any, cob: any, p: any, dataPag: string | 
   await admin.from("receitas").insert({
     user_id: cob.user_id,
     cliente_id: cob.cliente_id,
+    contrato_id: cob.contrato_id ?? null,
     conta_id: cob.conta_id,
     categoria_id: cat?.id ?? null,
     descricao: `Juros/Multa - ${cob.descricao || "Cobrança"}`,
     valor: extra,
+    data_competencia: dia,
     data_vencimento: dia,
     data_recebimento: dia,
     status: "recebido",
@@ -84,25 +87,28 @@ serve(async (req) => {
     // Cobrança nova gerada por uma assinatura recorrente → cria cobrança + receita a receber
     if (!cob && payment.subscription) {
       const { data: base } = await admin.from("cobrancas")
-        .select("cliente_id, contrato_id, conta_id, descricao")
+        .select("cliente_id, contrato_id, conta_id, descricao, exigir_nf")
         .eq("asaas_subscription_id", payment.subscription).eq("user_id", userId)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
-      const { data: rec } = await admin.from("receitas").insert({
+      // Vincula a receita a receber já lançada (se houver) em vez de duplicar.
+      const rec = await vincularOuCriarReceita(admin, {
         user_id: userId,
         cliente_id: base?.cliente_id ?? null,
+        contrato_id: base?.contrato_id ?? null,
         conta_id: base?.conta_id ?? null,
         descricao: base?.descricao || payment.description || "Assinatura",
         valor: Number(payment.value),
-        data_vencimento: payment.dueDate,
-        status: pago ? "recebido" : "pendente",
-        data_recebimento: pago ? dataPag : null,
-      } as never).select("id").single();
+        vencimento: payment.dueDate,
+        pago,
+        data_pagamento: dataPag,
+      });
       const { data: novo } = await admin.from("cobrancas").insert({
         user_id: userId,
         cliente_id: base?.cliente_id ?? null,
         contrato_id: base?.contrato_id ?? null,
         conta_id: base?.conta_id ?? null,
-        receita_id: rec?.id ?? null,
+        receita_id: rec.receita_id,
+        exigir_nf: !!base?.exigir_nf,
         tipo: "recorrente",
         asaas_payment_id: payment.id,
         asaas_subscription_id: payment.subscription,

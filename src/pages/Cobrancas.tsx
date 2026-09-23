@@ -23,6 +23,7 @@ import {
 } from '@/hooks/useCobrancas';
 import { useClientes } from '@/hooks/useClientes';
 import { useContas } from '@/hooks/useContas';
+import { ConciliacaoSheet } from '@/components/cobrancas/ConciliacaoSheet';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
   XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Repeat, Receipt, Wallet, CreditCard,
@@ -60,8 +61,13 @@ export default function Cobrancas() {
   const {
     cobrancas, loading, busyId,
     criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp,
-    anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, whatsappTemplate,
+    anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate,
   } = useCobrancas();
+  const [conciliarOpen, setConciliarOpen] = useState(false);
+  const semReceita = useMemo(
+    () => cobrancas.filter((c) => !c.receita_id && c.status !== 'cancelado' && c.status !== 'estornado').length,
+    [cobrancas],
+  );
   const { clientes } = useClientes();
   const { contas } = useContas();
 
@@ -348,6 +354,17 @@ export default function Cobrancas() {
         ]}
       />
 
+      {/* Aviso: cobranças sem vínculo com o financeiro */}
+      {semReceita > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-[hsl(var(--warning))]/35 bg-[hsl(var(--warning))]/10 px-3.5 py-2.5">
+          <p className="min-w-0 flex-1 text-[12.5px] text-foreground">
+            <b>{semReceita} {semReceita === 1 ? 'cobrança sem' : 'cobranças sem'} vínculo com o financeiro.</b>{' '}
+            <span className="text-foreground-muted">Não aparecem como receita a receber nem dão baixa ao pagar.</span>
+          </p>
+          <Button size="sm" onClick={() => setConciliarOpen(true)}>Conciliar</Button>
+        </div>
+      )}
+
       {/* Filtros */}
       <div className="mb-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -464,7 +481,14 @@ export default function Cobrancas() {
                         {conta?.nome || 'Definir'}
                       </button>
                     </td>
-                    <td className="px-3 py-3">{statusPill(cob.status)}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-col items-start gap-1">
+                        {statusPill(cob.status)}
+                        {!cob.receita_id && cob.status !== 'cancelado' && cob.status !== 'estornado' && (
+                          <button onClick={() => setConciliarOpen(true)} className="text-[10px] font-semibold text-[hsl(var(--warning))] hover:underline">sem receita</button>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-3 text-right"><AcoesMenu cob={cob} /></td>
                   </tr>
                 );
@@ -558,6 +582,14 @@ export default function Cobrancas() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <ConciliacaoSheet
+        open={conciliarOpen}
+        onOpenChange={setConciliarOpen}
+        listar={conciliarListar}
+        aplicar={conciliarAplicar}
+        nomeCliente={(id) => (id && clienteById.get(id)?.nome) || '—'}
+      />
 
       {/* Sheet: alterar forma de recebimento */}
       <Sheet open={formaOpen} onOpenChange={setFormaOpen}>

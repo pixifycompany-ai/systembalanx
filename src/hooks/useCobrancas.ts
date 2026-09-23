@@ -25,6 +25,23 @@ export interface Cobranca {
   exigir_nf?: boolean | null;
 }
 
+// Receita já lançada que pode corresponder a uma cobrança (conciliação)
+export interface CandidataReceita {
+  id: string;
+  descricao: string;
+  valor: number;
+  data_vencimento: string;
+  status: string;
+  diasDiferenca: number;
+  mesmoValor: boolean;
+  plausivel: boolean;
+  confiavel: boolean;
+}
+export interface ItemConciliacao {
+  cobranca: Cobranca;
+  candidatas: CandidataReceita[];
+}
+
 export interface AsaasAssinatura {
   id: string;
   value: number;
@@ -160,6 +177,30 @@ export function useCobrancas() {
       return false;
     } finally {
       setBusyId(null);
+    }
+  };
+
+  // Conciliação: cobranças sem receita ↔ receitas a receber já lançadas à mão.
+  const conciliarListar = async (): Promise<ItemConciliacao[]> => {
+    try {
+      const d = await invoke({ action: 'conciliar-listar' });
+      return ((d as { itens?: ItemConciliacao[] })?.itens) || [];
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao buscar conciliação');
+      return [];
+    }
+  };
+
+  const conciliarAplicar = async (itens: { cobranca_id: string; receita_id?: string; criar?: boolean }[]) => {
+    try {
+      const d = (await invoke({ action: 'conciliar-aplicar', itens })) as { vinculadas: number; criadas: number; erros: string[] };
+      toast.success('Conciliação aplicada', { description: `${d.vinculadas} vinculada(s) a receitas existentes, ${d.criadas} receita(s) nova(s).` });
+      if (d.erros?.length) toast.error(d.erros.join(' '), { duration: 8000 });
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao aplicar conciliação');
+      return false;
     }
   };
 
@@ -325,7 +366,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, whatsappTemplate, reload: load };
+  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

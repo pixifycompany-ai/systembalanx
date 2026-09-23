@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buscarCandidatas, criarReceita, vincularOuCriarReceita, vincularReceita, type AlvoReceita } from "../_shared/conciliar.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -119,22 +120,24 @@ serve(async (req) => {
       descricao: string; valor: number; vencimento: string; forma: string;
       status: string; invoice_url: string | null; exigir_nf?: boolean;
     }) {
-      const { data: rec } = await admin.from("receitas").insert({
+      // Vincula a receita a receber já lançada (se houver) em vez de duplicar.
+      const rec = await vincularOuCriarReceita(admin, {
         user_id: user.id,
         cliente_id: opts.cliente_id,
+        contrato_id: opts.contrato_id,
         conta_id: opts.conta_id,
         descricao: opts.descricao,
         valor: opts.valor,
-        data_vencimento: opts.vencimento,
-        status: opts.status === "pago" ? "recebido" : "pendente",
-        data_recebimento: opts.status === "pago" ? opts.vencimento : null,
-      } as never).select("id").single();
+        vencimento: opts.vencimento,
+        pago: opts.status === "pago",
+        data_pagamento: opts.status === "pago" ? opts.vencimento : null,
+      });
       const { data: cob } = await admin.from("cobrancas").insert({
         user_id: user.id,
         cliente_id: opts.cliente_id,
         contrato_id: opts.contrato_id,
         conta_id: opts.conta_id,
-        receita_id: rec?.id ?? null,
+        receita_id: rec.receita_id,
         tipo: opts.tipo,
         asaas_payment_id: opts.asaas_payment_id,
         asaas_subscription_id: opts.asaas_subscription_id,
@@ -168,10 +171,12 @@ serve(async (req) => {
       await admin.from("receitas").insert({
         user_id: cob.user_id,
         cliente_id: cob.cliente_id,
+        contrato_id: cob.contrato_id ?? null,
         conta_id: cob.conta_id,
         categoria_id: cat?.id ?? null,
         descricao: `Juros/Multa - ${cob.descricao || "Cobrança"}`,
         valor: extra,
+        data_competencia: dia,
         data_vencimento: dia,
         data_recebimento: dia,
         status: "recebido",
@@ -476,6 +481,51 @@ serve(async (req) => {
       await admin.from("cobrancas").update({ status: "pago", data_pagamento: dia, updated_at: new Date().toISOString() }).eq("id", cob.id);
       if (cob.receita_id) await admin.from("receitas").update({ status: "recebido", data_recebimento: dia }).eq("id", cob.receita_id);
       return json({ ok: true });
+    }
+
+    // ===== CONCILIAÇÃO: cobranças sem receita ↔ receitas já lançadas =====
+    // deno-lint-ignore no-explicit-any
+    const alvoDe = (c: any): AlvoReceita => ({
+      user_id: user.id, cliente_id: c.cliente_id, contrato_id: c.contrato_id, conta_id: c.conta_id,
+      descricao: c.descricao || "", valor: Number(c.valor), vencimento: c.vencimento,
+      pago: c.status === "pago", data_pagamento: c.data_pagamento,
+    });
+
+    if (action === "conciliar-listar") {
+      const { data: cobs } = await admin.from("cobrancas").select("*")
+        .eq("user_id", user.id).is("receita_id", null)
+        .not("status", "in", "(cancelado,estornado)")
+        .order("vencimento", { ascending: true });
+      const itens = [];
+      for (const c of cobs || []) {
+        itens.push({ cobranca: c, candidatas: await buscarCandidatas(admin, alvoDe(c), 60) });
+      }
+      return json({ itens });
+    }
+
+    if (action === "conciliar-aplicar") {
+      const lista = Array.isArray(body.itens) ? body.itens : [];
+      let vinculadas = 0, criadas = 0;
+      const erros: string[] = [];
+      for (const it of lista) {
+        const { data: c } = await admin.from("cobrancas").select("*").eq("id", it.cobranca_id).eq("user_id", user.id).maybeSingle();
+        if (!c || c.receita_id) continue;
+        if (it.receita_id) {
+          const { data: rec } = await admin.from("receitas").select("id, conta_id").eq("id", it.receita_id).eq("user_id", user.id).maybeSingle();
+          if (!rec) { erros.push("Receita não encontrada."); continue; }
+          const { data: jaUsada } = await admin.from("cobrancas").select("id").eq("receita_id", rec.id).limit(1).maybeSingle();
+          if (jaUsada) { erros.push("Uma receita escolhida já está ligada a outra cobrança."); continue; }
+          await vincularReceita(admin, rec.id, alvoDe(c), rec.conta_id);
+          await admin.from("cobrancas").update({ receita_id: rec.id, updated_at: new Date().toISOString() }).eq("id", c.id);
+          vinculadas++;
+        } else if (it.criar) {
+          const id = await criarReceita(admin, alvoDe(c));
+          if (!id) { erros.push("Falha ao criar receita."); continue; }
+          await admin.from("cobrancas").update({ receita_id: id, updated_at: new Date().toISOString() }).eq("id", c.id);
+          criadas++;
+        }
+      }
+      return json({ ok: true, vinculadas, criadas, erros });
     }
 
     // ===== SINCRONIZAR status (puxa do Asaas) =====
