@@ -71,9 +71,17 @@ export function useCobrancas() {
 
   const invoke = async (body: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke('asaas-cobranca', { body });
-    if (error || (data as { error?: string })?.error) {
-      throw new Error((data as { error?: string })?.error || error?.message || 'Erro na cobrança');
+    if (error) {
+      // supabase-js troca nosso JSON {error} por "non-2xx" genérico; lê o corpo real.
+      let msg = error.message;
+      try {
+        const ctx = (error as { context?: Response }).context;
+        const b = ctx && typeof ctx.json === 'function' ? await ctx.json() : null;
+        if (b?.error) msg = b.error;
+      } catch { /* mantém msg */ }
+      throw new Error(msg);
     }
+    if ((data as { error?: string })?.error) throw new Error((data as { error?: string }).error);
     return data;
   };
 

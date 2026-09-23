@@ -128,7 +128,7 @@ serve(async (req) => {
       const forma = (forma_pagamento || "UNDEFINED") as string;
       const { data: contrato } = await admin.from("contratos").select("*").eq("id", contrato_id).eq("user_id", user.id).maybeSingle();
       if (!contrato) return json({ error: "Contrato não encontrado." }, 404);
-      if (contrato.asaas_subscription_id) return json({ error: "Este contrato já tem cobrança no Asaas." }, 400);
+      if (contrato.asaas_subscription_id) return json({ error: "Este contrato já tem assinatura no Asaas. Clique em \"Sincronizar cobranças\" (topo) para importar as faturas." }, 400);
       if (!contrato.cliente_id) return json({ error: "Contrato sem cliente vinculado." }, 400);
 
       const customer = await ensureCustomer(contrato.cliente_id);
@@ -629,12 +629,23 @@ serve(async (req) => {
         if (c.status === "cancelado") continue;
         if (c.asaas_subscription_id && !subs.has(c.asaas_subscription_id)) subs.set(c.asaas_subscription_id, c);
       }
+      // Também as assinaturas ligadas a CONTRATOS que ainda não têm cobrança
+      // (assinaturas "órfãs": vinculadas mas sem fatura importada).
+      const qContr = admin.from("contratos").select("id, cliente_id, descricao, exigir_nf, envio_pix, asaas_subscription_id")
+        .eq("user_id", user.id).not("asaas_subscription_id", "is", null);
+      if (body.contrato_id) qContr.eq("id", body.contrato_id);
+      const { data: contrsSub } = await qContr;
+      for (const ct of contrsSub || []) {
+        if (!subs.has(ct.asaas_subscription_id)) {
+          subs.set(ct.asaas_subscription_id, { contrato_id: ct.id, cliente_id: ct.cliente_id, conta_id: null, descricao: ct.descricao, exigir_nf: ct.exigir_nf, envio_pix: ct.envio_pix });
+        }
+      }
       let novas = 0;
       for (const [subId, ctx] of subs) {
         novas += await importarPagamentos({
           subId, contrato_id: ctx.contrato_id, cliente_id: ctx.cliente_id,
           conta_id: ctx.conta_id, descricao: ctx.descricao || "Assinatura",
-          exigir_nf: !!ctx.exigir_nf,
+          exigir_nf: !!ctx.exigir_nf, envio_pix: !!ctx.envio_pix,
         });
       }
 
