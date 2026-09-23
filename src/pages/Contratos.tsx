@@ -33,7 +33,7 @@ import { formatCurrency, formatDate } from '@/utils/formatters';
 import { exportContratos } from '@/utils/exportCSV';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
 import { useContratos, type ContratoFormData } from '@/hooks/useContratos';
-import { useCobrancas, preencherTemplate, type Cobranca } from '@/hooks/useCobrancas';
+import { useCobrancas, preencherTemplate, WHATSAPP_TEMPLATE_PIX_PADRAO, type Cobranca } from '@/hooks/useCobrancas';
 import { useContas } from '@/hooks/useContas';
 import { ContratoCobrancaCell } from '@/components/contratos/ContratoCobrancaCell';
 import { AgruparCobrancaSheet, type ContratoParaAgrupar } from '@/components/contratos/AgruparCobrancaSheet';
@@ -99,6 +99,7 @@ export default function Contratos() {
   const [caNoDia, setCaNoDia] = useState(true);
   const [caAtraso, setCaAtraso] = useState(false);
   const [caExigirNf, setCaExigirNf] = useState(false);
+  const [caEnvioPix, setCaEnvioPix] = useState(false);
   // Cobrança recorrente via Asaas (por contrato)
   const {
     cobrancas,
@@ -118,6 +119,7 @@ export default function Contratos() {
     notaSignedUrl,
     marcarNotaEnviada,
     whatsappTemplate,
+    pixCfg,
   } = useCobrancas();
 
   // WhatsApp da cobrança (mensagem editável antes de enviar)
@@ -140,12 +142,15 @@ export default function Contratos() {
     setWhatsappGrupo(grupo);
     setWhatsappCob(grupo.find((l) => l.nota_fiscal_path) ?? cob);
     setWhatsappTel(cli?.telefone || '');
-    setWhatsappText(preencherTemplate(whatsappTemplate, {
+    const usaPix = grupo.some((l) => l.envio_pix) && !!pixCfg.chave;
+    setWhatsappText(preencherTemplate(usaPix ? (pixCfg.template || WHATSAPP_TEMPLATE_PIX_PADRAO) : whatsappTemplate, {
       cliente: cli?.nome || 'cliente',
       descricao: grupo.map((l) => l.descricao).filter(Boolean).join(' + ') || 'cobrança',
       valor: formatCurrency(grupo.reduce((s, l) => s + (Number(l.valor) || 0), 0)),
       vencimento: formatDate(cob.vencimento),
       link: cob.invoice_url || '',
+      pix: pixCfg.chave,
+      titular: pixCfg.titular,
     }));
     setWhatsappOpen(true);
   };
@@ -417,7 +422,7 @@ export default function Contratos() {
     });
     setParcelas([]);
     setShowAditivoForm(false);
-    setCaModo('padrao'); setCaAntes(''); setCaNoDia(true); setCaAtraso(false); setCaExigirNf(false);
+    setCaModo('padrao'); setCaAntes(''); setCaNoDia(true); setCaAtraso(false); setCaExigirNf(false); setCaEnvioPix(false);
     setModalOpen(true);
   };
 
@@ -440,12 +445,13 @@ export default function Contratos() {
     setParcelas([]);
     setShowAditivoForm(false);
     setAditivoData({ valor_novo: '', data_vigencia: '', motivo: '' });
-    const c = contrato as unknown as { cobranca_auto_modo?: string; cobranca_auto_antes_dias?: number | null; cobranca_auto_no_dia?: boolean | null; cobranca_auto_atraso_diario?: boolean | null; exigir_nf?: boolean | null };
+    const c = contrato as unknown as { cobranca_auto_modo?: string; cobranca_auto_antes_dias?: number | null; cobranca_auto_no_dia?: boolean | null; cobranca_auto_atraso_diario?: boolean | null; exigir_nf?: boolean | null; envio_pix?: boolean | null };
     setCaModo((c.cobranca_auto_modo as 'padrao' | 'off' | 'custom') || 'padrao');
     setCaAntes(c.cobranca_auto_antes_dias != null ? String(c.cobranca_auto_antes_dias) : '');
     setCaNoDia(c.cobranca_auto_no_dia ?? true);
     setCaAtraso(!!c.cobranca_auto_atraso_diario);
     setCaExigirNf(!!c.exigir_nf);
+    setCaEnvioPix(!!c.envio_pix);
     setModalOpen(true);
   };
 
@@ -497,6 +503,7 @@ export default function Contratos() {
         cobranca_auto_no_dia: caModo === 'custom' ? caNoDia : null,
         cobranca_auto_atraso_diario: caModo === 'custom' ? caAtraso : null,
         exigir_nf: caExigirNf,
+        envio_pix: caEnvioPix,
       }).eq('id', contratoResult.id);
     }
 
@@ -1139,7 +1146,11 @@ export default function Contratos() {
                     <Label className="text-xs font-normal">Exigir <b>nota fiscal (PDF)</b> para disparar</Label>
                     <Switch checked={caExigirNf} onCheckedChange={setCaExigirNf} />
                   </div>
-                  <p className="text-[11px] text-foreground-muted">Vale para as próximas cobranças geradas deste contrato.</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-xs font-normal">No WhatsApp, enviar <b>chave PIX</b> (não o link Asaas)</Label>
+                    <Switch checked={caEnvioPix} onCheckedChange={setCaEnvioPix} />
+                  </div>
+                  <p className="text-[11px] text-foreground-muted">Vale para as próximas cobranças geradas deste contrato. A chave PIX é a de Meu Perfil; a baixa é pelo "Identificar pagamento manual".</p>
                 </div>
               )}
 

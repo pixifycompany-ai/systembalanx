@@ -103,7 +103,7 @@ serve(async (req) => {
     // as pagas históricas ficam de fora pra não recriar receita já lançada.
     // Assinatura de grupo: cada fatura vira uma linha por contrato.
     async function importarPagamentos(opts: {
-      subId: string; contrato_id: string | null; cliente_id: string | null; conta_id: string | null; descricao: string; exigir_nf?: boolean;
+      subId: string; contrato_id: string | null; cliente_id: string | null; conta_id: string | null; descricao: string; exigir_nf?: boolean; envio_pix?: boolean;
     }): Promise<number> {
       let novas = 0;
       try {
@@ -114,7 +114,7 @@ serve(async (req) => {
           if (!STATUS_ABERTO.includes(pay.status)) continue;
           const criou = await registrarFatura(admin, user.id, pay, opts.subId, {
             conta_id: opts.conta_id,
-            fallback: { contrato_id: opts.contrato_id, cliente_id: opts.cliente_id, descricao: opts.descricao, exigir_nf: opts.exigir_nf },
+            fallback: { contrato_id: opts.contrato_id, cliente_id: opts.cliente_id, descricao: opts.descricao, exigir_nf: opts.exigir_nf, envio_pix: opts.envio_pix },
           });
           if (criou) novas++;
         }
@@ -173,6 +173,7 @@ serve(async (req) => {
         status: pay ? mapStatus(pay.status) : "pendente",
         invoice_url: pay?.invoiceUrl ?? null,
         exigir_nf: !!contrato.exigir_nf,
+        envio_pix: !!contrato.envio_pix,
       });
       return json({ ok: true, cobranca: cob, invoiceUrl: pay?.invoiceUrl ?? null });
     }
@@ -203,6 +204,7 @@ serve(async (req) => {
         asaas_payment_id: pay.id, asaas_subscription_id: null,
         descricao: descricao || "Cobrança", valor: Number(valor), vencimento,
         forma, status: mapStatus(pay.status), invoice_url: pay.invoiceUrl ?? null,
+        envio_pix: !!body.envio_pix,
       });
       return json({ ok: true, cobranca: cob, invoiceUrl: pay.invoiceUrl ?? null });
     }
@@ -264,7 +266,7 @@ serve(async (req) => {
       const novas = await importarPagamentos({
         subId: sub.id, contrato_id: contrato.id, cliente_id: contrato.cliente_id,
         conta_id: conta_id || null, descricao: contrato.descricao || sub.description || "Assinatura",
-        exigir_nf: !!contrato.exigir_nf,
+        exigir_nf: !!contrato.exigir_nf, envio_pix: !!contrato.envio_pix,
       });
       return json({ ok: true, valor: Number(sub.value), cobrancas: novas });
     }

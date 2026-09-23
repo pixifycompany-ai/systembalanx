@@ -49,8 +49,26 @@ export default function MeuPerfil() {
   const [asaasStatus, setAsaasStatus] = useState<{ connected: boolean; accountName: string | null; env: string; webhookToken: string | null } | null>(null);
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-cobranca-webhook`;
   const WHATSAPP_TPL_PADRAO = 'Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!';
+  const WHATSAPP_TPL_PIX_PADRAO = 'Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\n🔑 *Chave PIX:* {pix}\n👤 Em nome de: {titular}\n\nApós o pagamento, é só enviar o comprovante. Obrigado!';
   const [whatsappTpl, setWhatsappTpl] = useState('');
   const [savingTpl, setSavingTpl] = useState(false);
+  const [pixChave, setPixChave] = useState('');
+  const [pixTitular, setPixTitular] = useState('');
+  const [whatsappTplPix, setWhatsappTplPix] = useState('');
+  const [savingPix, setSavingPix] = useState(false);
+
+  const salvarPix = async () => {
+    if (!user) return;
+    setSavingPix(true);
+    const { error } = await (supabase as any).from('cobranca_config').update({
+      pix_chave: pixChave.trim() || null,
+      pix_titular: pixTitular.trim() || null,
+      whatsapp_template_pix: whatsappTplPix,
+    }).eq('user_id', user.id);
+    setSavingPix(false);
+    if (error) toast.error('Erro ao salvar PIX');
+    else toast.success('Chave PIX e mensagem salvas');
+  };
 
   // Regras globais de envio automático por WhatsApp
   const [autoCfg, setAutoCfg] = useState({ enabled: false, antesDias: 0, noDia: true, atrasoDiario: false, atrasoMax: 0 });
@@ -59,11 +77,14 @@ export default function MeuPerfil() {
   const loadAsaasStatus = async () => {
     const { data } = await (supabase as any)
       .from('cobranca_config')
-      .select('asaas_account_name, asaas_env, webhook_token, whatsapp_template, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias')
+      .select('asaas_account_name, asaas_env, webhook_token, whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias')
       .maybeSingle();
     if (data) {
       setAsaasStatus({ connected: true, accountName: data.asaas_account_name ?? null, env: data.asaas_env ?? 'production', webhookToken: data.webhook_token ?? null });
       setWhatsappTpl(data.whatsapp_template || WHATSAPP_TPL_PADRAO);
+      setPixChave(data.pix_chave || '');
+      setPixTitular(data.pix_titular || '');
+      setWhatsappTplPix(data.whatsapp_template_pix || WHATSAPP_TPL_PIX_PADRAO);
       setAutoCfg({
         enabled: !!data.auto_wpp_enabled,
         antesDias: data.auto_wpp_antes_dias ?? 0,
@@ -373,6 +394,28 @@ export default function MeuPerfil() {
               <Textarea value={whatsappTpl} onChange={(e) => setWhatsappTpl(e.target.value)} rows={8} className="font-mono text-[12px] leading-relaxed" />
               <Button size="sm" className="w-full" onClick={salvarWhatsappTpl} disabled={savingTpl}>
                 {savingTpl && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar mensagem
+              </Button>
+            </div>
+
+            {/* Chave PIX (para cobranças enviadas por PIX em vez do link Asaas) */}
+            <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-2">
+              <p className="text-xs font-semibold text-foreground">Recebimento por PIX (chave própria)</p>
+              <p className="text-[11px] text-foreground-muted">Usada nas cobranças marcadas como "enviar chave PIX". O cliente paga na sua chave (fora do Asaas) e você dá baixa com "Identificar pagamento manual".</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-[11px]">Chave PIX</Label>
+                  <Input value={pixChave} onChange={(e) => setPixChave(e.target.value)} placeholder="e-mail, telefone, CNPJ ou aleatória" className="mt-1 text-[13px]" />
+                </div>
+                <div>
+                  <Label className="text-[11px]">Em nome de (titular)</Label>
+                  <Input value={pixTitular} onChange={(e) => setPixTitular(e.target.value)} placeholder="Nome / empresa" className="mt-1 text-[13px]" />
+                </div>
+              </div>
+              <Label className="text-[11px]">Mensagem PIX no WhatsApp</Label>
+              <p className="text-[11px] text-foreground-muted">Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{pix}'}</b> <b>{'{titular}'}</b>.</p>
+              <Textarea value={whatsappTplPix} onChange={(e) => setWhatsappTplPix(e.target.value)} rows={8} className="font-mono text-[12px] leading-relaxed" />
+              <Button size="sm" className="w-full" onClick={salvarPix} disabled={savingPix}>
+                {savingPix && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar PIX
               </Button>
             </div>
 

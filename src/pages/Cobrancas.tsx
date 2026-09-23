@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import {
   useCobrancas,
   preencherTemplate,
+  WHATSAPP_TEMPLATE_PIX_PADRAO,
   COBRANCA_STATUS_LABEL,
   type Cobranca,
 } from '@/hooks/useCobrancas';
@@ -27,7 +28,7 @@ import { ConciliacaoSheet } from '@/components/cobrancas/ConciliacaoSheet';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
   XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Repeat, Receipt, Wallet, CreditCard,
-  Paperclip, FileText, ShieldCheck, ShieldOff, Layers,
+  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound,
 } from 'lucide-react';
 
 const toneCls: Record<string, string> = {
@@ -63,7 +64,7 @@ export default function Cobrancas() {
   const {
     cobrancas, loading, busyId,
     criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp,
-    anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate,
+    anexarNota, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg,
   } = useCobrancas();
   const [conciliarOpen, setConciliarOpen] = useState(false);
   const semReceita = useMemo(
@@ -121,6 +122,7 @@ export default function Cobrancas() {
         nota_fiscal_nome: comNf?.nota_fiscal_nome ?? null,
         nota_fiscal_enviada: linhas.some((l) => l.nota_fiscal_enviada),
         exigir_nf: linhas.some((l) => l.exigir_nf),
+        envio_pix: linhas.some((l) => l.envio_pix),
         linhas,
       };
     });
@@ -169,12 +171,15 @@ export default function Cobrancas() {
     setWaCob(cob);
     setWaNfLinhaId(cob.linhas.find((l) => l.nota_fiscal_path)?.id ?? null);
     setWaTel(cli?.telefone || '');
-    setWaText(preencherTemplate(whatsappTemplate, {
+    const usaPix = !!cob.envio_pix && !!pixCfg.chave;
+    setWaText(preencherTemplate(usaPix ? (pixCfg.template || WHATSAPP_TEMPLATE_PIX_PADRAO) : whatsappTemplate, {
       cliente: cli?.nome || 'cliente',
       descricao: cob.descricao || 'cobrança',
       valor: formatCurrency(Number(cob.valor)),
       vencimento: formatDate(cob.vencimento),
       link: cob.invoice_url || '',
+      pix: pixCfg.chave,
+      titular: pixCfg.titular,
     }));
     setWaOpen(true);
   };
@@ -316,6 +321,10 @@ export default function Cobrancas() {
           <button onClick={() => setExigirNf(cob.linhas.map((l) => l.id), !cob.exigir_nf)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
             {cob.exigir_nf ? <ShieldOff className="h-4 w-4 text-foreground-muted" /> : <ShieldCheck className="h-4 w-4 text-foreground-muted" />}
             {cob.exigir_nf ? 'Não exigir NF p/ disparar' : 'Exigir NF p/ disparar'}
+          </button>
+          <button onClick={() => setEnvioPix(cob.linhas.map((l) => l.id), !cob.envio_pix)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+            <KeyRound className={cn('h-4 w-4', cob.envio_pix ? 'text-[hsl(var(--success))]' : 'text-foreground-muted')} />
+            {cob.envio_pix ? 'WhatsApp: voltar ao link Asaas' : 'WhatsApp: enviar chave PIX'}
           </button>
           {cob.status !== 'pago' && cob.status !== 'cancelado' && (
             <button onClick={() => abrirForma(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">

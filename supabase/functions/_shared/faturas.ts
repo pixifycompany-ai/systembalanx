@@ -42,6 +42,7 @@ export interface LinhaCobranca {
   status: string;
   invoice_url: string | null;
   exigir_nf?: boolean;
+  envio_pix?: boolean;
   data_pagamento?: string | null;
 }
 
@@ -69,6 +70,7 @@ export async function inserirCobranca(admin: any, userId: string, o: LinhaCobran
     status: o.status,
     invoice_url: o.invoice_url,
     exigir_nf: !!o.exigir_nf,
+    envio_pix: !!o.envio_pix,
     data_pagamento: dataPag,
   }).select("*").single();
   return data;
@@ -77,7 +79,7 @@ export async function inserirCobranca(admin: any, userId: string, o: LinhaCobran
 // Contratos cobrados pela mesma assinatura (1 = cobrança normal, 2+ = grupo). Ordem estável.
 export async function contratosDaAssinatura(admin: any, userId: string, subId: string) {
   const { data } = await admin.from("contratos")
-    .select("id, cliente_id, descricao, valor, exigir_nf, recorrencia, dia_vencimento, status, created_at")
+    .select("id, cliente_id, descricao, valor, exigir_nf, envio_pix, recorrencia, dia_vencimento, status, created_at")
     .eq("user_id", userId).eq("asaas_subscription_id", subId)
     .order("created_at", { ascending: true });
   return (data || []) as any[];
@@ -98,7 +100,7 @@ export function repartir(total: number, pesos: number[]): number[] {
 // `fallback` cobre assinaturas antigas cujo contrato não está mais marcado.
 export async function registrarFatura(
   admin: any, userId: string, pay: any, subId: string,
-  ctx: { conta_id: string | null; fallback?: { contrato_id: string | null; cliente_id: string | null; descricao: string | null; exigir_nf?: boolean } },
+  ctx: { conta_id: string | null; fallback?: { contrato_id: string | null; cliente_id: string | null; descricao: string | null; exigir_nf?: boolean; envio_pix?: boolean } },
 ): Promise<boolean> {
   const { data: existe } = await admin.from("cobrancas").select("id")
     .eq("user_id", userId).eq("asaas_payment_id", pay.id).limit(1).maybeSingle();
@@ -122,6 +124,7 @@ export async function registrarFatura(
       descricao: c?.descricao || fb?.descricao || pay.description || "Assinatura",
       valor: Number(pay.value),
       exigir_nf: !!(c ? c.exigir_nf : fb?.exigir_nf),
+      envio_pix: !!(c ? c.envio_pix : fb?.envio_pix),
     });
     return true;
   }
@@ -131,7 +134,7 @@ export async function registrarFatura(
     const c = contratos[i];
     await inserirCobranca(admin, userId, {
       ...comum, cliente_id: c.cliente_id, contrato_id: c.id,
-      descricao: c.descricao || "Contrato", valor: partes[i], exigir_nf: !!c.exigir_nf,
+      descricao: c.descricao || "Contrato", valor: partes[i], exigir_nf: !!c.exigir_nf, envio_pix: !!c.envio_pix,
     });
   }
   return true;

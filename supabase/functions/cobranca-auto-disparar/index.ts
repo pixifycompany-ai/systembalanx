@@ -7,6 +7,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const TPL_PADRAO =
   "Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!";
+const TPL_PIX_PADRAO =
+  "Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\n🔑 *Chave PIX:* {pix}\n👤 Em nome de: {titular}\n\nApós o pagamento, é só enviar o comprovante. Obrigado!";
 
 function normalizarWhats(tel: string): string | null {
   let d = String(tel || "").replace(/\D/g, "");
@@ -24,7 +26,8 @@ const dataBR = (iso: string) => { const [y, m, d] = String(iso).split("-"); retu
 function preencher(tpl: string, d: Record<string, string>) {
   return (tpl || TPL_PADRAO)
     .replace(/\{cliente\}/g, d.cliente).replace(/\{descricao\}/g, d.descricao)
-    .replace(/\{valor\}/g, d.valor).replace(/\{vencimento\}/g, d.vencimento).replace(/\{link\}/g, d.link);
+    .replace(/\{valor\}/g, d.valor).replace(/\{vencimento\}/g, d.vencimento)
+    .replace(/\{link\}/g, d.link || "").replace(/\{pix\}/g, d.pix || "").replace(/\{titular\}/g, d.titular || "");
 }
 function hojeSP(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }); // YYYY-MM-DD
@@ -70,11 +73,11 @@ serve(async (req) => {
   const hoje = hojeSP();
 
   const { data: cfgs } = await admin.from("cobranca_config")
-    .select("user_id, whatsapp_template, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias");
+    .select("user_id, whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias");
   const cfgBy = new Map((cfgs || []).map((c) => [c.user_id, c]));
 
   const { data: cobs } = await admin.from("cobrancas")
-    .select("id, user_id, cliente_id, contrato_id, asaas_payment_id, descricao, valor, vencimento, invoice_url, status, exigir_nf, nota_fiscal_path, nota_fiscal_nome, nota_fiscal_enviada, auto_wpp_ultimo_dia, created_at, clientes(nome, telefone), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
+    .select("id, user_id, cliente_id, contrato_id, asaas_payment_id, descricao, valor, vencimento, invoice_url, status, exigir_nf, envio_pix, nota_fiscal_path, nota_fiscal_nome, nota_fiscal_enviada, auto_wpp_ultimo_dia, created_at, clientes(nome, telefone), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
     .in("status", ["pendente", "vencido"])
     .order("created_at", { ascending: true });
 
@@ -119,12 +122,16 @@ serve(async (req) => {
       const nfJaEnviada = linhas.some((l) => l.nota_fiscal_enviada);
       if (exigeNf && !comNf && !nfJaEnviada) { faltaNf++; continue; } // exige NF e não tem
 
-      const text = preencher(cfg?.whatsapp_template || TPL_PADRAO, {
+      const usaPix = linhas.some((l) => l.envio_pix) && !!cfg?.pix_chave;
+      const tpl = usaPix ? (cfg?.whatsapp_template_pix || TPL_PIX_PADRAO) : (cfg?.whatsapp_template || TPL_PADRAO);
+      const text = preencher(tpl, {
         cliente: cli?.nome || "cliente",
         descricao: linhas.map((l) => l.descricao).filter(Boolean).join(" + ") || "cobrança",
         valor: brl(linhas.reduce((s, l) => s + (Number(l.valor) || 0), 0)),
         vencimento: dataBR(cob.vencimento),
         link: cob.invoice_url || "",
+        pix: cfg?.pix_chave || "",
+        titular: cfg?.pix_titular || "",
       });
 
       const tr = await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/text`, {

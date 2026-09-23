@@ -37,13 +37,13 @@ serve(async (req) => {
     // Fatura nova de uma assinatura → cria as linhas + receitas (vinculando as já lançadas)
     if (!linhas?.length && payment.subscription) {
       const { data: base } = await admin.from("cobrancas")
-        .select("cliente_id, contrato_id, conta_id, descricao, exigir_nf")
+        .select("cliente_id, contrato_id, conta_id, descricao, exigir_nf, envio_pix")
         .eq("asaas_subscription_id", payment.subscription).eq("user_id", userId)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
       await registrarFatura(admin, userId, payment, payment.subscription, {
         conta_id: base?.conta_id ?? null,
         fallback: base
-          ? { contrato_id: base.contrato_id, cliente_id: base.cliente_id, descricao: base.descricao, exigir_nf: !!base.exigir_nf }
+          ? { contrato_id: base.contrato_id, cliente_id: base.cliente_id, descricao: base.descricao, exigir_nf: !!base.exigir_nf, envio_pix: !!base.envio_pix }
           : undefined,
       });
       return new Response(JSON.stringify({ ok: true, created: true }), { status: 200 });

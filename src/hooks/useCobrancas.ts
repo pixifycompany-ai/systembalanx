@@ -23,6 +23,7 @@ export interface Cobranca {
   nota_fiscal_nome?: string | null;
   nota_fiscal_enviada?: boolean | null;
   exigir_nf?: boolean | null;
+  envio_pix?: boolean | null;
 }
 
 // Receita já lançada que pode corresponder a uma cobrança (conciliação)
@@ -297,14 +298,29 @@ export function useCobrancas() {
     }
   };
 
-  // Template do WhatsApp (editável em Meu Perfil)
+  // Template do WhatsApp + config PIX (editáveis em Meu Perfil)
   const [whatsappTemplate, setWhatsappTemplate] = useState<string>('');
+  const [pixCfg, setPixCfg] = useState<{ chave: string; titular: string; template: string }>({ chave: '', titular: '', template: '' });
   useEffect(() => {
     (async () => {
-      const { data } = await (supabase as any).from('cobranca_config').select('whatsapp_template').maybeSingle();
+      const { data } = await (supabase as any).from('cobranca_config')
+        .select('whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular').maybeSingle();
       if (data?.whatsapp_template) setWhatsappTemplate(data.whatsapp_template);
+      setPixCfg({ chave: data?.pix_chave || '', titular: data?.pix_titular || '', template: data?.whatsapp_template_pix || '' });
     })();
   }, []);
+
+  // Marca/desmarca "enviar chave PIX no WhatsApp" (aceita várias linhas de uma fatura).
+  const setEnvioPix = async (cobranca_ids: string | string[], value: boolean) => {
+    try {
+      const ids = Array.isArray(cobranca_ids) ? cobranca_ids : [cobranca_ids];
+      await (supabase as any).from('cobrancas').update({ envio_pix: value }).in('id', ids);
+      toast.success(value ? 'Passará a enviar a chave PIX no WhatsApp.' : 'Voltou a enviar o link da fatura.');
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao atualizar');
+    }
+  };
 
   // Anexa um PDF de nota fiscal à cobrança (Storage privado) e grava o path.
   const anexarNota = async (cobranca_id: string, file: File) => {
@@ -405,19 +421,27 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, whatsappTemplate, reload: load };
+  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =
   'Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!';
 
-export function preencherTemplate(tpl: string, d: { cliente: string; descricao: string; valor: string; vencimento: string; link: string }): string {
+export const WHATSAPP_TEMPLATE_PIX_PADRAO =
+  'Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\n🔑 *Chave PIX:* {pix}\n👤 Em nome de: {titular}\n\nApós o pagamento, é só enviar o comprovante. Obrigado!';
+
+export function preencherTemplate(
+  tpl: string,
+  d: { cliente: string; descricao: string; valor: string; vencimento: string; link: string; pix?: string; titular?: string },
+): string {
   return (tpl || WHATSAPP_TEMPLATE_PADRAO)
     .replace(/\{cliente\}/g, d.cliente)
     .replace(/\{descricao\}/g, d.descricao)
     .replace(/\{valor\}/g, d.valor)
     .replace(/\{vencimento\}/g, d.vencimento)
-    .replace(/\{link\}/g, d.link);
+    .replace(/\{link\}/g, d.link || '')
+    .replace(/\{pix\}/g, d.pix || '')
+    .replace(/\{titular\}/g, d.titular || '');
 }
 
 export const COBRANCA_STATUS_LABEL: Record<string, { label: string; tone: 'success' | 'warning' | 'danger' | 'muted' }> = {
