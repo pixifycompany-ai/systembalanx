@@ -41,7 +41,7 @@ serve(async (req) => {
 
     const apiKey = Deno.env.get("WHATSAPP_API_KEY");
     if (!apiKey) return json({ error: "WHATSAPP_API_KEY não configurado nos secrets da função." }, 500);
-    const sid = Deno.env.get("WHATSAPP_SID") || "b90d5bea1c485ebc40a7bbb5ba33ab2db";
+    const sid = Deno.env.get("WHATSAPP_SID") || "90d5bea1c485ebc40a7bbb5ba33ab2db";
 
     const resp = await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/text`, {
       method: "POST",
