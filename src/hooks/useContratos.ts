@@ -15,6 +15,7 @@ export interface ContratoDB {
   recorrencia: 'mensal' | 'trimestral' | 'semestral' | 'anual' | 'unico';
   status: 'ativo' | 'cancelado' | 'encerrado';
   data_inativacao: string | null;
+  asaas_subscription_id?: string | null;
   created_at: string;
   updated_at: string;
   cliente?: ClienteDB | null;

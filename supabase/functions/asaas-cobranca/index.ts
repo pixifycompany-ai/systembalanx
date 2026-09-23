@@ -369,6 +369,18 @@ serve(async (req) => {
       }
 
       await admin.from("contratos").update({ asaas_subscription_id: subId }).in("id", ids);
+
+      // Corrida com o webhook: ao criar a assinatura o Asaas dispara o webhook na
+      // hora, que pode criar a fatura como UMA linha (sem contrato) antes daqui.
+      // Removemos essas linhas prévias para recriar uma por contrato.
+      const { data: previas } = await admin.from("cobrancas")
+        .select("id, receita_id, contrato_id").eq("user_id", user.id).eq("asaas_subscription_id", subId);
+      for (const p of previas || []) {
+        if (p.contrato_id) continue; // já está certo
+        if (p.receita_id) await admin.from("receitas").delete().eq("id", p.receita_id).eq("status", "pendente");
+        await admin.from("cobrancas").delete().eq("id", p.id);
+      }
+
       const faturas = await importarPagamentos({
         subId, contrato_id: null, cliente_id: clienteId, conta_id: body.conta_id || null, descricao: "Assinatura",
       });

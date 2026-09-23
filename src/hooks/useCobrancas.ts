@@ -423,7 +423,17 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, reload: load };
+  // Cobrança por assinatura — resolve o contrato de um grupo mesmo quando a
+  // fatura ficou como linha única (ex.: dados antigos sem contrato_id).
+  const bySubscription = useMemo(() => {
+    const m = new Map<string, Cobranca>();
+    for (const c of cobrancas) {
+      if (c.asaas_subscription_id && c.status !== 'cancelado' && !m.has(c.asaas_subscription_id)) m.set(c.asaas_subscription_id, c);
+    }
+    return m;
+  }, [cobrancas]);
+
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

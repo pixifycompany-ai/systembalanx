@@ -104,6 +104,7 @@ export default function Contratos() {
   const {
     cobrancas,
     byContrato,
+    bySubscription,
     agrupar: agruparContratos,
     busyId: cobrBusyId,
     loading: cobrLoading,
@@ -129,6 +130,14 @@ export default function Contratos() {
   const [whatsappSending, setWhatsappSending] = useState(false);
   const [whatsappCob, setWhatsappCob] = useState<Cobranca | null>(null);
   const [whatsappGrupo, setWhatsappGrupo] = useState<Cobranca[]>([]);
+  // Cobrança de um contrato: direta, ou a do grupo (via assinatura) quando a
+  // fatura ficou como linha única sem contrato_id.
+  const cobrancaDoContrato = (contratoId: string): Cobranca | undefined => {
+    const direta = byContrato.get(contratoId);
+    if (direta) return direta;
+    const sub = contratos.find((c) => c.id === contratoId)?.asaas_subscription_id;
+    return sub ? bySubscription.get(sub) : undefined;
+  };
   // Linhas da mesma fatura: contratos agrupados numa assinatura dividem um boleto.
   const linhasDaFatura = (cob: Cobranca): Cobranca[] => {
     if (!cob.asaas_payment_id) return [cob];
@@ -474,7 +483,7 @@ export default function Contratos() {
       setAditivoData({ valor_novo: '', data_vigencia: '', motivo: '' });
       refetchContratos();
       // Se há cobrança Asaas vinculada, reajusta a assinatura + faturas pendentes lá também
-      if (byContrato.get(editingContratoId)) {
+      if (cobrancaDoContrato(editingContratoId)) {
         await reajustarAssinatura(editingContratoId, novoValor);
       }
     }
@@ -715,18 +724,18 @@ export default function Contratos() {
             renderCobranca={(c: any) => (
               <ContratoCobrancaCell
                 contratoId={c.id}
-                cobranca={byContrato.get(c.id)}
-                busy={cobrBusyId === c.id || cobrBusyId === byContrato.get(c.id)?.id}
+                cobranca={cobrancaDoContrato(c.id)}
+                busy={cobrBusyId === c.id || cobrBusyId === cobrancaDoContrato(c.id)?.id}
                 contas={contasRecebimento}
                 onCobrar={(forma, contaId, extra) => criarCobranca(c.id, forma, contaId, extra)}
                 onListarAssinaturas={() => listarAssinaturas(c.cliente_id)}
                 onVincular={async (subId, contaId) => { await vincularAssinatura(c.id, subId, contaId); refetchContratos(); }}
-                onCancelar={() => { const cb = byContrato.get(c.id); if (cb) cancelarCobranca(cb.id); }}
-                onExcluir={() => { const cb = byContrato.get(c.id); if (cb) excluirCobranca(cb.id); }}
+                onCancelar={() => { const cb = cobrancaDoContrato(c.id); if (cb) cancelarCobranca(cb.id); }}
+                onExcluir={() => { const cb = cobrancaDoContrato(c.id); if (cb) excluirCobranca(cb.id); }}
                 onSincronizar={() => sincronizarCobrancas(c.id)}
-                onReceberManual={() => { const cb = byContrato.get(c.id); if (cb) receberManualCobranca(cb.id); }}
-                onWhatsapp={() => openWhatsapp(byContrato.get(c.id))}
-                grupoQtd={(() => { const cb = byContrato.get(c.id); return cb ? linhasDaFatura(cb).length : 1; })()}
+                onReceberManual={() => { const cb = cobrancaDoContrato(c.id); if (cb) receberManualCobranca(cb.id); }}
+                onWhatsapp={() => openWhatsapp(cobrancaDoContrato(c.id))}
+                grupoQtd={(() => { const cb = cobrancaDoContrato(c.id); return cb ? linhasDaFatura(cb).length : 1; })()}
               />
             )}
           />
@@ -796,18 +805,18 @@ export default function Contratos() {
                       <td>
                         <ContratoCobrancaCell
                           contratoId={contrato.id}
-                          cobranca={byContrato.get(contrato.id)}
-                          busy={cobrBusyId === contrato.id || cobrBusyId === byContrato.get(contrato.id)?.id}
+                          cobranca={cobrancaDoContrato(contrato.id)}
+                          busy={cobrBusyId === contrato.id || cobrBusyId === cobrancaDoContrato(contrato.id)?.id}
                           contas={contasRecebimento}
                           onCobrar={(forma, contaId, extra) => criarCobranca(contrato.id, forma, contaId, extra)}
                           onListarAssinaturas={() => listarAssinaturas(contrato.cliente_id)}
                           onVincular={async (subId, contaId) => { await vincularAssinatura(contrato.id, subId, contaId); refetchContratos(); }}
-                          onCancelar={() => { const c = byContrato.get(contrato.id); if (c) cancelarCobranca(c.id); }}
-                          onExcluir={() => { const c = byContrato.get(contrato.id); if (c) excluirCobranca(c.id); }}
+                          onCancelar={() => { const c = cobrancaDoContrato(contrato.id); if (c) cancelarCobranca(c.id); }}
+                          onExcluir={() => { const c = cobrancaDoContrato(contrato.id); if (c) excluirCobranca(c.id); }}
                           onSincronizar={() => sincronizarCobrancas(contrato.id)}
-                          onReceberManual={() => { const c = byContrato.get(contrato.id); if (c) receberManualCobranca(c.id); }}
-                          onWhatsapp={() => openWhatsapp(byContrato.get(contrato.id))}
-                          grupoQtd={(() => { const cb = byContrato.get(contrato.id); return cb ? linhasDaFatura(cb).length : 1; })()}
+                          onReceberManual={() => { const c = cobrancaDoContrato(contrato.id); if (c) receberManualCobranca(c.id); }}
+                          onWhatsapp={() => openWhatsapp(cobrancaDoContrato(contrato.id))}
+                          grupoQtd={(() => { const cb = cobrancaDoContrato(contrato.id); return cb ? linhasDaFatura(cb).length : 1; })()}
                         />
                       </td>
                       <td>
