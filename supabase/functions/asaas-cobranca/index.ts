@@ -178,6 +178,36 @@ serve(async (req) => {
       } as never);
     }
 
+    // Importa TODAS as faturas em aberto de uma assinatura (que o Asaas já gerou)
+    // como cobranças + receitas "a receber", sem duplicar. Só as não pagas —
+    // as pagas históricas ficam de fora pra não recriar receita já lançada.
+    const STATUS_ABERTO = ["PENDING", "OVERDUE", "AWAITING_RISK_ANALYSIS", "AWAITING_CHARGEBACK_REVERSAL"];
+    async function importarPagamentos(opts: {
+      subId: string; contrato_id: string | null; cliente_id: string | null; conta_id: string | null; descricao: string;
+    }): Promise<number> {
+      let novas = 0;
+      try {
+        const pr = await fetch(`${base}/subscriptions/${opts.subId}/payments`, { headers });
+        if (!pr.ok) return 0;
+        const pj = await pr.json();
+        const pays = pj?.data || [];
+        for (const pay of pays) {
+          if (!STATUS_ABERTO.includes(pay.status)) continue;
+          const { data: existe } = await admin.from("cobrancas").select("id").eq("asaas_payment_id", pay.id).eq("user_id", user.id).maybeSingle();
+          if (existe) continue;
+          await registrar({
+            cliente_id: opts.cliente_id, contrato_id: opts.contrato_id, conta_id: opts.conta_id, tipo: "recorrente",
+            asaas_payment_id: pay.id, asaas_subscription_id: opts.subId,
+            descricao: opts.descricao, valor: Number(pay.value),
+            vencimento: pay.dueDate, forma: pay.billingType || "UNDEFINED",
+            status: mapStatus(pay.status), invoice_url: pay.invoiceUrl ?? null,
+          });
+          novas++;
+        }
+      } catch (_) { /* ignore */ }
+      return novas;
+    }
+
     // ===== CRIAR RECORRENTE (a partir de um contrato) =====
     if (action === "criar-contrato") {
       const { contrato_id, forma_pagamento, conta_id } = body;
@@ -311,28 +341,12 @@ serve(async (req) => {
         await fetch(`${base}/customers/${sub.customer}`, { method: "POST", headers, body: JSON.stringify({ notificationDisabled: true }) }).catch(() => {});
       }
 
-      // Próxima cobrança em aberto vira receita "a receber"
-      let pay: any = null;
-      try {
-        const pr = await fetch(`${base}/subscriptions/${sub.id}/payments`, { headers });
-        const pj = await pr.json();
-        const pays = pj?.data || [];
-        pay = pays.find((p: any) => ["PENDING", "OVERDUE", "AWAITING_RISK_ANALYSIS"].includes(p.status)) || pays[0] || null;
-      } catch (_) { /* ignore */ }
-
-      if (pay) {
-        const { data: existe } = await admin.from("cobrancas").select("id").eq("asaas_payment_id", pay.id).eq("user_id", user.id).maybeSingle();
-        if (!existe) {
-          await registrar({
-            cliente_id: contrato.cliente_id, contrato_id: contrato.id, conta_id: conta_id || null, tipo: "recorrente",
-            asaas_payment_id: pay.id, asaas_subscription_id: sub.id,
-            descricao: contrato.descricao || sub.description || "Assinatura", valor: Number(pay.value),
-            vencimento: pay.dueDate, forma: pay.billingType || sub.billingType || "UNDEFINED",
-            status: mapStatus(pay.status), invoice_url: pay.invoiceUrl ?? null,
-          });
-        }
-      }
-      return json({ ok: true, valor: Number(sub.value) });
+      // Importa TODAS as faturas em aberto que o Asaas já gerou (a receber)
+      const novas = await importarPagamentos({
+        subId: sub.id, contrato_id: contrato.id, cliente_id: contrato.cliente_id,
+        conta_id: conta_id || null, descricao: contrato.descricao || sub.description || "Assinatura",
+      });
+      return json({ ok: true, valor: Number(sub.value), cobrancas: novas });
     }
 
     // ===== REAJUSTAR: muda o valor da assinatura E das faturas PENDENTES =====
@@ -487,7 +501,20 @@ serve(async (req) => {
           }
         } catch (_) { /* ignore item */ }
       }
-      return json({ ok: true, sincronizadas: (cobs || []).length });
+      // Descobre faturas NOVAS em aberto de cada assinatura vinculada (ex.: geradas
+      // pelo Asaas depois do vínculo, ou anteriores que não foram importadas).
+      const subs = new Map<string, any>();
+      for (const c of cobs || []) {
+        if (c.asaas_subscription_id && !subs.has(c.asaas_subscription_id)) subs.set(c.asaas_subscription_id, c);
+      }
+      let novas = 0;
+      for (const [subId, ctx] of subs) {
+        novas += await importarPagamentos({
+          subId, contrato_id: ctx.contrato_id, cliente_id: ctx.cliente_id,
+          conta_id: ctx.conta_id, descricao: ctx.descricao || "Assinatura",
+        });
+      }
+      return json({ ok: true, sincronizadas: (cobs || []).length, novas });
     }
 
     return json({ error: "Ação inválida." }, 400);
