@@ -75,27 +75,38 @@ export default function MeuPerfil() {
   const [savingAuto, setSavingAuto] = useState(false);
 
   const loadAsaasStatus = async () => {
-    const { data } = await (supabase as any)
+    // Status da conexão: só colunas que sempre existem — uma coluna nova ausente
+    // (migração ainda não rodada) NÃO pode esconder a conexão do Asaas.
+    const { data: base } = await (supabase as any)
       .from('cobranca_config')
-      .select('asaas_account_name, asaas_env, webhook_token, whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias')
+      .select('asaas_account_name, asaas_env, webhook_token')
       .maybeSingle();
-    if (data) {
-      setAsaasStatus({ connected: true, accountName: data.asaas_account_name ?? null, env: data.asaas_env ?? 'production', webhookToken: data.webhook_token ?? null });
-      setWhatsappTpl(data.whatsapp_template || WHATSAPP_TPL_PADRAO);
-      setPixChave(data.pix_chave || '');
-      setPixTitular(data.pix_titular || '');
-      setWhatsappTplPix(data.whatsapp_template_pix || WHATSAPP_TPL_PIX_PADRAO);
-      setAutoCfg({
-        enabled: !!data.auto_wpp_enabled,
-        antesDias: data.auto_wpp_antes_dias ?? 0,
-        noDia: data.auto_wpp_no_dia ?? true,
-        atrasoDiario: !!data.auto_wpp_atraso_diario,
-        atrasoMax: data.auto_wpp_atraso_max_dias ?? 0,
-      });
+    if (base) {
+      setAsaasStatus({ connected: true, accountName: base.asaas_account_name ?? null, env: base.asaas_env ?? 'production', webhookToken: base.webhook_token ?? null });
     } else {
       setAsaasStatus({ connected: false, accountName: null, env: 'production', webhookToken: null });
-      setWhatsappTpl(WHATSAPP_TPL_PADRAO);
     }
+
+    // Extras (template, PIX, regras de auto-envio): tolerante a colunas ausentes.
+    setWhatsappTpl(WHATSAPP_TPL_PADRAO);
+    setWhatsappTplPix(WHATSAPP_TPL_PIX_PADRAO);
+    const carregarExtra = async (cols: string, apply: (d: any) => void) => {
+      const { data, error } = await (supabase as any).from('cobranca_config').select(cols).maybeSingle();
+      if (!error && data) apply(data);
+    };
+    await carregarExtra('whatsapp_template', (d) => d.whatsapp_template && setWhatsappTpl(d.whatsapp_template));
+    await carregarExtra('whatsapp_template_pix, pix_chave, pix_titular', (d) => {
+      setPixChave(d.pix_chave || '');
+      setPixTitular(d.pix_titular || '');
+      setWhatsappTplPix(d.whatsapp_template_pix || WHATSAPP_TPL_PIX_PADRAO);
+    });
+    await carregarExtra('auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias', (d) => setAutoCfg({
+      enabled: !!d.auto_wpp_enabled,
+      antesDias: d.auto_wpp_antes_dias ?? 0,
+      noDia: d.auto_wpp_no_dia ?? true,
+      atrasoDiario: !!d.auto_wpp_atraso_diario,
+      atrasoMax: d.auto_wpp_atraso_max_dias ?? 0,
+    }));
   };
 
   const salvarAutoCfg = async () => {

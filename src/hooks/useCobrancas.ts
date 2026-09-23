@@ -303,10 +303,11 @@ export function useCobrancas() {
   const [pixCfg, setPixCfg] = useState<{ chave: string; titular: string; template: string }>({ chave: '', titular: '', template: '' });
   useEffect(() => {
     (async () => {
-      const { data } = await (supabase as any).from('cobranca_config')
-        .select('whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular').maybeSingle();
-      if (data?.whatsapp_template) setWhatsappTemplate(data.whatsapp_template);
-      setPixCfg({ chave: data?.pix_chave || '', titular: data?.pix_titular || '', template: data?.whatsapp_template_pix || '' });
+      // Tolerante a colunas ausentes (migração PIX pode não ter rodado ainda).
+      const t = await (supabase as any).from('cobranca_config').select('whatsapp_template').maybeSingle();
+      if (t.data?.whatsapp_template) setWhatsappTemplate(t.data.whatsapp_template);
+      const p = await (supabase as any).from('cobranca_config').select('whatsapp_template_pix, pix_chave, pix_titular').maybeSingle();
+      if (!p.error && p.data) setPixCfg({ chave: p.data.pix_chave || '', titular: p.data.pix_titular || '', template: p.data.whatsapp_template_pix || '' });
     })();
   }, []);
 
