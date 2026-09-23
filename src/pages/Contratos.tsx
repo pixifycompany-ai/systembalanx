@@ -113,6 +113,7 @@ export default function Contratos() {
     receberManual: receberManualCobranca,
     enviarWhatsapp,
     notaSignedUrl,
+    marcarNotaEnviada,
     whatsappTemplate,
   } = useCobrancas();
 
@@ -136,7 +137,7 @@ export default function Contratos() {
     }));
     setWhatsappOpen(true);
   };
-  const whatsappBloqueado = !!whatsappCob?.exigir_nf && !whatsappCob?.nota_fiscal_path;
+  const whatsappBloqueado = !!whatsappCob?.exigir_nf && !whatsappCob?.nota_fiscal_path && !whatsappCob?.nota_fiscal_enviada;
   const handleEnviarWhatsapp = async () => {
     if (!whatsappCob) return;
     if (whatsappBloqueado) { toast.error('Esta cobrança exige nota fiscal anexada para disparar.'); return; }
@@ -146,9 +147,12 @@ export default function Contratos() {
       const url = await notaSignedUrl(whatsappCob.nota_fiscal_path);
       if (url) doc = { url, nome: whatsappCob.nota_fiscal_nome || 'nota-fiscal.pdf' };
     }
-    const ok = await enviarWhatsapp(whatsappTel, whatsappText, doc);
+    const res = await enviarWhatsapp(whatsappTel, whatsappText, doc);
     setWhatsappSending(false);
-    if (ok) setWhatsappOpen(false);
+    if (res) {
+      if (res.docEnviado && whatsappCob.nota_fiscal_path) await marcarNotaEnviada(whatsappCob.id, whatsappCob.nota_fiscal_path);
+      setWhatsappOpen(false);
+    }
   };
   // Criar cliente inline dentro do formulário de contrato
   const [novoClienteOpen, setNovoClienteOpen] = useState(false);
@@ -1303,7 +1307,7 @@ export default function Contratos() {
                   <FileText className="h-4 w-4 shrink-0 text-primary" />
                   <span className="truncate">Vai anexar: {whatsappCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
                 </div>
-              ) : whatsappCob?.exigir_nf ? (
+              ) : whatsappCob?.exigir_nf && !whatsappCob?.nota_fiscal_enviada ? (
                 <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning))]">
                   <FileText className="h-4 w-4 shrink-0" />
                   <span>Esta cobrança exige nota fiscal anexada. Anexe na tela de Cobranças.</span>

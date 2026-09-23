@@ -60,7 +60,7 @@ export default function Cobrancas() {
   const {
     cobrancas, loading, busyId,
     criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp,
-    anexarNota, removerNota, setExigirNf, notaSignedUrl, whatsappTemplate,
+    anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, whatsappTemplate,
   } = useCobrancas();
   const { clientes } = useClientes();
   const { contas } = useContas();
@@ -141,7 +141,7 @@ export default function Cobrancas() {
     }));
     setWaOpen(true);
   };
-  const waBloqueado = !!waCob?.exigir_nf && !waCob?.nota_fiscal_path;
+  const waBloqueado = !!waCob?.exigir_nf && !waCob?.nota_fiscal_path && !waCob?.nota_fiscal_enviada;
   const handleEnviarWa = async () => {
     if (!waCob) return;
     if (waBloqueado) { toast.error('Esta cobrança exige nota fiscal anexada para disparar.'); return; }
@@ -151,9 +151,13 @@ export default function Cobrancas() {
       const url = await notaSignedUrl(waCob.nota_fiscal_path);
       if (url) doc = { url, nome: waCob.nota_fiscal_nome || 'nota-fiscal.pdf' };
     }
-    const ok = await enviarWhatsapp(waTel, waText, doc);
+    const res = await enviarWhatsapp(waTel, waText, doc);
     setWaSending(false);
-    if (ok) setWaOpen(false);
+    if (res) {
+      // Envio confirmado do PDF → apaga do Storage pra não ocupar espaço.
+      if (res.docEnviado && waCob.nota_fiscal_path) await marcarNotaEnviada(waCob.id, waCob.nota_fiscal_path);
+      setWaOpen(false);
+    }
   };
 
   // ===== Nova cobrança avulsa =====
@@ -438,7 +442,8 @@ export default function Cobrancas() {
                       <div className="flex items-center gap-1.5">
                         <span className="truncate">{cli?.nome || '—'}</span>
                         {cob.nota_fiscal_path && <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Nota fiscal anexada" />}
-                        {cob.exigir_nf && !cob.nota_fiscal_path && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--warning))]" aria-label="Exige nota fiscal" />}
+                        {!cob.nota_fiscal_path && cob.nota_fiscal_enviada && <FileText className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--success))]" aria-label="Nota fiscal enviada" />}
+                        {cob.exigir_nf && !cob.nota_fiscal_path && !cob.nota_fiscal_enviada && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--warning))]" aria-label="Exige nota fiscal" />}
                       </div>
                     </td>
                     <td className="px-3 py-3 max-w-[220px] truncate text-foreground-muted">{cob.descricao || '—'}</td>
@@ -642,7 +647,7 @@ export default function Cobrancas() {
                   <span className="truncate">Vai anexar: {waCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
                   <button onClick={() => abrirNota(waCob.nota_fiscal_path!)} className="ml-auto shrink-0 text-primary hover:underline">ver</button>
                 </div>
-              ) : waCob?.exigir_nf ? (
+              ) : waCob?.exigir_nf && !waCob?.nota_fiscal_enviada ? (
                 <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning))]">
                   <ShieldCheck className="h-4 w-4 shrink-0" />
                   <span>Esta cobrança exige nota fiscal.</span>

@@ -21,6 +21,7 @@ export interface Cobranca {
   created_at?: string | null;
   nota_fiscal_path?: string | null;
   nota_fiscal_nome?: string | null;
+  nota_fiscal_enviada?: boolean | null;
   exigir_nf?: boolean | null;
 }
 
@@ -281,6 +282,16 @@ export function useCobrancas() {
     return data?.signedUrl || null;
   };
 
+  // Após envio confirmado do PDF: apaga o arquivo do Storage (economiza espaço)
+  // e registra que a NF foi enviada.
+  const marcarNotaEnviada = async (cobranca_id: string, path: string) => {
+    try {
+      await supabase.storage.from('notas-fiscais').remove([path]);
+      await (supabase as any).from('cobrancas').update({ nota_fiscal_path: null, nota_fiscal_nome: null, nota_fiscal_enviada: true }).eq('id', cobranca_id);
+      await load();
+    } catch { /* silencioso: o envio já ocorreu */ }
+  };
+
   const enviarWhatsapp = async (telefone: string, text: string, documento?: { url: string; nome: string } | null) => {
     try {
       const body: Record<string, unknown> = { telefone, text };
@@ -298,10 +309,10 @@ export function useCobrancas() {
       }
       if ((data as { error?: string })?.error) throw new Error((data as { error?: string }).error);
       toast.success('WhatsApp enviado!');
-      return true;
+      return { ok: true, docEnviado: !!(data as { docEnviado?: boolean })?.docEnviado };
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao enviar WhatsApp', { duration: 8000 });
-      return false;
+      return null;
     }
   };
 
@@ -314,7 +325,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, whatsappTemplate, reload: load };
+  return { cobrancas, byContrato, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, whatsappTemplate, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

@@ -74,7 +74,7 @@ serve(async (req) => {
   const cfgBy = new Map((cfgs || []).map((c) => [c.user_id, c]));
 
   const { data: cobs } = await admin.from("cobrancas")
-    .select("id, user_id, cliente_id, contrato_id, descricao, valor, vencimento, invoice_url, status, exigir_nf, nota_fiscal_path, nota_fiscal_nome, auto_wpp_ultimo_dia, clientes(nome, telefone), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
+    .select("id, user_id, cliente_id, contrato_id, descricao, valor, vencimento, invoice_url, status, exigir_nf, nota_fiscal_path, nota_fiscal_nome, nota_fiscal_enviada, auto_wpp_ultimo_dia, clientes(nome, telefone), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
     .in("status", ["pendente", "vencido"]);
 
   let enviados = 0, pulados = 0, faltaNf = 0, erros = 0;
@@ -102,7 +102,7 @@ serve(async (req) => {
       const to = normalizarWhats(cli?.telefone || "");
       if (!to) { pulados++; continue; }
 
-      if (cob.exigir_nf && !cob.nota_fiscal_path) { faltaNf++; continue; } // exige NF e não tem
+      if (cob.exigir_nf && !cob.nota_fiscal_path && !cob.nota_fiscal_enviada) { faltaNf++; continue; } // exige NF e não tem
 
       const text = preencher(cfg?.whatsapp_template || TPL_PADRAO, {
         cliente: cli?.nome || "cliente",
@@ -119,19 +119,26 @@ serve(async (req) => {
       });
       if (!tr.ok) { erros++; console.error("auto text fail", cob.id, tr.status, await tr.text().catch(() => "")); continue; }
 
-      // Anexa a NF (PDF) se houver
-      if (cob.nota_fiscal_path) {
-        const { data: signed } = await admin.storage.from("notas-fiscais").createSignedUrl(cob.nota_fiscal_path, 600);
+      // Anexa a NF (PDF) se houver; se enviar com sucesso, apaga do Storage.
+      let removerNf = false;
+      const nfPath: string | null = cob.nota_fiscal_path;
+      if (nfPath) {
+        const { data: signed } = await admin.storage.from("notas-fiscais").createSignedUrl(nfPath, 600);
         if (signed?.signedUrl) {
-          await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/document`, {
+          const dr = await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/document`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
             body: JSON.stringify({ to, url: signed.signedUrl, filename: cob.nota_fiscal_nome || "nota-fiscal.pdf", mimetype: "application/pdf" }),
-          }).catch(() => {});
+          }).catch(() => null);
+          if (dr && dr.ok) removerNf = true;
         }
       }
 
-      await admin.from("cobrancas").update({ auto_wpp_ultimo_dia: hoje }).eq("id", cob.id);
+      await admin.from("cobrancas").update({
+        auto_wpp_ultimo_dia: hoje,
+        ...(removerNf ? { nota_fiscal_path: null, nota_fiscal_nome: null, nota_fiscal_enviada: true } : {}),
+      }).eq("id", cob.id);
+      if (removerNf && nfPath) await admin.storage.from("notas-fiscais").remove([nfPath]).catch(() => {});
       enviados++;
     } catch (e) {
       erros++;
