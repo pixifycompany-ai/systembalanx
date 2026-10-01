@@ -18,16 +18,38 @@ serve(async (req) => {
 
     // Identifica o tenant pelo token do webhook
     const token = req.headers.get("asaas-access-token") || req.headers.get("Asaas-Access-Token") || "";
-    const { data: cfg } = await admin.from("cobranca_config").select("user_id").eq("webhook_token", token).maybeSingle();
+    const { data: cfg } = await admin.from("cobranca_config").select("user_id, asaas_api_key, asaas_env").eq("webhook_token", token).maybeSingle();
     if (!cfg?.user_id) {
       // Sem token válido: responde 200 pra não ficar reenfileirando, mas não processa.
       return new Response(JSON.stringify({ ok: true, unauthorized: true }), { status: 200 });
     }
     const userId = cfg.user_id as string;
 
-    const novoStatus = mapStatus(payment.status);
-    const pago = isPago(payment.status);
-    const dataPag = payment.paymentDate || payment.clientPaymentDate || null;
+    const isDelete = event === "PAYMENT_DELETED" || payment.status === "DELETED";
+
+    // DEFESA EM PROFUNDIDADE: não confia só no corpo do webhook. Re-busca o
+    // pagamento no Asaas com a chave do tenant e usa o status/valores REAIS.
+    // (Se um token vazar, um corpo forjado não consegue marcar "pago".)
+    // Se o Asaas estiver indisponível, cai no payload — que já passou pelo token.
+    let p = payment;
+    if (cfg.asaas_api_key && !isDelete) {
+      const base = cfg.asaas_env === "sandbox" ? "https://api-sandbox.asaas.com/v3" : "https://api.asaas.com/v3";
+      try {
+        const vr = await fetch(`${base}/payments/${payment.id}`, { headers: { access_token: cfg.asaas_api_key as string } });
+        if (vr.ok) {
+          const v = await vr.json();
+          if (v && v.id) p = v; // fonte da verdade = Asaas
+        } else if (vr.status === 404 || vr.status === 400) {
+          // Pagamento não existe no Asaas → evento forjado/apagado. Não processa baixa.
+          console.error("webhook: pagamento não confirmado no Asaas", payment.id, vr.status);
+          return new Response(JSON.stringify({ ok: true, naoConfirmado: true }), { status: 200 });
+        }
+      } catch (_) { /* Asaas indisponível: usa o payload autenticado por token */ }
+    }
+
+    const novoStatus = mapStatus(p.status);
+    const pago = isPago(p.status);
+    const dataPag = p.paymentDate || p.clientPaymentDate || null;
 
     // Todas as linhas desta fatura (1 normalmente; N quando os contratos são agrupados)
     const { data: linhas } = await admin.from("cobrancas").select("*")
@@ -35,12 +57,12 @@ serve(async (req) => {
       .order("created_at", { ascending: true }).order("id", { ascending: true });
 
     // Fatura nova de uma assinatura → cria as linhas + receitas (vinculando as já lançadas)
-    if (!linhas?.length && payment.subscription) {
+    if (!linhas?.length && p.subscription) {
       const { data: base } = await admin.from("cobrancas")
         .select("cliente_id, contrato_id, conta_id, descricao, exigir_nf, envio_pix")
-        .eq("asaas_subscription_id", payment.subscription).eq("user_id", userId)
+        .eq("asaas_subscription_id", p.subscription).eq("user_id", userId)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
-      await registrarFatura(admin, userId, payment, payment.subscription, {
+      await registrarFatura(admin, userId, p, p.subscription, {
         conta_id: base?.conta_id ?? null,
         fallback: base
           ? { contrato_id: base.contrato_id, cliente_id: base.cliente_id, descricao: base.descricao, exigir_nf: !!base.exigir_nf, envio_pix: !!base.envio_pix }
@@ -53,7 +75,7 @@ serve(async (req) => {
 
     // Exclusão → cancela; a receita só some se foi criada pela integração
     // (parcela lançada à mão fica, apenas desvinculada).
-    if (event === "PAYMENT_DELETED" || payment.status === "DELETED") {
+    if (isDelete) {
       for (const cob of linhas) {
         await apagarReceitaSeCriada(admin, cob);
         await admin.from("cobrancas").update({ status: "cancelado", receita_id: null, updated_at: new Date().toISOString() }).eq("id", cob.id);
@@ -64,7 +86,7 @@ serve(async (req) => {
     for (const cob of linhas) {
       await admin.from("cobrancas").update({
         status: novoStatus,
-        invoice_url: payment.invoiceUrl ?? cob.invoice_url,
+        invoice_url: p.invoiceUrl ?? cob.invoice_url,
         data_pagamento: pago ? dataPag : null,
         updated_at: new Date().toISOString(),
       }).eq("id", cob.id);
@@ -73,14 +95,14 @@ serve(async (req) => {
       if (!cob.receita_id) continue;
       if (pago) {
         await admin.from("receitas").update({ status: "recebido", data_recebimento: dataPag || cob.vencimento }).eq("id", cob.receita_id);
-      } else if (payment.status === "OVERDUE") {
+      } else if (p.status === "OVERDUE") {
         await admin.from("receitas").update({ status: "atrasado" }).eq("id", cob.receita_id);
-      } else if (["REFUNDED", "REFUND_REQUESTED"].includes(payment.status)) {
+      } else if (["REFUNDED", "REFUND_REQUESTED"].includes(p.status)) {
         await admin.from("receitas").update({ status: "pendente", data_recebimento: null }).eq("id", cob.receita_id);
       }
     }
     // Juros/multa de atraso → receita extra, uma vez por fatura
-    if (pago) await lancarJurosMulta(admin, linhas[0], payment, dataPag);
+    if (pago) await lancarJurosMulta(admin, linhas[0], p, dataPag);
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 });
   } catch (e) {

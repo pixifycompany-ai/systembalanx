@@ -61,6 +61,30 @@ serve(async (req) => {
       novoStatus = "cancelada";
     }
 
+    // DEFESA EM PROFUNDIDADE: antes de LIBERAR o plano ("ativa"), re-busca o
+    // pagamento no Asaas e confirma o status. Um corpo forjado (se o token vazar)
+    // não consegue ativar sem o Asaas confirmar de verdade.
+    if (novoStatus === "ativa" && payment?.id) {
+      const apiKey = Deno.env.get("ASAAS_API_KEY");
+      if (apiKey) {
+        const base = Deno.env.get("ASAAS_ENV") === "sandbox" ? "https://api-sandbox.asaas.com/v3" : "https://api.asaas.com/v3";
+        try {
+          const vr = await fetch(`${base}/payments/${payment.id}`, { headers: { access_token: apiKey } });
+          if (vr.ok) {
+            const v = await vr.json();
+            if (!["CONFIRMED", "RECEIVED", "RECEIVED_IN_CASH"].includes(String(v?.status))) {
+              console.error("saas-webhook: pagamento não confirmado no Asaas", payment.id, v?.status);
+              novoStatus = null; // não ativa
+            }
+          } else if (vr.status === 404 || vr.status === 400) {
+            console.error("saas-webhook: pagamento inexistente no Asaas (forjado?)", payment.id, vr.status);
+            novoStatus = null;
+          }
+          // erro de rede: mantém (o token já autenticou a chamada)
+        } catch (_) { /* Asaas indisponível */ }
+      }
+    }
+
     if (novoStatus) {
       await admin.from("tenants").update({ status_assinatura: novoStatus, updated_at: new Date().toISOString() }).eq("id", tenant.id);
     }
