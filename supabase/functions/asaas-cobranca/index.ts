@@ -77,6 +77,16 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const action = body.action as string;
 
+    // Paywall server-side: ações que CRIAM cobrança só com assinatura ativa.
+    // Gerir/baixar o que já existe (sincronizar, cancelar, receber-manual...) segue liberado.
+    const ACOES_PREMIUM = new Set(["criar-contrato", "criar-avulsa", "agrupar"]);
+    if (ACOES_PREMIUM.has(action)) {
+      const { data: acesso } = await admin.rpc("user_tem_acesso", { uid: user.id });
+      if (acesso === false) {
+        return json({ error: "Sua assinatura está inativa. Regularize o plano para criar novas cobranças." }, 402);
+      }
+    }
+
     // Garante um customer Asaas para o cliente (cria se faltar)
     async function ensureCustomer(clienteId: string): Promise<string> {
       const { data: cli } = await admin.from("clientes").select("*").eq("id", clienteId).eq("user_id", user.id).maybeSingle();
