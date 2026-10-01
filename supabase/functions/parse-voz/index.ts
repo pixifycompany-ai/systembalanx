@@ -59,6 +59,14 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Cap diário de uso da IARA (anti-abuso/custo). Fail-open se o contador falhar.
+    try {
+      const { data: uso } = await supabase.rpc("iara_registrar_uso", { p_limite: 200 });
+      if ((uso as { bloqueado?: boolean })?.bloqueado) {
+        return new Response(JSON.stringify({ error: "Limite diário de uso da IARA atingido. Tente novamente amanhã." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    } catch (_) { /* não bloqueia por erro no contador */ }
+
     const { transcript: transcriptRaw } = await req.json();
     if (!transcriptRaw || !String(transcriptRaw).trim()) {
       return new Response(JSON.stringify({ itens: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

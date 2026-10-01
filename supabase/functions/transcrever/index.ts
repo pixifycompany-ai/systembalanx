@@ -27,6 +27,14 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Cap diário de uso da IARA (transcrição custa $). Fail-open se o contador falhar.
+    try {
+      const { data: uso } = await supabase.rpc("iara_registrar_uso", { p_limite: 200 });
+      if ((uso as { bloqueado?: boolean })?.bloqueado) {
+        return new Response(JSON.stringify({ error: "Limite diário de uso da IARA atingido. Tente novamente amanhã." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    } catch (_) { /* não bloqueia por erro no contador */ }
+
     const apiKey = Deno.env.get("OPENAI_API_KEY") || Deno.env.get("IARA_API_KEY");
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "IA não configurada (OPENAI_API_KEY)." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
