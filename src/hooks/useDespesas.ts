@@ -47,6 +47,7 @@ export interface DespesaFormData {
   conta_id?: string;
   cliente_id?: string;
   fornecedor?: string;
+  forma_pagamento?: string;
   descricao: string;
   valor: number;
   data_competencia: string;
@@ -215,6 +216,7 @@ export function useDespesas() {
           conta_id: formData.conta_id || null,
           cliente_id: formData.cliente_id || null,
           fornecedor: formData.fornecedor || null,
+          forma_pagamento: formData.forma_pagamento || null,
           descricao: formData.descricao,
           valor: formData.valor,
           data_competencia: formData.data_competencia,
@@ -302,6 +304,7 @@ export function useDespesas() {
             conta_id: formData.conta_id,
             cliente_id: formData.cliente_id || null,
             fornecedor: formData.fornecedor || null,
+            forma_pagamento: formData.forma_pagamento || null,
             descricao: `${formData.descricao} (${i + 1}/${N})`,
             valor: valorParcela,
             data_competencia: toISODate(comp),

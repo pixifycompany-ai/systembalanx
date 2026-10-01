@@ -8,6 +8,7 @@ import { CometSpinner } from '@/components/shared/BalanxLoader';
 import { useToast } from '@/hooks/use-toast';
 import { useReceitas } from '@/hooks/useReceitas';
 import { useDespesas } from '@/hooks/useDespesas';
+import { format, parseISO, addDays, addWeeks, addMonths, addYears } from 'date-fns';
 import { useContas } from '@/hooks/useContas';
 import { formatCurrency } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
@@ -24,7 +25,35 @@ interface ItemVoz {
   conta_id: string | null;
   /** true = já pago/recebido (padrão); false = pendente. Cartão de crédito sempre vira fatura. */
   quitado: boolean;
+  forma_pagamento?: string | null;
+  fornecedor?: string | null;
+  /** nº de parcelas no cartão (>=2) */
+  parcelas?: number | null;
+  /** lançamento que se repete */
+  recorrente?: { frequencia: string; repeticoes: number } | null;
 }
+
+// Próxima data de uma série recorrente (índice i a partir da base).
+function proximaDataVoz(base: string, freq: string, i: number): string {
+  const d = parseISO(base);
+  switch (freq) {
+    case 'semanal': return format(addWeeks(d, i), 'yyyy-MM-dd');
+    case 'quinzenal': return format(addDays(d, i * 15), 'yyyy-MM-dd');
+    case 'bimestral': return format(addMonths(d, i * 2), 'yyyy-MM-dd');
+    case 'trimestral': return format(addMonths(d, i * 3), 'yyyy-MM-dd');
+    case 'semestral': return format(addMonths(d, i * 6), 'yyyy-MM-dd');
+    case 'anual': return format(addYears(d, i), 'yyyy-MM-dd');
+    default: return format(addMonths(d, i), 'yyyy-MM-dd'); // mensal
+  }
+}
+const FREQ_LABEL: Record<string, string> = {
+  semanal: 'semana', quinzenal: 'quinzena', mensal: 'mês', bimestral: '2 meses',
+  trimestral: 'trimestre', semestral: 'semestre', anual: 'ano',
+};
+const FORMA_LABEL_VOZ: Record<string, string> = {
+  pix: 'Pix', boleto: 'Boleto', cartao_credito: 'Crédito', cartao_debito: 'Débito',
+  dinheiro: 'Dinheiro', transferencia: 'Transferência',
+};
 
 /** Estrelinha de 4 pontas (isotipo IARA), igual mockup. */
 function Sparkle({ className }: { className?: string }) {
@@ -39,7 +68,7 @@ export default function LancarVoz() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { categorias: catReceita, createReceita } = useReceitas();
-  const { categorias: catDespesa, createDespesa } = useDespesas();
+  const { categorias: catDespesa, createDespesa, createDespesaParcelada } = useDespesas();
   const { contas } = useContas();
 
   // Contas ativas (inclui cartões de crédito, que caem na fatura aberta ao salvar).
@@ -181,27 +210,49 @@ export default function LancarVoz() {
     for (const it of itens) {
       try {
         const card = isCartao(it.conta_id);
+        const rep = it.recorrente ? Math.max(1, it.recorrente.repeticoes) : 1;
         if (it.tipo === 'receita') {
           const status = it.quitado ? 'recebido' : 'pendente';
-          const r = await createReceita({
-            descricao: it.descricao, valor: it.valor, categoria_id: it.categoria_id || undefined,
-            conta_id: it.conta_id || undefined,
-            data_competencia: it.data, data_vencimento: it.data,
-            data_recebimento: it.quitado ? it.data : undefined,
-            status,
-          } as any, true);
-          if (r?.success) ok++;
+          let good = true;
+          for (let i = 0; i < rep; i++) {
+            const d = it.recorrente ? proximaDataVoz(it.data, it.recorrente.frequencia, i) : it.data;
+            const r = await createReceita({
+              descricao: it.descricao, valor: it.valor, categoria_id: it.categoria_id || undefined,
+              conta_id: it.conta_id || undefined, forma_pagamento: it.forma_pagamento || undefined,
+              data_competencia: d, data_vencimento: d,
+              data_recebimento: it.quitado ? d : undefined,
+              status,
+            } as any, true);
+            if (!r?.success) good = false;
+          }
+          if (good) ok++;
         } else {
-          // Cartão de crédito: createDespesa detecta e joga na fatura aberta (força 'pendente').
           const status = it.quitado ? 'pago' : 'pendente';
-          const r = await createDespesa({
+          const base = {
             descricao: it.descricao, valor: it.valor, categoria_id: it.categoria_id || undefined,
-            conta_id: it.conta_id || undefined,
+            conta_id: it.conta_id || undefined, fornecedor: it.fornecedor || undefined,
+            forma_pagamento: it.forma_pagamento || undefined,
             data_competencia: it.data, data_vencimento: it.data,
             data_pagamento: (!card && it.quitado) ? it.data : undefined,
-            status, tipo: 'variavel',
-          } as any, true);
-          if (r?.success) ok++;
+            status, tipo: 'variavel' as const,
+          };
+          if (card && it.parcelas && it.parcelas > 1) {
+            // Cartão parcelado: distribui nas faturas dos próximos meses.
+            const r = await createDespesaParcelada(base as any, it.parcelas);
+            if (r?.success) ok++;
+          } else if (it.recorrente) {
+            let good = true;
+            for (let i = 0; i < rep; i++) {
+              const d = proximaDataVoz(it.data, it.recorrente.frequencia, i);
+              const r = await createDespesa({ ...base, data_competencia: d, data_vencimento: d, data_pagamento: (!card && it.quitado) ? d : undefined } as any, true);
+              if (!r?.success) good = false;
+            }
+            if (good) ok++;
+          } else {
+            // Cartão à vista: createDespesa detecta e joga na fatura aberta.
+            const r = await createDespesa(base as any, true);
+            if (r?.success) ok++;
+          }
         }
       } catch { /* segue */ }
     }
@@ -454,6 +505,19 @@ export default function LancarVoz() {
                       >
                         {statusLabel(it)}
                       </span>
+                      {/* O que a IARA detectou na fala */}
+                      {it.fornecedor && (
+                        <span className="rounded-full border border-border/60 bg-surface-2 px-2 py-1 text-[10px] font-medium text-foreground-muted">🏪 {it.fornecedor}</span>
+                      )}
+                      {it.forma_pagamento && !isCartao(it.conta_id) && (
+                        <span className="rounded-full border border-border/60 bg-surface-2 px-2 py-1 text-[10px] font-medium text-foreground-muted">{FORMA_LABEL_VOZ[it.forma_pagamento] || it.forma_pagamento}</span>
+                      )}
+                      {it.parcelas && it.parcelas > 1 && (
+                        <span className="rounded-full bg-primary/15 px-2 py-1 text-[10px] font-semibold text-[hsl(var(--primary))]">{it.parcelas}x no cartão</span>
+                      )}
+                      {it.recorrente && (
+                        <span className="rounded-full bg-primary/15 px-2 py-1 text-[10px] font-semibold text-[hsl(var(--primary))]">repete {it.recorrente.repeticoes}× / {FREQ_LABEL[it.recorrente.frequencia]}</span>
+                      )}
                     </div>
 
                     {editing && (
