@@ -13,6 +13,8 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { formatCurrency, formatDate } from '@/utils/formatters';
+import { format, parseISO, startOfMonth, endOfMonth, addMonths } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -27,7 +29,7 @@ import { useContas } from '@/hooks/useContas';
 import { ConciliacaoSheet } from '@/components/cobrancas/ConciliacaoSheet';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
-  XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, Repeat, Receipt, Wallet, CreditCard,
+  XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Repeat, Receipt, Wallet, CreditCard,
   Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound,
 } from 'lucide-react';
 
@@ -80,6 +82,18 @@ export default function Cobrancas() {
   const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>('todas');
   const [statusFiltro, setStatusFiltro] = useState<string>('todos');
   const [busca, setBusca] = useState('');
+
+  // Período (por vencimento): mês com ‹ ›, intervalo personalizado, ou tudo.
+  const [periodoModo, setPeriodoModo] = useState<'mes' | 'custom' | 'tudo'>('mes');
+  const [mesRef, setMesRef] = useState(format(new Date(), 'yyyy-MM'));
+  const [customDe, setCustomDe] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [customAte, setCustomAte] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const periodo = useMemo<{ de: string; ate: string } | null>(() => {
+    if (periodoModo === 'tudo') return null;
+    if (periodoModo === 'custom') return { de: customDe, ate: customAte };
+    return { de: `${mesRef}-01`, ate: format(endOfMonth(parseISO(`${mesRef}-01`)), 'yyyy-MM-dd') };
+  }, [periodoModo, mesRef, customDe, customAte]);
+  const noPeriodo = (venc: string | null) => !periodo || (!!venc && venc >= periodo.de && venc <= periodo.ate);
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'vencimento', dir: 'asc' });
 
   const toggleSort = (key: SortKey) =>
@@ -88,17 +102,18 @@ export default function Cobrancas() {
     sort.key !== key ? <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" />
       : sort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />;
 
-  // Totais (todas as cobranças, ignorando canceladas para "a receber")
+  // Totais do período selecionado (por vencimento), ignorando canceladas.
   const totais = useMemo(() => {
     let aReceber = 0, vencido = 0, recebido = 0;
     for (const c of cobrancas) {
+      if (!noPeriodo(c.vencimento)) continue;
       const v = Number(c.valor) || 0;
       if (c.status === 'pendente') aReceber += v;
       else if (c.status === 'vencido') vencido += v;
       else if (c.status === 'pago') recebido += v;
     }
     return { aReceber, vencido, recebido };
-  }, [cobrancas]);
+  }, [cobrancas, periodo]);
 
   // Uma linha por FATURA: contratos agrupados numa assinatura dividem um boleto
   // (valor = soma das partes, descrição "A + B"); as ações valem para o grupo.
@@ -131,6 +146,7 @@ export default function Cobrancas() {
   const filtradas = useMemo(() => {
     const term = busca.trim().toLowerCase();
     const list = faturasView.filter((c) => {
+      if (!noPeriodo(c.vencimento)) return false;
       if (tipoFiltro === 'recorrente' && c.tipo !== 'recorrente') return false;
       if (tipoFiltro === 'avulsa' && c.tipo === 'recorrente') return false;
       if (statusFiltro !== 'todos' && c.status !== statusFiltro) return false;
@@ -157,7 +173,7 @@ export default function Cobrancas() {
       if (va > vb) return 1 * dir;
       return 0;
     });
-  }, [faturasView, tipoFiltro, statusFiltro, busca, sort, clienteById]);
+  }, [faturasView, tipoFiltro, statusFiltro, busca, sort, clienteById, periodo]);
 
   // ===== WhatsApp =====
   const [waOpen, setWaOpen] = useState(false);
@@ -385,6 +401,43 @@ export default function Cobrancas() {
       />
 
       <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={onFileChosen} />
+
+      {/* Seletor de período (por vencimento) */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-lg border border-border/60 bg-surface/60 p-0.5">
+          {([['mes', 'Mês'], ['custom', 'Período'], ['tudo', 'Tudo']] as const).map(([v, l]) => (
+            <button key={v} onClick={() => setPeriodoModo(v)}
+              className={cn('rounded-md px-3 py-1.5 text-xs font-semibold transition-colors', periodoModo === v ? 'bg-primary text-white' : 'text-foreground-muted hover:text-foreground')}>
+              {l}
+            </button>
+          ))}
+        </div>
+
+        {periodoModo === 'mes' && (
+          <div className="inline-flex items-center gap-1.5">
+            <button aria-label="Mês anterior" onClick={() => setMesRef(format(addMonths(parseISO(`${mesRef}-01`), -1), 'yyyy-MM'))}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-surface/60 text-foreground-muted hover:bg-surface-2"><ChevronLeft className="h-4 w-4" /></button>
+            <span className="min-w-[132px] text-center text-sm font-semibold capitalize text-foreground">
+              {format(parseISO(`${mesRef}-01`), 'MMMM yyyy', { locale: ptBR })}
+            </span>
+            <button aria-label="Próximo mês" onClick={() => setMesRef(format(addMonths(parseISO(`${mesRef}-01`), 1), 'yyyy-MM'))}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-surface/60 text-foreground-muted hover:bg-surface-2"><ChevronRight className="h-4 w-4" /></button>
+            <button onClick={() => setMesRef(format(new Date(), 'yyyy-MM'))} className="ml-1 text-[11px] font-medium text-primary hover:underline">hoje</button>
+          </div>
+        )}
+
+        {periodoModo === 'custom' && (
+          <div className="inline-flex items-center gap-1.5">
+            <Input type="date" value={customDe} onChange={(e) => setCustomDe(e.target.value)} className="h-8 w-[140px] text-sm" />
+            <span className="text-xs text-foreground-muted">até</span>
+            <Input type="date" value={customAte} onChange={(e) => setCustomAte(e.target.value)} className="h-8 w-[140px] text-sm" />
+          </div>
+        )}
+
+        <span className="ml-auto text-[11px] text-foreground-muted">
+          {periodoModo === 'tudo' ? 'Todas as cobranças' : 'Valores por vencimento no período'}
+        </span>
+      </div>
 
       <KpiTriple
         items={[
