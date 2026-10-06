@@ -137,6 +137,38 @@ export async function registrarFatura(
       descricao: c.descricao || "Contrato", valor: partes[i], exigir_nf: !!c.exigir_nf, envio_pix: !!c.envio_pix,
     });
   }
+  // Grupo com 1 receita combinada: tenta ligar a fatura inteira à receita do total.
+  await conciliarGrupoPorTotal(admin, userId, pay.id);
+  return true;
+}
+
+// Grupo (fatura com N linhas sem receita): se o TOTAL casar com UMA receita manual
+// pendente do mesmo cliente e mês (não usada), liga TODAS as linhas a ela — sem
+// sobrescrever o valor dela. Resolve quem lança os contratos agrupados como uma
+// única receita combinada (ex.: "Omneo + Krono"), evitando o aviso de conciliar.
+export async function conciliarGrupoPorTotal(admin: any, userId: string, paymentId: string | null): Promise<boolean> {
+  if (!paymentId) return false;
+  const { data: linhas } = await admin.from("cobrancas").select("id, cliente_id, valor, vencimento, receita_id, status")
+    .eq("user_id", userId).eq("asaas_payment_id", paymentId).not("status", "in", "(cancelado,estornado)");
+  if (!linhas || linhas.length < 2) return false;            // só grupo
+  if (linhas.some((l: any) => l.receita_id)) return false;    // já tem alguma ligada
+  const cli = linhas[0].cliente_id;
+  if (!cli) return false;
+  const total = Math.round(linhas.reduce((s: number, l: any) => s + (Number(l.valor) || 0), 0) * 100) / 100;
+  const mes = String(linhas[0].vencimento).slice(0, 7);
+
+  const { data: recs } = await admin.from("receitas").select("id, valor, data_vencimento")
+    .eq("user_id", userId).eq("cliente_id", cli).in("status", ["pendente", "atrasado"]).is("origem_receita_id", null);
+  const { data: usadas } = await admin.from("cobrancas").select("receita_id")
+    .eq("user_id", userId).not("receita_id", "is", null).not("status", "in", "(cancelado,estornado)");
+  const used = new Set((usadas || []).map((u: any) => u.receita_id));
+  const cand = (recs || []).filter((r: any) =>
+    !used.has(r.id) && Math.abs(Number(r.valor) - total) < 0.01 && String(r.data_vencimento).slice(0, 7) === mes);
+  if (cand.length !== 1) return false;                        // só quando inequívoco
+
+  for (const l of linhas) {
+    await admin.from("cobrancas").update({ receita_id: cand[0].id, updated_at: new Date().toISOString() }).eq("id", l.id);
+  }
   return true;
 }
 

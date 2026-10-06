@@ -2,8 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buscarCandidatas, criarReceita, vincularOuCriarReceita, vincularReceita, type AlvoReceita } from "../_shared/conciliar.ts";
 import {
-  apagarReceitaSeCriada, contratosDaAssinatura, inserirCobranca, isPago, lancarJurosMulta, linhasDaFatura,
-  mapStatus, registrarFatura, repartir, STATUS_ABERTO, type LinhaCobranca,
+  apagarReceitaSeCriada, conciliarGrupoPorTotal, contratosDaAssinatura, inserirCobranca, isPago, lancarJurosMulta,
+  linhasDaFatura, mapStatus, registrarFatura, repartir, STATUS_ABERTO, type LinhaCobranca,
 } from "../_shared/faturas.ts";
 
 const corsHeaders = {
@@ -680,7 +680,17 @@ serve(async (req) => {
       if (body.contrato_id) qSem.eq("contrato_id", body.contrato_id);
       const { data: semRec } = await qSem;
       let conciliadas = 0;
+      // 1º tenta casar GRUPO pelo total (1 receita combinada); senão, linha a linha.
+      const gruposTentados = new Set<string>();
       for (const c of semRec || []) {
+        if (c.asaas_payment_id && !gruposTentados.has(c.asaas_payment_id)) {
+          gruposTentados.add(c.asaas_payment_id);
+          if (await conciliarGrupoPorTotal(admin, user.id, c.asaas_payment_id)) { conciliadas++; continue; }
+        }
+      }
+      for (const c of semRec || []) {
+        const { data: ja } = await admin.from("cobrancas").select("receita_id").eq("id", c.id).maybeSingle();
+        if (ja?.receita_id) continue; // já ligado pelo grupo acima
         const r = await vincularOuCriarReceita(admin, alvoDe(c));
         if (r.receita_id) {
           await admin.from("cobrancas").update({ receita_id: r.receita_id, updated_at: new Date().toISOString() }).eq("id", c.id);
