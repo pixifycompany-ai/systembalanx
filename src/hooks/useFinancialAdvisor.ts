@@ -1,10 +1,16 @@
 import { useState, useCallback } from 'react';
+import type { ItemLancamento } from '@/lib/lancarItens';
+
+/** Lançamento proposto pela IARA (card de confirmação). Superset de ItemLancamento. */
+export type PropostaLancamento = ItemLancamento & { cliente_nome?: string | null };
 
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  /** Prévia de lançamentos para a pessoa confirmar e criar. */
+  lancamentos?: PropostaLancamento[];
 }
 
 export type PeriodOption = 'current_month' | 'last_3_months' | 'last_6_months' | 'current_year';
@@ -17,6 +23,8 @@ interface UseFinancialAdvisorReturn {
   setPeriod: (period: PeriodOption) => void;
   sendMessage: (content: string) => Promise<void>;
   clearChat: () => void;
+  /** Remove o card de prévia de uma mensagem (após criar/cancelar). */
+  clearLancamentos: (messageId: string) => void;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/financial-advisor`;
@@ -131,6 +139,12 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
                 m.id === assistantMessageId ? { ...m, content: assistantContent } : m
               ));
             }
+            if (Array.isArray(parsed.lancamentos) && parsed.lancamentos.length) {
+              const lancs = parsed.lancamentos as PropostaLancamento[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, lancamentos: lancs } : m
+              ));
+            }
           } catch {
             // Incomplete JSON, put back in buffer
             buffer = line + '\n' + buffer;
@@ -157,6 +171,12 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
                 m.id === assistantMessageId ? { ...m, content: assistantContent } : m
               ));
             }
+            if (Array.isArray(parsed.lancamentos) && parsed.lancamentos.length) {
+              const lancs = parsed.lancamentos as PropostaLancamento[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, lancamentos: lancs } : m
+              ));
+            }
           } catch { /* ignore */ }
         }
       }
@@ -174,6 +194,12 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
       setIsLoading(false);
     }
   }, [messages, period]);
+
+  const clearLancamentos = useCallback((messageId: string) => {
+    setMessages(prev => prev.map(m =>
+      m.id === messageId ? { ...m, lancamentos: undefined } : m
+    ));
+  }, []);
 
   const clearChat = useCallback(() => {
     setMessages([{
@@ -193,5 +219,6 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
     setPeriod,
     sendMessage,
     clearChat,
+    clearLancamentos,
   };
 }

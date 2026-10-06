@@ -106,20 +106,10 @@ serve(async (req) => {
       });
     }
 
-    // Cap diário de uso da IARA (anti-abuso/custo). Fail-open se o contador falhar.
+    // Fair-use: teto diário generoso por usuário (anti-abuso/custo — uso normal nunca
+    // encosta). UMA só contagem por requisição. Falha ABERTA se a RPC ainda não existir.
     try {
-      const { data: uso } = await supabase.rpc("iara_registrar_uso", { p_limite: 200 });
-      if ((uso as { bloqueado?: boolean })?.bloqueado) {
-        return new Response(JSON.stringify({ error: "Limite diário de uso da IARA atingido. Tente novamente amanhã." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    } catch (_) { /* não bloqueia por erro no contador */ }
-
-    // Fair-use: teto diário generoso por usuário (anti-abuso — uso normal nunca encosta).
-    // Falha ABERTA se a RPC ainda não existir (não bloqueia por erro de infra).
-    try {
-      const limiteDia = Number(Deno.env.get("IARA_LIMITE_DIA") || "120");
+      const limiteDia = Number(Deno.env.get("IARA_LIMITE_DIA") || "200");
       const { data: uso } = await supabase.rpc("iara_registrar_uso", { p_limite: limiteDia });
       if (uso && (uso as { bloqueado?: boolean }).bloqueado) {
         return new Response(JSON.stringify({ error: `Você atingiu o limite de ${limiteDia} perguntas à IARA por hoje. Volte amanhã 🙂` }), {
@@ -134,7 +124,7 @@ serve(async (req) => {
     const numMeses = monthsBetween(startDate, endDate);
 
     // ---- Busca de dados (em paralelo). Tudo já vem filtrado pela RLS do usuário. ----
-    const [receitas, despesas, contratos, contas, transferencias, clientes, metas, faturas] = await Promise.all([
+    const [receitas, despesas, contratos, contas, transferencias, clientes, metas, faturas, categorias] = await Promise.all([
       safe<any>(supabase.from("receitas").select("*, cliente:clientes(nome), categoria:categorias(nome)").gte("data_competencia", startDate).lte("data_competencia", endDate)),
       safe<any>(supabase.from("despesas").select("*, categoria:categorias(nome)").gte("data_competencia", startDate).lte("data_competencia", endDate)),
       safe<any>(supabase.from("contratos").select("*, cliente:clientes(nome)").eq("status", "ativo")),
@@ -143,6 +133,7 @@ serve(async (req) => {
       safe<any>(supabase.from("clientes").select("id, nome, status")),
       safe<any>(supabase.from("metas").select("*")),
       safe<any>(supabase.from("cartao_faturas").select("*")),
+      safe<any>(supabase.from("categorias").select("id, nome, tipo")),
     ]);
 
     const profileRows = await safe<any>(supabase.from("profiles").select("nome").limit(1));
@@ -333,6 +324,16 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Você pode chamar mais de uma ferramenta antes de responder (ex.: saldo_e_contas + projecao_fluxo para dizer se vai faltar caixa).
 - Se a pessoa não disser o período, responda com o período do contexto ("${periodLabel}") e diga qual período usou. Sempre deixe claro o intervalo que os números cobrem.
 
+## Lançar (criar receitas/despesas) — você também REGISTRA, não só consulta
+- Quando a pessoa pedir para LANÇAR/REGISTRAR/ADICIONAR/ANOTAR um gasto, conta, receita, compra no cartão, pagamento, parcelamento ou algo recorrente (ex.: "lança 320 de energia hoje", "coloca 1.200 do aluguel todo mês", "comprei um notebook 3000 em 10x no cartão Nubank", "recebi 500 do cliente X"), use a ferramenta **preparar_lancamentos**. Você NÃO grava direto: ela monta uma PRÉVIA que a pessoa confirma na tela com um toque.
+- Extraia o máximo que der da fala: tipo (despesa/receita), descrição curta, valor, data (padrão: hoje), categoria, conta ou cartão, forma de pagamento, fornecedor (despesa) ou cliente (receita), nº de parcelas (cartão) e se é recorrente (frequência + repetições).
+- Use os nomes EXATOS das contas e categorias abaixo. Se não tiver certeza da conta, deixe em branco (o app usa a conta padrão). Cartão de crédito cai na fatura automaticamente.
+- Depois de chamar a ferramenta, escreva uma frase curta confirmando o que entendeu (ex.: "Preparei 1 despesa de R$ 320,00 em Energia para hoje — é só confirmar abaixo 👇"). NÃO repita todos os campos em tabela; a prévia já mostra tudo.
+- Nunca invente valor. Se faltar o valor, pergunte antes de preparar. Para mudanças, prepare de novo com os ajustes.
+- CONTAS disponíveis: ${(contas || []).map((c: any) => `${c.nome}${c.tipo === "cartao_credito" ? " (cartão)" : ""}`).join(", ") || "(nenhuma)"}.
+- CATEGORIAS de despesa: ${[...new Set((categorias || []).filter((c: any) => c.tipo === "despesa").map((c: any) => c.nome))].join(", ") || "(nenhuma)"}.
+- CATEGORIAS de receita: ${[...new Set((categorias || []).filter((c: any) => c.tipo === "receita").map((c: any) => c.nome))].join(", ") || "(nenhuma)"}.
+
 ## Estilo das respostas
 - Responda em Markdown. Comece pela conclusão/resposta direta e depois os detalhes.
 - Use listas curtas e, quando útil, uma mini-tabela. Emojis com muita moderação (no máximo 1–2 quando destacam algo importante).
@@ -354,7 +355,107 @@ ${contexto}`;
       { type: "function", function: { name: "saldo_e_contas", description: "Saldo atual de cada conta + total em caixa e cartões (fatura aberta, limite, disponível). Ex: 'meu saldo', 'como estão meus cartões'.", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "projecao_fluxo", description: "Projeta a variação de caixa nos próximos N dias (a receber − a pagar por vencimento). Ex: 'vou ter caixa mês que vem'. Combine com saldo_e_contas.", parameters: { type: "object", properties: { dias: { type: "number", description: "dias à frente (ex: 30)" } }, required: ["dias"] } } },
       { type: "function", function: { name: "comparativo_periodos", description: "Compara dois intervalos por competência (recebido, pago, lucro, margem) com variação %. Ex: 'esse mês vs passado'.", parameters: { type: "object", properties: { inicio_a: D, fim_a: D, inicio_b: D, fim_b: D }, required: ["inicio_a", "fim_a", "inicio_b", "fim_b"] } } },
+      { type: "function", function: {
+        name: "preparar_lancamentos",
+        description: "Prepara uma PRÉVIA de um ou mais lançamentos (despesa/receita) para a pessoa CONFIRMAR e criar na tela. Use quando pedirem para lançar/registrar/adicionar/anotar gasto, conta, receita, compra no cartão, parcelamento ou recorrente. NÃO grava sozinho.",
+        parameters: {
+          type: "object",
+          properties: {
+            lancamentos: {
+              type: "array",
+              description: "Um item por lançamento.",
+              items: {
+                type: "object",
+                properties: {
+                  tipo: { type: "string", enum: ["despesa", "receita"] },
+                  descricao: { type: "string", description: "descrição curta (ex: 'Energia', 'Aluguel', 'Notebook')" },
+                  valor: { type: "number", description: "valor total em reais (do item/compra; para parcelado é o TOTAL)" },
+                  data: { ...D, description: "YYYY-MM-DD; padrão hoje" },
+                  categoria: { type: "string", description: "nome da categoria (use um dos nomes informados no prompt)" },
+                  conta: { type: "string", description: "nome da conta ou cartão (use um dos nomes informados); vazio = conta padrão" },
+                  forma_pagamento: { type: "string", enum: ["pix", "boleto", "cartao_credito", "cartao_debito", "dinheiro", "transferencia"] },
+                  fornecedor: { type: "string", description: "fornecedor/loja (despesa)" },
+                  cliente: { type: "string", description: "cliente (receita)" },
+                  parcelas: { type: "number", description: "nº de parcelas no cartão (>=2)" },
+                  quitado: { type: "boolean", description: "true = já pago/recebido (padrão); false = pendente. Cartão de crédito sempre vira fatura." },
+                  recorrencia: { type: "string", enum: ["semanal", "quinzenal", "mensal", "bimestral", "trimestral", "semestral", "anual"], description: "se repete" },
+                  repeticoes: { type: "number", description: "quantas vezes repete (com recorrencia; padrão 12)" },
+                },
+                required: ["tipo", "descricao", "valor"],
+              },
+            },
+          },
+          required: ["lancamentos"],
+        },
+      } },
     ];
+
+    // ---- Normaliza a prévia de lançamentos (nomes → ids reais; detecta cartão) ----
+    const FORMAS_OK = new Set(["pix", "boleto", "cartao_credito", "cartao_debito", "dinheiro", "transferencia"]);
+    const FREQS_OK = new Set(["semanal", "quinzenal", "mensal", "bimestral", "trimestral", "semestral", "anual"]);
+    const norm = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+    const contaPadraoId = (() => {
+      const corrente = (contas || []).find((c: any) => c.tipo === "corrente") || (contas || []).find((c: any) => c.tipo !== "cartao_credito");
+      return corrente?.id || (contas || [])[0]?.id || null;
+    })();
+    const achaConta = (nome?: string): any | null => {
+      if (!nome) return null;
+      const n = norm(nome);
+      return (contas || []).find((c: any) => norm(c.nome) === n)
+        || (contas || []).find((c: any) => norm(c.nome).includes(n) || n.includes(norm(c.nome)))
+        || null;
+    };
+    const achaCategoria = (nome: string | undefined, tipo: string): { id: string | null; nome: string | null } => {
+      if (!nome) return { id: null, nome: null };
+      const n = norm(nome);
+      const doTipo = (categorias || []).filter((c: any) => c.tipo === tipo);
+      const hit = doTipo.find((c: any) => norm(c.nome) === n)
+        || doTipo.find((c: any) => norm(c.nome).includes(n) || n.includes(norm(c.nome)));
+      return hit ? { id: hit.id, nome: hit.nome } : { id: null, nome: nome };
+    };
+
+    const propostas: any[] = [];
+    function prepararLancamentos(arr: any[]): string {
+      const itens = (Array.isArray(arr) ? arr : []).slice(0, 20);
+      const out: any[] = [];
+      for (const raw of itens) {
+        const valor = Number(raw?.valor);
+        if (!raw || !(valor > 0)) continue;
+        const tipo = raw.tipo === "receita" ? "receita" : "despesa";
+        const conta = achaConta(raw.conta);
+        const conta_id = conta?.id ?? contaPadraoId;
+        const ehCartao = !!conta && conta.tipo === "cartao_credito";
+        const cat = achaCategoria(raw.categoria, tipo);
+        let data = typeof raw.data === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw.data) ? raw.data : hojeISO;
+        let forma: string | null = FORMAS_OK.has(raw.forma_pagamento) ? raw.forma_pagamento : null;
+        if (ehCartao && !forma) forma = "cartao_credito";
+        const parcelas = ehCartao && Number(raw.parcelas) >= 2 ? Math.floor(Number(raw.parcelas)) : null;
+        const recorrencia = FREQS_OK.has(raw.recorrencia) ? raw.recorrencia : null;
+        const recorrente = recorrencia ? { frequencia: recorrencia, repeticoes: Math.min(60, Math.max(1, Math.floor(Number(raw.repeticoes) || 12))) } : null;
+        const quitado = typeof raw.quitado === "boolean" ? raw.quitado : true;
+        out.push({
+          tipo,
+          descricao: String(raw.descricao || (tipo === "receita" ? "Receita" : "Despesa")).slice(0, 120),
+          valor: Math.round(valor * 100) / 100,
+          categoria_id: cat.id, categoria_nome: cat.nome,
+          data, conta_id, quitado,
+          forma_pagamento: forma,
+          fornecedor: tipo === "despesa" && raw.fornecedor ? String(raw.fornecedor).slice(0, 120) : null,
+          cliente_nome: tipo === "receita" && raw.cliente ? String(raw.cliente).slice(0, 120) : null,
+          parcelas, recorrente,
+          _conta_nome: conta?.nome || null,
+          _cartao: ehCartao,
+        });
+      }
+      propostas.push(...out);
+      // Resumo p/ o modelo descrever (sem ids internos).
+      const resumo = out.map((o) => ({
+        tipo: o.tipo, descricao: o.descricao, valor: o.valor, data: o.data,
+        categoria: o.categoria_nome, conta: o._conta_nome || "conta padrão",
+        cartao: o._cartao, parcelas: o.parcelas, recorrente: o.recorrente, quitado: o.quitado,
+      }));
+      return JSON.stringify({ preparados: out.length, itens: resumo, obs: "Prévia pronta. A pessoa confirma na tela para criar." });
+    }
 
     async function computeResumo(inicio: string, fim: string) {
       const [rec, desp] = await Promise.all([
@@ -559,6 +660,7 @@ ${contexto}`;
             else if (tc.function.name === "saldo_e_contas") result = await toolSaldoContas();
             else if (tc.function.name === "projecao_fluxo") result = await toolProjecao(args.dias);
             else if (tc.function.name === "comparativo_periodos") result = await toolComparativo(args.inicio_a, args.fim_a, args.inicio_b, args.fim_b);
+            else if (tc.function.name === "preparar_lancamentos") result = prepararLancamentos(args.lancamentos);
           } catch (e) {
             result = JSON.stringify({ erro: e instanceof Error ? e.message : "falha na consulta" });
           }
@@ -578,6 +680,11 @@ ${contexto}`;
       start(controller) {
         const payload = JSON.stringify({ choices: [{ delta: { content: finalText } }] });
         controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+        // Prévia de lançamentos p/ o front mostrar um card de confirmação (sem ids auxiliares).
+        if (propostas.length) {
+          const lancs = propostas.map(({ _conta_nome, _cartao, ...rest }) => rest);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ lancamentos: lancs })}\n\n`));
+        }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       },

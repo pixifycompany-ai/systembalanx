@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialAdvisor, type PeriodOption } from '@/hooks/useFinancialAdvisor';
+import { PropostaLancamentos } from '@/components/iara/PropostaLancamentos';
 import {
   Select,
   SelectContent,
@@ -36,7 +37,7 @@ const SUGESTOES = [
 
 export default function Iara() {
   const navigate = useNavigate();
-  const { messages, isLoading, period, setPeriod, sendMessage, clearChat } = useFinancialAdvisor();
+  const { messages, isLoading, period, setPeriod, sendMessage, clearChat, clearLancamentos } = useFinancialAdvisor();
   const [input, setInput] = useState('');
   const [listening, setListening] = useState(false); // gravando
   const [transcribing, setTranscribing] = useState(false);
@@ -172,44 +173,51 @@ export default function Iara() {
       {/* Mensagens */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 md:px-4 py-4 space-y-4">
         {messages.map((m) => (
-          <div key={m.id} className={cn('flex gap-2.5 items-end', m.role === 'user' && 'flex-row-reverse')}>
-            <div
-              className={cn(
-                'flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full',
-                m.role === 'assistant'
-                  ? 'bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white'
-                  : 'bg-surface-3 text-foreground-muted',
-              )}
-            >
-              {m.role === 'assistant' ? <Sparkle className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
+          <div key={m.id} className={cn('flex flex-col gap-1', m.role === 'user' ? 'items-end' : 'items-start')}>
+            <div className={cn('flex gap-2.5 items-end w-full', m.role === 'user' && 'flex-row-reverse')}>
+              <div
+                className={cn(
+                  'flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full',
+                  m.role === 'assistant'
+                    ? 'bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white'
+                    : 'bg-surface-3 text-foreground-muted',
+                )}
+              >
+                {m.role === 'assistant' ? <Sparkle className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
+              </div>
+              <div
+                className={cn(
+                  'max-w-[80%] px-3.5 py-2.5 text-[13px] leading-[1.55]',
+                  m.role === 'assistant'
+                    ? 'auro-card rounded-[18px_18px_18px_6px] bg-surface/55 backdrop-blur-xl border border-border/60 text-foreground'
+                    : 'rounded-[18px_18px_6px_18px] bg-[linear-gradient(160deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white',
+                )}
+              >
+                {m.role === 'assistant' ? (
+                  <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-table:my-2 prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        table: ({ node, ...props }) => (
+                          <div className="overflow-x-auto -mx-1">
+                            <table {...props} />
+                          </div>
+                        ),
+                      }}
+                    >
+                      {m.content || '…'}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap">{m.content}</p>
+                )}
+              </div>
             </div>
-            <div
-              className={cn(
-                'max-w-[80%] px-3.5 py-2.5 text-[13px] leading-[1.55]',
-                m.role === 'assistant'
-                  ? 'auro-card rounded-[18px_18px_18px_6px] bg-surface/55 backdrop-blur-xl border border-border/60 text-foreground'
-                  : 'rounded-[18px_18px_6px_18px] bg-[linear-gradient(160deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white',
-              )}
-            >
-              {m.role === 'assistant' ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-table:my-2 prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      table: ({ node, ...props }) => (
-                        <div className="overflow-x-auto -mx-1">
-                          <table {...props} />
-                        </div>
-                      ),
-                    }}
-                  >
-                    {m.content || '…'}
-                  </ReactMarkdown>
-                </div>
-              ) : (
-                <p className="whitespace-pre-wrap">{m.content}</p>
-              )}
-            </div>
+            {m.role === 'assistant' && m.lancamentos && m.lancamentos.length > 0 && (
+              <div className="w-full pl-[38px]">
+                <PropostaLancamentos lancamentos={m.lancamentos} onResolved={() => clearLancamentos(m.id)} />
+              </div>
+            )}
           </div>
         ))}
         {isLoading && lastIsUser && (
