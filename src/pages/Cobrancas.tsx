@@ -30,7 +30,7 @@ import { ConciliacaoSheet } from '@/components/cobrancas/ConciliacaoSheet';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
   XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Repeat, Receipt, Wallet, CreditCard,
-  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound, Users,
+  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound, Users, Mail,
 } from 'lucide-react';
 
 const toneCls: Record<string, string> = {
@@ -65,7 +65,7 @@ export default function Cobrancas() {
   const isMobile = useIsMobile();
   const {
     cobrancas, loading, busyId,
-    criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp,
+    criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail,
     anexarNota, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg,
   } = useCobrancas();
   const [conciliarOpen, setConciliarOpen] = useState(false);
@@ -218,6 +218,48 @@ export default function Cobrancas() {
     }
   };
 
+  // ===== E-mail =====
+  const [emOpen, setEmOpen] = useState(false);
+  const [emCob, setEmCob] = useState<FaturaView | null>(null);
+  const [emPara, setEmPara] = useState('');
+  const [emIntro, setEmIntro] = useState('');
+  const [emSending, setEmSending] = useState(false);
+  const openEmail = (cob: FaturaView) => {
+    const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
+    setEmCob(cob);
+    setEmPara(cli?.email || '');
+    setEmIntro(`Segue sua cobrança de ${cob.descricao || 'nossos serviços'}.`);
+    setEmOpen(true);
+  };
+  const emBloqueado = !!emCob?.exigir_nf && !emCob?.nota_fiscal_path && !emCob?.nota_fiscal_enviada;
+  const handleEnviarEmail = async () => {
+    if (!emCob) return;
+    if (emBloqueado) { toast.error('Esta cobrança exige nota fiscal anexada para disparar.'); return; }
+    const cli = emCob.cliente_id ? clienteById.get(emCob.cliente_id) : undefined;
+    const usaPix = !!emCob.envio_pix && !!pixCfg.chave;
+    setEmSending(true);
+    const res = await enviarEmail({
+      para: emPara.trim(),
+      cliente: cli?.nome || 'cliente',
+      descricao: emCob.descricao || 'cobrança',
+      valor: formatCurrency(Number(emCob.valor)),
+      vencimento: formatDate(emCob.vencimento),
+      link: emCob.invoice_url || null,
+      pix: usaPix ? pixCfg.chave : null,
+      titular: usaPix ? pixCfg.titular : null,
+      intro: emIntro.trim() || null,
+      nota_fiscal_path: emCob.nota_fiscal_path || null,
+      nota_fiscal_nome: emCob.nota_fiscal_nome || null,
+    });
+    setEmSending(false);
+    if (res) {
+      if (res.docEnviado && emCob.nota_fiscal_path) {
+        await marcarNotaEnviada(emCob.linhas.find((l) => l.nota_fiscal_path)?.id || emCob.id, emCob.nota_fiscal_path);
+      }
+      setEmOpen(false);
+    }
+  };
+
   // ===== Nova cobrança avulsa =====
   const [avulsaOpen, setAvulsaOpen] = useState(false);
   const emptyAvulsa = { cliente_id: '', valor: '', vencimento: '', descricao: '', forma: 'UNDEFINED', conta_id: '', multa: '', juros: '' };
@@ -328,6 +370,9 @@ export default function Cobrancas() {
           )}
           <button onClick={() => openWhatsapp(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
             <MessageCircle className="h-4 w-4 text-[hsl(var(--success))]" /> Enviar por WhatsApp
+          </button>
+          <button onClick={() => openEmail(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+            <Mail className="h-4 w-4 text-primary" /> Enviar por e-mail
           </button>
           {cob.status !== 'pago' && (
             <button onClick={() => receberManual(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
@@ -811,6 +856,51 @@ export default function Cobrancas() {
               <Button className="flex-1" onClick={handleSalvarCliente} disabled={clienteSaving}>
                 {clienteSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Salvar
               </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: E-mail */}
+      <Sheet open={emOpen} onOpenChange={setEmOpen}>
+        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.95] backdrop-blur-2xl sm:max-w-[520px] sm:mx-auto">
+          <div className="mx-auto w-full max-w-[480px] pb-6 pt-1">
+            <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
+            <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Enviar por e-mail</h2>
+            {emCob && (
+              <p className="mt-0.5 mb-3 text-sm text-foreground-muted">
+                {emCob.descricao || '—'} · {formatCurrency(Number(emCob.valor))} · vence {formatDate(emCob.vencimento)}
+              </p>
+            )}
+            <div className="mt-1 space-y-3">
+              <div>
+                <Label className="text-xs">Para (e-mail do cliente)</Label>
+                <Input type="email" value={emPara} onChange={(e) => setEmPara(e.target.value)} placeholder="contato@cliente.com" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Mensagem de abertura</Label>
+                <Textarea value={emIntro} onChange={(e) => setEmIntro(e.target.value)} rows={3} className="mt-1 text-[13px] leading-relaxed" />
+                <p className="mt-1 text-[11px] text-foreground-muted">O e-mail já inclui valor, vencimento, botão de pagamento{emCob?.envio_pix ? ' e chave PIX' : ''}.</p>
+              </div>
+              {emCob?.nota_fiscal_path ? (
+                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-surface/60 px-3 py-2 text-xs text-foreground">
+                  <FileText className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="truncate">Vai anexar: {emCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
+                  <button onClick={() => abrirNota(emCob.nota_fiscal_path!)} className="ml-auto shrink-0 text-primary hover:underline">ver</button>
+                </div>
+              ) : emBloqueado ? (
+                <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning))]">
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <span>Esta cobrança exige nota fiscal.</span>
+                  <button onClick={() => { setEmOpen(false); pedirUploadNota(emCob!.id); }} className="ml-auto shrink-0 font-semibold hover:underline">Anexar</button>
+                </div>
+              ) : null}
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setEmOpen(false)}>Cancelar</Button>
+                <Button className="flex-1" onClick={handleEnviarEmail} disabled={emSending || emBloqueado || !emPara.trim()}>
+                  {emSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />} Enviar e-mail
+                </Button>
+              </div>
             </div>
           </div>
         </SheetContent>

@@ -18,9 +18,13 @@ export interface ClienteDB {
   status: 'ativo' | 'inativo';
   endereco: string | null;
   empresa_fonte: EmpresaFonte;
+  /** Canal preferido para disparo de cobrança. */
+  canal_cobranca: 'whatsapp' | 'email' | 'ambos';
   created_at: string;
   updated_at: string;
 }
+
+export type CanalCobranca = 'whatsapp' | 'email' | 'ambos';
 
 export interface ClienteFormData {
   nome: string;
@@ -31,6 +35,7 @@ export interface ClienteFormData {
   status: 'ativo' | 'inativo';
   endereco?: string;
   empresa_fonte?: EmpresaFonte;
+  canal_cobranca?: CanalCobranca;
 }
 
 export function useClientes() {
@@ -116,6 +121,7 @@ export function useClientes() {
           status: formData.status,
           endereco: formData.endereco || null,
           empresa_fonte: formData.empresa_fonte || 'PIXIFY',
+          canal_cobranca: formData.canal_cobranca || 'whatsapp',
         } as never)
         .select()
         .single();
@@ -146,6 +152,7 @@ export function useClientes() {
           status: formData.status,
           endereco: formData.endereco || null,
           empresa_fonte: formData.empresa_fonte,
+          canal_cobranca: formData.canal_cobranca || 'whatsapp',
         } as never)
         .eq('id', id)
         .select()

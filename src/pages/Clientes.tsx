@@ -59,6 +59,7 @@ export default function Clientes() {
     endereco: '',
     status: 'ativo',
     empresa_fonte: 'PIXIFY',
+    canal_cobranca: 'whatsapp',
   });
 
   const filteredClientes = useMemo(() => {
@@ -115,6 +116,7 @@ export default function Clientes() {
       endereco: '',
       status: 'ativo',
       empresa_fonte: 'PIXIFY',
+      canal_cobranca: 'whatsapp',
     });
     setModalOpen(true);
   };
@@ -130,6 +132,7 @@ export default function Clientes() {
       endereco: cliente.endereco || '',
       status: cliente.status,
       empresa_fonte: cliente.empresa_fonte || 'PIXIFY',
+      canal_cobranca: cliente.canal_cobranca || 'whatsapp',
     });
     setModalOpen(true);
   };
@@ -435,6 +438,18 @@ export default function Clientes() {
                 onChange={(e) => setFormData((p) => ({ ...p, endereco: e.target.value }))}
                 placeholder="Rua, número, cidade - estado"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Cobrança preferida por</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {([['whatsapp', 'WhatsApp'], ['email', 'E-mail'], ['ambos', 'Ambos']] as const).map(([v, l]) => (
+                  <button key={v} type="button" onClick={() => setFormData((p) => ({ ...p, canal_cobranca: v }))}
+                    className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', (formData.canal_cobranca || 'whatsapp') === v ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
+                    {l}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex gap-2.5 pt-2">

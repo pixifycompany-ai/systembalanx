@@ -438,6 +438,32 @@ export function useCobrancas() {
     }
   };
 
+  // Envia a cobrança por e-mail (Resend). `dados` carrega os campos do template.
+  const enviarEmail = async (dados: {
+    para: string; cliente: string; descricao: string; valor: string; vencimento: string;
+    link?: string | null; pix?: string | null; titular?: string | null; intro?: string | null;
+    nota_fiscal_path?: string | null; nota_fiscal_nome?: string | null;
+  }) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('email-enviar', { body: dados });
+      if (error) {
+        let msg = error.message;
+        try {
+          const ctx = (error as { context?: Response }).context;
+          const b = ctx && typeof ctx.json === 'function' ? await ctx.json() : null;
+          if (b?.error) msg = b.error;
+        } catch { /* mantém msg */ }
+        throw new Error(msg);
+      }
+      if ((data as { error?: string })?.error) throw new Error((data as { error?: string }).error);
+      toast.success('E-mail enviado!');
+      return { ok: true, docEnviado: !!(data as { docEnviado?: boolean })?.docEnviado };
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao enviar e-mail', { duration: 8000 });
+      return null;
+    }
+  };
+
   // Cobrança (mais recente) por contrato, ignorando canceladas.
   const byContrato = useMemo(() => {
     const m = new Map<string, Cobranca>();
@@ -457,7 +483,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, reload: load };
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

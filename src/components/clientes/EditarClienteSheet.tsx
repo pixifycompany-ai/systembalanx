@@ -31,6 +31,7 @@ export function EditarClienteSheet({ open, onOpenChange, cliente, onSalvar }: Pr
       telefone: cliente.telefone || '',
       endereco: cliente.endereco || '',
       empresa_fonte: cliente.empresa_fonte,
+      canal_cobranca: cliente.canal_cobranca || 'whatsapp',
     });
   }, [open, cliente]);
 
@@ -95,6 +96,18 @@ export function EditarClienteSheet({ open, onOpenChange, cliente, onSalvar }: Pr
             <div>
               <Label className="text-xs">Endereço</Label>
               <Input value={form.endereco || ''} onChange={(e) => set({ endereco: e.target.value })} placeholder="Rua, número, cidade - estado" className="mt-1" />
+            </div>
+
+            <div>
+              <Label className="text-xs">Cobrança preferida por</Label>
+              <div className="mt-1 grid grid-cols-3 gap-2">
+                {([['whatsapp', 'WhatsApp'], ['email', 'E-mail'], ['ambos', 'Ambos']] as const).map(([v, l]) => (
+                  <button key={v} type="button" onClick={() => set({ canal_cobranca: v })}
+                    className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', (form.canal_cobranca || 'whatsapp') === v ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
+                    {l}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>
