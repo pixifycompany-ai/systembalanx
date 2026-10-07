@@ -189,6 +189,22 @@ export function useCobrancas() {
     }
   };
 
+  // Vincula uma cobrança (que veio do Asaas sem cliente) a um cliente do cadastro.
+  const atualizarCliente = async (cobranca_id: string, cliente_id: string | null) => {
+    setBusyId(cobranca_id);
+    try {
+      await invoke({ action: 'atualizar-cliente', cobranca_id, cliente_id: cliente_id || null });
+      toast.success(cliente_id ? 'Cliente vinculado à cobrança.' : 'Cliente desvinculado.');
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao vincular cliente');
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   // Agrupar vários contratos do mesmo cliente numa assinatura só (um boleto).
   const agrupar = async (payload: {
     contrato_ids: string[];
@@ -441,7 +457,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, reload: load };
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

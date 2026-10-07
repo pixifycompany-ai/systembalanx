@@ -532,6 +532,27 @@ serve(async (req) => {
       return json({ ok: true });
     }
 
+    // ===== VINCULAR CLIENTE (cobrança veio do Asaas sem cliente no BALANX) =====
+    // Liga a cobrança (e a receita a receber) a um cliente do cadastro. Útil para
+    // cobranças criadas direto no Asaas, que sincronizam sem cliente_id.
+    if (action === "atualizar-cliente") {
+      const { cobranca_id, cliente_id } = body;
+      const { data: cob } = await admin.from("cobrancas").select("*").eq("id", cobranca_id).eq("user_id", user.id).maybeSingle();
+      if (!cob) return json({ error: "Cobrança não encontrada." }, 404);
+      let cli: { id: string } | null = null;
+      if (cliente_id) {
+        const { data } = await admin.from("clientes").select("id").eq("id", cliente_id).eq("user_id", user.id).maybeSingle();
+        if (!data) return json({ error: "Cliente não encontrado." }, 404);
+        cli = data;
+      }
+      // Uma fatura = um cliente: vale para todas as linhas do grupo e suas receitas.
+      for (const linha of await linhasDaFatura(admin, cob)) {
+        await admin.from("cobrancas").update({ cliente_id: cli?.id ?? null, updated_at: new Date().toISOString() }).eq("id", linha.id);
+        if (linha.receita_id) await admin.from("receitas").update({ cliente_id: cli?.id ?? null }).eq("id", linha.receita_id);
+      }
+      return json({ ok: true });
+    }
+
     // ===== RECEBER MANUAL (pagou por fora, ex.: Pix em outro banco) =====
     // Marca no Asaas como recebido em dinheiro (receiveInCash) e baixa a receita.
     if (action === "receber-manual") {

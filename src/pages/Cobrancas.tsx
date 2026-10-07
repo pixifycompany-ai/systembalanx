@@ -30,7 +30,7 @@ import { ConciliacaoSheet } from '@/components/cobrancas/ConciliacaoSheet';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
   XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Repeat, Receipt, Wallet, CreditCard,
-  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound,
+  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound, Users,
 } from 'lucide-react';
 
 const toneCls: Record<string, string> = {
@@ -65,7 +65,7 @@ export default function Cobrancas() {
   const isMobile = useIsMobile();
   const {
     cobrancas, loading, busyId,
-    criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarForma, enviarWhatsapp,
+    criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp,
     anexarNota, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg,
   } = useCobrancas();
   const [conciliarOpen, setConciliarOpen] = useState(false);
@@ -263,6 +263,24 @@ export default function Cobrancas() {
     if (ok) setContaOpen(false);
   };
 
+  // ===== Vincular cliente (cobrança que veio do Asaas sem cliente) =====
+  const [clienteOpen, setClienteOpen] = useState(false);
+  const [clienteCob, setClienteCob] = useState<Cobranca | null>(null);
+  const [clienteSel, setClienteSel] = useState('');
+  const [clienteSaving, setClienteSaving] = useState(false);
+  const abrirCliente = (cob: Cobranca) => { setClienteCob(cob); setClienteSel(cob.cliente_id || ''); setClienteOpen(true); };
+  const handleSalvarCliente = async () => {
+    if (!clienteCob) return;
+    setClienteSaving(true);
+    const ok = await atualizarCliente(clienteCob.id, clienteSel || null);
+    setClienteSaving(false);
+    if (ok) setClienteOpen(false);
+  };
+  const clientesOrdenados = useMemo(
+    () => [...clientes].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR')),
+    [clientes],
+  );
+
   // ===== Alterar forma de recebimento =====
   const [formaOpen, setFormaOpen] = useState(false);
   const [formaCob, setFormaCob] = useState<Cobranca | null>(null);
@@ -349,6 +367,9 @@ export default function Cobrancas() {
           )}
           <button onClick={() => abrirConta(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
             <Wallet className="h-4 w-4 text-foreground-muted" /> {cob.conta_id ? 'Alterar conta de recebimento' : 'Definir conta de recebimento'}
+          </button>
+          <button onClick={() => abrirCliente(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+            <Users className="h-4 w-4 text-foreground-muted" /> {cob.cliente_id ? 'Alterar cliente' : 'Vincular a um cliente'}
           </button>
           <button onClick={() => sincronizar(cob.contrato_id || undefined)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
             <RefreshCw className="h-4 w-4 text-foreground-muted" /> Sincronizar status
@@ -508,7 +529,11 @@ export default function Cobrancas() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="truncate text-sm font-semibold text-foreground">{cli?.nome || '—'}</span>
+                      {cli?.nome ? (
+                        <span className="truncate text-sm font-semibold text-foreground">{cli.nome}</span>
+                      ) : (
+                        <button onClick={() => abrirCliente(cob)} className="truncate text-sm font-semibold text-primary">Vincular cliente</button>
+                      )}
                       {cob.linhas.length > 1 && <GrupoChip qtd={cob.linhas.length} />}
                     </div>
                     <div className="truncate text-xs text-foreground-muted">{cob.descricao || 'Sem descrição'}</div>
@@ -553,7 +578,13 @@ export default function Cobrancas() {
                   <tr key={cob.id} className="border-b border-border/40 last:border-0 transition-colors hover:bg-white/[0.02]">
                     <td className="px-3 py-3 font-medium text-foreground">
                       <div className="flex items-center gap-1.5">
-                        <span className="truncate">{cli?.nome || '—'}</span>
+                        {cli?.nome ? (
+                          <span className="truncate">{cli.nome}</span>
+                        ) : (
+                          <button onClick={() => abrirCliente(cob)} className="rounded-md px-1.5 py-0.5 text-left font-semibold text-primary transition-colors hover:bg-white/5">
+                            Vincular cliente
+                          </button>
+                        )}
                         {cob.linhas.length > 1 && <GrupoChip qtd={cob.linhas.length} />}
                         {cob.nota_fiscal_path && <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Nota fiscal anexada" />}
                         {!cob.nota_fiscal_path && cob.nota_fiscal_enviada && <FileText className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--success))]" aria-label="Nota fiscal enviada" />}
@@ -748,6 +779,37 @@ export default function Cobrancas() {
               <Button variant="outline" className="flex-1" onClick={() => setContaOpen(false)}>Cancelar</Button>
               <Button className="flex-1" onClick={handleSalvarConta} disabled={contaSaving}>
                 {contaSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Salvar
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: vincular cliente (cobrança veio do Asaas sem cliente) */}
+      <Sheet open={clienteOpen} onOpenChange={setClienteOpen}>
+        <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.95] backdrop-blur-2xl sm:max-w-[460px] sm:mx-auto">
+          <div className="mx-auto w-full max-w-[420px] pb-6 pt-1">
+            <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
+            <h2 className="mt-0.5 mb-1 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Vincular a um cliente</h2>
+            {clienteCob && (
+              <p className="mb-4 text-sm text-foreground-muted">
+                {clienteCob.descricao || '—'} · {formatCurrency(Number(clienteCob.valor))}
+              </p>
+            )}
+            <Label className="text-xs">Cliente</Label>
+            <select
+              value={clienteSel}
+              onChange={(e) => setClienteSel(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-border/60 bg-surface/60 px-3 py-2.5 text-sm text-foreground outline-none focus:border-border-strong"
+            >
+              <option value="">Sem cliente</option>
+              {clientesOrdenados.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+            <p className="mt-2 text-[11px] text-foreground-muted">Liga também a receita "a receber" a esse cliente. Ideal para cobranças criadas direto no Asaas.</p>
+            <div className="mt-4 flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setClienteOpen(false)}>Cancelar</Button>
+              <Button className="flex-1" onClick={handleSalvarCliente} disabled={clienteSaving}>
+                {clienteSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Salvar
               </Button>
             </div>
           </div>
