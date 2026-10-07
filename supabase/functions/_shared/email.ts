@@ -10,8 +10,27 @@ export interface DadosCobrancaEmail {
   link?: string | null;
   pix?: string | null;
   titular?: string | null;
-  intro?: string | null; // frase de abertura opcional (personalizável)
+  intro?: string | null; // frase/corpo de abertura (personalizável, já substituído)
+  subject?: string | null; // assunto já substituído (sobrescreve o padrão)
   remetenteNome?: string | null; // nome da agência/assinatura no rodapé
+}
+
+// Templates padrão (mesmos placeholders do WhatsApp). Usados quando o usuário não
+// personalizou no Meu Perfil.
+export const EMAIL_ASSUNTO_PADRAO = "Cobrança: {descricao} — vence {vencimento}";
+export const EMAIL_CORPO_PADRAO = "Segue sua cobrança de {descricao}. Qualquer dúvida, é só responder este e-mail.";
+
+/** Substitui os placeholders de um template de e-mail (assunto ou corpo). */
+export function preencherEmailTpl(tpl: string, d: Record<string, string>): string {
+  return (tpl || "")
+    .replace(/\{cliente\}/g, d.cliente ?? "")
+    .replace(/\{descricao\}/g, d.descricao ?? "")
+    .replace(/\{valor\}/g, d.valor ?? "")
+    .replace(/\{vencimento\}/g, d.vencimento ?? "")
+    .replace(/\{link\}/g, d.link ?? "")
+    .replace(/\{pix\}/g, d.pix ?? "")
+    .replace(/\{titular\}/g, d.titular ?? "")
+    .trim();
 }
 
 function esc(s: string): string {
@@ -106,7 +125,8 @@ export function montarEmailCobranca(d: DadosCobrancaEmail): { subject: string; h
     `Em caso de dúvida, responda este e-mail.${remetente ? ` — ${remetente}` : ""}`,
   ].filter((l) => l !== "").join("\n");
 
-  return { subject: assuntoCobranca(d), html, text };
+  const subject = (d.subject && d.subject.trim()) ? d.subject.trim() : assuntoCobranca(d);
+  return { subject, html, text };
 }
 
 export interface ResendAnexo { filename: string; path?: string; content?: string }

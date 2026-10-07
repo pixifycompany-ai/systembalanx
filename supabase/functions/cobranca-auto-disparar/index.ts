@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { montarEmailCobranca, enviarEmailResend, type ResendAnexo } from "../_shared/email.ts";
+import { montarEmailCobranca, enviarEmailResend, preencherEmailTpl, EMAIL_ASSUNTO_PADRAO, EMAIL_CORPO_PADRAO, type ResendAnexo } from "../_shared/email.ts";
 
 // Worker do cron: roda 1x/dia, encontra cobranças que casam com a regra de
 // auto-envio (global ou exceção do contrato) e dispara pelo WhatsApp (Pixify),
@@ -77,7 +77,7 @@ serve(async (req) => {
   const hoje = hojeSP();
 
   const { data: cfgs } = await admin.from("cobranca_config")
-    .select("user_id, asaas_account_name, whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias");
+    .select("user_id, asaas_account_name, email_assunto, email_corpo, whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias");
   const cfgBy = new Map((cfgs || []).map((c) => [c.user_id, c]));
   // Reply-To do e-mail = e-mail de login da agência (resolvido sob demanda, com cache).
   const emailAgenciaCache = new Map<string, string | null>();
@@ -188,10 +188,16 @@ serve(async (req) => {
         if (bloqueadoPorNf) { faltaNf++; }
         else {
           const remetenteNome = (cfg?.asaas_account_name || "BALANX").trim();
-          const { subject, html, text } = montarEmailCobranca({
+          const valsEmail = {
             cliente: cli?.nome || "cliente", descricao, valor: brl(valorNum), vencimento: dataBR(cob.vencimento),
+            link: cob.invoice_url || "", pix: usaPix ? (cfg?.pix_chave || "") : "", titular: usaPix ? (cfg?.pix_titular || "") : "",
+          };
+          const { subject, html, text } = montarEmailCobranca({
+            cliente: valsEmail.cliente, descricao, valor: valsEmail.valor, vencimento: valsEmail.vencimento,
             link: cob.invoice_url || null, pix: usaPix ? (cfg?.pix_chave || null) : null,
             titular: usaPix ? (cfg?.pix_titular || null) : null, remetenteNome,
+            subject: preencherEmailTpl(cfg?.email_assunto || EMAIL_ASSUNTO_PADRAO, valsEmail),
+            intro: preencherEmailTpl(cfg?.email_corpo || EMAIL_CORPO_PADRAO, valsEmail),
           });
           const attachments: ResendAnexo[] = [];
           if (nfPath) {

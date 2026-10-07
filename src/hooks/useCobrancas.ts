@@ -326,6 +326,7 @@ export function useCobrancas() {
   // Template do WhatsApp + config PIX (editáveis em Meu Perfil)
   const [whatsappTemplate, setWhatsappTemplate] = useState<string>('');
   const [pixCfg, setPixCfg] = useState<{ chave: string; titular: string; template: string }>({ chave: '', titular: '', template: '' });
+  const [emailCfg, setEmailCfg] = useState<{ assunto: string; corpo: string }>({ assunto: '', corpo: '' });
   useEffect(() => {
     (async () => {
       // Tolerante a colunas ausentes (migração PIX pode não ter rodado ainda).
@@ -333,6 +334,8 @@ export function useCobrancas() {
       if (t.data?.whatsapp_template) setWhatsappTemplate(t.data.whatsapp_template);
       const p = await (supabase as any).from('cobranca_config').select('whatsapp_template_pix, pix_chave, pix_titular').maybeSingle();
       if (!p.error && p.data) setPixCfg({ chave: p.data.pix_chave || '', titular: p.data.pix_titular || '', template: p.data.whatsapp_template_pix || '' });
+      const e = await (supabase as any).from('cobranca_config').select('email_assunto, email_corpo').maybeSingle();
+      if (!e.error && e.data) setEmailCfg({ assunto: e.data.email_assunto || '', corpo: e.data.email_corpo || '' });
     })();
   }, []);
 
@@ -483,7 +486,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, reload: load };
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

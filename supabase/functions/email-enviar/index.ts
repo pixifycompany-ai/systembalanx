@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { montarEmailCobranca, enviarEmailResend, type ResendAnexo } from "../_shared/email.ts";
+import { montarEmailCobranca, enviarEmailResend, preencherEmailTpl, EMAIL_ASSUNTO_PADRAO, type ResendAnexo } from "../_shared/email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,22 +31,26 @@ serve(async (req) => {
       return json({ error: "E-mail do cliente inválido/ausente. Cadastre o e-mail." }, 400);
     }
 
-    // Nome do remetente (assinatura) e Reply-To = e-mail da conta (agência).
-    const { data: cfg } = await supabase.from("cobranca_config").select("asaas_account_name").eq("user_id", user.id).maybeSingle();
+    // Nome do remetente (assinatura), assunto configurável e Reply-To = e-mail da conta.
+    const { data: cfg } = await supabase.from("cobranca_config").select("asaas_account_name, email_assunto").eq("user_id", user.id).maybeSingle();
     const { data: prof } = await supabase.from("profiles").select("nome").eq("id", user.id).maybeSingle();
     const remetenteNome = (cfg?.asaas_account_name || prof?.nome || "BALANX").trim();
     const from = `${remetenteNome.replace(/[<>\n"]/g, "")} <${fromEmail}>`;
     const replyTo = user.email || null;
 
+    const vals = {
+      cliente: String(b.cliente || "cliente"), descricao: String(b.descricao || "cobrança"),
+      valor: String(b.valor || ""), vencimento: String(b.vencimento || ""),
+      link: String(b.link || ""), pix: String(b.pix || ""), titular: String(b.titular || ""),
+    };
+    const subjectTpl = (cfg?.email_assunto || EMAIL_ASSUNTO_PADRAO);
     const { subject, html, text } = montarEmailCobranca({
-      cliente: String(b.cliente || "cliente"),
-      descricao: String(b.descricao || "cobrança"),
-      valor: String(b.valor || ""),
-      vencimento: String(b.vencimento || ""),
+      ...vals,
       link: b.link || null,
       pix: b.pix || null,
       titular: b.titular || null,
-      intro: b.intro || null,
+      intro: b.intro || null, // corpo já personalizado pelo usuário no envio
+      subject: preencherEmailTpl(subjectTpl, vals),
       remetenteNome,
     });
 

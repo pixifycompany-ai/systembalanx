@@ -56,6 +56,24 @@ export default function MeuPerfil() {
   const [pixTitular, setPixTitular] = useState('');
   const [whatsappTplPix, setWhatsappTplPix] = useState('');
   const [savingPix, setSavingPix] = useState(false);
+  // E-mail de cobrança (assunto + corpo). Mesmos placeholders do WhatsApp.
+  const EMAIL_ASSUNTO_PADRAO = 'Cobrança: {descricao} — vence {vencimento}';
+  const EMAIL_CORPO_PADRAO = 'Segue sua cobrança de {descricao}. Qualquer dúvida, é só responder este e-mail.';
+  const [emailAssunto, setEmailAssunto] = useState('');
+  const [emailCorpo, setEmailCorpo] = useState('');
+  const [savingEmailTpl, setSavingEmailTpl] = useState(false);
+
+  const salvarEmailTpl = async () => {
+    if (!user) return;
+    setSavingEmailTpl(true);
+    const { error } = await (supabase as any).from('cobranca_config').update({
+      email_assunto: emailAssunto.trim() || null,
+      email_corpo: emailCorpo.trim() || null,
+    }).eq('user_id', user.id);
+    setSavingEmailTpl(false);
+    if (error) toast.error('Erro ao salvar e-mail');
+    else toast.success('Template de e-mail salvo');
+  };
 
   const salvarPix = async () => {
     if (!user) return;
@@ -90,6 +108,8 @@ export default function MeuPerfil() {
     // Extras (template, PIX, regras de auto-envio): tolerante a colunas ausentes.
     setWhatsappTpl(WHATSAPP_TPL_PADRAO);
     setWhatsappTplPix(WHATSAPP_TPL_PIX_PADRAO);
+    setEmailAssunto(EMAIL_ASSUNTO_PADRAO);
+    setEmailCorpo(EMAIL_CORPO_PADRAO);
     const carregarExtra = async (cols: string, apply: (d: any) => void) => {
       const { data, error } = await (supabase as any).from('cobranca_config').select(cols).maybeSingle();
       if (!error && data) apply(data);
@@ -99,6 +119,10 @@ export default function MeuPerfil() {
       setPixChave(d.pix_chave || '');
       setPixTitular(d.pix_titular || '');
       setWhatsappTplPix(d.whatsapp_template_pix || WHATSAPP_TPL_PIX_PADRAO);
+    });
+    await carregarExtra('email_assunto, email_corpo', (d) => {
+      if (d.email_assunto) setEmailAssunto(d.email_assunto);
+      if (d.email_corpo) setEmailCorpo(d.email_corpo);
     });
     await carregarExtra('auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias', (d) => setAutoCfg({
       enabled: !!d.auto_wpp_enabled,
@@ -405,6 +429,23 @@ export default function MeuPerfil() {
               <Textarea value={whatsappTpl} onChange={(e) => setWhatsappTpl(e.target.value)} rows={8} className="font-mono text-[12px] leading-relaxed" />
               <Button size="sm" className="w-full" onClick={salvarWhatsappTpl} disabled={savingTpl}>
                 {savingTpl && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar mensagem
+              </Button>
+            </div>
+
+            {/* E-mail de cobrança (assunto + corpo) */}
+            <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-2">
+              <p className="text-xs font-semibold text-foreground">E-mail de cobrança</p>
+              <p className="text-[11px] text-foreground-muted">Usado no envio por e-mail (manual e automático). O layout (botão de pagamento, valor, vencimento, PIX e NF em anexo) já vem pronto — aqui você define o <b>assunto</b> e a <b>mensagem de abertura</b>. Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{link}'}</b> <b>{'{pix}'}</b> <b>{'{titular}'}</b>.</p>
+              <div>
+                <Label className="text-[11px]">Assunto</Label>
+                <Input value={emailAssunto} onChange={(e) => setEmailAssunto(e.target.value)} placeholder={EMAIL_ASSUNTO_PADRAO} className="mt-1 text-[13px]" />
+              </div>
+              <div>
+                <Label className="text-[11px]">Mensagem de abertura</Label>
+                <Textarea value={emailCorpo} onChange={(e) => setEmailCorpo(e.target.value)} rows={4} className="mt-1 text-[12px] leading-relaxed" />
+              </div>
+              <Button size="sm" className="w-full" onClick={salvarEmailTpl} disabled={savingEmailTpl}>
+                {savingEmailTpl && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar e-mail
               </Button>
             </div>
 

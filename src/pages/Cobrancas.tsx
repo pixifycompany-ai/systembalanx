@@ -66,7 +66,7 @@ export default function Cobrancas() {
   const {
     cobrancas, loading, busyId,
     criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail,
-    anexarNota, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg,
+    anexarNota, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg, emailCfg,
   } = useCobrancas();
   const [conciliarOpen, setConciliarOpen] = useState(false);
   const semReceita = useMemo(
@@ -226,9 +226,20 @@ export default function Cobrancas() {
   const [emSending, setEmSending] = useState(false);
   const openEmail = (cob: FaturaView) => {
     const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
+    const usaPix = !!cob.envio_pix && !!pixCfg.chave;
+    // Corpo prefillado com o template salvo no Meu Perfil (ou um padrão), já substituído.
+    const corpoTpl = emailCfg.corpo || 'Segue sua cobrança de {descricao}. Qualquer dúvida, é só responder este e-mail.';
     setEmCob(cob);
     setEmPara(cli?.email || '');
-    setEmIntro(`Segue sua cobrança de ${cob.descricao || 'nossos serviços'}.`);
+    setEmIntro(preencherTemplate(corpoTpl, {
+      cliente: cli?.nome || 'cliente',
+      descricao: cob.descricao || 'cobrança',
+      valor: formatCurrency(Number(cob.valor)),
+      vencimento: formatDate(cob.vencimento),
+      link: cob.invoice_url || '',
+      pix: usaPix ? pixCfg.chave : '',
+      titular: usaPix ? pixCfg.titular : '',
+    }));
     setEmOpen(true);
   };
   const emBloqueado = !!emCob?.exigir_nf && !emCob?.nota_fiscal_path && !emCob?.nota_fiscal_enviada;
