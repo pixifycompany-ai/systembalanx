@@ -12,13 +12,24 @@ export interface DadosCobrancaEmail {
   titular?: string | null;
   intro?: string | null; // frase/corpo de abertura (personalizável, já substituído)
   subject?: string | null; // assunto já substituído (sobrescreve o padrão)
-  remetenteNome?: string | null; // nome da agência/assinatura no rodapé
+  remetenteNome?: string | null; // nome do tenant/agência (cabeçalho + assinatura)
+  labelBotao?: string | null; // rótulo do botão (ex.: "Ver boleto", "Pagar com PIX")
 }
 
 // Templates padrão (mesmos placeholders do WhatsApp). Usados quando o usuário não
 // personalizou no Meu Perfil.
 export const EMAIL_ASSUNTO_PADRAO = "Cobrança: {descricao} — vence {vencimento}";
 export const EMAIL_CORPO_PADRAO = "Segue sua cobrança de {descricao}. Qualquer dúvida, é só responder este e-mail.";
+
+// Identidade visual BALANX (cor primária hsl(212 75% 48%) e navy da marca).
+const BRAND_BLUE = "#1f74d6";
+const BRAND_BLUE_DARK = "#1860bd";
+const BRAND_NAVY = "#0a1120";
+// Logo hospedada (app-icon do BALANX). Sobrescreva com EMAIL_LOGO_URL se quiser.
+function logoUrl(): string {
+  try { return (globalThis as any).Deno?.env?.get?.("EMAIL_LOGO_URL") || "https://app.balanx.com.br/apple-touch-icon.png"; }
+  catch { return "https://app.balanx.com.br/apple-touch-icon.png"; }
+}
 
 /** Substitui os placeholders de um template de e-mail (assunto ou corpo). */
 export function preencherEmailTpl(tpl: string, d: Record<string, string>): string {
@@ -50,12 +61,13 @@ export function montarEmailCobranca(d: DadosCobrancaEmail): { subject: string; h
   const temLink = !!(d.link && d.link.trim());
   const temPix = !!(d.pix && d.pix.trim());
 
+  const botaoLabel = d.labelBotao && d.labelBotao.trim() ? d.labelBotao.trim() : "Pagar agora";
   const botao = temLink
     ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0;">
-         <tr><td style="border-radius:12px;background:#2f6bff;">
+         <tr><td style="border-radius:12px;background:${BRAND_BLUE};border-bottom:2px solid ${BRAND_BLUE_DARK};">
            <a href="${esc(d.link!)}" target="_blank"
-              style="display:inline-block;padding:13px 26px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:12px;">
-             Pagar agora
+              style="display:inline-block;padding:13px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:12px;">
+             ${esc(botaoLabel)}
            </a>
          </td></tr>
        </table>`
@@ -75,8 +87,10 @@ export function montarEmailCobranca(d: DadosCobrancaEmail): { subject: string; h
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:24px 12px;">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #eceef2;">
-        <tr><td style="padding:22px 28px 0 28px;">
-          <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#2f6bff;letter-spacing:.02em;">${esc(remetente || "Cobrança")}</div>
+        <tr><td align="center" style="padding:26px 28px 2px 28px;border-bottom:1px solid #f0f2f5;">
+          <img src="${logoUrl()}" width="44" height="44" alt="balanx" style="display:block;margin:0 auto 10px auto;border-radius:11px;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:19px;font-weight:bold;color:${BRAND_NAVY};letter-spacing:-0.01em;">${esc(remetente || "balanx")}</div>
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9aa1ab;margin-top:3px;letter-spacing:.02em;">cobrança via balanx</div>
         </td></tr>
         <tr><td style="padding:16px 28px 4px 28px;">
           <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#111827;">Olá, ${esc(d.cliente)}! 👋</p>
