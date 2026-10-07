@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { montarEmailCobranca, enviarEmailResend, preencherEmailTpl, EMAIL_ASSUNTO_PADRAO, EMAIL_CORPO_PADRAO, type ResendAnexo } from "../_shared/email.ts";
+import { buscarBoletoUrl, temBoleto } from "../_shared/asaas.ts";
 
 // Worker do cron: roda 1x/dia, encontra cobranças que casam com a regra de
 // auto-envio (global ou exceção do contrato) e dispara pelo WhatsApp (Pixify),
@@ -77,7 +78,7 @@ serve(async (req) => {
   const hoje = hojeSP();
 
   const { data: cfgs } = await admin.from("cobranca_config")
-    .select("user_id, asaas_account_name, email_assunto, email_corpo, whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias");
+    .select("user_id, asaas_account_name, asaas_api_key, asaas_env, email_assunto, email_corpo, whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias");
   const cfgBy = new Map((cfgs || []).map((c) => [c.user_id, c]));
   // Reply-To do e-mail = e-mail de login da agência (resolvido sob demanda, com cache).
   const emailAgenciaCache = new Map<string, string | null>();
@@ -90,7 +91,7 @@ serve(async (req) => {
   };
 
   const { data: cobs } = await admin.from("cobrancas")
-    .select("id, user_id, cliente_id, contrato_id, asaas_payment_id, descricao, valor, vencimento, invoice_url, status, exigir_nf, envio_pix, nota_fiscal_path, nota_fiscal_nome, nota_fiscal_enviada, auto_wpp_ultimo_dia, auto_email_ultimo_dia, created_at, clientes(nome, telefone, email, canal_cobranca), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
+    .select("id, user_id, cliente_id, contrato_id, asaas_payment_id, descricao, valor, vencimento, invoice_url, forma_pagamento, status, exigir_nf, envio_pix, nota_fiscal_path, nota_fiscal_nome, nota_fiscal_enviada, auto_wpp_ultimo_dia, auto_email_ultimo_dia, created_at, clientes(nome, telefone, email, canal_cobranca), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
     .in("status", ["pendente", "vencido"])
     .order("created_at", { ascending: true });
 
@@ -203,6 +204,11 @@ serve(async (req) => {
           if (nfPath) {
             const { data: signed } = await admin.storage.from("notas-fiscais").createSignedUrl(nfPath, 600);
             if (signed?.signedUrl) attachments.push({ filename: nfNome, path: signed.signedUrl });
+          }
+          // Boleto (PDF) do Asaas quando a cobrança é boleto.
+          if (cob.asaas_payment_id && temBoleto(cob.forma_pagamento) && cfg?.asaas_api_key) {
+            const boletoUrl = await buscarBoletoUrl(cfg.asaas_api_key, cfg.asaas_env, cob.asaas_payment_id);
+            if (boletoUrl) attachments.push({ filename: "boleto.pdf", path: boletoUrl });
           }
           const r = await enviarEmailResend({
             apiKey: resendKey, from: `${remetenteNome.replace(/[<>\n"]/g, "")} <${emailFrom}>`,

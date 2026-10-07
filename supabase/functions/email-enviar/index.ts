@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { montarEmailCobranca, enviarEmailResend, preencherEmailTpl, EMAIL_ASSUNTO_PADRAO, type ResendAnexo } from "../_shared/email.ts";
+import { buscarBoletoUrl, temBoleto } from "../_shared/asaas.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,6 +60,20 @@ serve(async (req) => {
     if (b.nota_fiscal_path) {
       const { data: signed } = await supabase.storage.from("notas-fiscais").createSignedUrl(String(b.nota_fiscal_path), 600);
       if (signed?.signedUrl) attachments.push({ filename: String(b.nota_fiscal_nome || "nota-fiscal.pdf"), path: signed.signedUrl });
+    }
+
+    // Anexa o boleto (PDF) do Asaas quando a cobrança é boleto. Usa service role
+    // para ler a chave do Asaas (que o cliente autenticado não pode ler).
+    if (b.asaas_payment_id && temBoleto(b.forma)) {
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (serviceKey) {
+        const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
+        const { data: acfg } = await admin.from("cobranca_config").select("asaas_api_key, asaas_env").eq("user_id", user.id).maybeSingle();
+        if (acfg?.asaas_api_key) {
+          const boletoUrl = await buscarBoletoUrl(acfg.asaas_api_key, acfg.asaas_env, String(b.asaas_payment_id));
+          if (boletoUrl) attachments.push({ filename: "boleto.pdf", path: boletoUrl });
+        }
+      }
     }
 
     const r = await enviarEmailResend({

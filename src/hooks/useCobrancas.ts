@@ -446,6 +446,7 @@ export function useCobrancas() {
     para: string; cliente: string; descricao: string; valor: string; vencimento: string;
     link?: string | null; pix?: string | null; titular?: string | null; intro?: string | null;
     nota_fiscal_path?: string | null; nota_fiscal_nome?: string | null;
+    forma?: string | null; asaas_payment_id?: string | null;
   }) => {
     try {
       const { data, error } = await supabase.functions.invoke('email-enviar', { body: dados });

@@ -261,6 +261,8 @@ export default function Cobrancas() {
       intro: emIntro.trim() || null,
       nota_fiscal_path: emCob.nota_fiscal_path || null,
       nota_fiscal_nome: emCob.nota_fiscal_nome || null,
+      forma: emCob.forma_pagamento || null,
+      asaas_payment_id: emCob.asaas_payment_id || null,
     });
     setEmSending(false);
     if (res) {
