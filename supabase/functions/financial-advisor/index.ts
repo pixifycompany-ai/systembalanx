@@ -120,7 +120,27 @@ serve(async (req) => {
 
     const { messages, period }: RequestBody = await req.json();
     const { startDate, endDate, periodLabel } = getPeriodDates(period);
-    const hojeISO = new Date().toISOString().split("T")[0];
+    // HOJE no fuso do Brasil (não UTC) — evita "virar o dia" à noite.
+    const hojeISO = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    // Âncoras de data calculadas AQUI (o modelo erra aritmética de data). Semana
+    // de SEGUNDA a DOMINGO, igual ao Calendário (date-fns weekStartsOn: 1).
+    const _baseDia = new Date(hojeISO + "T12:00:00Z");
+    const _isoDelta = (d: Date, n: number) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+    const _dow = _baseDia.getUTCDay();                 // 0=domingo..6=sábado
+    const _offMon = (_dow + 6) % 7;                    // dias desde a segunda
+    const semanaIni = _isoDelta(_baseDia, -_offMon);
+    const semanaFim = _isoDelta(_baseDia, 6 - _offMon);
+    const semanaPassadaIni = _isoDelta(_baseDia, -_offMon - 7);
+    const semanaPassadaFim = _isoDelta(_baseDia, -_offMon - 1);
+    const proximaSemanaIni = _isoDelta(_baseDia, -_offMon + 7);
+    const proximaSemanaFim = _isoDelta(_baseDia, -_offMon + 13);
+    const amanhaISO = _isoDelta(_baseDia, 1);
+    const ontemISO = _isoDelta(_baseDia, -1);
+    const [_hy, _hm] = hojeISO.split("-").map(Number);
+    const mesIni = `${_hy}-${String(_hm).padStart(2, "0")}-01`;
+    const mesFim = new Date(Date.UTC(_hy, _hm, 0)).toISOString().slice(0, 10);          // último dia do mês atual
+    const mesPassadoIni = new Date(Date.UTC(_hy, _hm - 2, 1)).toISOString().slice(0, 10);
+    const mesPassadoFim = new Date(Date.UTC(_hy, _hm - 1, 0)).toISOString().slice(0, 10);
     const numMeses = monthsBetween(startDate, endDate);
 
     // ---- Busca de dados (em paralelo). Tudo já vem filtrado pela RLS do usuário. ----
@@ -312,11 +332,13 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 
 ## Períodos e datas (MUITO IMPORTANTE)
 - HOJE é ${hojeISO}. O bloco "CONTEXTO FINANCEIRO" abaixo é um panorama do período "${periodLabel}" selecionado no app. Para QUALQUER outro período que a pessoa mencionar, você DEVE usar as ferramentas para consultar os dados reais daquele intervalo — nunca estime.
-- Traduza expressões em datas ISO (YYYY-MM-DD) a partir de HOJE (${hojeISO}), fuso do Brasil, semana de segunda a domingo:
-  • "hoje" → ${hojeISO} a ${hojeISO}; "amanhã" → dia seguinte; "depois de amanhã" → +2 dias; "ontem" → dia anterior.
-  • "essa semana" → segunda a domingo da semana atual; "semana passada" → segunda a domingo da semana anterior; "próxima semana" → a seguinte.
-  • "esse mês"/"resto do mês" → de HOJE até o último dia do mês atual; "mês passado" → 1º ao último dia do mês anterior.
-  • "do dia X ao dia Y", "entre X e Y" → use exatamente essas datas (assuma o mês/ano atual se só vier o dia).
+- DATAS JÁ CALCULADAS (fuso do Brasil, semana de SEGUNDA a DOMINGO como no Calendário). NÃO recalcule — use EXATAMENTE estes intervalos ISO:
+  • "hoje" → ${hojeISO} a ${hojeISO}; "amanhã" → ${amanhaISO}; "ontem" → ${ontemISO}.
+  • "essa semana"/"esta semana" → ${semanaIni} a ${semanaFim}.
+  • "semana passada" → ${semanaPassadaIni} a ${semanaPassadaFim}; "próxima semana"/"semana que vem" → ${proximaSemanaIni} a ${proximaSemanaFim}.
+  • "esse mês"/"este mês" → ${mesIni} a ${mesFim}; "resto do mês" → ${hojeISO} a ${mesFim}; "mês passado" → ${mesPassadoIni} a ${mesPassadoFim}.
+  • "do dia X ao dia Y", "entre X e Y" → use exatamente essas datas (assuma ${_hy}-${String(_hm).padStart(2, "0")} se só vier o dia).
+  • Ao mencionar o intervalo na resposta, use estas MESMAS datas (ex.: "essa semana (${semanaIni} a ${semanaFim})").
 - Escolha a ferramenta certa:
   • Perguntas de resultado/desempenho ("quanto faturei/gastei/lucrei", "margem", "por categoria", "top clientes") → resumo_financeiro (regime de competência).
   • Perguntas de agenda/caixa futuro-ou-passado por data ("o que vence/tenho a pagar/a receber", "hoje", "amanhã", "essa semana", "resto do mês") → agenda_vencimentos (por data de vencimento).
