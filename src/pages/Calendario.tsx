@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { addDays, addMonths, addWeeks, format } from 'date-fns';
 import { CalendarGrid } from '@/components/calendario/CalendarGrid';
 import { WeekView } from '@/components/calendario/WeekView';
@@ -6,9 +6,9 @@ import { DayView } from '@/components/calendario/DayView';
 import { TopDespesasChart } from '@/components/calendario/TopDespesasChart';
 import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
-import { WeeklyForecast, type CalFiltro } from '@/components/calendario/WeeklyForecast';
+import { WeeklyForecast, itemMatches, type CalFiltro } from '@/components/calendario/WeeklyForecast';
 
-import { useCalendario, type CalendarioModo } from '@/hooks/useCalendario';
+import { useCalendario, type CalendarioModo, type DayTransactions } from '@/hooks/useCalendario';
 import { SkeletonChart } from '@/components/shared/LoadingSpinner';
 
 const FILTROS: { value: CalFiltro; label: string }[] = [
@@ -40,6 +40,21 @@ export default function Calendario() {
   }, [modo]);
 
   const { days, topDespesas, totalDespesas, isLoading } = useCalendario(modo, refDate);
+
+  // Aplica os mesmos filtros (A receber/Recebido/A pagar/Pago) DENTRO do calendário:
+  // pontinhos e detalhe do dia passam a bater com o "Resumo por semana".
+  const filteredDays = useMemo<Record<string, DayTransactions>>(() => {
+    if (filtros.size === 0) return days;
+    const out: Record<string, DayTransactions> = {};
+    for (const [date, day] of Object.entries(days)) {
+      const items = day.items.filter((it) => itemMatches(it, filtros));
+      if (items.length === 0) continue;
+      const receitas = items.filter((i) => i.tipo === 'receita').reduce((s, i) => s + i.valor, 0);
+      const despesas = items.filter((i) => i.tipo === 'despesa').reduce((s, i) => s + i.valor, 0);
+      out[date] = { date, receitas, despesas, items };
+    }
+    return out;
+  }, [days, filtros]);
 
   const handlePrev = () => {
     if (modo === 'mes') setRefDate((d) => addMonths(d, -1));
@@ -97,7 +112,7 @@ export default function Calendario() {
             <CalendarGrid
               year={refDate.getFullYear()}
               month={refDate.getMonth()}
-              days={days}
+              days={filteredDays}
               onPrev={handlePrev}
               onNext={handleNext}
             />
@@ -105,7 +120,7 @@ export default function Calendario() {
           {modo === 'semana' && (
             <WeekView
               refDate={refDate}
-              days={days}
+              days={filteredDays}
               onPrev={handlePrev}
               onNext={handleNext}
             />
@@ -113,7 +128,7 @@ export default function Calendario() {
           {modo === 'hoje' && (
             <DayView
               refDate={refDate}
-              day={days[dayKey] || null}
+              day={filteredDays[dayKey] || null}
               onPrev={handlePrev}
               onNext={handleNext}
             />

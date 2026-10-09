@@ -7,7 +7,7 @@ import type { DayTransactions, DayItem } from '@/hooks/useCalendario';
 
 export type CalFiltro = 'a_pagar' | 'a_receber' | 'pago' | 'recebido';
 
-function itemMatches(item: DayItem, filtros: Set<CalFiltro>): boolean {
+export function itemMatches(item: DayItem, filtros: Set<CalFiltro>): boolean {
   if (filtros.size === 0) return true; // "Tudo"
   const pend = item.status === 'pendente' || item.status === 'atrasado';
   if (filtros.has('a_pagar') && item.tipo === 'despesa' && pend) return true;
