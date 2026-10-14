@@ -323,7 +323,20 @@ export default function Cobrancas() {
   const [clienteCob, setClienteCob] = useState<Cobranca | null>(null);
   const [clienteSel, setClienteSel] = useState('');
   const [clienteSaving, setClienteSaving] = useState(false);
-  const abrirCliente = (cob: Cobranca) => { setClienteCob(cob); setClienteSel(cob.cliente_id || ''); setClienteOpen(true); };
+  const normNome = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const abrirCliente = (cob: Cobranca) => {
+    setClienteCob(cob);
+    // Sugere automaticamente o cliente do BALANX cujo nome casa com o do Asaas.
+    let sel = cob.cliente_id || '';
+    if (!sel && cob.asaas_customer_nome) {
+      const alvo = normNome(cob.asaas_customer_nome);
+      const match = clientes.find((c) => normNome(c.nome) === alvo)
+        || clientes.find((c) => normNome(c.nome).includes(alvo) || alvo.includes(normNome(c.nome)));
+      if (match) sel = match.id;
+    }
+    setClienteSel(sel);
+    setClienteOpen(true);
+  };
   const handleSalvarCliente = async () => {
     if (!clienteCob) return;
     setClienteSaving(true);
@@ -589,6 +602,11 @@ export default function Cobrancas() {
                     <div className="flex items-center gap-1.5">
                       {cli?.nome ? (
                         <span className="truncate text-sm font-semibold text-foreground">{cli.nome}</span>
+                      ) : cob.asaas_customer_nome ? (
+                        <button onClick={() => abrirCliente(cob)} className="flex items-center gap-1.5 truncate text-sm font-semibold text-foreground-muted">
+                          <span className="truncate">{cob.asaas_customer_nome}</span>
+                          <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-primary">Asaas</span>
+                        </button>
                       ) : (
                         <button onClick={() => abrirCliente(cob)} className="truncate text-sm font-semibold text-primary">Vincular cliente</button>
                       )}
@@ -638,6 +656,11 @@ export default function Cobrancas() {
                       <div className="flex items-center gap-1.5">
                         {cli?.nome ? (
                           <span className="truncate">{cli.nome}</span>
+                        ) : cob.asaas_customer_nome ? (
+                          <button onClick={() => abrirCliente(cob)} className="group flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-white/5" title="Vir do Asaas — clique para vincular a um cliente">
+                            <span className="truncate text-foreground-muted">{cob.asaas_customer_nome}</span>
+                            <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">Asaas · vincular</span>
+                          </button>
                         ) : (
                           <button onClick={() => abrirCliente(cob)} className="rounded-md px-1.5 py-0.5 text-left font-semibold text-primary transition-colors hover:bg-white/5">
                             Vincular cliente
@@ -850,9 +873,15 @@ export default function Cobrancas() {
             <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
             <h2 className="mt-0.5 mb-1 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Vincular a um cliente</h2>
             {clienteCob && (
-              <p className="mb-4 text-sm text-foreground-muted">
-                {clienteCob.descricao || '—'} · {formatCurrency(Number(clienteCob.valor))}
+              <p className="mb-2 text-sm text-foreground-muted">
+                {clienteCob.descricao || '—'} · {formatCurrency(Number(clienteCob.valor))} · vence {formatDate(clienteCob.vencimento)}
               </p>
+            )}
+            {clienteCob?.asaas_customer_nome && !clienteCob?.cliente_id && (
+              <div className="mb-3 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                <span className="text-foreground">No Asaas está como <b>{clienteCob.asaas_customer_nome}</b>. Confirme o cliente do BALANX abaixo (já sugeri um se o nome bateu).</span>
+              </div>
             )}
             <Label className="text-xs">Cliente</Label>
             <select

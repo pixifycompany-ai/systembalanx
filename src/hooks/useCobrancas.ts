@@ -24,6 +24,9 @@ export interface Cobranca {
   nota_fiscal_enviada?: boolean | null;
   exigir_nf?: boolean | null;
   envio_pix?: boolean | null;
+  /** Quem é essa cobrança no Asaas (quando veio sem vínculo no BALANX). */
+  asaas_customer_id?: string | null;
+  asaas_customer_nome?: string | null;
 }
 
 // Receita já lançada que pode corresponder a uma cobrança (conciliação)

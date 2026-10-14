@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { apagarReceitaSeCriada, isPago, lancarJurosMulta, mapStatus, registrarFatura } from "../_shared/faturas.ts";
+import { buscarCustomer } from "../_shared/asaas.ts";
 
 // Webhook das COBRANÇAS dos clientes (conta Asaas do próprio tenant).
 // Cada tenant configura, no Asaas dele, esta URL + o token (asaas-access-token).
@@ -62,8 +63,16 @@ serve(async (req) => {
         .select("cliente_id, contrato_id, conta_id, descricao, exigir_nf, envio_pix")
         .eq("asaas_subscription_id", p.subscription).eq("user_id", userId)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      // Nome do cliente no Asaas — pra identificar cobranças sem vínculo no BALANX
+      // (ex.: assinaturas de outra plataforma no mesmo Asaas).
+      let customerNome: string | null = null;
+      if (p.customer && cfg.asaas_api_key) {
+        const c = await buscarCustomer(cfg.asaas_api_key as string, cfg.asaas_env as string, p.customer);
+        customerNome = c?.nome ?? null;
+      }
       await registrarFatura(admin, userId, p, p.subscription, {
         conta_id: base?.conta_id ?? null,
+        customerNome,
         fallback: base
           ? { contrato_id: base.contrato_id, cliente_id: base.cliente_id, descricao: base.descricao, exigir_nf: !!base.exigir_nf, envio_pix: !!base.envio_pix }
           : undefined,

@@ -44,6 +44,8 @@ export interface LinhaCobranca {
   exigir_nf?: boolean;
   envio_pix?: boolean;
   data_pagamento?: string | null;
+  asaas_customer_id?: string | null;
+  asaas_customer_nome?: string | null;
 }
 
 // Cria a linha de cobrança + a receita a receber (vinculando a já lançada, se houver).
@@ -72,6 +74,8 @@ export async function inserirCobranca(admin: any, userId: string, o: LinhaCobran
     exigir_nf: !!o.exigir_nf,
     envio_pix: !!o.envio_pix,
     data_pagamento: dataPag,
+    asaas_customer_id: o.asaas_customer_id ?? null,
+    asaas_customer_nome: o.asaas_customer_nome ?? null,
   }).select("*").single();
   return data;
 }
@@ -100,7 +104,7 @@ export function repartir(total: number, pesos: number[]): number[] {
 // `fallback` cobre assinaturas antigas cujo contrato não está mais marcado.
 export async function registrarFatura(
   admin: any, userId: string, pay: any, subId: string,
-  ctx: { conta_id: string | null; fallback?: { contrato_id: string | null; cliente_id: string | null; descricao: string | null; exigir_nf?: boolean; envio_pix?: boolean } },
+  ctx: { conta_id: string | null; customerNome?: string | null; fallback?: { contrato_id: string | null; cliente_id: string | null; descricao: string | null; exigir_nf?: boolean; envio_pix?: boolean } },
 ): Promise<boolean> {
   const { data: existe } = await admin.from("cobrancas").select("id")
     .eq("user_id", userId).eq("asaas_payment_id", pay.id).limit(1).maybeSingle();
@@ -112,6 +116,9 @@ export async function registrarFatura(
     conta_id: ctx.conta_id, tipo: "recorrente", asaas_payment_id: pay.id, asaas_subscription_id: subId,
     vencimento: pay.dueDate, forma: pay.billingType || "UNDEFINED", status, invoice_url: pay.invoiceUrl ?? null,
     data_pagamento: status === "pago" ? (pay.paymentDate || pay.clientPaymentDate || null) : null,
+    // De quem é a cobrança no Asaas (mesmo sem vínculo no BALANX ainda).
+    asaas_customer_id: pay.customer ?? null,
+    asaas_customer_nome: ctx.customerNome ?? null,
   };
 
   if (contratos.length <= 1) {

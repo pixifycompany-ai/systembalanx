@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buscarCandidatas, criarReceita, vincularOuCriarReceita, vincularReceita, type AlvoReceita } from "../_shared/conciliar.ts";
+import { buscarCustomer } from "../_shared/asaas.ts";
 import {
   apagarReceitaSeCriada, conciliarGrupoPorTotal, contratosDaAssinatura, inserirCobranca, isPago, lancarJurosMulta,
   linhasDaFatura, mapStatus, registrarFatura, repartir, STATUS_ABERTO, type LinhaCobranca,
@@ -105,6 +106,18 @@ serve(async (req) => {
       return j.id as string;
     }
 
+    // Nome do cliente no Asaas (cacheado por customer) — pra identificar cobranças
+    // que vieram do Asaas sem vínculo no BALANX (ex.: assinaturas de outra plataforma).
+    const nomeCustomerCache = new Map<string, string | null>();
+    async function nomeCustomer(customerId: string | null | undefined): Promise<string | null> {
+      if (!customerId) return null;
+      if (nomeCustomerCache.has(customerId)) return nomeCustomerCache.get(customerId)!;
+      const c = await buscarCustomer(cfg.asaas_api_key as string, cfg.asaas_env as string, customerId);
+      const nome = c?.nome ?? null;
+      nomeCustomerCache.set(customerId, nome);
+      return nome;
+    }
+
     // Cria a cobrança interna + a receita "a receber" (vincula a já lançada, se houver)
     const registrar = (opts: LinhaCobranca) => inserirCobranca(admin, user.id, opts);
 
@@ -124,6 +137,7 @@ serve(async (req) => {
           if (!STATUS_ABERTO.includes(pay.status)) continue;
           const criou = await registrarFatura(admin, user.id, pay, opts.subId, {
             conta_id: opts.conta_id,
+            customerNome: await nomeCustomer(pay.customer),
             fallback: { contrato_id: opts.contrato_id, cliente_id: opts.cliente_id, descricao: opts.descricao, exigir_nf: opts.exigir_nf, envio_pix: opts.envio_pix },
           });
           if (criou) novas++;
@@ -651,10 +665,15 @@ serve(async (req) => {
             await admin.from("cobrancas").update({ status: "cancelado", receita_id: null, updated_at: new Date().toISOString() }).eq("id", c.id);
             continue;
           }
+          // Preenche o nome do cliente Asaas quando ainda não temos (cobrança órfã).
+          let novoCustomerNome = c.asaas_customer_nome ?? null;
+          if (!novoCustomerNome && p.customer) novoCustomerNome = await nomeCustomer(p.customer);
           await admin.from("cobrancas").update({
             status: novoStatus,
             invoice_url: p.invoiceUrl ?? c.invoice_url,
             data_pagamento: isPago(p.status) ? (p.paymentDate || p.clientPaymentDate || null) : null,
+            asaas_customer_id: c.asaas_customer_id ?? p.customer ?? null,
+            asaas_customer_nome: novoCustomerNome,
             updated_at: new Date().toISOString(),
           }).eq("id", c.id);
           // Baixa a receita conforme o pagamento
