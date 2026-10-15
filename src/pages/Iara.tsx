@@ -126,7 +126,7 @@ export default function Iara() {
   const lastIsUser = messages[messages.length - 1]?.role === 'user';
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] max-w-2xl mx-auto">
+    <div className="flex flex-col h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] md:h-[calc(100dvh-3.5rem)] md:-my-8 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 px-3 md:px-4 py-3 border-b border-border/60">
         <button
