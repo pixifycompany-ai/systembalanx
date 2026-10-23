@@ -6,6 +6,8 @@ import { KpiTriple } from '@/components/shared/KpiTriple';
 import { IconButton } from '@/components/shared/IconButton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,7 +32,7 @@ import { ConciliacaoSheet } from '@/components/cobrancas/ConciliacaoSheet';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
   XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Repeat, Receipt, Wallet, CreditCard,
-  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound, Users, Mail,
+  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound, Users, Mail, CalendarOff, CalendarCheck,
 } from 'lucide-react';
 
 const toneCls: Record<string, string> = {
@@ -67,8 +69,12 @@ export default function Cobrancas() {
     cobrancas, loading, busyId,
     criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail,
     anexarNota, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg, emailCfg,
+    fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana,
   } = useCobrancas();
   const [conciliarOpen, setConciliarOpen] = useState(false);
+  // Seleção em massa (por fatura) para ativar/desativar envio no fim de semana.
+  const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
   const semReceita = useMemo(
     () => cobrancas.filter((c) => !c.receita_id && c.status !== 'cancelado' && c.status !== 'estornado').length,
     [cobrancas],
@@ -174,6 +180,24 @@ export default function Cobrancas() {
       return 0;
     });
   }, [faturasView, tipoFiltro, statusFiltro, busca, sort, clienteById, periodo]);
+
+  // ===== Seleção em massa (fim de semana) =====
+  const toggleSel = (id: string) => setSelecionadas((prev) => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n;
+  });
+  const todasSelecionadas = filtradas.length > 0 && filtradas.every((c) => selecionadas.has(c.id));
+  const toggleTodas = () => setSelecionadas((prev) =>
+    prev.size >= filtradas.length && filtradas.every((c) => prev.has(c.id)) ? new Set() : new Set(filtradas.map((c) => c.id)));
+  const limparSel = () => setSelecionadas(new Set());
+  const aplicarFimSemana = async (value: boolean) => {
+    // Junta as linhas de todas as faturas selecionadas (grupo vale para todas).
+    const ids = filtradas.filter((c) => selecionadas.has(c.id)).flatMap((c) => c.linhas.map((l) => l.id));
+    if (!ids.length) return;
+    setBulkBusy(true);
+    const ok = await setEnviarFimSemana(ids, value);
+    setBulkBusy(false);
+    if (ok) setSelecionadas(new Set());
+  };
 
   // ===== WhatsApp =====
   const [waOpen, setWaOpen] = useState(false);
@@ -539,6 +563,27 @@ export default function Cobrancas() {
         ]}
       />
 
+      {/* Fim de semana: padrão global + ação em massa (seleção) */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border/60 bg-surface/50 px-3.5 py-2.5">
+        <div className="flex items-center gap-2">
+          <Switch checked={fimSemanaPadrao} onCheckedChange={setFimSemanaPadrao} />
+          <span className="text-[12.5px] text-foreground">Enviar no <b>fim de semana</b> <span className="text-foreground-muted">(padrão)</span></span>
+          <span className="hidden text-[11px] text-foreground-muted lg:inline">— desligado: segura sáb/dom e dispara na segunda</span>
+        </div>
+        {selecionadas.size > 0 && (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <span className="text-[12px] font-semibold text-foreground">{selecionadas.size} selecionada(s):</span>
+            <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => aplicarFimSemana(true)}>
+              <CalendarCheck className="mr-1.5 h-3.5 w-3.5 text-[hsl(var(--success))]" /> Enviar no fim de semana
+            </Button>
+            <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => aplicarFimSemana(false)}>
+              <CalendarOff className="mr-1.5 h-3.5 w-3.5 text-[hsl(var(--warning))]" /> Não enviar
+            </Button>
+            <button onClick={limparSel} className="text-[11px] text-foreground-muted hover:text-foreground">limpar</button>
+          </div>
+        )}
+      </div>
+
       {/* Aviso: cobranças sem vínculo com o financeiro */}
       {semReceita > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-[hsl(var(--warning))]/35 bg-[hsl(var(--warning))]/10 px-3.5 py-2.5">
@@ -596,8 +641,10 @@ export default function Cobrancas() {
           {filtradas.map((cob) => {
             const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
             return (
-              <div key={cob.id} className="rounded-2xl border border-border/60 bg-surface/70 p-3.5 backdrop-blur-xl">
+              <div key={cob.id} className={cn('rounded-2xl border border-border/60 bg-surface/70 p-3.5 backdrop-blur-xl', selecionadas.has(cob.id) && 'ring-1 ring-primary/40')}>
                 <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <Checkbox className="mt-0.5" checked={selecionadas.has(cob.id)} onCheckedChange={() => toggleSel(cob.id)} aria-label="Selecionar cobrança" />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       {cli?.nome ? (
@@ -614,6 +661,7 @@ export default function Cobrancas() {
                     </div>
                     <div className="truncate text-xs text-foreground-muted">{cob.descricao || 'Sem descrição'}</div>
                   </div>
+                  </div>
                   <AcoesMenu cob={cob} />
                 </div>
                 <div className="mt-2.5 flex items-center justify-between gap-2">
@@ -623,6 +671,7 @@ export default function Cobrancas() {
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-foreground-muted">
                   <TipoBadge tipo={cob.tipo} />
                   <span>Vence {formatDate(cob.vencimento)}</span>
+                  {cob.enviar_fim_semana === false && <span className="inline-flex items-center gap-1"><CalendarOff className="h-3 w-3" />sem fim de semana</span>}
                   <span>{FORMA_LABEL[cob.forma_pagamento] || cob.forma_pagamento}</span>
                   {cob.conta_id && contaById.get(cob.conta_id) && <span>· {contaById.get(cob.conta_id)!.nome}</span>}
                 </div>
@@ -635,6 +684,9 @@ export default function Cobrancas() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border/60 text-left text-[11px] uppercase tracking-wide text-foreground-muted">
+                <th className="px-3 py-2.5 w-9">
+                  <Checkbox checked={todasSelecionadas} onCheckedChange={toggleTodas} aria-label="Selecionar todas" />
+                </th>
                 <Th label="Cliente" onClick={() => toggleSort('cliente')} icon={sortIcon('cliente')} />
                 <Th label="Descrição" onClick={() => toggleSort('descricao')} icon={sortIcon('descricao')} />
                 <Th label="Tipo" onClick={() => toggleSort('tipo')} icon={sortIcon('tipo')} />
@@ -651,7 +703,10 @@ export default function Cobrancas() {
                 const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
                 const conta = cob.conta_id ? contaById.get(cob.conta_id) : undefined;
                 return (
-                  <tr key={cob.id} className="border-b border-border/40 last:border-0 transition-colors hover:bg-white/[0.02]">
+                  <tr key={cob.id} className={cn('border-b border-border/40 last:border-0 transition-colors hover:bg-white/[0.02]', selecionadas.has(cob.id) && 'bg-primary/[0.04]')}>
+                    <td className="px-3 py-3">
+                      <Checkbox checked={selecionadas.has(cob.id)} onCheckedChange={() => toggleSel(cob.id)} aria-label="Selecionar cobrança" />
+                    </td>
                     <td className="px-3 py-3 font-medium text-foreground">
                       <div className="flex items-center gap-1.5">
                         {cli?.nome ? (
@@ -670,6 +725,7 @@ export default function Cobrancas() {
                         {cob.nota_fiscal_path && <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Nota fiscal anexada" />}
                         {!cob.nota_fiscal_path && cob.nota_fiscal_enviada && <FileText className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--success))]" aria-label="Nota fiscal enviada" />}
                         {cob.exigir_nf && !cob.nota_fiscal_path && !cob.nota_fiscal_enviada && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--warning))]" aria-label="Exige nota fiscal" />}
+                        {cob.enviar_fim_semana === false && <CalendarOff className="h-3.5 w-3.5 shrink-0 text-foreground-subtle" aria-label="Não dispara no fim de semana" />}
                       </div>
                     </td>
                     <td className="px-3 py-3 max-w-[220px] truncate text-foreground-muted">{cob.descricao || '—'}</td>

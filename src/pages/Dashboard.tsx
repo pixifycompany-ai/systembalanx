@@ -188,7 +188,7 @@ export default function Dashboard() {
             <p className="text-xs text-foreground-muted">Próximos 7 dias</p>
           </div>
           <button
-            onClick={() => navigate('/fluxo-caixa?status=pendente,atrasado')}
+            onClick={() => navigate('/fluxo-caixa?venc=prox7')}
             className="text-xs font-medium text-foreground-muted hover:text-foreground no-touch-min"
           >
             Ver todos
@@ -289,7 +289,7 @@ export default function Dashboard() {
           <UpcomingDueWidget
             items={upcomingItems}
             title="Próximos vencimentos"
-            onItemClick={(it) => navigate(it.href ?? '/fluxo-caixa')}
+            onItemClick={(it) => navigate(it.href ?? '/fluxo-caixa?venc=prox7')}
           />
           <div className="space-y-6">
             <ProgressGoal

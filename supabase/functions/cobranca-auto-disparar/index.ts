@@ -103,7 +103,7 @@ serve(async (req) => {
   };
 
   const { data: cobs } = await admin.from("cobrancas")
-    .select("id, user_id, cliente_id, contrato_id, asaas_payment_id, descricao, valor, vencimento, invoice_url, forma_pagamento, status, exigir_nf, envio_pix, nota_fiscal_path, nota_fiscal_nome, nota_fiscal_enviada, auto_wpp_ultimo_dia, auto_email_ultimo_dia, created_at, clientes(nome, telefone, email, canal_cobranca), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
+    .select("id, user_id, cliente_id, contrato_id, asaas_payment_id, descricao, valor, vencimento, invoice_url, forma_pagamento, status, exigir_nf, envio_pix, enviar_fim_semana, nota_fiscal_path, nota_fiscal_nome, nota_fiscal_enviada, auto_wpp_ultimo_dia, auto_email_ultimo_dia, created_at, clientes(nome, telefone, email, canal_cobranca), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
     .in("status", ["pendente", "vencido"])
     .order("created_at", { ascending: true });
 
@@ -129,7 +129,10 @@ serve(async (req) => {
 
       // Fim de semana: quando desligado, não dispara sáb/dom e "rola" o lembrete
       // (X dias antes / no dia) para a próxima segunda. O atraso diário só pula o fds.
-      const permiteFds = cfg?.auto_envio_fim_semana !== false; // padrão: pode
+      // Valor POR COBRANÇA (cob.enviar_fim_semana) sobrepõe o padrão do config.
+      const permiteFds = (cob.enviar_fim_semana === null || cob.enviar_fim_semana === undefined)
+        ? (cfg?.auto_envio_fim_semana !== false)
+        : cob.enviar_fim_semana !== false;
       const d = diffDias(cob.vencimento, hoje);
       let deve = false;
       if (regra.antes > 0) {

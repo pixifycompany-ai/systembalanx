@@ -425,7 +425,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
       type: 'overdue',
       title: 'Receitas atrasadas',
       description: `${receitasAtrasadas.length} receita(s) passaram do vencimento`,
-      link: '/receitas?status=atrasado',
+      link: '/fluxo-caixa?tipo=entrada&status=atrasado',
       count: receitasAtrasadas.length,
     });
   }
@@ -443,7 +443,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
       type: 'due_soon',
       title: 'Vencem hoje',
       description: `${despesasHoje.length} despesa(s) vencem hoje`,
-      link: '/despesas',
+      link: '/fluxo-caixa?tipo=saida&venc=hoje',
       count: despesasHoje.length,
     });
   }
@@ -463,7 +463,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
       type: 'due_soon',
       title: 'Próximos 7 dias',
       description: `${receitasProximas.length} receita(s) vencem em breve`,
-      link: '/receitas',
+      link: '/fluxo-caixa?tipo=entrada&venc=prox7',
       count: receitasProximas.length,
     });
   }

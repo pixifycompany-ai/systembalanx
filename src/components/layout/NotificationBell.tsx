@@ -30,7 +30,7 @@ function DuplicateDetailsList({ details }: { details: DuplicateDetail[] }) {
           key={d.id}
           onClick={(e) => {
             e.stopPropagation();
-            navigate(d.tipo === 'receita' ? '/receitas' : '/despesas');
+            navigate(d.tipo === 'receita' ? '/fluxo-caixa?tipo=entrada' : '/fluxo-caixa?tipo=saida');
           }}
           className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-left text-xs hover:bg-accent/50 transition-colors"
         >

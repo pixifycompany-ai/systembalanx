@@ -115,7 +115,7 @@ export const MOCK_ALERTS: Alert[] = [
     type: 'overdue',
     title: 'Receitas atrasadas',
     description: '3 receitas passaram do vencimento',
-    link: '/receitas?status=atrasado',
+    link: '/fluxo-caixa?tipo=entrada&status=atrasado',
     count: 3,
   },
   {
@@ -123,7 +123,7 @@ export const MOCK_ALERTS: Alert[] = [
     type: 'due_soon',
     title: 'Vencem hoje',
     description: '2 contas vencem hoje',
-    link: '/despesas',
+    link: '/fluxo-caixa?tipo=saida&venc=hoje',
     count: 2,
   },
   {
@@ -131,7 +131,7 @@ export const MOCK_ALERTS: Alert[] = [
     type: 'due_soon',
     title: 'Próximos 3 dias',
     description: '5 receitas vencem em breve',
-    link: '/receitas',
+    link: '/fluxo-caixa?tipo=entrada&venc=prox7',
     count: 5,
   },
 ];

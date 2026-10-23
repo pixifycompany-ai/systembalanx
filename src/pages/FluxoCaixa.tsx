@@ -115,9 +115,18 @@ export default function FluxoCaixa() {
   
   // Initialize filters from URL query params
   const initialTipo = (searchParams.get('tipo') as TipoTransacao) || 'todas';
-  const initialStatus = searchParams.get('status')?.split(',').filter(Boolean) || [];
   const initialSearch = searchParams.get('search') || '';
-  
+  // Preset "próximos vencimentos" (vindo do dashboard): venc=prox7 | hoje
+  const vencParam = searchParams.get('venc');
+  const _hojeRange = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+  const initialRange = vencParam === 'prox7'
+    ? { de: _hojeRange, ate: addDays(_hojeRange, 7) }
+    : vencParam === 'hoje'
+      ? { de: _hojeRange, ate: _hojeRange }
+      : null;
+  const initialStatus = searchParams.get('status')?.split(',').filter(Boolean)
+    || (vencParam ? ['pendente', 'atrasado'] : []);
+
   // Filters - default to current month
   const currentMonth = format(new Date(), 'yyyy-MM');
   const [tipoFilter, setTipoFilter] = useState<TipoTransacao>(initialTipo);
@@ -127,11 +136,11 @@ export default function FluxoCaixa() {
   const [contaFilter, setContaFilter] = useState<string>('all');
   const singleAccountId = contaFilter !== 'all' ? contaFilter : null;
   const { data: runningBalance } = useAccountRunningBalance(singleAccountId);
-  
-  // Date range filter
-  const [dateFilterMode, setDateFilterMode] = useState<'month' | 'range'>('month');
-  const [dateRangeStart, setDateRangeStart] = useState<Date | undefined>();
-  const [dateRangeEnd, setDateRangeEnd] = useState<Date | undefined>();
+
+  // Date range filter (pré-selecionado quando vem de "próximos vencimentos")
+  const [dateFilterMode, setDateFilterMode] = useState<'month' | 'range'>(initialRange ? 'range' : 'month');
+  const [dateRangeStart, setDateRangeStart] = useState<Date | undefined>(initialRange?.de);
+  const [dateRangeEnd, setDateRangeEnd] = useState<Date | undefined>(initialRange?.ate);
   const [dateRangeOpen, setDateRangeOpen] = useState(false);
   
   // Sorting

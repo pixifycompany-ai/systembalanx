@@ -135,7 +135,7 @@ export function UpcomingDueWidget({
       {items.length > 5 && (
         <div className="mt-4 pt-4 border-t border-border">
           <Button variant="ghost" className="w-full gap-2" asChild>
-            <Link to="/receitas">
+            <Link to="/fluxo-caixa?venc=prox7">
               Ver todos ({items.length})
               <ArrowRight className="h-4 w-4" />
             </Link>

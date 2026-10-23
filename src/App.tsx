@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { BalanxLoader } from "@/components/shared/BalanxLoader";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -11,8 +11,6 @@ import { TenantProvider } from "@/contexts/TenantContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
-import Receitas from "./pages/Receitas";
-import Despesas from "./pages/Despesas";
 import FluxoCaixa from "./pages/FluxoCaixa";
 import Clientes from "./pages/Clientes";
 import Contratos from "./pages/Contratos";
@@ -78,8 +76,9 @@ const App = () => (
               <Route path="/visao" element={<ProtectedRoute><AppLayout><Visao /></AppLayout></ProtectedRoute>} />
               <Route path="/calendario" element={<ProtectedRoute><AppLayout><Calendario /></AppLayout></ProtectedRoute>} />
               <Route path="/relatorios" element={<ProtectedRoute><AppLayout><Relatorios /></AppLayout></ProtectedRoute>} />
-              <Route path="/receitas" element={<ProtectedRoute><AppLayout><Receitas /></AppLayout></ProtectedRoute>} />
-              <Route path="/despesas" element={<ProtectedRoute><AppLayout><Despesas /></AppLayout></ProtectedRoute>} />
+              {/* /receitas e /despesas foram unificadas no Fluxo de Caixa (redireciona). */}
+              <Route path="/receitas" element={<Navigate to="/fluxo-caixa?tipo=entrada" replace />} />
+              <Route path="/despesas" element={<Navigate to="/fluxo-caixa?tipo=saida" replace />} />
               <Route path="/clientes" element={<ProtectedRoute><AppLayout><Clientes /></AppLayout></ProtectedRoute>} />
               <Route path="/contratos" element={<ProtectedRoute><AppLayout><Contratos /></AppLayout></ProtectedRoute>} />
               <Route path="/cobrancas" element={<ProtectedRoute><AppLayout><Cobrancas /></AppLayout></ProtectedRoute>} />

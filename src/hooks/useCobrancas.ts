@@ -27,6 +27,8 @@ export interface Cobranca {
   /** Quem é essa cobrança no Asaas (quando veio sem vínculo no BALANX). */
   asaas_customer_id?: string | null;
   asaas_customer_nome?: string | null;
+  /** Envio no fim de semana por cobrança: null = usa o padrão. */
+  enviar_fim_semana?: boolean | null;
 }
 
 // Receita já lançada que pode corresponder a uma cobrança (conciliação)
@@ -330,6 +332,8 @@ export function useCobrancas() {
   const [whatsappTemplate, setWhatsappTemplate] = useState<string>('');
   const [pixCfg, setPixCfg] = useState<{ chave: string; titular: string; template: string }>({ chave: '', titular: '', template: '' });
   const [emailCfg, setEmailCfg] = useState<{ assunto: string; corpo: string }>({ assunto: '', corpo: '' });
+  // Padrão global de "enviar no fim de semana" (sobreposto por cobrança).
+  const [fimSemanaPadrao, setFimSemanaPadraoState] = useState<boolean>(true);
   useEffect(() => {
     (async () => {
       // Tolerante a colunas ausentes (migração PIX pode não ter rodado ainda).
@@ -339,8 +343,36 @@ export function useCobrancas() {
       if (!p.error && p.data) setPixCfg({ chave: p.data.pix_chave || '', titular: p.data.pix_titular || '', template: p.data.whatsapp_template_pix || '' });
       const e = await (supabase as any).from('cobranca_config').select('email_assunto, email_corpo').maybeSingle();
       if (!e.error && e.data) setEmailCfg({ assunto: e.data.email_assunto || '', corpo: e.data.email_corpo || '' });
+      const f = await (supabase as any).from('cobranca_config').select('auto_envio_fim_semana').maybeSingle();
+      if (!f.error && f.data) setFimSemanaPadraoState(f.data.auto_envio_fim_semana !== false);
     })();
   }, []);
+
+  // Salva o padrão global (Cobranças) de envio em fim de semana.
+  const setFimSemanaPadrao = async (value: boolean) => {
+    setFimSemanaPadraoState(value);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await (supabase as any).from('cobranca_config').update({ auto_envio_fim_semana: value }).eq('user_id', user.id);
+    if (error) toast.error('Erro ao salvar padrão de fim de semana');
+    else toast.success(value ? 'Padrão: envia no fim de semana' : 'Padrão: não envia no fim de semana');
+  };
+
+  // Define "enviar no fim de semana" para várias cobranças (ação em massa).
+  const setEnviarFimSemana = async (cobranca_ids: string[], value: boolean) => {
+    if (!cobranca_ids.length) return false;
+    try {
+      const { error } = await (supabase as any).from('cobrancas')
+        .update({ enviar_fim_semana: value, updated_at: new Date().toISOString() }).in('id', cobranca_ids);
+      if (error) throw error;
+      toast.success(value ? 'Liberado envio no fim de semana' : 'Bloqueado envio no fim de semana');
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao atualizar cobranças');
+      return false;
+    }
+  };
 
   // Marca/desmarca "enviar chave PIX no WhatsApp" (aceita várias linhas de uma fatura).
   const setEnvioPix = async (cobranca_ids: string | string[], value: boolean) => {
@@ -490,7 +522,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, reload: load };
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =
