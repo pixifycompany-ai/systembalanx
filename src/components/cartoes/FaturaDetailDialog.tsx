@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Trash2, Download } from 'lucide-react';
 import { PlusIcon } from '@heroicons/react/24/outline';
+import { exportToCSV } from '@/utils/exportCSV';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -194,7 +195,78 @@ export function FaturaDetailDialog({
     if (fatura) await fetchLancamentos(fatura.id);
   };
 
-  const sheetClass = 'p-0 max-h-[94dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[960px] sm:mx-auto';
+  // ---- Exportar lançamentos da fatura (CSV / PDF) ----
+  const nomeArquivo = (ext: string) =>
+    `fatura-${cartao.nome}-${fatura?.competencia || ''}`.replace(/[^\w.-]+/g, '_').toLowerCase() + '.' + ext;
+
+  const baixarCsv = () => {
+    if (!fatura || lancamentos.length === 0) return;
+    const rows = lancamentos.map((l) => ({
+      data: format(parseISO(l.data_competencia), 'dd/MM/yyyy'),
+      descricao: l.descricao,
+      categoria: l.categoria?.nome || '',
+      fornecedor: l.fornecedor || '',
+      valor: Number(l.valor).toFixed(2).replace('.', ','),
+    }));
+    exportToCSV(rows, nomeArquivo('csv').replace(/\.csv$/, ''), [
+      { key: 'data', label: 'Data' },
+      { key: 'descricao', label: 'Descrição' },
+      { key: 'categoria', label: 'Categoria' },
+      { key: 'fornecedor', label: 'Fornecedor' },
+      { key: 'valor', label: 'Valor (R$)' },
+    ]);
+  };
+
+  const baixarPdf = () => {
+    if (!fatura) return;
+    const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+    const total = Number(fatura.valor_total), pago = Number(fatura.valor_pago), rest = total - pago;
+    const linhas = lancamentos.map((l) => `
+      <tr>
+        <td>${esc(format(parseISO(l.data_competencia), 'dd/MM/yyyy'))}</td>
+        <td>${esc(l.descricao)}</td>
+        <td>${esc(l.categoria?.nome || '—')}</td>
+        <td>${esc(l.fornecedor || '—')}</td>
+        <td class="r">${esc(formatCurrency(Number(l.valor)))}</td>
+      </tr>`).join('');
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(nomeArquivo('pdf'))}</title>
+      <style>
+        *{box-sizing:border-box} body{font-family:Arial,Helvetica,sans-serif;color:#111827;margin:32px;}
+        h1{font-size:18px;margin:0 0 2px} .sub{color:#6b7280;font-size:12px;margin:0 0 16px}
+        .cards{display:flex;gap:10px;margin:0 0 18px;flex-wrap:wrap}
+        .card{border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;min-width:150px}
+        .card .l{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280}
+        .card .v{font-size:16px;font-weight:bold;margin-top:2px}
+        .danger{color:#dc2626}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #eceef2}
+        th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;border-bottom:1px solid #d1d5db}
+        td.r,th.r{text-align:right;white-space:nowrap}
+        tfoot td{font-weight:bold;border-top:2px solid #d1d5db;border-bottom:none}
+        @media print{body{margin:14mm}}
+      </style></head><body>
+      <h1>Fatura — ${esc(cartao.nome)}</h1>
+      <p class="sub">Competência ${esc(rotuloCompetencia(fatura.competencia))} · Vencimento ${esc(format(parseISO(fatura.data_vencimento), 'dd/MM/yyyy'))} · Fechamento ${esc(format(parseISO(fatura.data_fechamento), 'dd/MM/yyyy'))} · Status ${esc(String(fatura.status).replace('_', ' '))}</p>
+      <div class="cards">
+        <div class="card"><div class="l">Total</div><div class="v">${esc(formatCurrency(total))}</div></div>
+        <div class="card"><div class="l">Pago</div><div class="v">${esc(formatCurrency(pago))}</div></div>
+        <div class="card"><div class="l">Em aberto</div><div class="v ${rest > 0 ? 'danger' : ''}">${esc(formatCurrency(rest))}</div></div>
+      </div>
+      <table>
+        <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Fornecedor</th><th class="r">Valor</th></tr></thead>
+        <tbody>${linhas || '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:20px">Sem lançamentos.</td></tr>'}</tbody>
+        <tfoot><tr><td colspan="4">Total (${lancamentos.length} lançamento${lancamentos.length === 1 ? '' : 's'})</td><td class="r">${esc(formatCurrency(total))}</td></tr></tfoot>
+      </table>
+      <script>window.onload=function(){window.focus();window.print();}</script>
+      </body></html>`;
+    const w = window.open('', '_blank', 'width=900,height=1000');
+    if (!w) { return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  };
+
+  const sheetClass = 'p-0 max-h-[94dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[1180px] sm:mx-auto';
 
   const Header = () => (
     <div className="flex items-center gap-2.5 px-5 pt-1 pb-3">
@@ -247,8 +319,8 @@ export function FaturaDetailDialog({
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="bottom" showHandle className={sheetClass}>
-          {/* Top bar: título + navegação de competência */}
-          <div className="flex flex-wrap items-center gap-2.5 px-5 pt-1 pb-3 md:px-7 md:pt-2">
+          {/* Top bar: título + navegação de competência (pr p/ não colidir com o X) */}
+          <div className="flex flex-wrap items-center gap-2.5 pl-5 pr-14 pt-1 pb-3 md:pl-7 md:pr-16 md:pt-2">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-primary">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
             </span>
@@ -316,6 +388,24 @@ export function FaturaDetailDialog({
                   <PlusIcon className="h-4 w-4" strokeWidth={2.4} /> Novo lançamento
                 </button>
               )}
+
+              {/* Exportar lançamentos da fatura */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={baixarCsv}
+                  disabled={lancamentos.length === 0}
+                  className="flex items-center justify-center gap-1.5 rounded-[12px] border border-border/60 bg-surface/40 py-2.5 text-[12.5px] font-semibold text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-40"
+                >
+                  <Download className="h-3.5 w-3.5" /> CSV
+                </button>
+                <button
+                  onClick={baixarPdf}
+                  disabled={lancamentos.length === 0}
+                  className="flex items-center justify-center gap-1.5 rounded-[12px] border border-border/60 bg-surface/40 py-2.5 text-[12.5px] font-semibold text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-40"
+                >
+                  <Download className="h-3.5 w-3.5" /> PDF
+                </button>
+              </div>
             </div>
 
             {/* COLUNA DIREITA: form + lançamentos + pagamentos */}
