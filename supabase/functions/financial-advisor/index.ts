@@ -343,6 +343,8 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • Perguntas de resultado/desempenho ("quanto faturei/gastei/lucrei", "margem", "por categoria", "top clientes") → resumo_financeiro (regime de competência).
   • Perguntas de agenda/caixa futuro-ou-passado por data ("o que vence/tenho a pagar/a receber", "hoje", "amanhã", "essa semana", "resto do mês") → agenda_vencimentos (por data de vencimento).
   • Procurar por fornecedor/descrição ("quanto paguei pra X") → buscar_lancamento. Panorama de um cliente → detalhe_cliente. Saldo atual/cartões → saldo_e_contas. Projeção de caixa futuro → projecao_fluxo. Comparar dois períodos → comparativo_periodos.
+  • Por FORMA DE PAGAMENTO ("quanto fiz/paguei/recebi de PIX", "quanto no cartão/boleto/dinheiro") → movimento_por_forma (com o intervalo pedido: hoje, ontem, essa semana, esse mês, período).
+  • "Quanto está minha fatura do cartão?" / "quanto devo no cartão" → saldo_e_contas (campo cartoes[].fatura_aberta é a fatura em aberto; total_faturas_abertas é a soma).
 - Você pode chamar mais de uma ferramenta antes de responder (ex.: saldo_e_contas + projecao_fluxo para dizer se vai faltar caixa).
 - Se a pessoa não disser o período, responda com o período do contexto ("${periodLabel}") e diga qual período usou. Sempre deixe claro o intervalo que os números cobrem.
 
@@ -377,6 +379,7 @@ ${contexto}`;
       { type: "function", function: { name: "saldo_e_contas", description: "Saldo atual de cada conta + total em caixa e cartões (fatura aberta, limite, disponível). Ex: 'meu saldo', 'como estão meus cartões'.", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "projecao_fluxo", description: "Projeta a variação de caixa nos próximos N dias (a receber − a pagar por vencimento). Ex: 'vou ter caixa mês que vem'. Combine com saldo_e_contas.", parameters: { type: "object", properties: { dias: { type: "number", description: "dias à frente (ex: 30)" } }, required: ["dias"] } } },
       { type: "function", function: { name: "comparativo_periodos", description: "Compara dois intervalos por competência (recebido, pago, lucro, margem) com variação %. Ex: 'esse mês vs passado'.", parameters: { type: "object", properties: { inicio_a: D, fim_a: D, inicio_b: D, fim_b: D }, required: ["inicio_a", "fim_a", "inicio_b", "fim_b"] } } },
+      { type: "function", function: { name: "movimento_por_forma", description: "Soma por FORMA DE PAGAMENTO (Pix, cartão de crédito/débito, boleto, dinheiro, transferência) num intervalo por competência. Use p/ 'quanto fiz/paguei/recebi de PIX', 'quanto no cartão', 'quanto em boleto' — hoje, ontem, essa semana, esse mês ou período.", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" } }, required: ["inicio", "fim"] } } },
       { type: "function", function: {
         name: "preparar_lancamentos",
         description: "Prepara uma PRÉVIA de um ou mais lançamentos (despesa/receita) para a pessoa CONFIRMAR e criar na tela. Use quando pedirem para lançar/registrar/adicionar/anotar gasto, conta, receita, compra no cartão, parcelamento ou recorrente. NÃO grava sozinho.",
@@ -520,6 +523,33 @@ ${contexto}`;
           pago_pct: varPct(a.pago, b.pago),
           lucro_pct: varPct(a.lucro, b.lucro),
         },
+      });
+    }
+
+    // Soma por forma de pagamento (Pix, cartão, boleto...) num intervalo (competência).
+    const FORMA_LABEL_IA: Record<string, string> = {
+      pix: "Pix", boleto: "Boleto", cartao_credito: "Cartão de crédito",
+      cartao_debito: "Cartão de débito", dinheiro: "Dinheiro", transferencia: "Transferência",
+    };
+    const rotuloForma = (f: string | null) => f ? (FORMA_LABEL_IA[f] || f) : "Não informada";
+    async function toolPorForma(inicio: string, fim: string, tipo?: string): Promise<string> {
+      const wantRec = tipo !== "despesa";
+      const wantDesp = tipo !== "receita";
+      const [rec, desp] = await Promise.all([
+        wantRec ? safe<any>(supabase.from("receitas").select("valor,forma_pagamento,status").gte("data_competencia", inicio).lte("data_competencia", fim)) : Promise.resolve([]),
+        wantDesp ? safe<any>(supabase.from("despesas").select("valor,forma_pagamento,status").gte("data_competencia", inicio).lte("data_competencia", fim)) : Promise.resolve([]),
+      ]);
+      const agrupa = (arr: any[]) => {
+        const m: Record<string, number> = {};
+        for (const x of arr) { const k = rotuloForma(x.forma_pagamento); m[k] = (m[k] || 0) + Number(x.valor || 0); }
+        return Object.fromEntries(Object.entries(m).sort((a, b) => b[1] - a[1]));
+      };
+      const soma = (arr: any[]) => arr.reduce((s, x) => s + Number(x.valor || 0), 0);
+      return JSON.stringify({
+        periodo: { inicio, fim },
+        obs: "Valores por competência (inclui pendentes). 'fiz/recebi/paguei' de PIX = some o Pix do bloco certo.",
+        ...(wantRec ? { receitas_por_forma: agrupa(rec), total_receitas: soma(rec) } : {}),
+        ...(wantDesp ? { despesas_por_forma: agrupa(desp), total_despesas: soma(desp) } : {}),
       });
     }
 
@@ -682,6 +712,7 @@ ${contexto}`;
             else if (tc.function.name === "saldo_e_contas") result = await toolSaldoContas();
             else if (tc.function.name === "projecao_fluxo") result = await toolProjecao(args.dias);
             else if (tc.function.name === "comparativo_periodos") result = await toolComparativo(args.inicio_a, args.fim_a, args.inicio_b, args.fim_b);
+            else if (tc.function.name === "movimento_por_forma") result = await toolPorForma(args.inicio, args.fim, args.tipo);
             else if (tc.function.name === "preparar_lancamentos") result = prepararLancamentos(args.lancamentos);
           } catch (e) {
             result = JSON.stringify({ erro: e instanceof Error ? e.message : "falha na consulta" });

@@ -512,6 +512,7 @@ export default function FluxoCaixa() {
       data_pagamento: t.data_efetivacao || undefined,
       status: t.status as 'pendente' | 'pago' | 'atrasado',
       tipo: t.tipo_despesa || 'variavel',
+      forma_pagamento: t.forma_pagamento || undefined,
     });
     setSaidaValorJuros('');
     setSaidaValorTarifa('');

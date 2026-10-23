@@ -376,7 +376,7 @@ export function useDespesas() {
       // Só envia campos explicitamente presentes em formData (evita sobrescrever com null
       // quando o call site faz update parcial, ex: "dar baixa" enviando só status+data).
       const payload: Record<string, unknown> = {};
-      const nullableKeys = ['categoria_id', 'cliente_id', 'fornecedor', 'data_pagamento'] as const;
+      const nullableKeys = ['categoria_id', 'cliente_id', 'fornecedor', 'data_pagamento', 'forma_pagamento'] as const;
       const directKeys = ['descricao', 'valor', 'data_competencia', 'data_vencimento', 'tipo'] as const;
       for (const k of nullableKeys) {
         if ((formData as any)[k] !== undefined) payload[k] = (formData as any)[k] || null;
