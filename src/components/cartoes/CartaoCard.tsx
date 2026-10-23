@@ -1,6 +1,8 @@
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CreditCardIcon } from '@heroicons/react/24/outline';
+import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { formatCurrency } from '@/utils/formatters';
 import type { ContaDB } from '@/hooks/useContas';
 import type { FaturaDB } from '@/hooks/useFaturas';
@@ -19,7 +21,7 @@ interface CartaoCardProps {
   onImportCsv?: () => void;
 }
 
-export function CartaoCard({ cartao, faturaAtual, usado: usadoProp, onPagar, onLancamentos, onImportCsv }: CartaoCardProps) {
+export function CartaoCard({ cartao, faturaAtual, usado: usadoProp, onEdit, onDelete, onPagar, onLancamentos, onImportCsv }: CartaoCardProps) {
   const limite = Number(cartao.limite || 0);
   // Valor da fatura ATUAL (para o card "Fatura atual" e o botão Pagar).
   const faturaAtualValor = faturaAtual ? Math.max(Number(faturaAtual.valor_total) - Number(faturaAtual.valor_pago), 0) : 0;
@@ -42,8 +44,30 @@ export function CartaoCard({ cartao, faturaAtual, usado: usadoProp, onPagar, onL
       className="auro-card relative overflow-hidden rounded-[22px] border border-[rgba(244,236,221,0.12)] px-4 pt-4 pb-3.5 text-[#fff5e9]"
       style={cardFace}
     >
+      {/* Menu (editar / excluir) — fora do botão do header pra não aninhar <button> */}
+      <div className="absolute right-3 top-3 z-20">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              aria-label="Opções do cartão"
+              className="grid h-8 w-8 place-items-center rounded-[10px] bg-white/[0.14] text-[#fff5e9] transition-colors hover:bg-white/25"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-44 p-1.5 rounded-xl border border-border/60 bg-surface/95 backdrop-blur-2xl">
+            <button onClick={onEdit} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+              <Pencil className="h-4 w-4 text-foreground-muted" /> Editar cartão
+            </button>
+            <button onClick={onDelete} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-[hsl(var(--danger))] transition-colors hover:bg-[hsl(var(--danger))]/10">
+              <Trash2 className="h-4 w-4" /> Excluir cartão
+            </button>
+          </PopoverContent>
+        </Popover>
+      </div>
+
       {/* Header — tocável abre o detalhe/lançamentos */}
-      <button onClick={onLancamentos} className="relative flex w-full items-center gap-2.5 text-left">
+      <button onClick={onLancamentos} className="relative flex w-full items-center gap-2.5 pr-10 text-left">
         <div className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[10px] bg-white/[0.16]">
           <CreditCardIcon className="h-[18px] w-[18px] text-[#fff5e9]" />
         </div>
