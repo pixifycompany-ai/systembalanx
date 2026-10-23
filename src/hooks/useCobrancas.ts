@@ -130,6 +130,22 @@ export function useCobrancas() {
     }
   };
 
+  // Desvincula o contrato da assinatura do Asaas (não cancela no Asaas, só aqui).
+  const desvincularAssinatura = async (contrato_id: string) => {
+    setBusyId(contrato_id);
+    try {
+      await invoke({ action: 'desvincular-assinatura', contrato_id });
+      toast.success('Contrato desvinculado do Asaas.', { description: 'A assinatura continua existindo no Asaas.' });
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao desvincular');
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const criarAvulsa = async (payload: { cliente_id: string; valor: number; vencimento: string; descricao?: string; forma_pagamento: string; conta_id?: string | null; multa_percent?: number; juros_percent?: number }) => {
     setBusyId('avulsa');
     try {
@@ -522,7 +538,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, desvincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

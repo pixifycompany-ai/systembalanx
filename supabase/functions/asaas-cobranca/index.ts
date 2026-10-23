@@ -307,6 +307,32 @@ serve(async (req) => {
       return json({ ok: true, valor: Number(sub.value), cobrancas: novas });
     }
 
+    // ===== DESVINCULAR assinatura (desfaz o vínculo no BALANX, não mexe no Asaas) =====
+    if (action === "desvincular-assinatura") {
+      const { contrato_id } = body;
+      const { data: contrato } = await admin.from("contratos").select("id, asaas_subscription_id").eq("id", contrato_id).eq("user_id", user.id).maybeSingle();
+      if (!contrato) return json({ error: "Contrato não encontrado." }, 404);
+      const subId = contrato.asaas_subscription_id as string | null;
+      // Tira o vínculo do contrato.
+      await admin.from("contratos").update({ asaas_subscription_id: null }).eq("id", contrato.id);
+      // Cancela as cobranças locais NÃO pagas desse contrato/assinatura e remove as
+      // receitas criadas pela integração (parcela lançada à mão é preservada).
+      let removidas = 0;
+      if (subId) {
+        const { data: cobs } = await admin.from("cobrancas").select("*")
+          .eq("user_id", user.id).eq("asaas_subscription_id", subId).eq("contrato_id", contrato.id)
+          .not("status", "in", "(cancelado,estornado)");
+        for (const c of cobs || []) {
+          if (c.status === "pago") continue; // histórico pago fica
+          await apagarReceitaSeCriada(admin, c);
+          await admin.from("cobrancas").update({ status: "cancelado", receita_id: null, updated_at: new Date().toISOString() }).eq("id", c.id);
+          removidas++;
+        }
+      }
+      // A assinatura continua existindo no Asaas (apenas deixou de ser rastreada aqui).
+      return json({ ok: true, removidas });
+    }
+
     // ===== AGRUPAR: vários contratos do mesmo cliente numa assinatura só =====
     // modo "criar": nova assinatura no Asaas com a soma dos contratos.
     // modo "vincular": usa uma assinatura que já existe; o valor do Asaas vale e,

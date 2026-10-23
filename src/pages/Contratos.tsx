@@ -113,6 +113,7 @@ export default function Contratos() {
     criarDoContrato: criarCobranca,
     listarAssinaturas,
     vincularAssinatura,
+    desvincularAssinatura,
     reajustarAssinatura,
     cancelar: cancelarCobranca,
     excluir: excluirCobranca,
@@ -222,6 +223,7 @@ export default function Contratos() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingContrato, setEditingContrato] = useState<{ id: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [desvincularAlvo, setDesvincularAlvo] = useState<{ id: string; nome: string } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [duplicateMatch, setDuplicateMatch] = useState<DuplicateMatch | null>(null);
@@ -729,9 +731,13 @@ export default function Contratos() {
                 cobranca={cobrancaDoContrato(c.id)}
                 busy={cobrBusyId === c.id || cobrBusyId === cobrancaDoContrato(c.id)?.id}
                 contas={contasRecebimento}
+                clienteNome={c.cliente?.nome || c.cliente_nome || ''}
+                contratoDescricao={c.descricao}
+                contratoValor={c.valor}
                 onCobrar={(forma, contaId, extra) => criarCobranca(c.id, forma, contaId, extra)}
                 onListarAssinaturas={() => listarAssinaturas(c.cliente_id)}
                 onVincular={async (subId, contaId) => { await vincularAssinatura(c.id, subId, contaId); refetchContratos(); }}
+                onDesvincular={() => setDesvincularAlvo({ id: c.id, nome: c.cliente?.nome || c.descricao || 'contrato' })}
                 onCancelar={() => { const cb = cobrancaDoContrato(c.id); if (cb) cancelarCobranca(cb.id); }}
                 onExcluir={() => { const cb = cobrancaDoContrato(c.id); if (cb) excluirCobranca(cb.id); }}
                 onSincronizar={() => sincronizarCobrancas(c.id)}
@@ -810,9 +816,13 @@ export default function Contratos() {
                           cobranca={cobrancaDoContrato(contrato.id)}
                           busy={cobrBusyId === contrato.id || cobrBusyId === cobrancaDoContrato(contrato.id)?.id}
                           contas={contasRecebimento}
+                          clienteNome={contrato.cliente?.nome || ''}
+                          contratoDescricao={contrato.descricao}
+                          contratoValor={contrato.valor}
                           onCobrar={(forma, contaId, extra) => criarCobranca(contrato.id, forma, contaId, extra)}
                           onListarAssinaturas={() => listarAssinaturas(contrato.cliente_id)}
                           onVincular={async (subId, contaId) => { await vincularAssinatura(contrato.id, subId, contaId); refetchContratos(); }}
+                          onDesvincular={() => setDesvincularAlvo({ id: contrato.id, nome: contrato.cliente?.nome || contrato.descricao || 'contrato' })}
                           onCancelar={() => { const c = cobrancaDoContrato(contrato.id); if (c) cancelarCobranca(c.id); }}
                           onExcluir={() => { const c = cobrancaDoContrato(contrato.id); if (c) excluirCobranca(c.id); }}
                           onSincronizar={() => sincronizarCobrancas(contrato.id)}
@@ -1306,6 +1316,19 @@ export default function Contratos() {
             </form>
           </SheetContent>
         </Sheet>
+
+        {/* Desvincular do Asaas */}
+        <ConfirmDialog
+          open={!!desvincularAlvo}
+          onOpenChange={(o) => !o && setDesvincularAlvo(null)}
+          title="Desvincular do Asaas"
+          description={`Desfazer o vínculo de "${desvincularAlvo?.nome || 'contrato'}" com a assinatura do Asaas? As cobranças em aberto geradas aqui serão canceladas e o contrato volta a poder ser cobrado de novo. A assinatura continua existindo no Asaas (não é cancelada lá).`}
+          confirmLabel="Desvincular"
+          onConfirm={async () => {
+            if (desvincularAlvo) { await desvincularAssinatura(desvincularAlvo.id); await refetchContratos(); }
+            setDesvincularAlvo(null);
+          }}
+        />
 
         {/* Delete Confirmation */}
         <ConfirmDialog

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, ExternalLink, RefreshCw, XCircle, Trash2, Zap, Link2, ChevronLeft, MessageCircle, HandCoins, Layers } from 'lucide-react';
+import { Loader2, ExternalLink, RefreshCw, XCircle, Trash2, Zap, Link2, Unlink, ChevronLeft, MessageCircle, HandCoins, Layers, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
 import { COBRANCA_STATUS_LABEL, type Cobranca, type AsaasAssinatura } from '@/hooks/useCobrancas';
@@ -33,11 +33,17 @@ interface Props {
   onSincronizar: () => void;
   onWhatsapp: () => void;
   onReceberManual: () => void;
+  /** Desfaz o vínculo do contrato com a assinatura do Asaas (não cancela no Asaas). */
+  onDesvincular?: () => void;
+  /** Contexto do contrato, para o popup de vincular mostrar de quem/qual é. */
+  clienteNome?: string;
+  contratoDescricao?: string;
+  contratoValor?: number;
   /** Quantos contratos dividem esta fatura (agrupamento). 1 = cobrança normal. */
   grupoQtd?: number;
 }
 
-export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCobrar, onListarAssinaturas, onVincular, onCancelar, onExcluir, onSincronizar, onWhatsapp, onReceberManual, grupoQtd = 1 }: Props) {
+export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCobrar, onListarAssinaturas, onVincular, onCancelar, onExcluir, onSincronizar, onWhatsapp, onReceberManual, onDesvincular, clienteNome, contratoDescricao, contratoValor, grupoQtd = 1 }: Props) {
   const [forma, setForma] = useState('UNDEFINED');
   const [contaId, setContaId] = useState('');
   const [multa, setMulta] = useState('');
@@ -78,7 +84,17 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
             <Zap className="h-3.5 w-3.5 text-primary" /> Cobrar via Asaas
           </button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-64 p-3 rounded-xl border border-border/60 bg-surface/95 backdrop-blur-2xl">
+        <PopoverContent align="end" className="w-[340px] max-w-[92vw] p-3.5 rounded-2xl border border-border/60 bg-surface/95 backdrop-blur-2xl">
+          {/* Contexto: de qual contrato/cliente é esta cobrança */}
+          <div className="mb-3 flex items-start gap-2 rounded-xl border border-border/50 bg-surface-2/40 px-3 py-2.5">
+            <Zap className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-semibold text-foreground">{contratoDescricao || 'Contrato'}</p>
+              <p className="truncate text-[11.5px] text-foreground-muted">
+                {[clienteNome, contratoValor ? formatCurrency(Number(contratoValor)) : null].filter(Boolean).join(' · ') || 'Cobrança via Asaas'}
+              </p>
+            </div>
+          </div>
           {mode === 'criar' ? (
             <>
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Forma de pagamento</p>
@@ -116,25 +132,34 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
               </button>
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Conta (recebimento)</p>
               {contaSelect}
-              <p className="mt-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Assinaturas no Asaas</p>
+              <p className="mt-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
+                Assinaturas no Asaas{clienteNome ? <span className="normal-case text-foreground"> · {clienteNome}</span> : ''}
+              </p>
               {loadingList ? (
                 <div className="flex items-center gap-2 py-3 text-xs text-foreground-muted"><Loader2 className="h-4 w-4 animate-spin" /> Buscando…</div>
               ) : !assinaturas || assinaturas.length === 0 ? (
                 <p className="py-2 text-xs text-foreground-muted">Nenhuma assinatura encontrada pra este cliente no Asaas.</p>
               ) : (
-                <div className="max-h-52 space-y-1 overflow-y-auto">
+                <div className="max-h-64 space-y-1.5 overflow-y-auto pr-0.5">
                   {assinaturas.map((s) => (
                     <button
                       key={s.id}
                       disabled={s.vinculada}
                       onClick={() => onVincular(s.id, contaId || null)}
-                      className={cn('w-full rounded-lg border border-border/60 bg-surface/60 px-2.5 py-2 text-left transition-colors', s.vinculada ? 'opacity-50 cursor-not-allowed' : 'hover:bg-surface-2')}
+                      className={cn('w-full rounded-xl border border-border/60 bg-surface/60 px-3 py-2.5 text-left transition-colors', s.vinculada ? 'opacity-60 cursor-not-allowed' : 'hover:border-primary/50 hover:bg-surface-2')}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-semibold text-foreground">{formatCurrency(Number(s.value))}</span>
-                        <span className="text-[10px] text-foreground-muted">{s.vinculada ? 'já vinculada' : (s.nextDueDate || '')}</span>
+                        <span className="text-[15px] font-semibold tabular-nums text-foreground">{formatCurrency(Number(s.value))}</span>
+                        {s.vinculada
+                          ? <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--success))]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--success))]"><CheckCircle2 className="h-3 w-3" /> vinculada</span>
+                          : <span className="text-[10.5px] text-foreground-muted">vence {s.nextDueDate || '—'}</span>}
                       </div>
-                      <div className="truncate text-[11px] text-foreground-muted">{s.description || 'Sem descrição'}</div>
+                      <div className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-foreground-muted">{s.description || 'Sem descrição'}</div>
+                      <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] text-foreground-subtle">
+                        {s.cycle && <span className="rounded-full bg-white/8 px-1.5 py-0.5">{s.cycle}</span>}
+                        {s.billingType && <span className="rounded-full bg-white/8 px-1.5 py-0.5">{s.billingType}</span>}
+                        {s.status && <span className="rounded-full bg-white/8 px-1.5 py-0.5">{s.status}</span>}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -183,6 +208,11 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
         <button onClick={onCancelar} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
           <XCircle className="h-4 w-4 text-foreground-muted" /> Cancelar cobrança
         </button>
+        {onDesvincular && cobranca.asaas_subscription_id && (
+          <button onClick={onDesvincular} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+            <Unlink className="h-4 w-4 text-foreground-muted" /> Desvincular do Asaas
+          </button>
+        )}
         <button onClick={onExcluir} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-[hsl(var(--danger))] transition-colors hover:bg-[hsl(var(--danger))]/10">
           <Trash2 className="h-4 w-4" /> Excluir cobrança
         </button>
