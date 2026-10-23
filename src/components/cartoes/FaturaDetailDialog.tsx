@@ -194,7 +194,7 @@ export function FaturaDetailDialog({
     if (fatura) await fetchLancamentos(fatura.id);
   };
 
-  const sheetClass = 'p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[640px] sm:mx-auto';
+  const sheetClass = 'p-0 max-h-[94dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[960px] sm:mx-auto';
 
   const Header = () => (
     <div className="flex items-center gap-2.5 px-5 pt-1 pb-3">
@@ -236,133 +236,158 @@ export function FaturaDetailDialog({
     );
   }
 
-  const restante = Number(fatura.valor_total) - Number(fatura.valor_pago);
+  const total = Number(fatura.valor_total);
+  const pago = Number(fatura.valor_pago);
+  const restante = total - pago;
+  const pct = total > 0 ? Math.min(100, Math.max(0, Math.round((pago / total) * 100))) : 0;
   const pagsFatura = pagamentos.filter(p => p.fatura_id === fatura.id);
+  const statusTone = fatura.status === 'paga' ? 'success' : restante > 0 ? 'danger' : 'muted';
 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="bottom" showHandle className={sheetClass}>
-          <Header />
-
-          <div className="px-5 pb-5 space-y-4">
-            {/* Navegação entre meses */}
-            <div className="flex items-center justify-between gap-2">
+          {/* Top bar: título + navegação de competência */}
+          <div className="flex flex-wrap items-center gap-2.5 px-5 pt-1 pb-3 md:px-7 md:pt-2">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-primary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+            </span>
+            <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-foreground md:text-[21px]">Faturas — {cartao.nome}</h2>
+            <div className="ml-auto flex items-center gap-1.5">
               <button
                 disabled={idx >= cartaoFaturas.length - 1}
                 onClick={() => setIdx(i => i + 1)}
-                className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-surface/60 text-foreground disabled:opacity-30"
+                aria-label="Competência anterior"
+                className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-surface/60 text-foreground transition-colors hover:bg-surface-2 disabled:opacity-30"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <div className="flex-1 text-center">
-                <p className="text-[10px] uppercase tracking-wide text-foreground-muted">Competência</p>
-                <p className="text-sm font-semibold text-foreground">{rotuloCompetencia(fatura.competencia)}</p>
+              <div className="min-w-[116px] text-center">
+                <p className="text-[9.5px] uppercase tracking-wide text-foreground-muted">Competência</p>
+                <p className="text-[13.5px] font-semibold text-foreground">{rotuloCompetencia(fatura.competencia)}</p>
               </div>
               <button
                 disabled={idx <= 0}
                 onClick={() => setIdx(i => i - 1)}
-                className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-surface/60 text-foreground disabled:opacity-30"
+                aria-label="Próxima competência"
+                className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-surface/60 text-foreground transition-colors hover:bg-surface-2 disabled:opacity-30"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
+          </div>
 
-            {/* Novo lançamento */}
-            <div className="flex justify-end">
-              <button onClick={openCreate} className="inline-flex items-center gap-2 rounded-[12px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] px-4 py-2.5 text-[13px] font-semibold text-white">
-                <PlusIcon className="h-4 w-4" strokeWidth={2.4} /> Novo lançamento
-              </button>
-            </div>
+          <div className="px-5 pb-6 md:flex md:items-start md:gap-6 md:px-7 md:pb-7">
+            {/* COLUNA ESQUERDA: resumo + pagar + novo lançamento */}
+            <div className="space-y-3.5 md:sticky md:top-2 md:w-[316px] md:shrink-0 md:self-start">
+              <div className="auro-card rounded-2xl border border-border/60 bg-surface/55 p-4 md:p-5">
+                <p className="text-[10.5px] uppercase tracking-wide text-foreground-muted">Em aberto</p>
+                <p className={`mt-0.5 text-[30px] font-bold leading-none tracking-[-0.02em] tabular-nums md:text-[34px] ${restante > 0 ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
+                  {formatCurrency(restante)}
+                </p>
 
-            {/* Resumo */}
-            <div className="auro-card grid grid-cols-3 gap-y-3 rounded-2xl border border-border/60 bg-surface/55 px-4 py-3.5">
-              <Summary lab="Total" val={formatCurrency(Number(fatura.valor_total))} />
-              <Summary lab="Pago" val={formatCurrency(Number(fatura.valor_pago))} />
-              <Summary lab="Em aberto" val={formatCurrency(restante)} strong danger={restante > 0} />
-              <Summary lab="Vencimento" val={format(parseISO(fatura.data_vencimento), 'dd/MM/yyyy')} />
-              <Summary lab="Fechamento" val={format(parseISO(fatura.data_fechamento), 'dd/MM/yyyy')} />
-              <Summary lab="Status" val={fatura.status.replace('_', ' ')} capitalize />
-            </div>
-
-            {/* Form inline */}
-            {formOpen && (
-              <LancamentoFormInline
-                categorias={categorias}
-                form={form}
-                setForm={setForm}
-                editing={editing}
-                saving={saving}
-                onCancel={() => { setFormOpen(false); resetForm(); }}
-                onSave={handleSave}
-              />
-            )}
-
-            {/* Lançamentos */}
-            <div>
-              <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
-                Lançamentos ({lancamentos.length})
-              </h4>
-              {loadingLancs ? (
-                <p className="py-3 text-center text-sm text-foreground-muted">Carregando…</p>
-              ) : lancamentos.length === 0 ? (
-                <p className="py-3 text-center text-sm text-foreground-muted">Sem lançamentos.</p>
-              ) : (
-                <div className="auro-card overflow-hidden rounded-2xl border border-border/60 bg-surface/55 divide-y divide-border/50">
-                  {lancamentos.map((l) => (
-                    <div key={l.id} className="flex items-center gap-3 px-4 py-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground uppercase">{l.descricao}</p>
-                        <p className="truncate text-[11px] text-foreground-muted uppercase">
-                          {format(parseISO(l.data_competencia), "dd 'de' MMM", { locale: ptBR })}
-                          {l.categoria?.nome ? ` · ${l.categoria.nome}` : ''}
-                          {l.fornecedor ? ` · ${l.fornecedor}` : ''}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatCurrency(Number(l.valor))}</span>
-                      <div className="flex shrink-0 items-center gap-1">
-                        <button onClick={() => openEdit(l)} aria-label="Editar" className="grid h-8 w-8 place-items-center rounded-lg text-foreground-muted hover:bg-white/5 hover:text-foreground">
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => setDeleteState(l)} aria-label="Excluir" className="grid h-8 w-8 place-items-center rounded-lg text-[hsl(var(--danger))] hover:bg-white/5">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                {/* Progresso pago/total */}
+                <div className="mt-3.5 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-[hsl(var(--success))] transition-all" style={{ width: `${pct}%` }} />
                 </div>
+                <p className="mt-1.5 text-[11px] text-foreground-muted">
+                  Pago <b className="text-foreground">{formatCurrency(pago)}</b> de {formatCurrency(total)} · {pct}%
+                </p>
+
+                <div className="mt-4 grid grid-cols-2 gap-y-3 border-t border-border/50 pt-3.5">
+                  <Summary lab="Vencimento" val={format(parseISO(fatura.data_vencimento), 'dd/MM/yyyy')} />
+                  <Summary lab="Fechamento" val={format(parseISO(fatura.data_fechamento), 'dd/MM/yyyy')} />
+                  <Summary lab="Status" val={fatura.status.replace('_', ' ')} capitalize tone={statusTone} />
+                  <Summary lab="Lançamentos" val={String(lancamentos.length)} />
+                </div>
+
+                {restante > 0 && (
+                  <button
+                    onClick={() => onPagar(fatura)}
+                    className="mt-4 w-full rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13.5px] font-semibold text-white transition-transform active:scale-[0.99]"
+                  >
+                    Pagar fatura
+                  </button>
+                )}
+              </div>
+
+              {!formOpen && (
+                <button onClick={openCreate} className="flex w-full items-center justify-center gap-2 rounded-[14px] border border-border/60 bg-surface/60 py-3 text-[13px] font-semibold text-foreground transition-colors hover:bg-surface-2">
+                  <PlusIcon className="h-4 w-4" strokeWidth={2.4} /> Novo lançamento
+                </button>
               )}
             </div>
 
-            {/* Pagamentos */}
-            {pagsFatura.length > 0 && (
-              <div>
-                <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Pagamentos</h4>
-                <div className="auro-card overflow-hidden rounded-2xl border border-border/60 bg-surface/55 divide-y divide-border/50">
-                  {pagsFatura.map(p => {
-                    const conta = contas.find(c => c.id === p.conta_id);
-                    return (
-                      <div key={p.id} className="flex items-center justify-between px-4 py-3">
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">{conta?.nome || 'Conta'}</p>
-                          <p className="text-[11px] text-foreground-muted">{format(parseISO(p.data_pagamento), 'dd/MM/yyyy')}</p>
-                        </div>
-                        <span className="text-sm font-semibold tabular-nums text-[hsl(var(--success))]">{formatCurrency(Number(p.valor))}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {/* COLUNA DIREITA: form + lançamentos + pagamentos */}
+            <div className="mt-4 min-w-0 flex-1 space-y-4 md:mt-0">
+              {formOpen && (
+                <LancamentoFormInline
+                  categorias={categorias}
+                  form={form}
+                  setForm={setForm}
+                  editing={editing}
+                  saving={saving}
+                  onCancel={() => { setFormOpen(false); resetForm(); }}
+                  onSave={handleSave}
+                />
+              )}
 
-            {restante > 0 && (
-              <button
-                onClick={() => onPagar(fatura)}
-                className="w-full rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3.5 text-[14px] font-semibold text-white"
-              >
-                Pagar fatura
-              </button>
-            )}
+              <div>
+                <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
+                  Lançamentos ({lancamentos.length})
+                </h4>
+                {loadingLancs ? (
+                  <p className="py-3 text-center text-sm text-foreground-muted">Carregando…</p>
+                ) : lancamentos.length === 0 ? (
+                  <p className="rounded-2xl border border-border/60 bg-surface/55 py-8 text-center text-sm text-foreground-muted">Sem lançamentos nesta fatura.</p>
+                ) : (
+                  <div className="auro-card divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/60 bg-surface/55">
+                    {lancamentos.map((l) => (
+                      <div key={l.id} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]">
+                        <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: l.categoria?.cor || 'hsl(var(--primary))' }} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-foreground">{l.descricao}</p>
+                          <p className="truncate text-[11px] text-foreground-muted">
+                            {format(parseISO(l.data_competencia), "dd 'de' MMM", { locale: ptBR })}
+                            {l.categoria?.nome ? ` · ${l.categoria.nome}` : ''}
+                            {l.fornecedor ? ` · ${l.fornecedor}` : ''}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatCurrency(Number(l.valor))}</span>
+                        <div className="flex shrink-0 items-center gap-1 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
+                          <button onClick={() => openEdit(l)} aria-label="Editar" className="grid h-8 w-8 place-items-center rounded-lg text-foreground-muted hover:bg-white/5 hover:text-foreground">
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => setDeleteState(l)} aria-label="Excluir" className="grid h-8 w-8 place-items-center rounded-lg text-[hsl(var(--danger))] hover:bg-white/5">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {pagsFatura.length > 0 && (
+                <div>
+                  <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Pagamentos</h4>
+                  <div className="auro-card divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/60 bg-surface/55">
+                    {pagsFatura.map(p => {
+                      const conta = contas.find(c => c.id === p.conta_id);
+                      return (
+                        <div key={p.id} className="flex items-center justify-between px-4 py-3">
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{conta?.nome || 'Conta'}</p>
+                            <p className="text-[11px] text-foreground-muted">{format(parseISO(p.data_pagamento), 'dd/MM/yyyy')}</p>
+                          </div>
+                          <span className="text-sm font-semibold tabular-nums text-[hsl(var(--success))]">{formatCurrency(Number(p.valor))}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </SheetContent>
       </Sheet>
@@ -380,11 +405,18 @@ export function FaturaDetailDialog({
   );
 }
 
-function Summary({ lab, val, strong, danger, capitalize }: { lab: string; val: string; strong?: boolean; danger?: boolean; capitalize?: boolean }) {
+function Summary({ lab, val, danger, capitalize, tone }: { lab: string; val: string; strong?: boolean; danger?: boolean; capitalize?: boolean; tone?: 'success' | 'danger' | 'muted' }) {
+  const color = danger || tone === 'danger'
+    ? 'text-[hsl(var(--danger))]'
+    : tone === 'success'
+      ? 'text-[hsl(var(--success))]'
+      : tone === 'muted'
+        ? 'text-foreground-muted'
+        : 'text-foreground';
   return (
     <div>
       <p className="text-[10.5px] text-foreground-muted">{lab}</p>
-      <p className={`mt-0.5 text-[13.5px] tabular-nums ${strong ? 'font-semibold' : 'font-semibold'} ${danger ? 'text-[hsl(var(--danger))]' : 'text-foreground'} ${capitalize ? 'capitalize' : ''}`}>
+      <p className={`mt-0.5 text-[13.5px] font-semibold tabular-nums ${color} ${capitalize ? 'capitalize' : ''}`}>
         {val}
       </p>
     </div>
