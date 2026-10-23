@@ -346,6 +346,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • Por FORMA DE PAGAMENTO ("quanto fiz/paguei/recebi de PIX", "quanto no cartão/boleto/dinheiro") → movimento_por_forma (com o intervalo pedido: hoje, ontem, essa semana, esse mês, período).
   • "Quanto está minha fatura do cartão?" / "quanto devo no cartão" → saldo_e_contas (campo cartoes[].fatura_aberta é a fatura em aberto; total_faturas_abertas é a soma).
   • Compras PARCELADAS no cartão ("quantas parcelas faltam", "o que ainda está parcelado", "parcelas do notebook") → compras_parceladas (traz nº de parcelas, pagas, faltam, valor da parcela, próxima data de vencimento e valor restante por compra).
+  • Total COMPROMETIDO em parcelas nos próximos meses ("quanto da fatura futura já está tomado", "quanto já devo em parcelas") → parcelas_comprometidas (soma por mês o que falta pagar de parcelas).
 - Você pode chamar mais de uma ferramenta antes de responder (ex.: saldo_e_contas + projecao_fluxo para dizer se vai faltar caixa).
 - Se a pessoa não disser o período, responda com o período do contexto ("${periodLabel}") e diga qual período usou. Sempre deixe claro o intervalo que os números cobrem.
 
@@ -382,6 +383,7 @@ ${contexto}`;
       { type: "function", function: { name: "comparativo_periodos", description: "Compara dois intervalos por competência (recebido, pago, lucro, margem) com variação %. Ex: 'esse mês vs passado'.", parameters: { type: "object", properties: { inicio_a: D, fim_a: D, inicio_b: D, fim_b: D }, required: ["inicio_a", "fim_a", "inicio_b", "fim_b"] } } },
       { type: "function", function: { name: "movimento_por_forma", description: "Soma por FORMA DE PAGAMENTO (Pix, cartão de crédito/débito, boleto, dinheiro, transferência) num intervalo por competência. Use p/ 'quanto fiz/paguei/recebi de PIX', 'quanto no cartão', 'quanto em boleto' — hoje, ontem, essa semana, esse mês ou período.", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" } }, required: ["inicio", "fim"] } } },
       { type: "function", function: { name: "compras_parceladas", description: "Compras PARCELADAS no cartão: cada compra com nº de parcelas, quantas já foram pagas e quantas FALTAM, valor da parcela, próxima data de vencimento e valor restante. Use p/ 'minhas compras parceladas', 'quantas parcelas faltam do X', 'o que ainda está parcelado no cartão'.", parameters: { type: "object", properties: { incluir_quitadas: { type: "boolean", description: "incluir compras já quitadas (padrão: false)" } } } } },
+      { type: "function", function: { name: "parcelas_comprometidas", description: "Quanto das PRÓXIMAS FATURAS já está comprometido com parcelamentos do cartão, somado por MÊS de vencimento (parcelas ainda não pagas). Use p/ 'quanto já devo em parcelas nos próximos meses', 'quanto da fatura futura já está tomado', 'total comprometido em parcelas'.", parameters: { type: "object", properties: { meses: { type: "number", description: "quantos meses à frente (padrão 12)" } } } } },
       { type: "function", function: {
         name: "preparar_lancamentos",
         description: "Prepara uma PRÉVIA de um ou mais lançamentos (despesa/receita) para a pessoa CONFIRMAR e criar na tela. Use quando pedirem para lançar/registrar/adicionar/anotar gasto, conta, receita, compra no cartão, parcelamento ou recorrente. NÃO grava sozinho.",
@@ -595,6 +597,35 @@ ${contexto}`;
       return JSON.stringify({ total_compras_parceladas: compras.length, compras: compras.slice(0, 30) });
     }
 
+    // Total comprometido em parcelas (não pagas) por mês de vencimento, daqui pra frente.
+    async function toolParcelasComprometidas(meses?: number): Promise<string> {
+      const n = Math.min(36, Math.max(1, Math.floor(meses || 12)));
+      const linhas = await safe<any>(supabase.from("despesas")
+        .select("valor,status,data_vencimento,parcela_total,parcela_grupo_id,conta_id")
+        .not("parcela_grupo_id", "is", null).neq("status", "pago").gte("data_vencimento", mesIni));
+      const porMes: Record<string, { total: number; parcelas: number; grupos: Set<string> }> = {};
+      let total = 0;
+      for (const l of linhas) {
+        if (!(Number(l.parcela_total) > 1)) continue;
+        const mes = String(l.data_vencimento).slice(0, 7);
+        if (!porMes[mes]) porMes[mes] = { total: 0, parcelas: 0, grupos: new Set() };
+        porMes[mes].total += Number(l.valor || 0);
+        porMes[mes].parcelas += 1;
+        porMes[mes].grupos.add(l.parcela_grupo_id);
+        total += Number(l.valor || 0);
+      }
+      const r2 = (x: number) => Math.round(x * 100) / 100;
+      const por_mes = Object.entries(porMes)
+        .sort((a, b) => a[0].localeCompare(b[0])).slice(0, n)
+        .map(([mes, v]) => ({ mes, total: r2(v.total), parcelas: v.parcelas, compras: v.grupos.size }));
+      return JSON.stringify({
+        total_comprometido: r2(total),
+        a_partir_de: mesIni,
+        por_mes,
+        obs: "Soma das parcelas de cartão ainda NÃO pagas, por mês de vencimento. É o quanto das próximas faturas já está tomado por parcelamentos.",
+      });
+    }
+
     function sanitize(t: string) { return (t || "").replace(/[%,()]/g, " ").trim(); }
 
     async function toolBuscar(termo: string): Promise<string> {
@@ -756,6 +787,7 @@ ${contexto}`;
             else if (tc.function.name === "comparativo_periodos") result = await toolComparativo(args.inicio_a, args.fim_a, args.inicio_b, args.fim_b);
             else if (tc.function.name === "movimento_por_forma") result = await toolPorForma(args.inicio, args.fim, args.tipo);
             else if (tc.function.name === "compras_parceladas") result = await toolParceladas(args.incluir_quitadas);
+            else if (tc.function.name === "parcelas_comprometidas") result = await toolParcelasComprometidas(args.meses);
             else if (tc.function.name === "preparar_lancamentos") result = prepararLancamentos(args.lancamentos);
           } catch (e) {
             result = JSON.stringify({ erro: e instanceof Error ? e.message : "falha na consulta" });
