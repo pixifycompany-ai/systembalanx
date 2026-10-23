@@ -39,6 +39,18 @@ function diffDias(dueISO: string, hojeISO: string): number {
   const b = new Date(hojeISO + "T12:00:00Z").getTime();
   return Math.round((a - b) / 86400000);
 }
+// Fim de semana / rolagem para o próximo dia útil (segunda).
+function dowISO(iso: string): number { return new Date(iso + "T12:00:00Z").getUTCDay(); } // 0=dom..6=sáb
+function isFimDeSemana(iso: string): boolean { const d = dowISO(iso); return d === 0 || d === 6; }
+function addDiasISO(iso: string, n: number): string {
+  const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10);
+}
+function proxDiaUtilISO(iso: string): string {
+  const d = dowISO(iso);
+  if (d === 6) return addDiasISO(iso, 2); // sábado → segunda
+  if (d === 0) return addDiasISO(iso, 1); // domingo → segunda
+  return iso;
+}
 
 // deno-lint-ignore no-explicit-any
 function regraEfetiva(contrato: any, cfg: any): { antes: number; noDia: boolean; atrasoDiario: boolean; atrasoMax: number } | null {
@@ -78,7 +90,7 @@ serve(async (req) => {
   const hoje = hojeSP();
 
   const { data: cfgs } = await admin.from("cobranca_config")
-    .select("user_id, asaas_account_name, asaas_api_key, asaas_env, email_assunto, email_corpo, whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias");
+    .select("user_id, asaas_account_name, asaas_api_key, asaas_env, email_assunto, email_corpo, whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular, auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias, auto_envio_fim_semana");
   const cfgBy = new Map((cfgs || []).map((c) => [c.user_id, c]));
   // Reply-To do e-mail = e-mail de login da agência (resolvido sob demanda, com cache).
   const emailAgenciaCache = new Map<string, string | null>();
@@ -115,13 +127,26 @@ serve(async (req) => {
       const regra = regraEfetiva(cob.contratos as any, cfg);
       if (!regra) { pulados++; continue; }
 
+      // Fim de semana: quando desligado, não dispara sáb/dom e "rola" o lembrete
+      // (X dias antes / no dia) para a próxima segunda. O atraso diário só pula o fds.
+      const permiteFds = cfg?.auto_envio_fim_semana !== false; // padrão: pode
       const d = diffDias(cob.vencimento, hoje);
       let deve = false;
-      if (d > 0 && regra.antes > 0 && d === regra.antes) deve = true;
-      else if (d === 0 && regra.noDia) deve = true;
-      else if (d < 0 && regra.atrasoDiario) {
+      if (regra.antes > 0) {
+        let alvo = addDiasISO(cob.vencimento, -regra.antes);
+        if (!permiteFds) alvo = proxDiaUtilISO(alvo);
+        // só vale como lembrete "antes" se ainda estamos em/antes do vencimento
+        if (alvo === hoje && diffDias(cob.vencimento, hoje) >= 0) deve = true;
+      }
+      if (!deve && regra.noDia) {
+        let alvo = cob.vencimento;
+        if (!permiteFds) alvo = proxDiaUtilISO(alvo);
+        if (alvo === hoje) deve = true;
+      }
+      if (!deve && regra.atrasoDiario && d < 0) {
         const atraso = -d;
-        if (regra.atrasoMax === 0 || atraso <= regra.atrasoMax) deve = true;
+        const dentroMax = regra.atrasoMax === 0 || atraso <= regra.atrasoMax;
+        if (dentroMax && (permiteFds || !isFimDeSemana(hoje))) deve = true;
       }
       if (!deve) { pulados++; continue; }
 

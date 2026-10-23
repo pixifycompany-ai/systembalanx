@@ -89,7 +89,7 @@ export default function MeuPerfil() {
   };
 
   // Regras globais de envio automático por WhatsApp
-  const [autoCfg, setAutoCfg] = useState({ enabled: false, antesDias: 0, noDia: true, atrasoDiario: false, atrasoMax: 0 });
+  const [autoCfg, setAutoCfg] = useState({ enabled: false, antesDias: 0, noDia: true, atrasoDiario: false, atrasoMax: 0, fimDeSemana: true });
   const [savingAuto, setSavingAuto] = useState(false);
 
   const loadAsaasStatus = async () => {
@@ -124,13 +124,15 @@ export default function MeuPerfil() {
       if (d.email_assunto) setEmailAssunto(d.email_assunto);
       if (d.email_corpo) setEmailCorpo(d.email_corpo);
     });
-    await carregarExtra('auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias', (d) => setAutoCfg({
+    await carregarExtra('auto_wpp_enabled, auto_wpp_antes_dias, auto_wpp_no_dia, auto_wpp_atraso_diario, auto_wpp_atraso_max_dias', (d) => setAutoCfg((p) => ({
+      ...p,
       enabled: !!d.auto_wpp_enabled,
       antesDias: d.auto_wpp_antes_dias ?? 0,
       noDia: d.auto_wpp_no_dia ?? true,
       atrasoDiario: !!d.auto_wpp_atraso_diario,
       atrasoMax: d.auto_wpp_atraso_max_dias ?? 0,
-    }));
+    })));
+    await carregarExtra('auto_envio_fim_semana', (d) => setAutoCfg((p) => ({ ...p, fimDeSemana: d.auto_envio_fim_semana !== false })));
   };
 
   const salvarAutoCfg = async () => {
@@ -142,6 +144,7 @@ export default function MeuPerfil() {
       auto_wpp_no_dia: autoCfg.noDia,
       auto_wpp_atraso_diario: autoCfg.atrasoDiario,
       auto_wpp_atraso_max_dias: Math.max(0, Number(autoCfg.atrasoMax) || 0),
+      auto_envio_fim_semana: autoCfg.fimDeSemana,
     }).eq('user_id', user.id);
     setSavingAuto(false);
     if (error) toast.error('Erro ao salvar regras de envio');
@@ -505,6 +508,14 @@ export default function MeuPerfil() {
                   <p className="text-[10px] text-foreground-muted">O disparo roda 1x/dia de manhã. Cobranças que exigem nota fiscal só são enviadas com o PDF anexado.</p>
                 </div>
               )}
+
+              <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-3">
+                <div>
+                  <Label className="text-xs font-normal">Enviar em <b>finais de semana</b></Label>
+                  <p className="text-[10px] text-foreground-muted">Desligado: segura sáb/dom e manda na <b>segunda</b>. WhatsApp e e-mail.</p>
+                </div>
+                <Switch checked={autoCfg.fimDeSemana} onCheckedChange={(v) => setAutoCfg((p) => ({ ...p, fimDeSemana: v }))} />
+              </div>
 
               <Button size="sm" className="w-full" onClick={salvarAutoCfg} disabled={savingAuto}>
                 {savingAuto && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar regras
