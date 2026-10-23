@@ -345,6 +345,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • Procurar por fornecedor/descrição ("quanto paguei pra X") → buscar_lancamento. Panorama de um cliente → detalhe_cliente. Saldo atual/cartões → saldo_e_contas. Projeção de caixa futuro → projecao_fluxo. Comparar dois períodos → comparativo_periodos.
   • Por FORMA DE PAGAMENTO ("quanto fiz/paguei/recebi de PIX", "quanto no cartão/boleto/dinheiro") → movimento_por_forma (com o intervalo pedido: hoje, ontem, essa semana, esse mês, período).
   • "Quanto está minha fatura do cartão?" / "quanto devo no cartão" → saldo_e_contas (campo cartoes[].fatura_aberta é a fatura em aberto; total_faturas_abertas é a soma).
+  • Compras PARCELADAS no cartão ("quantas parcelas faltam", "o que ainda está parcelado", "parcelas do notebook") → compras_parceladas (traz nº de parcelas, pagas, faltam, valor da parcela, próxima data de vencimento e valor restante por compra).
 - Você pode chamar mais de uma ferramenta antes de responder (ex.: saldo_e_contas + projecao_fluxo para dizer se vai faltar caixa).
 - Se a pessoa não disser o período, responda com o período do contexto ("${periodLabel}") e diga qual período usou. Sempre deixe claro o intervalo que os números cobrem.
 
@@ -380,6 +381,7 @@ ${contexto}`;
       { type: "function", function: { name: "projecao_fluxo", description: "Projeta a variação de caixa nos próximos N dias (a receber − a pagar por vencimento). Ex: 'vou ter caixa mês que vem'. Combine com saldo_e_contas.", parameters: { type: "object", properties: { dias: { type: "number", description: "dias à frente (ex: 30)" } }, required: ["dias"] } } },
       { type: "function", function: { name: "comparativo_periodos", description: "Compara dois intervalos por competência (recebido, pago, lucro, margem) com variação %. Ex: 'esse mês vs passado'.", parameters: { type: "object", properties: { inicio_a: D, fim_a: D, inicio_b: D, fim_b: D }, required: ["inicio_a", "fim_a", "inicio_b", "fim_b"] } } },
       { type: "function", function: { name: "movimento_por_forma", description: "Soma por FORMA DE PAGAMENTO (Pix, cartão de crédito/débito, boleto, dinheiro, transferência) num intervalo por competência. Use p/ 'quanto fiz/paguei/recebi de PIX', 'quanto no cartão', 'quanto em boleto' — hoje, ontem, essa semana, esse mês ou período.", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" } }, required: ["inicio", "fim"] } } },
+      { type: "function", function: { name: "compras_parceladas", description: "Compras PARCELADAS no cartão: cada compra com nº de parcelas, quantas já foram pagas e quantas FALTAM, valor da parcela, próxima data de vencimento e valor restante. Use p/ 'minhas compras parceladas', 'quantas parcelas faltam do X', 'o que ainda está parcelado no cartão'.", parameters: { type: "object", properties: { incluir_quitadas: { type: "boolean", description: "incluir compras já quitadas (padrão: false)" } } } } },
       { type: "function", function: {
         name: "preparar_lancamentos",
         description: "Prepara uma PRÉVIA de um ou mais lançamentos (despesa/receita) para a pessoa CONFIRMAR e criar na tela. Use quando pedirem para lançar/registrar/adicionar/anotar gasto, conta, receita, compra no cartão, parcelamento ou recorrente. NÃO grava sozinho.",
@@ -553,6 +555,46 @@ ${contexto}`;
       });
     }
 
+    // Compras parceladas no cartão (agrupadas por parcela_grupo_id).
+    async function toolParceladas(incluirQuitadas?: boolean): Promise<string> {
+      const linhas = await safe<any>(supabase.from("despesas")
+        .select("descricao,valor,status,data_vencimento,parcela_num,parcela_total,parcela_grupo_id,conta_id")
+        .not("parcela_grupo_id", "is", null));
+      const nomeConta = (id: string | null) => (contas || []).find((c: any) => c.id === id)?.nome || "Cartão";
+      const grupos = new Map<string, any[]>();
+      for (const l of linhas) {
+        if (!(Number(l.parcela_total) > 1)) continue;
+        const k = l.parcela_grupo_id as string;
+        if (!grupos.has(k)) grupos.set(k, []);
+        grupos.get(k)!.push(l);
+      }
+      const compras: any[] = [];
+      for (const itens of grupos.values()) {
+        itens.sort((a, b) => (a.parcela_num || 0) - (b.parcela_num || 0));
+        const total = itens[0].parcela_total;
+        const pagas = itens.filter((i) => i.status === "pago").length;
+        const abertas = itens.filter((i) => i.status !== "pago");
+        const restantes = abertas.length;
+        const valorTotal = itens.reduce((s, i) => s + Number(i.valor || 0), 0);
+        const valorRestante = abertas.reduce((s, i) => s + Number(i.valor || 0), 0);
+        abertas.sort((a, b) => String(a.data_vencimento || "").localeCompare(String(b.data_vencimento || "")));
+        const prox = abertas[0];
+        const descricao = String(itens[0].descricao || "").replace(/\s*\(\d+\/\d+\)\s*$/, "") || "Compra";
+        const quitada = restantes === 0;
+        if (quitada && !incluirQuitadas) continue;
+        compras.push({
+          descricao, cartao: nomeConta(itens[0].conta_id),
+          parcelas_total: total, pagas, faltam: restantes, quitada,
+          valor_parcela: Number(itens[0].valor || 0),
+          valor_total: Math.round(valorTotal * 100) / 100,
+          valor_restante: Math.round(valorRestante * 100) / 100,
+          proxima: prox ? { numero: prox.parcela_num, de: total, vencimento: prox.data_vencimento, valor: Number(prox.valor || 0) } : null,
+        });
+      }
+      compras.sort((a, b) => String(a.proxima?.vencimento || "9999").localeCompare(String(b.proxima?.vencimento || "9999")));
+      return JSON.stringify({ total_compras_parceladas: compras.length, compras: compras.slice(0, 30) });
+    }
+
     function sanitize(t: string) { return (t || "").replace(/[%,()]/g, " ").trim(); }
 
     async function toolBuscar(termo: string): Promise<string> {
@@ -713,6 +755,7 @@ ${contexto}`;
             else if (tc.function.name === "projecao_fluxo") result = await toolProjecao(args.dias);
             else if (tc.function.name === "comparativo_periodos") result = await toolComparativo(args.inicio_a, args.fim_a, args.inicio_b, args.fim_b);
             else if (tc.function.name === "movimento_por_forma") result = await toolPorForma(args.inicio, args.fim, args.tipo);
+            else if (tc.function.name === "compras_parceladas") result = await toolParceladas(args.incluir_quitadas);
             else if (tc.function.name === "preparar_lancamentos") result = prepararLancamentos(args.lancamentos);
           } catch (e) {
             result = JSON.stringify({ erro: e instanceof Error ? e.message : "falha na consulta" });
