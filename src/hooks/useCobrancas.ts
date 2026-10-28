@@ -161,6 +161,25 @@ export function useCobrancas() {
     }
   };
 
+  // Cobrança parcelada com datas/valores personalizados (N cobranças no Asaas).
+  const criarAvulsaParcelada = async (payload: {
+    cliente_id: string; descricao?: string; forma_pagamento: string; conta_id?: string | null;
+    parcelas: { valor: number; vencimento: string }[]; multa_percent?: number; juros_percent?: number;
+  }) => {
+    setBusyId('avulsa');
+    try {
+      const d = await invoke({ action: 'criar-avulsa-parcelada', ...payload });
+      toast.success(`Cobrança parcelada criada (${payload.parcelas.length}x)!`);
+      await load();
+      return d;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao criar cobrança parcelada');
+      return null;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   // Reajuste: atualiza o valor da assinatura + faturas pendentes no Asaas.
   const reajustarAssinatura = async (contrato_id: string, novo_valor: number) => {
     try {
@@ -538,7 +557,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, listarAssinaturas, vincularAssinatura, desvincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, criarAvulsaParcelada, listarAssinaturas, vincularAssinatura, desvincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

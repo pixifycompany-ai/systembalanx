@@ -15,7 +15,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { formatCurrency, formatDate } from '@/utils/formatters';
-import { format, parseISO, startOfMonth, endOfMonth, addMonths } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, addMonths, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -67,7 +67,7 @@ export default function Cobrancas() {
   const isMobile = useIsMobile();
   const {
     cobrancas, loading, busyId,
-    criarAvulsa, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail,
+    criarAvulsa, criarAvulsaParcelada, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail,
     anexarNota, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg, emailCfg,
     fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana,
   } = useCobrancas();
@@ -302,10 +302,44 @@ export default function Cobrancas() {
   const emptyAvulsa = { cliente_id: '', valor: '', vencimento: '', descricao: '', forma: 'UNDEFINED', conta_id: '', multa: '', juros: '' };
   const [avulsa, setAvulsa] = useState(emptyAvulsa);
   const [avulsaSaving, setAvulsaSaving] = useState(false);
-  const abrirAvulsa = () => { setAvulsa(emptyAvulsa); setAvulsaOpen(true); };
+  // Parcelamento com datas/valores personalizados
+  const [parcelar, setParcelar] = useState(false);
+  const emptyPc = { total: '', count: 4, intervalo: 30, first: format(new Date(), 'yyyy-MM-dd') };
+  const [pc, setPc] = useState(emptyPc);
+  const [pcRows, setPcRows] = useState<{ valor: string; vencimento: string }[]>([]);
+  const gerarParcelas = () => {
+    const total = parseFloat(pc.total) || 0;
+    const n = Math.max(2, Math.min(60, Math.floor(Number(pc.count)) || 2));
+    const interval = Math.max(1, Math.floor(Number(pc.intervalo)) || 30);
+    const first = pc.first || format(new Date(), 'yyyy-MM-dd');
+    const base = Math.floor((total / n) * 100) / 100;
+    const last = Math.round((total - base * (n - 1)) * 100) / 100;
+    setPcRows(Array.from({ length: n }, (_, i) => ({
+      valor: (i === n - 1 ? last : base).toFixed(2),
+      vencimento: format(addDays(parseISO(first), i * interval), 'yyyy-MM-dd'),
+    })));
+  };
+  const somaParcelas = useMemo(() => pcRows.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0), [pcRows]);
+  const abrirAvulsa = () => { setAvulsa(emptyAvulsa); setParcelar(false); setPc(emptyPc); setPcRows([]); setAvulsaOpen(true); };
   useActionParam('novo', abrirAvulsa);
   const handleCriarAvulsa = async () => {
-    if (!avulsa.cliente_id || !avulsa.valor || !avulsa.vencimento) return;
+    if (!avulsa.cliente_id) return;
+    if (parcelar) {
+      const parcelas = pcRows
+        .map((r) => ({ valor: parseFloat(r.valor) || 0, vencimento: r.vencimento }))
+        .filter((r) => r.valor > 0 && r.vencimento);
+      if (parcelas.length < 2) { toast.error('Gere ao menos 2 parcelas com valor e data.'); return; }
+      setAvulsaSaving(true);
+      const d = await criarAvulsaParcelada({
+        cliente_id: avulsa.cliente_id, descricao: avulsa.descricao || undefined,
+        forma_pagamento: avulsa.forma, conta_id: avulsa.conta_id || null, parcelas,
+        multa_percent: parseFloat(avulsa.multa) || 0, juros_percent: parseFloat(avulsa.juros) || 0,
+      });
+      setAvulsaSaving(false);
+      if (d) setAvulsaOpen(false);
+      return;
+    }
+    if (!avulsa.valor || !avulsa.vencimento) return;
     setAvulsaSaving(true);
     const d = await criarAvulsa({
       cliente_id: avulsa.cliente_id,
@@ -783,13 +817,68 @@ export default function Cobrancas() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Parcelar com datas/valores personalizados */}
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-surface-2/40 px-3 py-2.5">
                 <div>
-                  <Label className="text-xs">Valor (R$)</Label>
-                  <Input type="number" step="0.01" min="0" value={avulsa.valor} onChange={(e) => setAvulsa((p) => ({ ...p, valor: e.target.value }))} placeholder="0,00" className="mt-1" />
+                  <Label className="text-[12.5px]">Parcelar</Label>
+                  <p className="text-[10.5px] text-foreground-muted">Cada parcela vira uma cobrança no Asaas, com data e valor que você define.</p>
                 </div>
-                <DatePickerField label="Vencimento" value={avulsa.vencimento || undefined} onChange={(d) => setAvulsa((p) => ({ ...p, vencimento: d }))} required />
+                <Switch checked={parcelar} onCheckedChange={(v) => setParcelar(v)} />
               </div>
+
+              {!parcelar ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Valor (R$)</Label>
+                    <Input type="number" step="0.01" min="0" value={avulsa.valor} onChange={(e) => setAvulsa((p) => ({ ...p, valor: e.target.value }))} placeholder="0,00" className="mt-1" />
+                  </div>
+                  <DatePickerField label="Vencimento" value={avulsa.vencimento || undefined} onChange={(d) => setAvulsa((p) => ({ ...p, vencimento: d }))} required />
+                </div>
+              ) : (
+                <div className="space-y-3 rounded-xl border border-border/60 bg-surface/40 p-3">
+                  {/* Gerador */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <Label className="text-[11px]">Valor total (R$)</Label>
+                      <Input type="number" step="0.01" min="0" value={pc.total} onChange={(e) => setPc((p) => ({ ...p, total: e.target.value }))} placeholder="1.200,00" className="mt-1 h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">Nº de parcelas</Label>
+                      <Input type="number" min="2" max="60" step="1" value={pc.count} onChange={(e) => setPc((p) => ({ ...p, count: parseInt(e.target.value) || 2 }))} className="mt-1 h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">1ª parcela</Label>
+                      <Input type="date" value={pc.first} onChange={(e) => setPc((p) => ({ ...p, first: e.target.value }))} className="mt-1 h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[11px]">A cada (dias)</Label>
+                      <Input type="number" min="1" step="1" value={pc.intervalo} onChange={(e) => setPc((p) => ({ ...p, intervalo: parseInt(e.target.value) || 30 }))} placeholder="30" className="mt-1 h-9 text-sm" />
+                    </div>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={gerarParcelas}>Gerar parcelas</Button>
+
+                  {pcRows.length > 0 && (
+                    <>
+                      <div className="max-h-56 space-y-1.5 overflow-y-auto pr-0.5">
+                        {pcRows.map((r, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="w-6 shrink-0 text-[11px] font-semibold text-foreground-muted">{i + 1}ª</span>
+                            <Input type="date" value={r.vencimento} onChange={(e) => setPcRows((prev) => prev.map((x, j) => j === i ? { ...x, vencimento: e.target.value } : x))} className="h-9 flex-1 text-sm" />
+                            <Input type="number" step="0.01" min="0" value={r.valor} onChange={(e) => setPcRows((prev) => prev.map((x, j) => j === i ? { ...x, valor: e.target.value } : x))} className="h-9 w-28 text-sm tabular-nums" />
+                            <button type="button" aria-label="Remover parcela" onClick={() => setPcRows((prev) => prev.filter((_, j) => j !== i))} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger))]/10">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center justify-between text-[12px]">
+                        <button type="button" onClick={() => setPcRows((prev) => [...prev, { valor: '0', vencimento: format(addDays(parseISO(prev[prev.length - 1]?.vencimento || format(new Date(), 'yyyy-MM-dd')), Math.max(1, Number(pc.intervalo) || 30)), 'yyyy-MM-dd') }])} className="font-semibold text-primary hover:underline">+ Adicionar parcela</button>
+                        <span className="text-foreground-muted">Soma: <b className="text-foreground tabular-nums">{formatCurrency(somaParcelas)}</b> ({pcRows.length}x)</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               <div>
                 <Label className="text-xs">Descrição</Label>
@@ -838,10 +927,10 @@ export default function Cobrancas() {
               <Button
                 className="w-full"
                 onClick={handleCriarAvulsa}
-                disabled={avulsaSaving || !avulsa.cliente_id || !avulsa.valor || !avulsa.vencimento}
+                disabled={avulsaSaving || !avulsa.cliente_id || (parcelar ? pcRows.length < 2 : (!avulsa.valor || !avulsa.vencimento))}
               >
                 {avulsaSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Criar cobrança no Asaas
+                {parcelar ? `Criar ${pcRows.length || ''}${pcRows.length ? 'x' : ''} parcela(s) no Asaas` : 'Criar cobrança no Asaas'}
               </Button>
             </div>
           </div>

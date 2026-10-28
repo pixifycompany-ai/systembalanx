@@ -80,7 +80,7 @@ serve(async (req) => {
 
     // Paywall server-side: ações que CRIAM cobrança só com assinatura ativa.
     // Gerir/baixar o que já existe (sincronizar, cancelar, receber-manual...) segue liberado.
-    const ACOES_PREMIUM = new Set(["criar-contrato", "criar-avulsa", "agrupar"]);
+    const ACOES_PREMIUM = new Set(["criar-contrato", "criar-avulsa", "criar-avulsa-parcelada", "agrupar"]);
     if (ACOES_PREMIUM.has(action)) {
       const { data: acesso } = await admin.rpc("user_tem_acesso", { uid: user.id });
       if (acesso === false) {
@@ -243,6 +243,56 @@ serve(async (req) => {
         envio_pix: !!body.envio_pix,
       });
       return json({ ok: true, cobranca: cob, invoiceUrl: pay.invoiceUrl ?? null });
+    }
+
+    // ===== CRIAR AVULSA PARCELADA (datas e valores personalizados) =====
+    // Em vez do parcelamento nativo do Asaas (intervalos fixos mensais), cria N
+    // cobranças independentes — uma por parcela, com o vencimento e o valor que o
+    // usuário informar (ex.: 1.200 em 4x a cada 30 dias, ou 20/40/60/80 dias).
+    if (action === "criar-avulsa-parcelada") {
+      const { cliente_id, descricao, forma_pagamento, conta_id, parcelas } = body;
+      if (!cliente_id || !Array.isArray(parcelas) || parcelas.length < 2) {
+        return json({ error: "Informe o cliente e ao menos 2 parcelas." }, 400);
+      }
+      const items = (parcelas as any[]).map((p) => ({ valor: Number(p?.valor), vencimento: String(p?.vencimento || "") }));
+      if (items.some((it) => !(it.valor > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(it.vencimento))) {
+        return json({ error: "Cada parcela precisa de valor (> 0) e data de vencimento válida." }, 400);
+      }
+      const N = items.length;
+      const forma = (forma_pagamento || "UNDEFINED") as string;
+      const desc = (descricao || "Cobrança") as string;
+      const customer = await ensureCustomer(cliente_id);
+
+      // 1) Cria TODAS as cobranças no Asaas primeiro; se alguma falhar, desfaz as já criadas.
+      const pays: { pay: any; it: { valor: number; vencimento: string }; i: number }[] = [];
+      for (let i = 0; i < N; i++) {
+        const it = items[i];
+        const r = await fetch(`${base}/payments`, {
+          method: "POST", headers,
+          body: JSON.stringify({
+            customer, billingType: forma, value: it.valor, dueDate: it.vencimento,
+            description: `${desc} (${i + 1}/${N})`, externalReference: cliente_id, ...multaJuros(body),
+          }),
+        });
+        const pay = await r.json();
+        if (!r.ok) {
+          for (const p of pays) { await fetch(`${base}/payments/${p.pay.id}`, { method: "DELETE", headers }).catch(() => {}); }
+          return json({ error: `Parcela ${i + 1}: ${pay?.errors?.[0]?.description || "erro ao criar no Asaas."}` }, 400);
+        }
+        pays.push({ pay, it, i });
+      }
+
+      // 2) Registra as cobranças locais + receitas a receber.
+      for (const { pay, it, i } of pays) {
+        await registrar({
+          cliente_id, contrato_id: null, conta_id: conta_id || null, tipo: "avulsa",
+          asaas_payment_id: pay.id, asaas_subscription_id: null,
+          descricao: `${desc} (${i + 1}/${N})`, valor: it.valor, vencimento: it.vencimento,
+          forma, status: mapStatus(pay.status), invoice_url: pay.invoiceUrl ?? null,
+          envio_pix: !!body.envio_pix,
+        });
+      }
+      return json({ ok: true, parcelas: N });
     }
 
     // ===== LISTAR ASSINATURAS existentes no Asaas (do cliente) =====
