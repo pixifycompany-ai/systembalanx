@@ -114,6 +114,7 @@ export default function Contratos() {
     listarAssinaturas,
     vincularAssinatura,
     desvincularAssinatura,
+    encerrarContratoCobrancas,
     reajustarAssinatura,
     cancelar: cancelarCobranca,
     excluir: excluirCobranca,
@@ -526,6 +527,16 @@ export default function Contratos() {
         multa_percent: parseFloat(ncMulta) || 0,
         juros_percent: parseFloat(ncJuros) || 0,
       });
+    }
+
+    // Encerrar/cancelar: cancela as cobranças AGUARDANDO (pendentes) e preserva as
+    // vencidas; para a assinatura no Asaas. (Só na edição, ao inativar o contrato.)
+    if (contratoResult && editingContrato && data.status !== 'ativo') {
+      const r = await encerrarContratoCobrancas(editingContrato.id);
+      await refetchContratos();
+      if ((r?.canceladas ?? 0) > 0) {
+        toast.success(`${r!.canceladas} cobrança(s) aguardando cancelada(s).`, { description: 'As vencidas foram mantidas.' });
+      }
     }
 
     setModalOpen(false);

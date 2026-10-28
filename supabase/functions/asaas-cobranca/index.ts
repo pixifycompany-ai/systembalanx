@@ -383,6 +383,46 @@ serve(async (req) => {
       return json({ ok: true, removidas });
     }
 
+    // ===== ENCERRAR CONTRATO: cancela as cobranças AGUARDANDO (pendentes) e
+    // PRESERVA as VENCIDAS; para a assinatura no Asaas (se este contrato for o
+    // único dono). O status 'encerrado' do contrato é gravado pelo front. =====
+    if (action === "encerrar-contrato") {
+      const { contrato_id } = body;
+      const { data: contrato } = await admin.from("contratos").select("id, asaas_subscription_id").eq("id", contrato_id).eq("user_id", user.id).maybeSingle();
+      if (!contrato) return json({ error: "Contrato não encontrado." }, 404);
+      const subId = contrato.asaas_subscription_id as string | null;
+
+      // 1) Cancela só as PENDENTES (aguardando). Vencidas/atrasadas/pagas ficam.
+      const { data: cobs } = await admin.from("cobrancas").select("*")
+        .eq("user_id", user.id).eq("contrato_id", contrato_id).eq("status", "pendente");
+      let canceladas = 0;
+      for (const c of cobs || []) {
+        // Se a fatura é compartilhada (agrupada com outro contrato), não apaga no
+        // Asaas pra não prejudicar os outros — só cancela a linha local.
+        if (c.asaas_payment_id) {
+          const { data: outras } = await admin.from("cobrancas").select("id")
+            .eq("user_id", user.id).eq("asaas_payment_id", c.asaas_payment_id).neq("contrato_id", contrato_id).limit(1);
+          if (!(outras || []).length) {
+            await fetch(`${base}/payments/${c.asaas_payment_id}`, { method: "DELETE", headers }).catch(() => {});
+          }
+        }
+        await apagarReceitaSeCriada(admin, c);
+        await admin.from("cobrancas").update({ status: "cancelado", receita_id: null, updated_at: new Date().toISOString() }).eq("id", c.id);
+        canceladas++;
+      }
+
+      // 2) Para a assinatura no Asaas (só se nenhum outro contrato usa a mesma) e desvincula.
+      if (subId) {
+        const { data: outrosContr } = await admin.from("contratos").select("id")
+          .eq("user_id", user.id).eq("asaas_subscription_id", subId).neq("id", contrato_id).limit(1);
+        if (!(outrosContr || []).length) {
+          await fetch(`${base}/subscriptions/${subId}`, { method: "DELETE", headers }).catch(() => {});
+        }
+        await admin.from("contratos").update({ asaas_subscription_id: null }).eq("id", contrato_id);
+      }
+      return json({ ok: true, canceladas });
+    }
+
     // ===== AGRUPAR: vários contratos do mesmo cliente numa assinatura só =====
     // modo "criar": nova assinatura no Asaas com a soma dos contratos.
     // modo "vincular": usa uma assinatura que já existe; o valor do Asaas vale e,

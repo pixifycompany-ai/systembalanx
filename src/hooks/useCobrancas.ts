@@ -130,6 +130,22 @@ export function useCobrancas() {
     }
   };
 
+  // Encerrar contrato: cancela as cobranças pendentes (aguardando) e preserva as
+  // vencidas; para a assinatura no Asaas. O status do contrato é gravado à parte.
+  const encerrarContratoCobrancas = async (contrato_id: string) => {
+    setBusyId(contrato_id);
+    try {
+      const d = (await invoke({ action: 'encerrar-contrato', contrato_id })) as { canceladas?: number } | null;
+      await load();
+      return d;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao encerrar cobranças do contrato');
+      return null;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   // Desvincula o contrato da assinatura do Asaas (não cancela no Asaas, só aqui).
   const desvincularAssinatura = async (contrato_id: string) => {
     setBusyId(contrato_id);
@@ -557,7 +573,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, criarAvulsaParcelada, listarAssinaturas, vincularAssinatura, desvincularAssinatura, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, criarAvulsaParcelada, listarAssinaturas, vincularAssinatura, desvincularAssinatura, encerrarContratoCobrancas, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =
