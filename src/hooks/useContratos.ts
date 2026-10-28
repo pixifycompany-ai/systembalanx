@@ -12,7 +12,7 @@ export interface ContratoDB {
   data_inicio: string;
   data_fim: string | null;
   dia_vencimento: number | null;
-  recorrencia: 'mensal' | 'trimestral' | 'semestral' | 'anual' | 'unico';
+  recorrencia: 'mensal' | 'trimestral' | 'semestral' | 'anual' | 'unico' | 'semanal' | 'quinzenal';
   status: 'ativo' | 'cancelado' | 'encerrado';
   data_inativacao: string | null;
   asaas_subscription_id?: string | null;
@@ -28,7 +28,7 @@ export interface ContratoFormData {
   data_inicio: string;
   data_fim?: string;
   dia_vencimento?: number;
-  recorrencia: 'mensal' | 'trimestral' | 'semestral' | 'anual' | 'unico';
+  recorrencia: 'mensal' | 'trimestral' | 'semestral' | 'anual' | 'unico' | 'semanal' | 'quinzenal';
   status: 'ativo' | 'cancelado' | 'encerrado';
   data_inativacao?: string;
 }
@@ -53,7 +53,7 @@ export function useContratos() {
 
       if (fetchError) throw fetchError;
       
-      setContratos(data || []);
+      setContratos((data || []) as unknown as ContratoDB[]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar contratos';
       setError(message);
@@ -84,15 +84,16 @@ export function useContratos() {
           dia_vencimento: formData.dia_vencimento || null,
           recorrencia: formData.recorrencia,
           status: formData.status,
-        })
+        } as any)
         .select(`*, cliente:clientes(*)`)
         .single();
 
       if (error) throw error;
 
-      setContratos(prev => [data, ...prev]);
+      const novo = data as unknown as ContratoDB;
+      setContratos(prev => [novo, ...prev]);
       toast({ title: 'Contrato criado com sucesso!' });
-      return data;
+      return novo;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao criar contrato';
       toast({ title: 'Erro', description: message, variant: 'destructive' });
@@ -122,9 +123,10 @@ export function useContratos() {
 
       if (error) throw error;
 
-      setContratos(prev => prev.map(c => c.id === id ? data : c));
+      const atualizado = data as unknown as ContratoDB;
+      setContratos(prev => prev.map(c => c.id === id ? atualizado : c));
       toast({ title: 'Contrato atualizado com sucesso!' });
-      return data;
+      return atualizado;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao atualizar contrato';
       toast({ title: 'Erro', description: message, variant: 'destructive' });
