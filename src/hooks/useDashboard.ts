@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfMonth, endOfMonth, subMonths, format, addMonths, parseISO, isAfter, isBefore, addDays, startOfDay } from 'date-fns';
-import { isContratoAtivoHoje, isContratoAtivoNoPeriodo, getValorMensalNaData, getMesesRelacionamento, getClientesAtivosHoje } from '@/utils/contractUtils';
+import { isContratoAtivoHoje, isContratoAtivoNoPeriodo, getValorMensalNaData, getValorMensalEquivalente, getMesesRelacionamento, getClientesAtivosHoje } from '@/utils/contractUtils';
 import { ptBR } from 'date-fns/locale';
 import type { Alert } from '@/components/dashboard/AlertsWidget';
 import type { ContractsWidgetData } from '@/components/dashboard/ContractsWidget';
@@ -161,8 +161,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
   // MRR from active contracts (using vigência, not just status)
   const contratosAtivos = contratos.filter(c => isContratoAtivoHoje(c as any));
   const mrrTotal = contratosAtivos
-    .filter(c => c.recorrencia === 'mensal')
-    .reduce((sum, c) => sum + Number(c.valor), 0);
+    .reduce((sum, c) => sum + getValorMensalEquivalente(Number(c.valor), c.recorrencia), 0);
 
   const receitaAnualProjetada = mrrTotal * 12;
 
@@ -368,25 +367,25 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
     
     // Calculate MRR for this specific month based on contracts that were active (using vigência)
     const mrrDoMes = contratos
-      .filter(c => {
-        if (c.recorrencia !== 'mensal') return false;
-        return isContratoAtivoNoPeriodo(c as any, monthStart, monthEnd);
-      })
+      .filter(c => c.recorrencia !== 'unico' && isContratoAtivoNoPeriodo(c as any, monthStart, monthEnd))
       .reduce((sum, c) => {
         const contratoAditivos = allAditivos.filter((a: any) => a.contrato_id === c.id);
-        if (contratoAditivos.length === 0) {
-          return sum + Number(c.valor);
+        let valorBase = Number(c.valor);
+        if (contratoAditivos.length > 0) {
+          const monthStr = format(monthStart, 'yyyy-MM-dd');
+          const aplicaveis = contratoAditivos
+            .filter((a: any) => a.data_vigencia <= monthStr)
+            .sort((a: any, b: any) => b.data_vigencia.localeCompare(a.data_vigencia));
+          if (aplicaveis.length > 0) {
+            valorBase = Number(aplicaveis[0].valor_novo);
+          } else {
+            // Mês antes de qualquer aditivo — usa o valor_anterior do mais antigo.
+            const earliest = [...contratoAditivos].sort((a: any, b: any) => a.data_vigencia.localeCompare(b.data_vigencia))[0];
+            valorBase = Number(earliest.valor_anterior);
+          }
         }
-        const monthStr = format(monthStart, 'yyyy-MM-dd');
-        const aplicaveis = contratoAditivos
-          .filter((a: any) => a.data_vigencia <= monthStr)
-          .sort((a: any, b: any) => b.data_vigencia.localeCompare(a.data_vigencia));
-        if (aplicaveis.length > 0) {
-          return sum + Number(aplicaveis[0].valor_novo);
-        }
-        // Month is before any aditivo — use valor_anterior of the earliest aditivo
-        const earliest = [...contratoAditivos].sort((a: any, b: any) => a.data_vigencia.localeCompare(b.data_vigencia))[0];
-        return sum + Number(earliest.valor_anterior);
+        // Normaliza para o mensal equivalente (quinzenal ×2, trimestral ÷3, etc.).
+        return sum + getValorMensalEquivalente(valorBase, c.recorrencia);
       }, 0);
     
     mrrHistorico.push({

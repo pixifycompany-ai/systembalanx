@@ -205,6 +205,8 @@ serve(async (req) => {
     // ---- MRR / ARR ----
     const mrr = contratos.reduce((s, c) => {
       const v = Number(c.valor || 0);
+      if (c.recorrencia === "semanal") return s + v * (52 / 12);
+      if (c.recorrencia === "quinzenal") return s + v * 2;
       if (c.recorrencia === "mensal") return s + v;
       if (c.recorrencia === "trimestral") return s + v / 3;
       if (c.recorrencia === "semestral") return s + v / 6;
@@ -656,6 +658,8 @@ ${contexto}`;
       const s = (arr: any[], st?: string) => arr.filter(x => !st || x.status === st).reduce((t2, x) => t2 + Number(x.valor || 0), 0);
       const mrr = contratosCli.reduce((sum, c) => {
         const v = Number(c.valor || 0);
+        if (c.recorrencia === "semanal") return sum + v * (52 / 12);
+        if (c.recorrencia === "quinzenal") return sum + v * 2;
         if (c.recorrencia === "mensal") return sum + v;
         if (c.recorrencia === "trimestral") return sum + v / 3;
         if (c.recorrencia === "semestral") return sum + v / 6;

@@ -65,6 +65,8 @@ export function isContratoAtivoHoje(contrato: ContratoBase): boolean {
  */
 export function getValorMensalEquivalente(valor: number, recorrencia: string): number {
   switch (recorrencia) {
+    case 'semanal': return valor * (52 / 12);   // ~4,33 cobranças/mês
+    case 'quinzenal': return valor * 2;          // 2 cobranças/mês (2 quinzenas)
     case 'mensal': return valor;
     case 'trimestral': return valor / 3;
     case 'semestral': return valor / 6;

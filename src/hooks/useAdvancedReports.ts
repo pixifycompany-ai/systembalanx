@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { addMonths, differenceInDays, endOfMonth, format, parseISO, startOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { getValorMensalEquivalente } from '@/utils/contractUtils';
 
 const monthKey = (d: Date) => {
   const s = format(d, 'MMM/yy', { locale: ptBR });
@@ -92,12 +93,12 @@ async function fetchAll(): Promise<AdvancedReports> {
       const ini = fromIso(c.data_inicio); const fim = fromIso(c.data_inativacao);
       if (!ini || ini > mEnd) return false;
       if (fim && fim < m) return false;
-      return c.recorrencia === 'mensal';
+      return c.recorrencia !== 'unico';
     });
-    const mrr = active.reduce((s, c) => s + Number(c.valor), 0);
-    // new = started this month, churn = inactivated this month
-    const newMRR = contratos.filter((c) => c.recorrencia === 'mensal' && c.data_inicio && parseISO(c.data_inicio) >= m && parseISO(c.data_inicio) <= mEnd).reduce((s, c) => s + Number(c.valor), 0);
-    const churnMRR = contratos.filter((c) => c.recorrencia === 'mensal' && c.data_inativacao && parseISO(c.data_inativacao) >= m && parseISO(c.data_inativacao) <= mEnd).reduce((s, c) => s + Number(c.valor), 0);
+    const mrr = active.reduce((s, c) => s + getValorMensalEquivalente(Number(c.valor), c.recorrencia), 0);
+    // new = started this month, churn = inactivated this month (valor mensal equivalente)
+    const newMRR = contratos.filter((c) => c.recorrencia !== 'unico' && c.data_inicio && parseISO(c.data_inicio) >= m && parseISO(c.data_inicio) <= mEnd).reduce((s, c) => s + getValorMensalEquivalente(Number(c.valor), c.recorrencia), 0);
+    const churnMRR = contratos.filter((c) => c.recorrencia !== 'unico' && c.data_inativacao && parseISO(c.data_inativacao) >= m && parseISO(c.data_inativacao) <= mEnd).reduce((s, c) => s + getValorMensalEquivalente(Number(c.valor), c.recorrencia), 0);
     mrrSeries.push({ month: monthKey(m), mrr, arr: mrr * 12, newMRR, churnMRR });
   }
 
@@ -204,8 +205,8 @@ async function fetchAll(): Promise<AdvancedReports> {
 
   // ===== LTV / CAC / Payback =====
   // LTV = avg monthly contract value * avg lifetime months
-  const activeContracts = contratos.filter((c) => c.status === 'ativo' && c.recorrencia === 'mensal');
-  const avgTicket = activeContracts.length ? activeContracts.reduce((s, c) => s + Number(c.valor), 0) / activeContracts.length : 0;
+  const activeContracts = contratos.filter((c) => c.status === 'ativo' && c.recorrencia !== 'unico');
+  const avgTicket = activeContracts.length ? activeContracts.reduce((s, c) => s + getValorMensalEquivalente(Number(c.valor), c.recorrencia), 0) / activeContracts.length : 0;
   const lifetimes = contratos
     .filter((c) => c.data_inicio)
     .map((c) => {

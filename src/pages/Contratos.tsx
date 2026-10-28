@@ -49,7 +49,7 @@ import { ContractImportDialog } from '@/components/import/ContractImportDialog';
 import { useContratoAditivos, type AditivoFormData } from '@/hooks/useContratoAditivos';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { findPossibleDuplicate, findDuplicateGroups, type DuplicateMatch, type DuplicateGroup } from '@/utils/contractDuplicates';
-import { isContratoAtivoHoje } from '@/utils/contractUtils';
+import { isContratoAtivoHoje, getValorMensalEquivalente } from '@/utils/contractUtils';
 import { AlertTriangle } from 'lucide-react';
 
 const RECORRENCIA_OPTIONS = [
@@ -313,9 +313,9 @@ export default function Contratos() {
   // Calculate totals using actual vigência (status + dates) so MRR matches reality
   const totals = useMemo(() => {
     const vigentes = filteredContratos.filter(c => isContratoAtivoHoje(c as any));
+    // MRR = soma do valor MENSAL EQUIVALENTE (quinzenal conta 2×, trimestral ÷3, etc.).
     const mrrTotal = vigentes
-      .filter(c => c.recorrencia === 'mensal')
-      .reduce((sum, c) => sum + Number(c.valor), 0);
+      .reduce((sum, c) => sum + getValorMensalEquivalente(Number(c.valor), c.recorrencia), 0);
     const ativos = vigentes.length;
     const valorTotal = vigentes.reduce((sum, c) => sum + Number(c.valor), 0);
     return { mrrTotal, ativos, valorTotal };
