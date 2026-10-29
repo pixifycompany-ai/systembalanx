@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { audit, reqIp } from "../_shared/audit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,6 +67,8 @@ serve(async (req) => {
         } catch (_e) { /* segue */ }
       }
     }
+
+    await audit(admin, { actor_user_id: user.id, actor_email: user.email ?? null, action: "plano.sync", entity_type: "plataforma_config", ip: reqIp(req), metadata: { preco_mensal: pm, preco_anual_parcela: pa, assinaturas_atualizadas: atualizadas } });
 
     return new Response(JSON.stringify({ ok: true, preco_mensal: pm, preco_anual_parcela: pa, assinaturas_atualizadas: atualizadas }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

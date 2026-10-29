@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { audit, reqIp } from "../_shared/audit.ts";
 
 // Exclusão de conta (LGPD — direito de eliminação).
 // Apaga TUDO do usuário: cancela assinatura Asaas (se houver), remove o avatar do
@@ -92,6 +93,13 @@ serve(async (req) => {
     if (soloTenantIds.length) {
       await admin.from("tenants").delete().in("id", soloTenantIds);
     }
+
+    // Auditoria (o registro sobrevive à exclusão do usuário).
+    await audit(admin, {
+      actor_user_id: userId, actor_email: user.email ?? null,
+      action: "account.deleted", entity_type: "user", entity_id: userId,
+      ip: reqIp(req), metadata: { tenants_removidos: soloTenantIds.length },
+    });
 
     return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {

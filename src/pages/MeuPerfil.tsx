@@ -12,7 +12,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { DetailSheet } from '@/components/shared/DetailSheet';
 import { BalanxLoader } from '@/components/shared/BalanxLoader';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldCheck } from 'lucide-react';
+import { MfaManager } from '@/components/auth/MfaManager';
 import {
   EnvelopeIcon, LockClosedIcon, BellAlertIcon, PaperAirplaneIcon,
   ChevronRightIcon, ArrowRightOnRectangleIcon, CameraIcon, ArrowPathIcon,
@@ -20,7 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 
-type Sheet = null | 'nome' | 'email' | 'senha' | 'excluir' | 'asaas';
+type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas';
 
 export default function MeuPerfil() {
   const { user, signOut } = useAuth();
@@ -334,6 +335,7 @@ export default function MeuPerfil() {
       <SetGroup>
         <SetRow icon={<EnvelopeIcon className="h-[18px] w-[18px]" />} title="E-mail de login" sub={user?.email || ''} onClick={() => setSheet('email')} chevron />
         <SetRow icon={<LockClosedIcon className="h-[18px] w-[18px]" />} title="Alterar senha" sub="Atualize sua senha de acesso" onClick={() => setSheet('senha')} chevron />
+        <SetRow icon={<ShieldCheck className="h-[18px] w-[18px]" />} title="Verificação em duas etapas (2FA)" sub="Código do autenticador além da senha" onClick={() => setSheet('mfa')} chevron />
       </SetGroup>
 
       {/* Grupo: notificações */}
@@ -568,6 +570,11 @@ export default function MeuPerfil() {
             {savingPassword && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Alterar senha
           </Button>
         </div>
+      </DetailSheet>
+
+      {/* Sheet: 2FA (MFA TOTP) */}
+      <DetailSheet open={sheet === 'mfa'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Acesso" title="Verificação em duas etapas">
+        <MfaManager />
       </DetailSheet>
 
       {/* Sheet: excluir conta (LGPD) */}

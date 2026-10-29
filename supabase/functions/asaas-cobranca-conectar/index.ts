@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { audit, reqIp } from "../_shared/audit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,6 +38,7 @@ serve(async (req) => {
     // Desconectar: remove a config (chave some do banco)
     if (action === "desconectar") {
       await admin.from("cobranca_config").delete().eq("user_id", user.id);
+      await audit(admin, { actor_user_id: user.id, actor_email: user.email ?? null, action: "asaas.disconnected", entity_type: "cobranca_config", entity_id: user.id, ip: reqIp(req) });
       return new Response(JSON.stringify({ ok: true, connected: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -77,6 +79,8 @@ serve(async (req) => {
       webhook_token: webhookToken,
       updated_at: new Date().toISOString(),
     });
+
+    await audit(admin, { actor_user_id: user.id, actor_email: user.email ?? null, action: "asaas.connected", entity_type: "cobranca_config", entity_id: user.id, ip: reqIp(req), metadata: { env, accountName } });
 
     return new Response(JSON.stringify({ ok: true, connected: true, accountName, env }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
