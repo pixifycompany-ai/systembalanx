@@ -1429,7 +1429,7 @@ export default function FluxoCaixa() {
                           )}
                           onClick={() => handleRowClick(t)}
                         >
-                          <td className="p-3 pl-6" onClick={(e) => e.stopPropagation()}>
+                          <td className="px-3 py-2.5 pl-6" onClick={(e) => e.stopPropagation()}>
                             {!isTransfer && (
                               <Checkbox
                                 checked={isSelected(key)}
@@ -1438,7 +1438,7 @@ export default function FluxoCaixa() {
                               />
                             )}
                           </td>
-                          <td className="p-3">
+                          <td className="px-3 py-2.5">
                             {isTransfer ? (
                               <span
                                 className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400"
@@ -1460,21 +1460,21 @@ export default function FluxoCaixa() {
                               </span>
                             )}
                           </td>
-                          <td className="p-3 text-sm max-w-[260px] truncate font-medium text-foreground uppercase">{t.descricao}</td>
-                          <td className="p-3 text-sm text-muted-foreground truncate max-w-[150px] uppercase">
+                          <td className="px-3 py-2.5 text-[12.5px] leading-snug max-w-[300px] font-medium text-foreground uppercase line-clamp-2 [overflow-wrap:anywhere]" title={t.descricao}>{t.descricao}</td>
+                          <td className="px-3 py-2.5 text-[12.5px] leading-snug text-muted-foreground max-w-[200px] uppercase line-clamp-2 [overflow-wrap:anywhere]" title={isTransfer ? '' : (t.cliente?.nome || t.fornecedor || '')}>
                             {isTransfer ? '—' : (t.cliente?.nome || t.fornecedor || '-')}
                           </td>
-                          <td className="p-3">
+                          <td className="px-3 py-2.5">
                             {t.categoria ? (
-                              <span className="inline-flex items-center gap-1.5 text-xs text-foreground">
+                              <span className="inline-flex items-center gap-1.5 text-[11.5px] text-foreground">
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: t.categoria.cor }} />
                                 {t.categoria.nome}
                               </span>
                             ) : (
-                              <span className="text-xs text-muted-foreground">-</span>
+                              <span className="text-[11.5px] text-muted-foreground">-</span>
                             )}
                           </td>
-                          <td className="p-3 text-xs text-muted-foreground">
+                          <td className="px-3 py-2.5 text-[11.5px] text-muted-foreground">
                             {contaNome ? (
                               <span className="inline-flex items-center gap-1.5">
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: contaNome.cor }} />
@@ -1483,14 +1483,14 @@ export default function FluxoCaixa() {
                             ) : '-'}
                           </td>
                           <td className={cn(
-                            "p-3 text-sm text-right font-semibold tabular-nums whitespace-nowrap",
+                            "px-3 py-2.5 text-[13px] text-right font-semibold tabular-nums whitespace-nowrap",
                             isTransfer
                               ? 'text-muted-foreground'
                               : t.tipo === 'entrada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                           )}>
                             {isTransfer ? '' : (t.tipo === 'entrada' ? '+' : '-')} {formatCurrency(t.valor)}
                           </td>
-                          <td className="p-3 text-center">
+                          <td className="px-3 py-2.5 text-center">
                             {isTransfer ? (
                               <span className="inline-flex text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400">
                                 Transferida
@@ -1499,7 +1499,7 @@ export default function FluxoCaixa() {
                               <StatusBadge status={t.status} />
                             )}
                           </td>
-                          <td className="p-3" onClick={(e) => e.stopPropagation()}>
+                          <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-center gap-1">
                               {!isTransfer && (t.status === 'pendente' || t.status === 'atrasado') && (
                                 <Tooltip delayDuration={250}>
