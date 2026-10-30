@@ -49,8 +49,8 @@ export default function MeuPerfil() {
   const [asaasConnecting, setAsaasConnecting] = useState(false);
   const [asaasStatus, setAsaasStatus] = useState<{ connected: boolean; accountName: string | null; env: string; webhookToken: string | null } | null>(null);
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-cobranca-webhook`;
-  const WHATSAPP_TPL_PADRAO = 'Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!';
-  const WHATSAPP_TPL_PIX_PADRAO = 'Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\n🔑 *Chave PIX:* {pix}\n👤 Em nome de: {titular}\n\nApós o pagamento, é só enviar o comprovante. Obrigado!';
+  const WHATSAPP_TPL_PADRAO = 'Olá {cliente}! 👋\n\nSua cobrança de *{descricao}* {prazo}:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!';
+  const WHATSAPP_TPL_PIX_PADRAO = 'Olá {cliente}! 👋\n\nSua cobrança de *{descricao}* {prazo}:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\n🔑 *Chave PIX:* {pix}\n👤 Em nome de: {titular}\n\nApós o pagamento, é só enviar o comprovante. Obrigado!';
   const [whatsappTpl, setWhatsappTpl] = useState('');
   const [savingTpl, setSavingTpl] = useState(false);
   const [pixChave, setPixChave] = useState('');
@@ -428,7 +428,7 @@ export default function MeuPerfil() {
             {/* Mensagem padrão do WhatsApp */}
             <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-2">
               <p className="text-xs font-semibold text-foreground">Mensagem padrão do WhatsApp</p>
-              <p className="text-[11px] text-foreground-muted">Usada ao enviar a cobrança. Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{link}'}</b>. Aceita *negrito*, _itálico_ e quebra de linha.</p>
+              <p className="text-[11px] text-foreground-muted">Usada ao enviar a cobrança. Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{link}'}</b> <b>{'{prazo}'}</b> <b>{'{dias}'}</b> (ex.: "vence em 7 dias", "vence hoje", "está vencida há 5 dias"). Aceita *negrito*, _itálico_ e quebra de linha.</p>
               <Textarea value={whatsappTpl} onChange={(e) => setWhatsappTpl(e.target.value)} rows={8} className="font-mono text-[12px] leading-relaxed" />
               <Button size="sm" className="w-full" onClick={salvarWhatsappTpl} disabled={savingTpl}>
                 {savingTpl && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar mensagem
@@ -438,7 +438,7 @@ export default function MeuPerfil() {
             {/* E-mail de cobrança (assunto + corpo) */}
             <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-2">
               <p className="text-xs font-semibold text-foreground">E-mail de cobrança</p>
-              <p className="text-[11px] text-foreground-muted">Usado no envio por e-mail (manual e automático). O layout (botão de pagamento, valor, vencimento, PIX e NF em anexo) já vem pronto — aqui você define o <b>assunto</b> e a <b>mensagem de abertura</b>. Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{link}'}</b> <b>{'{pix}'}</b> <b>{'{titular}'}</b>.</p>
+              <p className="text-[11px] text-foreground-muted">Usado no envio por e-mail (manual e automático). O layout (botão de pagamento, valor, vencimento, PIX e NF em anexo) já vem pronto — aqui você define o <b>assunto</b> e a <b>mensagem de abertura</b>. Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{link}'}</b> <b>{'{pix}'}</b> <b>{'{titular}'}</b> <b>{'{prazo}'}</b> <b>{'{dias}'}</b> (ex.: "vence em 7 dias", "vence hoje", "está vencida há 5 dias").</p>
               <div>
                 <Label className="text-[11px]">Assunto</Label>
                 <Input value={emailAssunto} onChange={(e) => setEmailAssunto(e.target.value)} placeholder={EMAIL_ASSUNTO_PADRAO} className="mt-1 text-[13px]" />
@@ -467,7 +467,7 @@ export default function MeuPerfil() {
                 </div>
               </div>
               <Label className="text-[11px]">Mensagem PIX no WhatsApp</Label>
-              <p className="text-[11px] text-foreground-muted">Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{pix}'}</b> <b>{'{titular}'}</b>.</p>
+              <p className="text-[11px] text-foreground-muted">Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{pix}'}</b> <b>{'{titular}'}</b> <b>{'{prazo}'}</b> <b>{'{dias}'}</b> (ex.: "vence em 7 dias", "vence hoje", "está vencida há 5 dias").</p>
               <Textarea value={whatsappTplPix} onChange={(e) => setWhatsappTplPix(e.target.value)} rows={8} className="font-mono text-[12px] leading-relaxed" />
               <Button size="sm" className="w-full" onClick={salvarPix} disabled={savingPix}>
                 {savingPix && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar PIX

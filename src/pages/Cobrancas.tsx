@@ -15,13 +15,14 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { formatCurrency, formatDate } from '@/utils/formatters';
-import { format, parseISO, startOfMonth, endOfMonth, addMonths, addDays } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, addMonths, addDays, differenceInCalendarDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   useCobrancas,
   preencherTemplate,
+  frasePrazo,
   WHATSAPP_TEMPLATE_PIX_PADRAO,
   COBRANCA_STATUS_LABEL,
   type Cobranca,
@@ -212,11 +213,14 @@ export default function Cobrancas() {
     setWaNfLinhaId(cob.linhas.find((l) => l.nota_fiscal_path)?.id ?? null);
     setWaTel(cli?.telefone || '');
     const usaPix = !!cob.envio_pix && !!pixCfg.chave;
+    const diff = differenceInCalendarDays(parseISO(cob.vencimento), new Date());
     setWaText(preencherTemplate(usaPix ? (pixCfg.template || WHATSAPP_TEMPLATE_PIX_PADRAO) : whatsappTemplate, {
       cliente: cli?.nome || 'cliente',
       descricao: cob.descricao || 'cobrança',
       valor: formatCurrency(Number(cob.valor)),
       vencimento: formatDate(cob.vencimento),
+      prazo: frasePrazo(diff),
+      dias: String(Math.abs(diff)),
       link: cob.invoice_url || '',
       pix: pixCfg.chave,
       titular: pixCfg.titular,
@@ -252,7 +256,8 @@ export default function Cobrancas() {
     const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
     const usaPix = !!cob.envio_pix && !!pixCfg.chave;
     // Corpo prefillado com o template salvo no Meu Perfil (ou um padrão), já substituído.
-    const corpoTpl = emailCfg.corpo || 'Segue sua cobrança de {descricao}. Qualquer dúvida, é só responder este e-mail.';
+    const corpoTpl = emailCfg.corpo || 'Sua cobrança de {descricao} {prazo}. Qualquer dúvida, é só responder este e-mail.';
+    const diff = differenceInCalendarDays(parseISO(cob.vencimento), new Date());
     setEmCob(cob);
     setEmPara(cli?.email || '');
     setEmIntro(preencherTemplate(corpoTpl, {
@@ -260,6 +265,8 @@ export default function Cobrancas() {
       descricao: cob.descricao || 'cobrança',
       valor: formatCurrency(Number(cob.valor)),
       vencimento: formatDate(cob.vencimento),
+      prazo: frasePrazo(diff),
+      dias: String(Math.abs(diff)),
       link: cob.invoice_url || '',
       pix: usaPix ? pixCfg.chave : '',
       titular: usaPix ? pixCfg.titular : '',
@@ -279,6 +286,8 @@ export default function Cobrancas() {
       descricao: emCob.descricao || 'cobrança',
       valor: formatCurrency(Number(emCob.valor)),
       vencimento: formatDate(emCob.vencimento),
+      prazo: frasePrazo(differenceInCalendarDays(parseISO(emCob.vencimento), new Date())),
+      dias: String(Math.abs(differenceInCalendarDays(parseISO(emCob.vencimento), new Date()))),
       link: emCob.invoice_url || null,
       pix: usaPix ? pixCfg.chave : null,
       titular: usaPix ? pixCfg.titular : null,

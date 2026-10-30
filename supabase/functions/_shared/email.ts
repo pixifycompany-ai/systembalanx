@@ -19,7 +19,7 @@ export interface DadosCobrancaEmail {
 // Templates padrão (mesmos placeholders do WhatsApp). Usados quando o usuário não
 // personalizou no Meu Perfil.
 export const EMAIL_ASSUNTO_PADRAO = "Cobrança: {descricao} — vence {vencimento}";
-export const EMAIL_CORPO_PADRAO = "Segue sua cobrança de {descricao}. Qualquer dúvida, é só responder este e-mail.";
+export const EMAIL_CORPO_PADRAO = "Sua cobrança de {descricao} {prazo}. Qualquer dúvida, é só responder este e-mail.";
 
 // Identidade visual BALANX (cor primária hsl(212 75% 48%) e navy da marca).
 const BRAND_BLUE = "#1f74d6";
@@ -38,6 +38,8 @@ export function preencherEmailTpl(tpl: string, d: Record<string, string>): strin
     .replace(/\{descricao\}/g, d.descricao ?? "")
     .replace(/\{valor\}/g, d.valor ?? "")
     .replace(/\{vencimento\}/g, d.vencimento ?? "")
+    .replace(/\{prazo\}/g, d.prazo ?? "")
+    .replace(/\{dias\}/g, d.dias ?? "")
     .replace(/\{link\}/g, d.link ?? "")
     .replace(/\{pix\}/g, d.pix ?? "")
     .replace(/\{titular\}/g, d.titular ?? "")

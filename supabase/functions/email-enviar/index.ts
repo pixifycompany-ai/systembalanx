@@ -42,6 +42,7 @@ serve(async (req) => {
     const vals = {
       cliente: String(b.cliente || "cliente"), descricao: String(b.descricao || "cobrança"),
       valor: String(b.valor || ""), vencimento: String(b.vencimento || ""),
+      prazo: String(b.prazo || ""), dias: String(b.dias || ""),
       link: String(b.link || ""), pix: String(b.pix || ""), titular: String(b.titular || ""),
     };
     const subjectTpl = (cfg?.email_assunto || EMAIL_ASSUNTO_PADRAO);

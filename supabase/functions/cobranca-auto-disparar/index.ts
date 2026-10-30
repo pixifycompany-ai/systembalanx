@@ -2,15 +2,16 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { montarEmailCobranca, enviarEmailResend, preencherEmailTpl, EMAIL_ASSUNTO_PADRAO, EMAIL_CORPO_PADRAO, type ResendAnexo } from "../_shared/email.ts";
 import { buscarBoletoUrl, temBoleto } from "../_shared/asaas.ts";
+import { frasePrazo } from "../_shared/prazo.ts";
 
 // Worker do cron: roda 1x/dia, encontra cobranças que casam com a regra de
 // auto-envio (global ou exceção do contrato) e dispara pelo WhatsApp (Pixify),
 // anexando a nota fiscal (PDF) quando houver. Protegido por CRON_SECRET.
 
 const TPL_PADRAO =
-  "Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!";
+  "Olá {cliente}! 👋\n\nSua cobrança de *{descricao}* {prazo}:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!";
 const TPL_PIX_PADRAO =
-  "Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\n🔑 *Chave PIX:* {pix}\n👤 Em nome de: {titular}\n\nApós o pagamento, é só enviar o comprovante. Obrigado!";
+  "Olá {cliente}! 👋\n\nSua cobrança de *{descricao}* {prazo}:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\n🔑 *Chave PIX:* {pix}\n👤 Em nome de: {titular}\n\nApós o pagamento, é só enviar o comprovante. Obrigado!";
 
 function normalizarWhats(tel: string): string | null {
   let d = String(tel || "").replace(/\D/g, "");
@@ -29,6 +30,7 @@ function preencher(tpl: string, d: Record<string, string>) {
   return (tpl || TPL_PADRAO)
     .replace(/\{cliente\}/g, d.cliente).replace(/\{descricao\}/g, d.descricao)
     .replace(/\{valor\}/g, d.valor).replace(/\{vencimento\}/g, d.vencimento)
+    .replace(/\{prazo\}/g, d.prazo || "").replace(/\{dias\}/g, d.dias || "")
     .replace(/\{link\}/g, d.link || "").replace(/\{pix\}/g, d.pix || "").replace(/\{titular\}/g, d.titular || "");
 }
 function hojeSP(): string {
@@ -162,6 +164,9 @@ serve(async (req) => {
       // Dados comuns da fatura (grupo = soma das linhas, descrição "A + B").
       const descricao = linhas.map((l) => l.descricao).filter(Boolean).join(" + ") || "cobrança";
       const valorNum = linhas.reduce((s, l) => s + (Number(l.valor) || 0), 0);
+      // Frase adaptativa (antes/no dia/atraso) + contagem de dias.
+      const prazoTxt = frasePrazo(d);
+      const diasTxt = String(Math.abs(d));
       const comNf = linhas.find((l) => l.nota_fiscal_path);
       const exigeNf = linhas.some((l) => l.exigir_nf);
       const nfJaEnviada = linhas.some((l) => l.nota_fiscal_enviada);
@@ -184,6 +189,7 @@ serve(async (req) => {
           const tpl = usaPix ? (cfg?.whatsapp_template_pix || TPL_PIX_PADRAO) : (cfg?.whatsapp_template || TPL_PADRAO);
           const text = preencher(tpl, {
             cliente: cli?.nome || "cliente", descricao, valor: brl(valorNum), vencimento: dataBR(cob.vencimento),
+            prazo: prazoTxt, dias: diasTxt,
             link: cob.invoice_url || "", pix: cfg?.pix_chave || "", titular: cfg?.pix_titular || "",
           });
           const tr = await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/text`, {
@@ -219,6 +225,7 @@ serve(async (req) => {
           const remetenteNome = (cfg?.asaas_account_name || "BALANX").trim();
           const valsEmail = {
             cliente: cli?.nome || "cliente", descricao, valor: brl(valorNum), vencimento: dataBR(cob.vencimento),
+            prazo: prazoTxt, dias: diasTxt,
             link: cob.invoice_url || "", pix: usaPix ? (cfg?.pix_chave || "") : "", titular: usaPix ? (cfg?.pix_titular || "") : "",
           };
           const { subject, html, text } = montarEmailCobranca({

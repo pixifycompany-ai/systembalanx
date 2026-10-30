@@ -530,6 +530,7 @@ export function useCobrancas() {
   // Envia a cobrança por e-mail (Resend). `dados` carrega os campos do template.
   const enviarEmail = async (dados: {
     para: string; cliente: string; descricao: string; valor: string; vencimento: string;
+    prazo?: string | null; dias?: string | null;
     link?: string | null; pix?: string | null; titular?: string | null; intro?: string | null;
     nota_fiscal_path?: string | null; nota_fiscal_nome?: string | null;
     forma?: string | null; asaas_payment_id?: string | null;
@@ -577,20 +578,31 @@ export function useCobrancas() {
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =
-  'Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!';
+  'Olá {cliente}! 👋\n\nSua cobrança de *{descricao}* {prazo}:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!';
 
 export const WHATSAPP_TEMPLATE_PIX_PADRAO =
-  'Olá {cliente}! 👋\n\nSegue sua cobrança de *{descricao}*:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\n🔑 *Chave PIX:* {pix}\n👤 Em nome de: {titular}\n\nApós o pagamento, é só enviar o comprovante. Obrigado!';
+  'Olá {cliente}! 👋\n\nSua cobrança de *{descricao}* {prazo}:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\n🔑 *Chave PIX:* {pix}\n👤 Em nome de: {titular}\n\nApós o pagamento, é só enviar o comprovante. Obrigado!';
+
+// Frase relativa de vencimento (antes/no dia/atraso). diff = dias até vencer.
+export function frasePrazo(diff: number): string {
+  if (diff > 1) return `vence em ${diff} dias`;
+  if (diff === 1) return 'vence amanhã';
+  if (diff === 0) return 'vence hoje';
+  if (diff === -1) return 'está vencida há 1 dia';
+  return `está vencida há ${Math.abs(diff)} dias`;
+}
 
 export function preencherTemplate(
   tpl: string,
-  d: { cliente: string; descricao: string; valor: string; vencimento: string; link: string; pix?: string; titular?: string },
+  d: { cliente: string; descricao: string; valor: string; vencimento: string; link: string; pix?: string; titular?: string; prazo?: string; dias?: string },
 ): string {
   return (tpl || WHATSAPP_TEMPLATE_PADRAO)
     .replace(/\{cliente\}/g, d.cliente)
     .replace(/\{descricao\}/g, d.descricao)
     .replace(/\{valor\}/g, d.valor)
     .replace(/\{vencimento\}/g, d.vencimento)
+    .replace(/\{prazo\}/g, d.prazo || '')
+    .replace(/\{dias\}/g, d.dias || '')
     .replace(/\{link\}/g, d.link || '')
     .replace(/\{pix\}/g, d.pix || '')
     .replace(/\{titular\}/g, d.titular || '');
