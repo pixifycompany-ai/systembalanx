@@ -6,14 +6,17 @@
   <title>BALANX — Gestão financeira com IA para autônomos, PMEs e agências</title>
   <meta name="description" content="Seu financeiro organizado, previsível e com IA — para autônomos, PMEs e agências. Fluxo de caixa, contratos recorrentes, cartões, previsão de caixa e a IARA respondendo suas dúvidas. Teste 14 dias grátis." />
   <link rel="canonical" href="https://balanx.com.br/" />
-  <meta name="theme-color" content="#0a0f1f" />
+  <meta name="theme-color" content="#F3F4F7" />
 
   <!-- Open Graph / Twitter -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://balanx.com.br/" />
   <meta property="og:title" content="BALANX — Gestão financeira com IA para autônomos, PMEs e agências" />
   <meta property="og:description" content="Fluxo de caixa, contratos recorrentes, cartões e previsão de caixa. A IARA responde suas dúvidas em português. Para autônomos, PMEs e agências. Teste 14 dias grátis." />
-  <meta property="og:image" content="https://balanx.com.br/assets/og.jpg" />
+  <meta property="og:image" content="https://balanx.com.br/assets/og2.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:image" content="https://balanx.com.br/assets/og2.jpg" />
   <meta property="og:locale" content="pt_BR" />
   <meta name="twitter:card" content="summary_large_image" />
 
@@ -21,9 +24,9 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png?v=5" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700&display=swap"></noscript>
-  <link rel="stylesheet" href="/styles.css?v=9" />
+  <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=Instrument+Serif:ital@0;1&display=swap">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=Instrument+Serif:ital@0;1&display=swap"></noscript>
+  <link rel="stylesheet" href="/styles.css?v=10" />
 
   <!-- SEO estruturado -->
   <script type="application/ld+json">
@@ -44,13 +47,10 @@
   </script>
 </head>
 <body>
-  <!-- brilho ambiente AURO -->
-  <div class="ambient" aria-hidden="true"></div>
-
   <!-- ===== NAV ===== -->
   <header class="nav" id="nav">
     <a class="nav__brand" href="/" aria-label="BALANX — início">
-      <img src="/assets/isotipo.svg?v=5" alt="" width="26" height="30" />
+      <span class="brand-tile"><img src="/assets/isotipo.svg?v=5" alt="" width="16" height="18" /></span>
       <span>balanx</span>
     </a>
     <nav class="nav__links" aria-label="Principal">
@@ -80,10 +80,10 @@
     <!-- ===== HERO ===== -->
     <section class="hero">
       <div class="hero__copy reveal">
-        <span class="eyebrow"><span class="dot"></span> Financeiro com IA — de autônomo a agência</span>
+        <span class="chip"><span class="dot"></span> Financeiro com IA — de autônomo a agência</span>
         <h1 class="hero__title">
-          Seu financeiro<br />
-          <span class="grad" id="typed">no controle</span><span class="caret" aria-hidden="true"></span>
+          Seu financeiro,<br />
+          <span class="serif" id="typed">no controle</span><span class="caret" aria-hidden="true"></span>
         </h1>
         <p class="hero__sub">
           Fluxo de caixa, contratos recorrentes, cartões e previsão — num só lugar.
@@ -91,40 +91,32 @@
         </p>
         <div class="hero__actions">
           <a class="btn btn--primary btn--lg" href="https://app.balanx.com.br/criar-conta">Começar grátis <span aria-hidden="true">→</span></a>
-          <a class="btn btn--glass btn--lg" href="#recursos">Ver recursos</a>
+          <a class="btn btn--outline btn--lg" href="#recursos">Ver recursos</a>
         </div>
         <p class="hero__note">14 dias grátis · sem cartão · cancele quando quiser</p>
       </div>
 
       <div class="hero__art reveal" data-delay="120">
-        <!-- Mockup recriado da plataforma (leve, vetorial) -->
-        <div class="mock mock--balance auro">
+        <figure class="hero__photo">
+          <img src="/assets/img1.webp?v=6" alt="Empreendedor sorrindo para a câmera com o celular na mão numa avenida ao entardecer" width="2000" height="1117" fetchpriority="high" decoding="async" />
+        </figure>
+
+        <!-- Cartão de saldo (navy, igual ao app) -->
+        <div class="mock mock--balance navy">
+          <img class="hexmark" src="/assets/isotipo.svg?v=5" alt="" aria-hidden="true" />
           <div class="mock__row">
             <span class="mock__eyebrow">Saldo consolidado</span>
-            <span class="mock__tag">SET</span>
+            <span class="mock__tag">3 contas</span>
           </div>
           <div class="mock__value">R$ 48.560<span>,00</span></div>
-          <div class="mock__muted">3 contas ativas</div>
           <div class="mock__kpis">
             <div><span class="mock__k">Receitas do mês</span><b class="pos">R$ 62.300</b></div>
             <div class="ar"><span class="mock__k">Despesas do mês</span><b class="neg">R$ 41.740</b></div>
           </div>
-          <div class="spark" aria-hidden="true">
-            <svg viewBox="0 0 320 90" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stop-color="#e0a24e" stop-opacity="0.35" />
-                  <stop offset="1" stop-color="#e0a24e" stop-opacity="0" />
-                </linearGradient>
-              </defs>
-              <path d="M0,70 L40,60 L80,66 L120,40 L160,48 L200,26 L240,34 L280,16 L320,22 L320,90 L0,90 Z" fill="url(#sg)" />
-              <path d="M0,70 L40,60 L80,66 L120,40 L160,48 L200,26 L240,34 L280,16 L320,22" fill="none" stroke="#f0b45f" stroke-width="2.5" />
-            </svg>
-          </div>
         </div>
 
-        <!-- Bolha da IARA flutuando -->
-        <div class="mock mock--iara auro" data-float>
+        <!-- Bolha da IARA -->
+        <div class="mock mock--iara card" data-float>
           <div class="iara__avatar"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" fill="currentColor"/></svg></div>
           <div>
             <div class="iara__name">IARA · agora</div>
@@ -148,7 +140,7 @@
     <section class="section" id="recursos">
       <header class="section__head reveal">
         <span class="eyebrow">Recursos</span>
-        <h2>Tudo que o seu financeiro precisa</h2>
+        <h2>Tudo que o seu financeiro <span class="serif">precisa</span></h2>
         <p>Do recebível recorrente ao fechamento do mês — sem planilha e sem susto.</p>
       </header>
 
@@ -222,9 +214,8 @@
           <div class="bento-viz viz-center">
             <div class="viz-ring" aria-hidden="true">
               <svg viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="10"/>
-                <circle class="viz-ring__prog" cx="60" cy="60" r="50" fill="none" stroke="url(#ringg)" stroke-width="10" stroke-linecap="round" transform="rotate(-90 60 60)"/>
-                <defs><linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4c8dff"/><stop offset="1" stop-color="#e0a24e"/></linearGradient></defs>
+                <circle cx="60" cy="60" r="50" fill="none" stroke="#D5DAE3" stroke-width="10"/>
+                <circle class="viz-ring__prog" cx="60" cy="60" r="50" fill="none" stroke="#2563EB" stroke-width="10" stroke-linecap="round" transform="rotate(-90 60 60)"/>
               </svg>
               <div class="viz-ring__c"><b>68%</b><span>da meta</span></div>
             </div>
@@ -255,19 +246,21 @@
 
     <!-- ===== IARA ===== -->
     <section class="section iara-sec" id="iara">
+      <div class="iara-band navy">
+        <img class="hexmark" src="/assets/isotipo.svg?v=5" alt="" aria-hidden="true" style="width:340px;right:-80px;top:-90px" />
       <div class="iara-sec__copy reveal">
-        <span class="eyebrow"><span class="dot"></span> Inteligência IARA</span>
-        <h2>Pergunte em português.<br />Ela responde com os <span class="grad">seus números</span>.</h2>
+        <span class="eyebrow">Inteligência IARA</span>
+        <h2>Pergunte em português.<br />Ela responde com os <span class="serif">seus números</span>.</h2>
         <p>A IARA lê o seu financeiro em tempo real e responde qualquer período — hoje, essa semana, do dia 1 ao 15, o resto do mês. Sem fórmula, sem planilha.</p>
         <ul class="checks">
           <li>“O que eu tenho a pagar essa semana?”</li>
           <li>“Quanto posso retirar de lucro?”</li>
           <li>“Quais despesas estão acima da média?”</li>
         </ul>
-        <a class="btn btn--primary" href="https://app.balanx.com.br/criar-conta">Conversar com a IARA</a>
+        <a class="btn btn--light" href="https://app.balanx.com.br/criar-conta">Conversar com a IARA</a>
       </div>
 
-      <div class="iara-sec__chat auro reveal" data-delay="120">
+      <div class="iara-sec__chat reveal" data-delay="120">
         <div class="chat__head">
           <div class="iara__avatar"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" fill="currentColor"/></svg></div>
           <div><div class="iara__name">IARA</div><div class="chat__status">online</div></div>
@@ -279,15 +272,18 @@
           <div class="msg msg--iara">Amanhã vencem <b>R$ 4.320</b>: fatura do cartão (R$ 3.520) e a contabilidade (R$ 800). Sua conta cobre com folga. 👍</div>
         </div>
       </div>
+      </div>
     </section>
 
     <!-- ===== SHOWCASE ===== -->
     <section class="showcase reveal">
-      <img src="/assets/img1.webp?v=6" alt="Empreendedor sorrindo para a câmera com o celular na mão numa avenida ao entardecer" loading="lazy" decoding="async" width="2000" height="1117" />
-      <div class="showcase__overlay">
-        <h2>No bolso, na mesa,<br />sempre no controle.</h2>
-        <p>Design pensado pra ser rápido no celular e completo no desktop. Modo escuro premium por padrão.</p>
-        <a class="btn btn--glass" href="https://app.balanx.com.br/criar-conta">Criar minha conta</a>
+      <div class="showcase__frame">
+        <img src="/assets/img2.webp?v=1" alt="Empreendedor sorrindo para a câmera numa avenida ao entardecer" loading="lazy" decoding="async" width="2000" height="1117" />
+        <div class="showcase__overlay">
+          <h2>No bolso, na mesa, <span class="serif">sempre no controle.</span></h2>
+          <p>Rápido no celular e completo no desktop, com tema claro e escuro. Seus números onde você estiver.</p>
+          <a class="btn btn--light" href="https://app.balanx.com.br/criar-conta">Criar minha conta</a>
+        </div>
       </div>
     </section>
 
@@ -295,7 +291,7 @@
     <section class="section" id="precos">
       <header class="section__head reveal">
         <span class="eyebrow">Preços</span>
-        <h2>Um plano. Tudo incluso.</h2>
+        <h2>Um plano. <span class="serif">Tudo incluso.</span></h2>
         <p>Comece com 14 dias grátis. Sem pegadinha, cancele quando quiser.</p>
       </header>
 
@@ -304,7 +300,8 @@
         <button class="toggle__opt" data-cycle="mensal" role="tab" aria-selected="false">Mensal</button>
       </div>
 
-      <div class="price auro reveal" data-delay="80">
+      <div class="price navy reveal" data-delay="80">
+        <img class="hexmark" src="/assets/isotipo.svg?v=5" alt="" aria-hidden="true" />
         <div class="price__badge">★ Plano BALANX</div>
         <div class="price__amount">
           <span class="price__cur">R$</span>
@@ -328,7 +325,7 @@
     <section class="section faq" id="faq">
       <header class="section__head reveal">
         <span class="eyebrow">Dúvidas</span>
-        <h2>Perguntas frequentes</h2>
+        <h2>Perguntas <span class="serif">frequentes</span></h2>
       </header>
       <div class="faq__list reveal">
         <details><summary>Preciso instalar alguma coisa?<i></i></summary><p>Não. O BALANX roda no navegador do celular e do computador, e dá pra adicionar na tela inicial como um app.</p></details>
@@ -341,10 +338,11 @@
 
     <!-- ===== CTA FINAL ===== -->
     <section class="finalcta reveal">
-      <div class="finalcta__card auro">
-        <h2>Comece a enxergar seu caixa <span class="grad">com clareza</span>.</h2>
+      <div class="finalcta__card navy">
+        <img class="hexmark" src="/assets/isotipo.svg?v=5" alt="" aria-hidden="true" />
+        <h2>Comece a enxergar seu caixa <span class="serif">com clareza.</span></h2>
         <p>Leva 2 minutos pra criar a conta. A IARA cuida do resto.</p>
-        <a class="btn btn--primary btn--lg" href="https://app.balanx.com.br/criar-conta">Começar grátis <span aria-hidden="true">→</span></a>
+        <a class="btn btn--light btn--lg" href="https://app.balanx.com.br/criar-conta">Começar grátis <span aria-hidden="true">→</span></a>
       </div>
     </section>
   </main>
@@ -352,7 +350,7 @@
   <!-- ===== FOOTER ===== -->
   <footer class="footer">
     <div class="footer__brand">
-      <img src="/assets/isotipo.svg?v=5" alt="" width="24" height="28" />
+      <span class="brand-tile"><img src="/assets/isotipo.svg?v=5" alt="" width="14" height="16" /></span>
       <span>balanx</span>
     </div>
     <nav class="footer__links" aria-label="Rodapé">
@@ -403,6 +401,6 @@
     </form>
   </div>
 
-  <script src="/main.js?v=9" defer></script>
+  <script src="/main.js?v=10" defer></script>
 </body>
 </html>
