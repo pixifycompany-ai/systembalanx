@@ -23,8 +23,10 @@ body{
 }
 img{max-width:100%;display:block}
 a{color:inherit;text-decoration:none}
-h1,h2,h3{margin:0;line-height:1.08;letter-spacing:-.03em;font-weight:600;font-family:var(--font-display)}
-p{margin:0}
+h1,h2,h3{margin:0;line-height:1.08;letter-spacing:-.03em;font-weight:600;font-family:var(--font-display);text-wrap:balance}
+p{margin:0;text-wrap:pretty}
+/* linhas equilibradas nos textos curtos de destaque (sem "efeito guarda-chuva") */
+.hero__sub,.section__head p,.showcase__overlay p,.finalcta__card p,.trust>p,.iara__bubble,.msg,.faq summary{text-wrap:balance}
 
 /* destaque serifado (Instrument Serif itálico) — folga pra não cortar a inclinação */
 .serif{font-family:var(--font-serif);font-style:italic;font-weight:400;letter-spacing:0;padding-right:.08em}

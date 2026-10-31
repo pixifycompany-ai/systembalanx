@@ -22,6 +22,8 @@ export default function Assinatura() {
   const { activeTenant, acessoAtivo, trialDias, role, refresh } = useTenant();
   const [ciclo, setCiclo] = useState<'mensal' | 'anual'>('anual');
   const [cpfCnpj, setCpfCnpj] = useState('');
+  // Mensalidade só por cartão (crédito/débito) ou PIX — boleto não é oferecido
+  const [forma, setForma] = useState<'cartao' | 'pix'>('cartao');
   const [loading, setLoading] = useState(false);
   const [precoMensal, setPrecoMensal] = useState(PLAN.precoMensal);
   const [precoAnualParcela, setPrecoAnualParcela] = useState(PLAN.precoAnualParcela);
@@ -52,7 +54,7 @@ export default function Assinatura() {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/asaas-assinar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ tenant_id: activeTenant.id, ciclo: novoCiclo, cpfCnpj }),
+        body: JSON.stringify({ tenant_id: activeTenant.id, ciclo: novoCiclo, cpfCnpj, ...(precisaCpf ? { forma } : {}) }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || 'Erro ao assinar');
@@ -61,7 +63,7 @@ export default function Assinatura() {
         toast({ title: 'Plano alterado!', description: data.message || 'A mudança passa a valer no próximo vencimento.' });
       } else if (data.invoiceUrl) {
         window.open(data.invoiceUrl, '_blank');
-        toast({ title: 'Quase lá!', description: 'Abrimos a fatura pra você pagar (Pix, boleto ou cartão).' });
+        toast({ title: 'Quase lá!', description: forma === 'pix' ? 'Abrimos a fatura pra você pagar com PIX.' : 'Abrimos a fatura pra você pagar com cartão de crédito ou débito.' });
       } else {
         toast({ title: 'Assinatura criada', description: 'Acompanhe o pagamento no ASAAS.' });
       }
@@ -226,6 +228,27 @@ export default function Assinatura() {
             {podeAssinar ? (
               <SectionCard title="Pagamento">
                 <div className="mb-4 space-y-1.5">
+                  <p className="text-[13px] font-semibold text-foreground">Forma de pagamento</p>
+                  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Forma de pagamento">
+                    {([['cartao', 'Cartão', 'Crédito ou débito'], ['pix', 'PIX', 'Aprovação na hora']] as const).map(([v, t, d]) => (
+                      <button
+                        key={v}
+                        type="button"
+                        role="radio"
+                        aria-checked={forma === v}
+                        onClick={() => setForma(v)}
+                        className={cn(
+                          'flex flex-col items-start rounded-[16px] border px-4 py-3 text-left transition-colors',
+                          forma === v ? 'border-foreground bg-surface ring-1 ring-foreground' : 'border-border bg-surface-2 hover:border-border-strong',
+                        )}
+                      >
+                        <span className="text-[14px] font-semibold text-foreground">{t}</span>
+                        <span className="text-[12px] text-foreground-muted">{d}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="mb-4 space-y-1.5">
                   <Label htmlFor="cpf-cnpj" className="text-[13px] font-semibold text-foreground">CPF ou CNPJ (para a cobrança)</Label>
                   <Input
                     id="cpf-cnpj"
@@ -239,7 +262,7 @@ export default function Assinatura() {
                 <Button className="h-12 w-full rounded-full text-[15px] font-semibold" onClick={assinar} disabled={loading}>
                   {loading ? 'Gerando cobrança…' : `Assinar — ${ciclo === 'anual' ? `12× ${fmt(precoAnualParcela)}` : fmt(precoMensal)}`}
                 </Button>
-                <p className="mt-3 text-center text-[12px] text-foreground-muted">Pagamento via Pix, boleto ou cartão pelo ASAAS. Cancele quando quiser.</p>
+                <p className="mt-3 text-center text-[12px] text-foreground-muted">Pagamento por cartão de crédito/débito ou PIX, pelo ASAAS. Cancele quando quiser.</p>
               </SectionCard>
             ) : (
               <p className="py-4 text-center text-[14px] text-foreground-muted">Peça ao responsável (owner/admin) da conta para assinar.</p>

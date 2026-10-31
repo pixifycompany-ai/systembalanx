@@ -39,7 +39,10 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "ASAAS não configurado (ASAAS_API_KEY vazio). Re-defina o secret." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { tenant_id, ciclo, cpfCnpj } = await req.json();
+    const { tenant_id, ciclo, cpfCnpj, forma } = await req.json();
+    // Formas aceitas na mensalidade: cartão (a fatura do Asaas oferece crédito e
+    // débito quando o billingType é CREDIT_CARD) ou PIX. Boleto não é oferecido.
+    const billingType = forma === "pix" ? "PIX" : "CREDIT_CARD";
     if (!tenant_id || !["mensal", "anual"].includes(ciclo)) {
       return new Response(JSON.stringify({ error: "Parâmetros inválidos (tenant_id, ciclo)." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -101,6 +104,7 @@ serve(async (req) => {
           value,
           cycle,
           description: `BALANX — plano ${ciclo}`,
+          ...(forma ? { billingType } : {}),
           updatePendingPayments: false,
         }),
       });
@@ -124,7 +128,7 @@ serve(async (req) => {
       headers,
       body: JSON.stringify({
         customer: customerId,
-        billingType: "UNDEFINED", // cliente escolhe Pix/Boleto/Cartão na fatura
+        billingType, // CREDIT_CARD (crédito/débito na fatura) ou PIX — sem boleto
         value,
         nextDueDate: nextDueDate.toISOString().split("T")[0],
         cycle,
@@ -148,7 +152,7 @@ serve(async (req) => {
 
     // 4) Salva ids no tenant. NÃO rebaixa o status aqui: quem está em trial
     // continua com acesso até o fim do teste; a liberação/ativação vem pelo
-    // webhook (PAYMENT_CONFIRMED no cartão, PAYMENT_RECEIVED no Pix/boleto).
+    // webhook (PAYMENT_CONFIRMED no cartão, PAYMENT_RECEIVED no Pix).
     // Assim, assinar no meio do trial não bloqueia o usuário na hora.
     await supabase.from("tenants").update({
       asaas_customer_id: customerId,

@@ -18,7 +18,7 @@ SOBRE O BALANX:
 - Gestão financeira com IA para autônomos, PMEs e agências — feito para quem vive de projetos e mensalidades.
 - Recursos: fluxo de caixa e previsão; contratos e recebíveis recorrentes (MRR); cartões e faturas (compras parceladas caem na fatura certa pelo dia de fechamento); calendário com previsão de caixa por semana; lançar por voz; importar extratos por IA; relatórios, metas e categorias.
 - IARA (dentro do app): lê seus números reais e responde qualquer período em português ("o que tenho a pagar essa semana?", "quanto posso retirar de lucro?"). É conservadora e NÃO recomenda investimento de risco.
-- Preços: 14 dias grátis, sem precisar de cartão. Plano único: R$ 29,90/mês, ou no anual 12× de R$ 19,90 (economia de ~33%). Pagamento por Pix, boleto ou cartão. Cancele quando quiser.
+- Preços: 14 dias grátis, sem precisar de cartão. Plano único: R$ 29,90/mês, ou no anual 12× de R$ 19,90 (economia de ~33%). Pagamento por Pix ou cartão de crédito/débito (não aceitamos boleto). Cancele quando quiser.
 - Começar: criar conta em app.balanx.com.br/criar-conta. Roda no navegador (celular e computador) e pode ser adicionado à tela inicial. Cada conta enxerga só os próprios dados.
 
 REGRAS:
