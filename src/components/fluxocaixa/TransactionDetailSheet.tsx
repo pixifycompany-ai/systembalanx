@@ -21,6 +21,8 @@ interface TransactionDetailSheetProps {
   onOpenChange: (o: boolean) => void;
   onEdit: (t: TransacaoUnificada) => void;
   onDelete: (t: TransacaoUnificada) => void;
+  /** Quando presente, mostra "Gerar cobrança no Asaas" (receita em aberto). */
+  onGerarCobranca?: (t: TransacaoUnificada) => void;
 }
 
 const statusLabel: Record<string, string> = {
@@ -37,6 +39,7 @@ export function TransactionDetailSheet({
   onOpenChange,
   onEdit,
   onDelete,
+  onGerarCobranca,
 }: TransactionDetailSheetProps) {
   if (!t) return null;
   const isReceita = t.tipo === 'entrada';
@@ -94,6 +97,15 @@ export function TransactionDetailSheet({
               </div>
             ))}
           </div>
+
+          {onGerarCobranca && (
+            <button
+              onClick={() => { onOpenChange(false); onGerarCobranca(t); }}
+              className="w-full rounded-[14px] border border-primary/40 bg-primary/10 py-3 text-[13px] font-semibold text-primary"
+            >
+              Gerar cobrança no Asaas
+            </button>
+          )}
 
           {/* Footer */}
           <div className="flex gap-2.5 pt-1">

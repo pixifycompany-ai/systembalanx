@@ -3,7 +3,7 @@
 // ela vira uma linha de cobrança por contrato, todas com o mesmo asaas_payment_id,
 // cada uma com a sua parte do valor e a sua receita a receber.
 // deno-lint-ignore-file no-explicit-any
-import { vincularOuCriarReceita } from "./conciliar.ts";
+import { vincularOuCriarReceita, vincularReceita } from "./conciliar.ts";
 
 // Status Asaas -> status interno da cobrança
 export function mapStatus(s: string): string {
@@ -46,16 +46,28 @@ export interface LinhaCobranca {
   data_pagamento?: string | null;
   asaas_customer_id?: string | null;
   asaas_customer_nome?: string | null;
+  /** Lançamento já existente a vincular (ex.: "Gerar cobrança" no Fluxo de Caixa).
+   *  Quando informado, não usa a conciliação por semelhança nem cria receita. */
+  receita_id?: string | null;
+  /** Conta atual dessa receita (só preenche a conta se ela estiver vazia). */
+  receita_conta_id?: string | null;
 }
 
 // Cria a linha de cobrança + a receita a receber (vinculando a já lançada, se houver).
 export async function inserirCobranca(admin: any, userId: string, o: LinhaCobranca) {
   const pago = o.status === "pago";
   const dataPag = pago ? (o.data_pagamento || o.vencimento) : null;
-  const rec = await vincularOuCriarReceita(admin, {
+  const alvo = {
     user_id: userId, cliente_id: o.cliente_id, contrato_id: o.contrato_id, conta_id: o.conta_id,
     descricao: o.descricao, valor: o.valor, vencimento: o.vencimento, pago, data_pagamento: dataPag,
-  });
+  };
+  let rec: { receita_id: string | null };
+  if (o.receita_id) {
+    await vincularReceita(admin, o.receita_id, alvo, o.receita_conta_id ?? null);
+    rec = { receita_id: o.receita_id };
+  } else {
+    rec = await vincularOuCriarReceita(admin, alvo);
+  }
   const { data } = await admin.from("cobrancas").insert({
     user_id: userId,
     cliente_id: o.cliente_id,

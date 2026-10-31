@@ -80,7 +80,7 @@ serve(async (req) => {
 
     // Paywall server-side: ações que CRIAM cobrança só com assinatura ativa.
     // Gerir/baixar o que já existe (sincronizar, cancelar, receber-manual...) segue liberado.
-    const ACOES_PREMIUM = new Set(["criar-contrato", "criar-avulsa", "criar-avulsa-parcelada", "agrupar"]);
+    const ACOES_PREMIUM = new Set(["criar-contrato", "criar-avulsa", "criar-avulsa-parcelada", "criar-de-receitas", "agrupar"]);
     if (ACOES_PREMIUM.has(action)) {
       const { data: acesso } = await admin.rpc("user_tem_acesso", { uid: user.id });
       if (acesso === false) {
@@ -293,6 +293,81 @@ serve(async (req) => {
         });
       }
       return json({ ok: true, parcelas: N });
+    }
+
+    // ===== CRIAR A PARTIR DE LANÇAMENTOS já existentes (Fluxo de Caixa) =====
+    // Uma cobrança no Asaas por receita selecionada, ligada a ELA (não cria receita
+    // nova). Ex.: "Criação de LP (1/4)" + as próximas parcelas. Vencimento passado
+    // vira hoje (o Asaas não aceita data retroativa).
+    if (action === "criar-de-receitas") {
+      const { forma_pagamento, conta_id } = body;
+      const ids: string[] = Array.isArray(body.receita_ids) ? [...new Set((body.receita_ids as unknown[]).map(String))] : [];
+      if (!ids.length) return json({ error: "Selecione ao menos um lançamento." }, 400);
+      if (ids.length > 36) return json({ error: "Máximo de 36 lançamentos por vez." }, 400);
+
+      const { data: recs } = await admin.from("receitas")
+        .select("id, cliente_id, descricao, valor, data_vencimento, status, conta_id")
+        .eq("user_id", user.id).in("id", ids);
+      if (!recs || recs.length !== ids.length) return json({ error: "Lançamento não encontrado." }, 404);
+      const { data: jaLigadas } = await admin.from("cobrancas").select("receita_id")
+        .eq("user_id", user.id).in("receita_id", ids).not("status", "in", "(cancelado,estornado)");
+      if (jaLigadas?.length) return json({ error: "Um ou mais lançamentos já têm cobrança no Asaas." }, 409);
+      for (const r of recs) {
+        if (!r.cliente_id) return json({ error: `"${r.descricao}" não tem cliente vinculado.` }, 400);
+        if (!["pendente", "atrasado"].includes(r.status)) return json({ error: `"${r.descricao}" já foi recebido.` }, 400);
+        if (!(Number(r.valor) > 0)) return json({ error: `"${r.descricao}" está com valor inválido.` }, 400);
+      }
+
+      const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+      const forma = (forma_pagamento || "UNDEFINED") as string;
+      const ordem = [...recs].sort((a: any, b: any) => String(a.data_vencimento).localeCompare(String(b.data_vencimento)));
+
+      // 1) Cria todas no Asaas; se alguma falhar, desfaz as já criadas.
+      const criadas: { pay: any; r: any; venc: string }[] = [];
+      for (const r of ordem as any[]) {
+        const venc = String(r.data_vencimento) < hoje ? hoje : String(r.data_vencimento);
+        let erro: string | null = null;
+        let pay: any = null;
+        try {
+          const customer = await ensureCustomer(r.cliente_id);
+          const res = await fetch(`${base}/payments`, {
+            method: "POST", headers,
+            body: JSON.stringify({
+              customer, billingType: forma, value: Number(r.valor), dueDate: venc,
+              description: r.descricao || "Cobrança", externalReference: r.cliente_id, ...multaJuros(body),
+            }),
+          });
+          pay = await res.json();
+          if (!res.ok) erro = pay?.errors?.[0]?.description || "erro ao criar no Asaas.";
+        } catch (e) {
+          erro = e instanceof Error ? e.message : "erro ao criar no Asaas.";
+        }
+        if (erro) {
+          for (const c of criadas) { await fetch(`${base}/payments/${c.pay.id}`, { method: "DELETE", headers }).catch(() => {}); }
+          return json({ error: `"${r.descricao}": ${erro}` }, 400);
+        }
+        criadas.push({ pay, r, venc });
+      }
+
+      // 2) Registra as cobranças ligadas às receitas existentes.
+      for (const { pay, r, venc } of criadas) {
+        await registrar({
+          cliente_id: r.cliente_id, contrato_id: null, conta_id: conta_id || r.conta_id || null, tipo: "avulsa",
+          asaas_payment_id: pay.id, asaas_subscription_id: null,
+          descricao: r.descricao || "Cobrança", valor: Number(r.valor), vencimento: venc,
+          forma, status: mapStatus(pay.status), invoice_url: pay.invoiceUrl ?? null,
+          envio_pix: !!body.envio_pix, receita_id: r.id, receita_conta_id: r.conta_id ?? null,
+        });
+        // Vencimento ajustado p/ hoje: o lançamento deixa de estar "atrasado".
+        if (venc !== String(r.data_vencimento) && r.status === "atrasado") {
+          await admin.from("receitas").update({ status: "pendente" }).eq("id", r.id).eq("user_id", user.id);
+        }
+      }
+      return json({
+        ok: true,
+        criadas: criadas.length,
+        ajustadas: criadas.filter((c) => c.venc !== String(c.r.data_vencimento)).length,
+      });
     }
 
     // ===== LISTAR ASSINATURAS existentes no Asaas (do cliente) =====

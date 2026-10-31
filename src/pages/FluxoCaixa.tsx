@@ -28,7 +28,7 @@ import { useClientes } from '@/hooks/useClientes';
 import { useContas, useAccountRunningBalance } from '@/hooks/useContas';
 import { useTransferencias, type TransferenciaFormData } from '@/hooks/useTransferencias';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
-import { TrendingUp, TrendingDown, ArrowLeftRight, ArrowRightLeft, Filter, Plus, Pencil, Trash2, Upload, CalendarIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarRange, X, FileText, BarChart3, Repeat, SlidersHorizontal, CheckCircle2, CreditCard, User, Store } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowLeftRight, ArrowRightLeft, Filter, Plus, Pencil, Trash2, Upload, CalendarIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarRange, X, FileText, BarChart3, Repeat, SlidersHorizontal, CheckCircle2, CreditCard, User, Store, Receipt } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FluxoCaixaKPIRow } from '@/components/fluxocaixa/FluxoCaixaKPIRow';
 import { ReceiptGenerator, type ReceiptData } from '@/components/shared/ReceiptGenerator';
@@ -48,6 +48,7 @@ import { MobileTransactionList } from '@/components/fluxocaixa/MobileTransaction
 import { PullToRefresh } from '@/components/shared/PullToRefresh';
 import { TransactionDetailSheet } from '@/components/fluxocaixa/TransactionDetailSheet';
 import { toast } from 'sonner';
+import { GerarCobrancaDialog } from '@/components/fluxocaixa/GerarCobrancaDialog';
 
 // Sorting types
 const SEM_CATEGORIA = '__sem_categoria__';
@@ -158,6 +159,10 @@ export default function FluxoCaixa() {
   const [entradaModalOpen, setEntradaModalOpen] = useState(false);
   const [saidaModalOpen, setSaidaModalOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<TransacaoUnificada | null>(null);
+  // "Gerar cobrança" a partir de uma receita em aberto (e das próximas parcelas)
+  const [cobrancaFor, setCobrancaFor] = useState<TransacaoUnificada | null>(null);
+  const podeGerarCobranca = (t: TransacaoUnificada) =>
+    t.tabela_origem === 'receitas' && (t.status === 'pendente' || t.status === 'atrasado');
   const [editingItem, setEditingItem] = useState<TransacaoUnificada | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -1424,7 +1429,7 @@ export default function FluxoCaixa() {
           ) : (
             <div className="overflow-x-auto rounded-lg border border-border/60 bg-card">
               {/* table-fixed + larguras fixas: colunas sempre alinhadas; "Lançamento" ocupa o resto */}
-              <table className="w-full min-w-[1040px] table-fixed">
+              <table className="w-full min-w-[1080px] table-fixed">
                 <thead>
                   <tr className="border-b border-border/60 bg-muted/40 sticky top-0 z-10">
                     <th className="p-3 pl-6 w-[52px]">
@@ -1441,7 +1446,7 @@ export default function FluxoCaixa() {
                     <SortableHeader column="conta" className="w-[150px]">Conta</SortableHeader>
                     <SortableHeader column="valor" className="w-[130px] [&>div]:justify-end">Valor</SortableHeader>
                     <SortableHeader column="status" className="w-[112px] [&>div]:justify-center">Status</SortableHeader>
-                    <th className="w-[112px] text-center p-3 text-xs font-medium text-muted-foreground">Ações</th>
+                    <th className="w-[148px] text-center p-3 text-xs font-medium text-muted-foreground">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1631,6 +1636,22 @@ export default function FluxoCaixa() {
                           </td>
                           <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-center gap-1">
+                              {podeGerarCobranca(t) && (
+                                <Tooltip delayDuration={250}>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary"
+                                      onClick={() => setCobrancaFor(t)}
+                                      aria-label="Gerar cobrança no Asaas"
+                                    >
+                                      <Receipt className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="text-xs">Gerar cobrança no Asaas</TooltipContent>
+                                </Tooltip>
+                              )}
                               {!isTransfer && (t.status === 'pendente' || t.status === 'atrasado') && (
                                 <Tooltip delayDuration={250}>
                                   <TooltipTrigger asChild>
@@ -2253,9 +2274,18 @@ export default function FluxoCaixa() {
               onOpenChange={(o) => { if (!o) setDetailItem(null); }}
               onEdit={handleEditFromDetail}
               onDelete={handleMobileDelete}
+              onGerarCobranca={podeGerarCobranca(detailItem) ? (t) => setCobrancaFor(t) : undefined}
             />
           );
         })()}
+
+        {/* Gerar cobrança no Asaas a partir do lançamento */}
+        <GerarCobrancaDialog
+          transacao={cobrancaFor}
+          contas={contas}
+          onOpenChange={(o) => { if (!o) setCobrancaFor(null); }}
+          onDone={() => { refetchFluxo(); }}
+        />
 
         {/* Receipt Generator */}
         <ReceiptGenerator open={receiptOpen} onOpenChange={setReceiptOpen} data={receiptData} />
