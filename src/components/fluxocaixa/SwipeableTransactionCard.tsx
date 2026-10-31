@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { parseISO } from 'date-fns';
-import { Check, Trash2, ArrowUp, ArrowDown, ArrowLeftRight } from 'lucide-react';
+import { Check, Trash2, ArrowUp, ArrowDown, ArrowLeftRight, User, Store } from 'lucide-react';
 import { EyeIcon, DocumentDuplicateIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '@/utils/formatters';
 import type { TransacaoUnificada } from '@/types/fluxoCaixa';
@@ -203,6 +203,12 @@ export function SwipeableTransactionCard({
         {/* Descrição + conta · status */}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate text-foreground uppercase">{t.descricao}</p>
+          {!isTransfer && (t.cliente?.nome || t.fornecedor) && (
+            <span className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-border/60 bg-muted/50 px-2 py-[1px] text-[10.5px] font-medium text-foreground-muted">
+              {t.cliente?.nome ? <User className="h-2.5 w-2.5 shrink-0" /> : <Store className="h-2.5 w-2.5 shrink-0" />}
+              <span className="truncate">{t.cliente?.nome || t.fornecedor}</span>
+            </span>
+          )}
           <p className="text-[11px] text-foreground-muted truncate mt-0.5 uppercase">
             {[contaNome, statusLabel(t)].filter(Boolean).join(' · ')}
           </p>
