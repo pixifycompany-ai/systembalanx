@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Bot, User, Send, Loader2, Sparkles, RefreshCw } from 'lucide-react';
 import { useFinancialAdvisor, type PeriodOption } from '@/hooks/useFinancialAdvisor';
-import ReactMarkdown from 'react-markdown';
+import { IaraMarkdown } from '@/components/iara/IaraMarkdown';
 import { cn } from '@/lib/utils';
 
 const PERIOD_OPTIONS = [
@@ -98,9 +98,7 @@ export function AIAdvisorWidget({ fill = false, className }: AIAdvisorWidgetProp
                   msg.role === 'assistant' ? "bg-muted" : "bg-primary text-primary-foreground"
                 )}>
                   {msg.role === 'assistant' ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-                      <ReactMarkdown>{msg.content || '...'}</ReactMarkdown>
-                    </div>
+                    <IaraMarkdown content={msg.content || '...'} />
                   ) : (
                     <p>{msg.content}</p>
                   )}

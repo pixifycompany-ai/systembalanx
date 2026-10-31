@@ -364,6 +364,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • Ao mencionar o intervalo na resposta, use estas MESMAS datas (ex.: "essa semana (${semanaIni} a ${semanaFim})").
 - Escolha a ferramenta certa:
   • Perguntas de resultado/desempenho ("quanto faturei/gastei/lucrei", "margem", "por categoria", "top clientes") → resumo_financeiro (regime de competência).
+  • "Despesas acima da média", "o que aumentou", "onde estou gastando mais que o normal" → categorias_vs_media (compara cada categoria com a MÉDIA DELA nos meses anteriores — nunca compare uma categoria com o total do mês).
   • Gasto por CATEGORIA e "quanto gastei/lucrei" usam COMPETÊNCIA (campos despesas_por_categoria, despesa_competencia, lucro_liquido_dre) — é o mesmo número do DRE em Relatórios. Compras no cartão contam na categoria de cada item, mesmo com a fatura em aberto; a fatura em si não é despesa nova. Distribuição de lucros fica separada (distribuicao_lucros). Só use "pago"/"lucro_caixa" quando perguntarem o que SAIU do caixa.
   • Perguntas de agenda/caixa futuro-ou-passado por data ("o que vence/tenho a pagar/a receber", "hoje", "amanhã", "essa semana", "resto do mês") → agenda_vencimentos (por data de vencimento).
   • Procurar por fornecedor/descrição ("quanto paguei pra X") → buscar_lancamento. Panorama de um cliente → detalhe_cliente. Saldo atual/cartões → saldo_e_contas. Projeção de caixa futuro → projecao_fluxo. Comparar dois períodos → comparativo_periodos.
@@ -385,8 +386,12 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - CATEGORIAS de receita: ${[...new Set((categorias || []).filter((c: any) => c.tipo === "receita").map((c: any) => c.nome))].join(", ") || "(nenhuma)"}.
 
 ## Estilo das respostas
-- Responda em Markdown. Comece pela conclusão/resposta direta e depois os detalhes.
-- Use listas curtas e, quando útil, uma mini-tabela. Emojis com muita moderação (no máximo 1–2 quando destacam algo importante).
+- Responda em Markdown. Comece pela conclusão/resposta direta (1 frase, com o número principal em **negrito**) e depois os detalhes.
+- NÃO use tabelas (ficam ilegíveis no celular). Para listar categorias, clientes ou lançamentos use lista com marcadores, UM item por linha, no formato:
+  - **Nome** — R$ 1.234,56 (detalhe curto, ex.: +35% vs média)
+- No máximo 8 itens por lista; se houver mais, resuma o resto em uma linha ("+ 5 categorias somando R$ 900,00").
+- Separe blocos com um subtítulo curto em negrito quando a resposta tiver mais de uma parte (ex.: **Acima da média**, **Dentro do normal**).
+- Emojis com muita moderação (no máximo 1–2 quando destacam algo importante).
 - Seja concisa: nada de textos longos quando um parágrafo resolve. Ofereça um próximo passo acionável quando fizer sentido.
 - Termine oferecendo aprofundar ("Quer que eu detalhe as despesas por categoria?") quando couber.
 
@@ -407,6 +412,7 @@ ${contexto}`;
       { type: "function", function: { name: "comparativo_periodos", description: "Compara dois intervalos por competência (recebido, pago, lucro, margem) com variação %. Ex: 'esse mês vs passado'.", parameters: { type: "object", properties: { inicio_a: D, fim_a: D, inicio_b: D, fim_b: D }, required: ["inicio_a", "fim_a", "inicio_b", "fim_b"] } } },
       { type: "function", function: { name: "movimento_por_forma", description: "Soma por FORMA DE PAGAMENTO (Pix, cartão de crédito/débito, boleto, dinheiro, transferência) num intervalo por competência. Use p/ 'quanto fiz/paguei/recebi de PIX', 'quanto no cartão', 'quanto em boleto' — hoje, ontem, essa semana, esse mês ou período.", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" } }, required: ["inicio", "fim"] } } },
       { type: "function", function: { name: "compras_parceladas", description: "Compras PARCELADAS no cartão: cada compra com nº de parcelas, quantas já foram pagas e quantas FALTAM, valor da parcela, próxima data de vencimento e valor restante. Use p/ 'minhas compras parceladas', 'quantas parcelas faltam do X', 'o que ainda está parcelado no cartão'.", parameters: { type: "object", properties: { incluir_quitadas: { type: "boolean", description: "incluir compras já quitadas (padrão: false)" } } } } },
+      { type: "function", function: { name: "categorias_vs_media", description: "Compara o gasto de CADA categoria no período (padrão: mês atual até hoje) com a média mensal DA PRÓPRIA categoria nos meses anteriores (padrão 3). Retorna as que estão acima da média (com diferença e %), mesmo critério do DRE. Use p/ 'despesas acima da média', 'o que aumentou', 'onde estou gastando mais'.", parameters: { type: "object", properties: { inicio: D, fim: D, meses_base: { type: "number", description: "meses anteriores para a média (padrão 3, máx 12)" } } } } },
       { type: "function", function: { name: "parcelas_comprometidas", description: "Quanto das PRÓXIMAS FATURAS já está comprometido com parcelamentos do cartão, somado por MÊS de vencimento (parcelas ainda não pagas). Use p/ 'quanto já devo em parcelas nos próximos meses', 'quanto da fatura futura já está tomado', 'total comprometido em parcelas'.", parameters: { type: "object", properties: { meses: { type: "number", description: "quantos meses à frente (padrão 12)" } } } } },
       { type: "function", function: {
         name: "preparar_lancamentos",
@@ -556,6 +562,50 @@ ${contexto}`;
 
     async function toolResumo(inicio: string, fim: string): Promise<string> {
       return JSON.stringify(await computeResumo(inicio, fim));
+    }
+
+    // Cada categoria no período vs a média mensal DELA nos N meses anteriores.
+    // Critério de competência = DRE (itens do cartão na categoria; sem sombra/pagamento de fatura).
+    async function toolCategoriasVsMedia(inicio?: string, fim?: string, mesesBase?: number): Promise<string> {
+      const N = Math.min(Math.max(Math.floor(Number(mesesBase) || 3), 1), 12);
+      const ini = inicio || `${hojeISO.slice(0, 8)}01`;
+      const fi = fim || hojeISO;
+      const [y, m] = ini.split("-").map(Number);
+      const baseIni = new Date(Date.UTC(y, m - 1 - N, 1)).toISOString().slice(0, 10);
+      const baseFim = new Date(Date.UTC(y, m - 1, 0)).toISOString().slice(0, 10); // fim do mês anterior a `ini`
+      const desp = await safe<any>(supabase.from("despesas")
+        .select("valor, data_competencia, fornecedor, categoria:categorias(nome, grupo_dre)")
+        .gte("data_competencia", baseIni).lte("data_competencia", fi));
+      const r2 = (n: number) => Math.round(n * 100) / 100;
+      const atual: Record<string, number> = {}, hist: Record<string, number> = {}, distrib: Record<string, boolean> = {};
+      for (const d of desp) {
+        if (d.fornecedor === "[fatura]" || d.fornecedor === "[pagamento-fatura]") continue;
+        const c = d.categoria?.nome || "Sem categoria";
+        if (d.categoria?.grupo_dre === "distribuicao_lucro") distrib[c] = true;
+        const v = Number(d.valor || 0);
+        if (d.data_competencia >= ini && d.data_competencia <= fi) atual[c] = (atual[c] || 0) + v;
+        else if (d.data_competencia >= baseIni && d.data_competencia <= baseFim) hist[c] = (hist[c] || 0) + v;
+      }
+      const linhas = [...new Set([...Object.keys(atual), ...Object.keys(hist)])].map((c) => {
+        const a = atual[c] || 0;
+        const media = (hist[c] || 0) / N;
+        return {
+          categoria: c, atual: r2(a), media_mensal: r2(media), diferenca: r2(a - media),
+          variacao_pct: media > 0 ? Number((((a - media) / media) * 100).toFixed(1)) : null,
+          distribuicao_de_lucros: !!distrib[c],
+        };
+      }).sort((p, q) => q.diferenca - p.diferenca);
+      const acima = linhas.filter((l) => l.atual > 0 && l.diferenca >= 50 && (l.media_mensal === 0 || l.atual > l.media_mensal * 1.1));
+      const noMesAtual = ini.slice(0, 7) === hojeISO.slice(0, 7) && fi >= hojeISO;
+      const diasNoMes = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      return JSON.stringify({
+        periodo: { inicio: ini, fim: fi },
+        base_da_media: { inicio: baseIni, fim: baseFim, meses: N },
+        mes_em_andamento: noMesAtual ? { dia: Number(hojeISO.slice(8, 10)), dias_no_mes: diasNoMes } : null,
+        acima_da_media: acima,
+        demais: linhas.filter((l) => !acima.includes(l)).slice(0, 12),
+        obs: "Compare cada categoria com a própria média (nunca com o total do mês). Categorias de distribuição de lucros: cite à parte (é retirada dos sócios, não despesa operacional). Se o mês está em andamento, avise que a comparação é parcial.",
+      });
     }
 
     async function toolComparativo(iA: string, fA: string, iB: string, fB: string): Promise<string> {
@@ -831,6 +881,7 @@ ${contexto}`;
             else if (tc.function.name === "movimento_por_forma") result = await toolPorForma(args.inicio, args.fim, args.tipo);
             else if (tc.function.name === "compras_parceladas") result = await toolParceladas(args.incluir_quitadas);
             else if (tc.function.name === "parcelas_comprometidas") result = await toolParcelasComprometidas(args.meses);
+            else if (tc.function.name === "categorias_vs_media") result = await toolCategoriasVsMedia(args.inicio, args.fim, args.meses_base);
             else if (tc.function.name === "preparar_lancamentos") result = prepararLancamentos(args.lancamentos);
           } catch (e) {
             result = JSON.stringify({ erro: e instanceof Error ? e.message : "falha na consulta" });
