@@ -146,7 +146,7 @@ serve(async (req) => {
     // ---- Busca de dados (em paralelo). Tudo já vem filtrado pela RLS do usuário. ----
     const [receitas, despesas, contratos, contas, transferencias, clientes, metas, faturas, categorias] = await Promise.all([
       safe<any>(supabase.from("receitas").select("*, cliente:clientes(nome), categoria:categorias(nome)").gte("data_competencia", startDate).lte("data_competencia", endDate)),
-      safe<any>(supabase.from("despesas").select("*, categoria:categorias(nome)").gte("data_competencia", startDate).lte("data_competencia", endDate)),
+      safe<any>(supabase.from("despesas").select("*, categoria:categorias(nome, grupo_dre)").gte("data_competencia", startDate).lte("data_competencia", endDate)),
       safe<any>(supabase.from("contratos").select("*, cliente:clientes(nome)").eq("status", "ativo")),
       safe<any>(supabase.from("contas").select("*").eq("ativa", true)),
       safe<any>(supabase.from("transferencias").select("*")),
@@ -163,9 +163,17 @@ serve(async (req) => {
     const receitasRecebidas = receitas.filter(r => r.status === "recebido");
     const receitasPendentes = receitas.filter(r => r.status === "pendente");
     const receitasAtrasadas = receitas.filter(r => r.status === "atrasado");
-    const despesasPagas = despesas.filter(d => d.status === "pago");
-    const despesasPendentes = despesas.filter(d => d.status === "pendente");
-    const despesasAtrasadas = despesas.filter(d => d.status === "atrasado");
+    // Status (caixa / contas a pagar): itens do cartão ficam de fora — quem
+    // representa a fatura é a despesa-sombra '[fatura]' (saldo em aberto). Os
+    // itens nunca viram "pago", então contá-los aqui dobraria o "a pagar/atrasado".
+    const despesasCaixa = despesas.filter(d => !d.fatura_id);
+    const despesasPagas = despesasCaixa.filter(d => d.status === "pago");
+    const despesasPendentes = despesasCaixa.filter(d => d.status === "pendente");
+    const despesasAtrasadas = despesasCaixa.filter(d => d.status === "atrasado");
+    // Competência (mesmo critério do DRE em Relatórios): itens do cartão entram
+    // com a categoria deles; sombra '[fatura]' e '[pagamento-fatura]' ficam de fora.
+    const despesasCompetencia = despesas.filter(d => d.fornecedor !== "[fatura]" && d.fornecedor !== "[pagamento-fatura]");
+    const ehDistribuicao = (d: any) => d.categoria?.grupo_dre === "distribuicao_lucro";
 
     const sum = (arr: any[]) => arr.reduce((s, x) => s + Number(x.valor || 0), 0);
     const totalRecebido = sum(receitasRecebidas);
@@ -177,6 +185,12 @@ serve(async (req) => {
 
     const lucro = totalRecebido - totalPago;
     const margem = totalRecebido > 0 ? ((lucro / totalRecebido) * 100).toFixed(1) : "0";
+
+    // Resultado por competência — bate com o DRE (distribuição de lucros abaixo da linha)
+    const receitaCompetencia = sum(receitas);
+    const despesaCompetencia = sum(despesasCompetencia.filter(d => !ehDistribuicao(d)));
+    const distribuicaoLucros = sum(despesasCompetencia.filter(ehDistribuicao));
+    const lucroDre = receitaCompetencia - despesaCompetencia;
 
     // ---- Saldo por conta (contas bancárias) e faturas de cartão ----
     const bancarias = contas.filter(c => c.tipo !== "cartao_credito");
@@ -214,9 +228,9 @@ serve(async (req) => {
       return s;
     }, 0);
 
-    // ---- Despesas por categoria (todas, ordenadas) ----
+    // ---- Despesas por categoria (competência, igual ao DRE) ----
     const porCategoria: Record<string, number> = {};
-    for (const d of despesasPagas) {
+    for (const d of despesasCompetencia) {
       const cat = d.categoria?.nome || "Sem categoria";
       porCategoria[cat] = (porCategoria[cat] || 0) + Number(d.valor || 0);
     }
@@ -278,12 +292,19 @@ DESPESAS (${periodLabel}):
 - A pagar (pendente): ${fmt(totalDespesaPendente)}
 - Atrasado: ${fmt(totalDespesaAtrasada)} (${despesasAtrasadas.length} conta(s))
 - Despesa média mensal no período: ${fmt(despesaMediaMensal)}
-- Por categoria (pagas):
-${categoriasOrdenadas.length ? categoriasOrdenadas.map(([c, v]) => `  • ${c}: ${fmt(v)}`).join("\n") : "  • (sem despesas pagas)"}
+- Por categoria (competência, igual ao DRE — itens do cartão contam na categoria deles; pagos e em aberto):
+${categoriasOrdenadas.length ? categoriasOrdenadas.map(([c, v]) => `  • ${c}: ${fmt(v)}`).join("\n") : "  • (sem despesas)"}
 
-RESULTADO (${periodLabel}):
-- Lucro líquido (recebido − pago): ${fmt(lucro)}
-- Margem de lucro: ${margem}%
+RESULTADO POR COMPETÊNCIA (${periodLabel}) — é o mesmo número do DRE em Relatórios:
+- Receita: ${fmt(receitaCompetencia)}
+- Despesas (sem distribuição de lucros): ${fmt(despesaCompetencia)}
+- Lucro líquido (DRE): ${fmt(lucroDre)}
+- Distribuição de lucros (abaixo da linha, não é despesa operacional): ${fmt(distribuicaoLucros)}
+- Resultado após distribuição: ${fmt(lucroDre - distribuicaoLucros)}
+
+RESULTADO DE CAIXA (${periodLabel}):
+- Lucro de caixa (recebido − pago): ${fmt(lucro)}
+- Margem de caixa: ${margem}%
 
 CONTRATOS / RECORRÊNCIA:
 - Contratos ativos: ${contratos.length}
@@ -343,6 +364,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • Ao mencionar o intervalo na resposta, use estas MESMAS datas (ex.: "essa semana (${semanaIni} a ${semanaFim})").
 - Escolha a ferramenta certa:
   • Perguntas de resultado/desempenho ("quanto faturei/gastei/lucrei", "margem", "por categoria", "top clientes") → resumo_financeiro (regime de competência).
+  • Gasto por CATEGORIA e "quanto gastei/lucrei" usam COMPETÊNCIA (campos despesas_por_categoria, despesa_competencia, lucro_liquido_dre) — é o mesmo número do DRE em Relatórios. Compras no cartão contam na categoria de cada item, mesmo com a fatura em aberto; a fatura em si não é despesa nova. Distribuição de lucros fica separada (distribuicao_lucros). Só use "pago"/"lucro_caixa" quando perguntarem o que SAIU do caixa.
   • Perguntas de agenda/caixa futuro-ou-passado por data ("o que vence/tenho a pagar/a receber", "hoje", "amanhã", "essa semana", "resto do mês") → agenda_vencimentos (por data de vencimento).
   • Procurar por fornecedor/descrição ("quanto paguei pra X") → buscar_lancamento. Panorama de um cliente → detalhe_cliente. Saldo atual/cartões → saldo_e_contas. Projeção de caixa futuro → projecao_fluxo. Comparar dois períodos → comparativo_periodos.
   • Por FORMA DE PAGAMENTO ("quanto fiz/paguei/recebi de PIX", "quanto no cartão/boleto/dinheiro") → movimento_por_forma (com o intervalo pedido: hoje, ontem, essa semana, esse mês, período).
@@ -376,7 +398,7 @@ ${contexto}`;
     // detalhado está no system prompt; aqui basta o essencial. Mesmas 7 capacidades.
     const D = { type: "string", description: "YYYY-MM-DD" };
     const TOOLS = [
-      { type: "function", function: { name: "resumo_financeiro", description: "Resultado por competência num intervalo: recebido, a receber, pago, a pagar, lucro, margem, despesas por categoria e receita por cliente. Use p/ faturamento, gastos, lucro, margem, top categorias/clientes.", parameters: { type: "object", properties: { inicio: D, fim: D }, required: ["inicio", "fim"] } } },
+      { type: "function", function: { name: "resumo_financeiro", description: "Resultado num intervalo. Competência (= DRE): receita_competencia, despesa_competencia, lucro_liquido_dre, distribuicao_lucros, despesas_por_categoria (inclui itens do cartão). Caixa: recebido, a receber, pago, a pagar, lucro_caixa. Use p/ faturamento, gastos, lucro, margem, gasto por categoria, top clientes.", parameters: { type: "object", properties: { inicio: D, fim: D }, required: ["inicio", "fim"] } } },
       { type: "function", function: { name: "agenda_vencimentos", description: "Lançamentos por data de VENCIMENTO (o que vence/entra/sai) + totais a receber/pagar. Use p/ hoje, amanhã, essa semana, resto do mês, do dia X ao Y, contas a pagar/receber.", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" }, status: { type: "string", enum: ["pago", "recebido", "pendente", "atrasado"], description: "opcional" } }, required: ["inicio", "fim"] } } },
       { type: "function", function: { name: "buscar_lancamento", description: "Procura receitas/despesas por texto na descrição ou fornecedor. Ex: 'quanto paguei pra X', 'gastos com energia'.", parameters: { type: "object", properties: { termo: { type: "string", description: "texto a procurar" } }, required: ["termo"] } } },
       { type: "function", function: { name: "detalhe_cliente", description: "Panorama de um cliente: faturado, recebido, a receber, atrasado, contratos ativos e MRR. Ex: 'como está o cliente X', 'quanto Y me deve'.", parameters: { type: "object", properties: { nome: { type: "string", description: "nome ou parte" } }, required: ["nome"] } } },
@@ -491,27 +513,44 @@ ${contexto}`;
     async function computeResumo(inicio: string, fim: string) {
       const [rec, desp] = await Promise.all([
         safe<any>(supabase.from("receitas").select("valor,status,cliente:clientes(nome),categoria:categorias(nome)").gte("data_competencia", inicio).lte("data_competencia", fim)),
-        safe<any>(supabase.from("despesas").select("valor,status,categoria:categorias(nome)").gte("data_competencia", inicio).lte("data_competencia", fim)),
+        safe<any>(supabase.from("despesas").select("valor,status,fatura_id,fornecedor,categoria:categorias(nome,grupo_dre)").gte("data_competencia", inicio).lte("data_competencia", fim)),
       ]);
       const s = (arr: any[]) => arr.reduce((t, x) => t + Number(x.valor || 0), 0);
       const recebido = s(rec.filter(r => r.status === "recebido"));
       const aReceber = s(rec.filter(r => r.status === "pendente"));
       const atrasadoReceber = s(rec.filter(r => r.status === "atrasado"));
-      const pago = s(desp.filter(d => d.status === "pago"));
-      const aPagar = s(desp.filter(d => d.status === "pendente"));
-      const atrasadoPagar = s(desp.filter(d => d.status === "atrasado"));
+      // Caixa / a pagar: sem itens do cartão (a fatura é representada pela sombra '[fatura]').
+      const despCx = desp.filter(d => !d.fatura_id);
+      const pago = s(despCx.filter(d => d.status === "pago"));
+      const aPagar = s(despCx.filter(d => d.status === "pendente"));
+      const atrasadoPagar = s(despCx.filter(d => d.status === "atrasado"));
       const lucroP = recebido - pago;
+      // Competência (= DRE): itens do cartão entram; sombra e pagamento de fatura não.
+      const despComp = desp.filter(d => d.fornecedor !== "[fatura]" && d.fornecedor !== "[pagamento-fatura]");
+      const isDist = (d: any) => d.categoria?.grupo_dre === "distribuicao_lucro";
+      const receitaComp = s(rec);
+      const despesaComp = s(despComp.filter(d => !isDist(d)));
+      const distrib = s(despComp.filter(isDist));
+      const lucroDre = receitaComp - despesaComp;
       const cat: Record<string, number> = {};
-      for (const d of desp.filter(d => d.status === "pago")) { const c = d.categoria?.nome || "Sem categoria"; cat[c] = (cat[c] || 0) + Number(d.valor || 0); }
+      for (const d of despComp) { const c = d.categoria?.nome || "Sem categoria"; cat[c] = (cat[c] || 0) + Number(d.valor || 0); }
       const cli: Record<string, number> = {};
       for (const r of rec) { const n = r.cliente?.nome; if (n) cli[n] = (cli[n] || 0) + Number(r.valor || 0); }
       return {
         periodo: { inicio, fim },
+        // Competência — mesmos números do DRE em Relatórios
+        receita_competencia: receitaComp,
+        despesa_competencia: despesaComp,
+        lucro_liquido_dre: lucroDre,
+        distribuicao_lucros: distrib,
+        resultado_apos_distribuicao: lucroDre - distrib,
+        despesas_por_categoria: Object.fromEntries(Object.entries(cat).sort((a, b) => b[1] - a[1]).slice(0, 15)),
+        // Caixa
         recebido, a_receber: aReceber, atrasado_a_receber: atrasadoReceber,
         pago, a_pagar: aPagar, atrasado_a_pagar: atrasadoPagar,
-        lucro: lucroP, margem_pct: recebido > 0 ? Number(((lucroP / recebido) * 100).toFixed(1)) : 0,
-        despesas_por_categoria: Object.fromEntries(Object.entries(cat).sort((a, b) => b[1] - a[1]).slice(0, 10)),
+        lucro: lucroP, lucro_caixa: lucroP, margem_pct: recebido > 0 ? Number(((lucroP / recebido) * 100).toFixed(1)) : 0,
         receita_por_cliente: Object.fromEntries(Object.entries(cli).sort((a, b) => b[1] - a[1]).slice(0, 10)),
+        obs: "despesas_por_categoria e lucro_liquido_dre são por competência (iguais ao DRE; compras no cartão contam na categoria do item, mesmo com fatura em aberto). pago/lucro_caixa são saídas/entradas de caixa.",
       };
     }
 

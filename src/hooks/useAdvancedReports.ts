@@ -105,10 +105,12 @@ async function fetchAll(period: PeriodFilter, customStart?: Date, customEnd?: Da
   const recAll = recAllRes.data || [];
   const despAll = despAllRes.data || [];
 
-  // Despesa reconhecida pela competência (DRE/categorias/burn/margem): inclui as
-  // COMPRAS no cartão (fatura_id) e exclui só o pagamento da fatura (liquidação).
-  const notSettlement = (d: { fornecedor?: string | null }) => d.fornecedor !== '[pagamento-fatura]';
-  const despesasReais = despesas.filter(notSettlement);
+  // Despesa reconhecida pela competência (DRE/categorias/burn/margem/CAC): entram
+  // os ITENS do cartão (fatura_id, categorizados); ficam de fora a despesa-sombra
+  // da fatura ('[fatura]') e o pagamento ('[pagamento-fatura]') — senão dobra.
+  const isCompetencia = (d: { fornecedor?: string | null }) =>
+    d.fornecedor !== '[fatura]' && d.fornecedor !== '[pagamento-fatura]';
+  const despesasReais = despesas.filter(isCompetencia);
   // Conta a pagar avulsa (aging): exclui linhas de cartão (a fatura é a conta a pagar).
   const isPayable = (d: { fatura_id?: string | null; fornecedor?: string | null }) =>
     !d.fatura_id && d.fornecedor !== '[pagamento-fatura]';

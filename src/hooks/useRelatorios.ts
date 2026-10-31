@@ -153,9 +153,11 @@ async function fetchRelatoriosData(period: PeriodFilter, customStart?: Date, cus
   });
 
   despesas.forEach((d) => {
-    // Exclui o pagamento da fatura do cartão (é liquidação, não despesa nova).
-    // As compras no cartão (fatura_id) continuam entrando, pela competência.
-    if ((d as { fornecedor?: string | null }).fornecedor === '[pagamento-fatura]') return;
+    // Cartão: entram os ITENS da fatura (fatura_id, cada um com sua categoria).
+    // Ficam de fora a despesa-sombra da fatura ('[fatura]', saldo em aberto sem
+    // categoria) e o pagamento ('[pagamento-fatura]') — senão conta em dobro.
+    const forn = (d as { fornecedor?: string | null }).fornecedor;
+    if (forn === '[fatura]' || forn === '[pagamento-fatura]') return;
     const mk = getMonthKey(d.data_competencia);
     const val = Number(d.valor);
     const cat = d.categoria as { nome?: string; grupo_dre?: string } | null;
