@@ -14,28 +14,63 @@ import { useRelatorios, type PeriodFilter, type ComparativoFilter } from '@/hook
 import { useAdvancedReports } from '@/hooks/useAdvancedReports';
 import { SkeletonChart } from '@/components/shared/LoadingSpinner';
 
+const toDate = (s: string) => (s ? new Date(s + 'T00:00:00') : undefined);
+const toInput = (d?: Date) => (d ? d.toISOString().slice(0, 10) : '');
+
 export default function Relatorios() {
   const [period, setPeriod] = useState<PeriodFilter>('year');
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
   const [compFilter, setCompFilter] = useState<ComparativoFilter>('mes_atual_anterior');
-  const { dreRows, months, recDespResumo, fluxoData, comparativo, isLoading } = useRelatorios(period, undefined, undefined, compFilter);
-  const { reports, isLoading: loadingAdv } = useAdvancedReports();
+
+  // Só aplica o range quando for 'custom' e ambas as datas estiverem preenchidas.
+  const cStart = period === 'custom' ? customStart : undefined;
+  const cEnd = period === 'custom' ? customEnd : undefined;
+
+  const { dreRows, months, recDespResumo, fluxoData, comparativo, isLoading } = useRelatorios(period, cStart, cEnd, compFilter);
+  const { reports, isLoading: loadingAdv } = useAdvancedReports(period, cStart, cEnd);
 
   return (
     <main className="container py-3 md:py-6 max-w-full">
-      <div className="mb-4 md:mb-6 flex items-start justify-between gap-3">
+      <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs text-foreground-muted mb-0.5 font-medium">Demonstrativos</p>
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">Relatórios</h1>
         </div>
-        <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
-          <SelectTrigger className="w-[140px] md:w-[160px] h-9 text-sm shrink-0"><SelectValue placeholder="Período" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="month">Este mês</SelectItem>
-            <SelectItem value="quarter">Este trimestre</SelectItem>
-            <SelectItem value="year">Este ano</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
+            <SelectTrigger className="w-[150px] md:w-[170px] h-9 text-sm"><SelectValue placeholder="Período" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="month">Este mês</SelectItem>
+              <SelectItem value="quarter">Este trimestre</SelectItem>
+              <SelectItem value="year">Este ano</SelectItem>
+              <SelectItem value="custom">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+          {period === 'custom' && (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date" lang="pt-BR" value={toInput(customStart)}
+                max={toInput(customEnd) || undefined}
+                onChange={(e) => setCustomStart(toDate(e.target.value))}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                aria-label="Data inicial"
+              />
+              <span className="text-xs text-muted-foreground">até</span>
+              <input
+                type="date" lang="pt-BR" value={toInput(customEnd)}
+                min={toInput(customStart) || undefined}
+                onChange={(e) => setCustomEnd(toDate(e.target.value))}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                aria-label="Data final"
+              />
+            </div>
+          )}
+        </div>
       </div>
+      {period === 'custom' && (!customStart || !customEnd) && (
+        <p className="-mt-2 mb-4 text-xs text-muted-foreground">Selecione a data inicial e final para aplicar o período personalizado.</p>
+      )}
 
       {isLoading || loadingAdv ? (
         <div className="space-y-6"><SkeletonChart /><SkeletonChart /></div>

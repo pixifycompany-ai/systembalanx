@@ -5,11 +5,17 @@ import { ptBR } from 'date-fns/locale';
 
 export type PeriodFilter = 'month' | 'quarter' | 'year' | 'custom';
 
+export interface DREChild {
+  label: string;
+  values: Record<string, number>; // key = "Jan 2026", value = amount
+}
+
 export interface DRERow {
   label: string;
   type: 'group' | 'item' | 'result';
   icon?: string;
   values: Record<string, number>; // key = "Jan 2026", value = amount
+  children?: DREChild[]; // breakdown by categoria (drill-down)
 }
 
 export interface RecDespResumo {
@@ -88,12 +94,12 @@ async function fetchRelatoriosData(period: PeriodFilter, customStart?: Date, cus
   const [receitasRes, despesasRes] = await Promise.all([
     supabase
       .from('receitas')
-      .select('valor, data_competencia, data_recebimento, status, empresa_fonte, categoria:categorias(nome, empresa_fonte), cliente:clientes(empresa_fonte)')
+      .select('valor, data_competencia, data_recebimento, status, empresa_fonte, categoria:categorias(nome, empresa_fonte, grupo_dre), cliente:clientes(empresa_fonte)')
       .gte('data_competencia', startStr)
       .lte('data_competencia', endStr),
     supabase
       .from('despesas')
-      .select('valor, data_competencia, data_pagamento, status, tipo, categoria:categorias(nome)')
+      .select('valor, data_competencia, data_pagamento, status, tipo, fornecedor, categoria:categorias(nome, grupo_dre)')
       .gte('data_competencia', startStr)
       .lte('data_competencia', endStr),
   ]);
@@ -117,78 +123,106 @@ async function fetchRelatoriosData(period: PeriodFilter, customStart?: Date, cus
   const outrasReceitas = emptyValues();
   const impostos = emptyValues();
   const custosVariaveis = emptyValues();
-  const despOperacionais = emptyValues();
   const despComerciais = emptyValues();
   const despAdministrativas = emptyValues();
   const despPessoal = emptyValues();
   const outrasDespOp = emptyValues();
+  const distribuicaoLucros = emptyValues(); // abaixo da linha (não entra no resultado operacional)
+
+  // Detalhamento por categoria para o drill-down: bucket -> categoria -> valores/mês
+  const breakdown: Record<string, Record<string, Record<string, number>>> = {};
+  const addBreak = (bucket: string, catName: string, mk: string, val: number) => {
+    (breakdown[bucket] ||= {});
+    (breakdown[bucket][catName] ||= emptyValues());
+    breakdown[bucket][catName][mk] = (breakdown[bucket][catName][mk] || 0) + val;
+  };
 
   receitas.forEach((r) => {
     const mk = getMonthKey(r.data_competencia);
     const val = Number(r.valor);
     receitaBruta[mk] = (receitaBruta[mk] || 0) + val;
-    const catNome = ((r.categoria as any)?.nome || '').toLowerCase();
-    if (catNome.includes('serviço') || catNome.includes('servico') || catNome.includes('consultoria') || catNome.includes('projeto')) {
+    const cat = r.categoria as { nome?: string; grupo_dre?: string } | null;
+    const catNome = cat?.nome || 'Sem categoria';
+    if (cat?.grupo_dre === 'rec_servico') {
       prestacaoServicos[mk] = (prestacaoServicos[mk] || 0) + val;
+      addBreak('rec_servico', catNome, mk, val);
     } else {
       outrasReceitas[mk] = (outrasReceitas[mk] || 0) + val;
+      addBreak('rec_outra', catNome, mk, val);
     }
   });
 
   despesas.forEach((d) => {
+    // Exclui o pagamento da fatura do cartão (é liquidação, não despesa nova).
+    // As compras no cartão (fatura_id) continuam entrando, pela competência.
+    if ((d as { fornecedor?: string | null }).fornecedor === '[pagamento-fatura]') return;
     const mk = getMonthKey(d.data_competencia);
     const val = Number(d.valor);
-    const catNome = ((d.categoria as any)?.nome || '').toLowerCase();
-
-    if (catNome.includes('imposto') || catNome.includes('comiss') || catNome.includes('desconto')) {
-      impostos[mk] = (impostos[mk] || 0) + val;
-    } else if (d.tipo === 'variavel' || catNome.includes('plataforma') || catNome.includes(' ia') || catNome === 'plataformas de ia' || catNome.includes('investimento') || catNome.includes('mídia') || catNome.includes('midia') || catNome.includes('tráfego') || catNome.includes('trafego')) {
-      custosVariaveis[mk] = (custosVariaveis[mk] || 0) + val;
-    } else {
-      despOperacionais[mk] = (despOperacionais[mk] || 0) + val;
-      if (catNome.includes('marketing') || catNome.includes('comercial')) {
-        despComerciais[mk] = (despComerciais[mk] || 0) + val;
-      } else if (catNome.includes('pessoal') || catNome.includes('salário') || catNome.includes('salario')) {
-        despPessoal[mk] = (despPessoal[mk] || 0) + val;
-      } else if (catNome.includes('admin')) {
-        despAdministrativas[mk] = (despAdministrativas[mk] || 0) + val;
-      } else {
-        outrasDespOp[mk] = (outrasDespOp[mk] || 0) + val;
-      }
+    const cat = d.categoria as { nome?: string; grupo_dre?: string } | null;
+    const catNome = cat?.nome || 'Sem categoria';
+    switch (cat?.grupo_dre) {
+      case 'imposto': impostos[mk] += val; addBreak('imposto', catNome, mk, val); break;
+      case 'custo_variavel': custosVariaveis[mk] += val; addBreak('custo_variavel', catNome, mk, val); break;
+      case 'desp_comercial': despComerciais[mk] += val; addBreak('desp_comercial', catNome, mk, val); break;
+      case 'desp_administrativa': despAdministrativas[mk] += val; addBreak('desp_administrativa', catNome, mk, val); break;
+      case 'desp_pessoal': despPessoal[mk] += val; addBreak('desp_pessoal', catNome, mk, val); break;
+      case 'distribuicao_lucro': distribuicaoLucros[mk] += val; addBreak('distribuicao_lucro', catNome, mk, val); break;
+      case 'desp_operacional':
+      default: outrasDespOp[mk] += val; addBreak('desp_operacional', catNome, mk, val); break;
     }
   });
 
   // Calculate derived rows
   const receitaLiquida = emptyValues();
   const lucroBruto = emptyValues();
+  const despOperacionais = emptyValues(); // soma das 4 linhas de despesa operacional
   const ebitda = emptyValues();
   const lucroLiquido = emptyValues();
+  const resultadoAposDistrib = emptyValues();
 
   months.forEach((m) => {
     receitaLiquida[m] = receitaBruta[m] - impostos[m];
     lucroBruto[m] = receitaLiquida[m] - custosVariaveis[m];
+    despOperacionais[m] = despComerciais[m] + despAdministrativas[m] + despPessoal[m] + outrasDespOp[m];
     ebitda[m] = lucroBruto[m] - despOperacionais[m];
     lucroLiquido[m] = ebitda[m];
+    resultadoAposDistrib[m] = lucroLiquido[m] - distribuicaoLucros[m];
   });
+
+  const sumVals = (v: Record<string, number>) => Object.values(v).reduce((s, x) => s + x, 0);
+  const childrenOf = (bucket: string): DREChild[] => {
+    const m = breakdown[bucket];
+    if (!m) return [];
+    return Object.entries(m)
+      .map(([label, values]) => ({ label, values }))
+      .sort((a, b) => sumVals(b.values) - sumVals(a.values));
+  };
 
   const dreRows: DRERow[] = [
     { label: 'RECEITA BRUTA', type: 'group', values: receitaBruta },
-    { label: 'Prestação de Serviços', type: 'item', values: prestacaoServicos },
-    { label: 'Outras Receitas', type: 'item', values: outrasReceitas },
-    { label: 'DEDUÇÕES DA RECEITA', type: 'group', icon: '⊖', values: impostos },
-    { label: 'Impostos e Deduções', type: 'item', values: impostos },
+    { label: 'Prestação de Serviços', type: 'item', values: prestacaoServicos, children: childrenOf('rec_servico') },
+    { label: 'Outras Receitas', type: 'item', values: outrasReceitas, children: childrenOf('rec_outra') },
+    { label: 'DEDUÇÕES DA RECEITA', type: 'group', icon: '⊖', values: impostos, children: childrenOf('imposto') },
     { label: 'Receita Líquida', type: 'result', icon: '⊙', values: receitaLiquida },
-    { label: 'CUSTOS VARIÁVEIS', type: 'group', icon: '⊖', values: custosVariaveis },
-    { label: 'Custos Variáveis', type: 'item', values: custosVariaveis },
+    { label: 'CUSTOS VARIÁVEIS', type: 'group', icon: '⊖', values: custosVariaveis, children: childrenOf('custo_variavel') },
     { label: 'Lucro Bruto', type: 'result', icon: '%', values: lucroBruto },
     { label: 'DESPESAS OPERACIONAIS', type: 'group', values: despOperacionais },
-    { label: 'Despesas Comerciais / Marketing', type: 'item', values: despComerciais },
-    { label: 'Despesas Administrativas', type: 'item', values: despAdministrativas },
-    { label: 'Despesas com Pessoal', type: 'item', values: despPessoal },
-    { label: 'Outras Despesas Operacionais', type: 'item', values: outrasDespOp },
+    { label: 'Despesas Comerciais / Marketing', type: 'item', values: despComerciais, children: childrenOf('desp_comercial') },
+    { label: 'Despesas Administrativas', type: 'item', values: despAdministrativas, children: childrenOf('desp_administrativa') },
+    { label: 'Despesas com Pessoal', type: 'item', values: despPessoal, children: childrenOf('desp_pessoal') },
+    { label: 'Outras Despesas Operacionais', type: 'item', values: outrasDespOp, children: childrenOf('desp_operacional') },
     { label: 'EBITDA / Resultado Operacional', type: 'result', icon: '=', values: ebitda },
     { label: 'LUCRO / PREJUÍZO LÍQUIDO', type: 'result', icon: '=', values: lucroLiquido },
   ];
+
+  // Distribuição de lucros fica ABAIXO da linha — só aparece se houver valor no período.
+  const temDistrib = months.some((m) => distribuicaoLucros[m] !== 0);
+  if (temDistrib) {
+    dreRows.push(
+      { label: '(−) DISTRIBUIÇÃO DE LUCROS', type: 'group', icon: '⊖', values: distribuicaoLucros, children: childrenOf('distribuicao_lucro') },
+      { label: 'Resultado após Distribuição', type: 'result', icon: '=', values: resultadoAposDistrib },
+    );
+  }
 
   // Rec vs Desp
   const barData = months.map((m) => ({

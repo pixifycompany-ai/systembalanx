@@ -105,6 +105,7 @@ export type Database = {
           cor: string
           created_at: string
           empresa_fonte: Database["public"]["Enums"]["empresa_fonte"] | null
+          grupo_dre: string | null
           id: string
           is_padrao: boolean
           nome: string
@@ -115,6 +116,7 @@ export type Database = {
           cor?: string
           created_at?: string
           empresa_fonte?: Database["public"]["Enums"]["empresa_fonte"] | null
+          grupo_dre?: string | null
           id?: string
           is_padrao?: boolean
           nome: string
@@ -125,6 +127,7 @@ export type Database = {
           cor?: string
           created_at?: string
           empresa_fonte?: Database["public"]["Enums"]["empresa_fonte"] | null
+          grupo_dre?: string | null
           id?: string
           is_padrao?: boolean
           nome?: string

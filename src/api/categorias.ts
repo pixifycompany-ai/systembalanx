@@ -3,6 +3,11 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { EmpresaFonte } from '@/components/shared/EmpresaFonteBadge';
 
+export type GrupoDRE =
+  | 'rec_servico' | 'rec_outra'
+  | 'imposto' | 'custo_variavel' | 'desp_comercial' | 'desp_administrativa'
+  | 'desp_pessoal' | 'desp_operacional' | 'distribuicao_lucro';
+
 export interface Categoria {
   id: string;
   nome: string;
@@ -11,11 +16,32 @@ export interface Categoria {
   is_padrao: boolean;
   user_id: string | null;
   empresa_fonte: EmpresaFonte | null;
+  grupo_dre: GrupoDRE | null;
   created_at: string;
 }
 
 export type CategoriaFormData = Pick<Categoria, 'nome' | 'tipo' | 'cor'> & {
   empresa_fonte?: EmpresaFonte | null;
+  grupo_dre?: GrupoDRE | null;
+};
+
+// Opções de grupo no DRE, separadas por tipo de categoria.
+export const GRUPO_DRE_RECEITA: { value: GrupoDRE; label: string }[] = [
+  { value: 'rec_servico', label: 'Prestação de Serviços' },
+  { value: 'rec_outra', label: 'Outras Receitas' },
+];
+export const GRUPO_DRE_DESPESA: { value: GrupoDRE; label: string }[] = [
+  { value: 'imposto', label: 'Deduções da Receita (Impostos)' },
+  { value: 'custo_variavel', label: 'Custos Variáveis' },
+  { value: 'desp_comercial', label: 'Despesas Comerciais / Marketing' },
+  { value: 'desp_administrativa', label: 'Despesas Administrativas' },
+  { value: 'desp_pessoal', label: 'Despesas com Pessoal' },
+  { value: 'desp_operacional', label: 'Outras Despesas Operacionais' },
+  { value: 'distribuicao_lucro', label: 'Distribuição de Lucros (abaixo da linha)' },
+];
+export const grupoDreLabel = (g: GrupoDRE | null | undefined): string => {
+  if (!g) return 'A classificar';
+  return [...GRUPO_DRE_RECEITA, ...GRUPO_DRE_DESPESA].find((o) => o.value === g)?.label ?? 'A classificar';
 };
 
 /**
@@ -74,6 +100,7 @@ export async function createCategoria(formData: CategoriaFormData): Promise<Cate
       is_padrao: false,
       user_id: userData.user.id,
       empresa_fonte: formData.empresa_fonte ?? null,
+      grupo_dre: formData.grupo_dre ?? null,
     } as never)
     .select()
     .single();
@@ -90,13 +117,16 @@ export async function createCategoria(formData: CategoriaFormData): Promise<Cate
  * Update a category
  */
 export async function updateCategoria(id: string, formData: Partial<CategoriaFormData>): Promise<Categoria> {
+  // Monta o payload só com os campos enviados, pra não apagar o que não veio.
+  const payload: Record<string, unknown> = {};
+  if (formData.nome !== undefined) payload.nome = formData.nome;
+  if (formData.cor !== undefined) payload.cor = formData.cor;
+  if (formData.empresa_fonte !== undefined) payload.empresa_fonte = formData.empresa_fonte ?? null;
+  if (formData.grupo_dre !== undefined) payload.grupo_dre = formData.grupo_dre ?? null;
+
   const { data, error } = await supabase
     .from('categorias')
-    .update({
-      nome: formData.nome,
-      cor: formData.cor,
-      empresa_fonte: formData.empresa_fonte ?? null,
-    } as never)
+    .update(payload as never)
     .eq('id', id)
     .select()
     .single();

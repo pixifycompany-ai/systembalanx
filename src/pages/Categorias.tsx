@@ -28,8 +28,12 @@ import {
   updateCategoria,
   deleteCategoria,
   CATEGORIA_CORES,
+  GRUPO_DRE_RECEITA,
+  GRUPO_DRE_DESPESA,
+  grupoDreLabel,
   type Categoria,
   type CategoriaFormData,
+  type GrupoDRE,
 } from '@/api/categorias';
 
 export default function Categorias() {
@@ -51,6 +55,7 @@ export default function Categorias() {
     tipo: 'receita',
     cor: '#3B82F6',
     empresa_fonte: null,
+    grupo_dre: null,
   });
 
   // Load categories
@@ -85,6 +90,7 @@ export default function Categorias() {
       tipo: activeTab,
       cor: '#3B82F6',
       empresa_fonte: null,
+      grupo_dre: null,
     });
     setModalOpen(true);
   };
@@ -97,6 +103,7 @@ export default function Categorias() {
       tipo: categoria.tipo,
       cor: categoria.cor,
       empresa_fonte: categoria.empresa_fonte ?? null,
+      grupo_dre: categoria.grupo_dre ?? null,
     });
     setModalOpen(true);
   };
@@ -244,7 +251,7 @@ export default function Categorias() {
                       key={tp}
                       type="button"
                       disabled={!!editingCategoria}
-                      onClick={() => setFormData(prev => ({ ...prev, tipo: tp }))}
+                      onClick={() => setFormData(prev => ({ ...prev, tipo: tp, grupo_dre: null }))}
                       className={cn(
                         'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors disabled:opacity-50',
                         formData.tipo === tp ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
@@ -257,6 +264,31 @@ export default function Categorias() {
               </div>
 
 
+
+              <div className="space-y-2">
+                <Label htmlFor="grupo_dre">Grupo no DRE</Label>
+                <Select
+                  value={formData.grupo_dre ?? '_none'}
+                  onValueChange={(v) =>
+                    setFormData((prev) => ({ ...prev, grupo_dre: v === '_none' ? null : (v as GrupoDRE) }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="A classificar" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">A classificar</SelectItem>
+                    {(formData.tipo === 'receita' ? GRUPO_DRE_RECEITA : GRUPO_DRE_DESPESA).map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Define em qual linha do DRE (Relatórios) esta categoria é somada. Distribuição de Lucros fica abaixo do resultado.
+                </p>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="empresa_fonte">Marca</Label>
@@ -420,6 +452,12 @@ function CategoriaGrid({
           <div className="mt-2.5 text-[13px] font-semibold text-foreground truncate">{categoria.nome}</div>
           <div className="mt-0.5 text-[11px] text-foreground-muted truncate">
             {categoria.tipo === 'receita' ? 'Receita' : 'Despesa'}{categoria.is_padrao ? ' · padrão' : ''}
+          </div>
+          <div className={cn(
+            'mt-1 text-[10.5px] truncate',
+            categoria.grupo_dre ? 'text-muted-foreground' : 'text-amber-600 dark:text-amber-400 font-medium',
+          )}>
+            DRE: {grupoDreLabel(categoria.grupo_dre)}
           </div>
         </button>
       ))}
