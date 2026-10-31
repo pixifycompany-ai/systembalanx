@@ -84,7 +84,8 @@ p{margin:0;text-wrap:pretty}
 .mobilemenu{position:sticky;top:70px;z-index:49;display:flex;flex-direction:column;gap:4px;
   margin:0 14px;padding:12px;border-radius:22px;background:var(--surface);border:1px solid var(--border);
   box-shadow:0 24px 40px -24px rgba(11,18,38,.35)}
-.mobilemenu a{padding:12px 14px;border-radius:14px;color:var(--fg);font-weight:500}
+/* só os links de texto: o botão "Começar grátis" mantém a fonte branca */
+.mobilemenu a:not(.btn){padding:12px 14px;border-radius:14px;color:var(--fg);font-weight:500}
 .mobilemenu a:not(.btn):hover{background:var(--surface2)}
 .mobilemenu .btn{margin-top:4px}
 .mobilemenu[hidden]{display:none}
