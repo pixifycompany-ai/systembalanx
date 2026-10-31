@@ -300,15 +300,15 @@
     background-repeat: no-repeat;
     background-color: hsl(var(--background));
   }
-  /* Fundo azul-profundo (estilo app fintech): glow azul dominante, com um toque
-     de âmbar bem sutil só pra manter a identidade da marca. */
+  /* Fundo azul-profundo (estilo app fintech): só glows azuis — mesma família
+     do ícone BALANX (navy #0B1226 + azul #4A8AE0 + azul profundo #2563EB). */
   .dark body::before {
     background-image:
       radial-gradient(120% 74% at 50% -12%, rgba(46, 120, 246, 0.60), transparent 58%),
       radial-gradient(95% 58% at 88% 2%, rgba(56, 122, 216, 0.30), transparent 60%),
       radial-gradient(100% 60% at 50% 118%, rgba(40, 100, 220, 0.22), transparent 62%),
       radial-gradient(70% 52% at 2% 104%, rgba(56, 122, 216, 0.18), transparent 60%),
-      radial-gradient(72% 54% at 99% 110%, rgba(214, 150, 70, 0.08), transparent 60%);
+      radial-gradient(72% 54% at 99% 110%, rgba(74, 138, 224, 0.12), transparent 60%);
   }
   /* Grade sutil (techy), some suave no meio — igual referência fintech. */
   .dark body::after {
@@ -328,7 +328,7 @@
   .light body::before {
     background-image:
       radial-gradient(90% 55% at 10% -2%, hsl(var(--primary) / 0.08), transparent 60%),
-      radial-gradient(80% 45% at 98% 2%, hsl(35 85% 55% / 0.06), transparent 60%);
+      radial-gradient(80% 45% at 98% 2%, hsl(214 89% 52% / 0.05), transparent 60%);
   }
 
   h1, h2, h3, h4, h5, h6 {

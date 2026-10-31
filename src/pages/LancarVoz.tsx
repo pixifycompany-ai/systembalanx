@@ -183,7 +183,7 @@ export default function LancarVoz() {
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            'radial-gradient(60% 40% at 12% 4%, hsl(var(--primary) / 0.34), transparent 66%), radial-gradient(55% 36% at 92% 2%, hsl(38 82% 55% / 0.26), transparent 64%), radial-gradient(80% 50% at 50% 116%, hsl(var(--primary) / 0.22), transparent 72%)',
+            'radial-gradient(60% 40% at 12% 4%, hsl(var(--primary) / 0.34), transparent 66%), radial-gradient(55% 36% at 92% 2%, rgba(37,99,235,0.26), transparent 64%), radial-gradient(80% 50% at 50% 116%, hsl(var(--primary) / 0.22), transparent 72%)',
         }}
       />
 

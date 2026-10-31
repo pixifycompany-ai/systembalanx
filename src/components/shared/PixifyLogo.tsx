@@ -10,15 +10,18 @@ interface PixifyLogoProps {
 }
 
 const sizeClasses = {
-  sm: { box: 'h-6 w-6 rounded-[7px]', iso: 'h-[13px]', text: 'text-base' },   // Header
-  md: { box: 'h-9 w-9 rounded-[10px]', iso: 'h-[19px]', text: 'text-xl' },    // Default
-  lg: { box: 'h-14 w-14 rounded-[16px]', iso: 'h-[30px]', text: 'text-3xl' }, // Login
+  sm: { box: 'h-6 w-6 rounded-[7px]', iso: 'h-[15px]', text: 'text-base' },   // Header
+  md: { box: 'h-9 w-9 rounded-[10px]', iso: 'h-[22px]', text: 'text-xl' },    // Default
+  lg: { box: 'h-14 w-14 rounded-[16px]', iso: 'h-[34px]', text: 'text-3xl' }, // Login
 };
 
-// App-icon AURO: isotipo sobre o squircle com gradiente (igual ao mockup aprovado)
+// Fundo do ícone BALANX (AURO azul): navy + glow azul + azul profundo embaixo.
+// Mesmo gradiente do favicon/ícones do PWA (public/favicon.svg).
+export const AURO_ICON_BG =
+  'radial-gradient(85% 85% at 24% 20%, rgba(74,138,224,0.95), transparent 60%), radial-gradient(75% 75% at 50% 105%, rgba(37,99,235,0.55), transparent 100%), #0B1226';
+
 const AURO_SQUIRCLE: CSSProperties = {
-  background:
-    'radial-gradient(120% 92% at 20% 8%, rgba(58,120,205,0.98), transparent 56%), radial-gradient(120% 90% at 92% 16%, rgba(216,152,70,0.72), transparent 50%), #0a1120',
+  background: AURO_ICON_BG,
   boxShadow: '0 8px 20px -6px rgba(60,120,210,0.5), inset 0 1px 0 rgba(255,255,255,0.14)',
 };
 

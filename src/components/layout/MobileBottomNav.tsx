@@ -197,7 +197,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
             // Mesmo glow ambiente das páginas (body::before) — o menu vira uma
             // página cheia opaca (sem faixa translúcida na área da status bar).
             backgroundImage:
-              'radial-gradient(125% 78% at 12% -4%, hsl(var(--primary) / 0.22), transparent 56%), radial-gradient(115% 62% at 99% 0%, hsl(38 82% 55% / 0.16), transparent 54%)',
+              'radial-gradient(125% 78% at 12% -4%, hsl(var(--primary) / 0.22), transparent 56%), radial-gradient(115% 62% at 99% 0%, hsl(214 89% 60% / 0.14), transparent 54%)',
             backgroundRepeat: 'no-repeat',
           }}
         >

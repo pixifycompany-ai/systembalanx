@@ -66,7 +66,7 @@ export function HeroStatCard({
           isDark
             ? {
                 background:
-                  'linear-gradient(160deg, rgba(6,10,18,0.24), rgba(6,10,18,0.55)), radial-gradient(120% 96% at 6% -4%, rgba(42,114,226,0.92), transparent 54%), radial-gradient(120% 82% at 99% 2%, rgba(226,144,48,0.72), transparent 52%), radial-gradient(150% 120% at 55% 134%, rgba(60,132,236,0.88), transparent 58%), #0b1420',
+                  'linear-gradient(160deg, rgba(6,10,18,0.24), rgba(6,10,18,0.55)), radial-gradient(120% 96% at 6% -4%, rgba(42,114,226,0.92), transparent 54%), radial-gradient(120% 82% at 99% 2%, rgba(76,141,255,0.55), transparent 52%), radial-gradient(150% 120% at 55% 134%, rgba(60,132,236,0.88), transparent 58%), #0b1420',
               }
             : undefined
         }

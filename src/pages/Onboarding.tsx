@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import iso from '@/assets/brand/logo_isotipo.svg';
+import { AURO_ICON_BG } from '@/components/shared/PixifyLogo';
 
 type TenantType = 'pessoal' | 'agencia';
 type Step = 'tipo' | 'passos' | 'time' | 'pronto';
@@ -209,12 +210,11 @@ export default function Onboarding() {
             <span
               className="grid h-[88px] w-[88px] place-items-center rounded-[24px]"
               style={{
-                background:
-                  'radial-gradient(120% 92% at 20% 8%, rgba(58,120,205,0.98), transparent 56%), radial-gradient(120% 90% at 92% 16%, rgba(216,152,70,0.72), transparent 50%), #0a1120',
+                background: AURO_ICON_BG,
                 boxShadow: '0 12px 28px -8px rgba(60,120,210,0.5), inset 0 1px 0 rgba(255,255,255,0.14)',
               }}
             >
-              <img src={iso} alt="balanx" className="h-12 w-auto" />
+              <img src={iso} alt="balanx" className="h-[54px] w-auto" />
             </span>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground mt-6">
               Tudo pronto{primeiroNome ? `, ${primeiroNome}` : ''}!

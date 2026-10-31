@@ -123,7 +123,7 @@ export default function Visao() {
             <AreaChart data={serieMRR} margin={{ top: 8, right: 6, left: 6, bottom: 0 }}>
               <defs>
                 <linearGradient id="mrrFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(38 82% 55%)" stopOpacity={0.32} />
+                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.34} />
                   <stop offset="60%" stopColor="hsl(var(--primary))" stopOpacity={0.16} />
                   <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                 </linearGradient>

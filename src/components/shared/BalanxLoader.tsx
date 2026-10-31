@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import iso from '@/assets/brand/logo_isotipo.svg';
+import { AURO_ICON_BG } from '@/components/shared/PixifyLogo';
 
 /** Anel-cometa premium — spinner inline com o isotipo AURO. */
 export function CometSpinner({ size = 52, className }: { size?: number; className?: string }) {
@@ -45,7 +46,7 @@ export function BalanxLoader({
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              'radial-gradient(60% 42% at 18% 8%, hsl(var(--primary) / 0.42), transparent 70%), radial-gradient(55% 38% at 88% 4%, hsl(38 82% 55% / 0.30), transparent 68%), radial-gradient(70% 45% at 50% 108%, hsl(var(--primary) / 0.28), transparent 72%)',
+              'radial-gradient(60% 42% at 18% 8%, hsl(var(--primary) / 0.42), transparent 70%), radial-gradient(55% 38% at 88% 4%, rgba(37,99,235,0.30), transparent 68%), radial-gradient(70% 45% at 50% 108%, hsl(var(--primary) / 0.28), transparent 72%)',
           }}
         />
       )}
@@ -53,18 +54,24 @@ export function BalanxLoader({
         <div
           className="absolute rounded-full"
           style={{
-            inset: 14,
+            inset: 10,
             background: 'radial-gradient(closest-side, hsl(var(--primary) / 0.35), transparent 72%)',
-            filter: 'blur(4px)',
+            filter: 'blur(6px)',
           }}
         />
         <span className="balanx-cring" />
-        <img
-          src={iso}
-          alt="balanx"
-          className="relative z-[2] w-auto"
-          style={{ height: 46, filter: 'drop-shadow(0 6px 20px hsl(var(--primary) / 0.35))' }}
-        />
+        {/* Ícone do app (squircle AURO + hexágono): legível no tema claro e no escuro */}
+        <span
+          className="relative z-[2] grid place-items-center rounded-[18px]"
+          style={{
+            width: 64,
+            height: 64,
+            background: AURO_ICON_BG,
+            boxShadow: '0 10px 26px -8px rgba(37,99,235,0.55), inset 0 1px 0 rgba(255,255,255,0.14)',
+          }}
+        >
+          <img src={iso} alt="balanx" className="w-auto" style={{ height: 38 }} />
+        </span>
       </div>
       <p className={cn(
         'z-[1] text-xs font-medium text-foreground-muted tracking-wide',
