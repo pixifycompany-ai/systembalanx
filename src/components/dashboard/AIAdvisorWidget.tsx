@@ -24,8 +24,16 @@ const QUICK_SUGGESTIONS = [
   'Receitas atrasadas',
 ];
 
-export function AIAdvisorWidget() {
+interface AIAdvisorWidgetProps {
+  /** Ocupa a altura do contêiner (ex.: ao lado do gráfico na Home). */
+  fill?: boolean;
+  className?: string;
+}
+
+export function AIAdvisorWidget({ fill = false, className }: AIAdvisorWidgetProps = {}) {
   const { messages, isLoading, period, setPeriod, sendMessage, clearChat } = useFinancialAdvisor();
+  // Sugestões só até a primeira pergunta — depois a conversa ganha o espaço.
+  const semPerguntas = !messages.some((m) => m.role === 'user');
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -50,15 +58,17 @@ export function AIAdvisorWidget() {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className={cn('overflow-hidden', fill && 'flex h-full flex-col', className)}>
       <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base font-medium flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          Assistente Financeiro IA
+        <CardTitle className="text-[15px] font-semibold flex items-center gap-2">
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/15">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+          </span>
+          IARA · Assistente
         </CardTitle>
         <div className="flex items-center gap-2">
           <Select value={period} onValueChange={(v) => setPeriod(v as PeriodOption)}>
-            <SelectTrigger className="w-[160px] h-8 text-xs">
+            <SelectTrigger className={cn('h-8 text-xs', fill ? 'w-[132px]' : 'w-[160px]')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -72,8 +82,8 @@ export function AIAdvisorWidget() {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
-        <ScrollArea className="h-[300px] px-4" ref={scrollRef}>
+      <CardContent className={cn('p-0', fill && 'flex min-h-0 flex-1 flex-col')}>
+        <ScrollArea className={cn('px-4', fill ? 'min-h-[200px] flex-1' : 'h-[300px]')} ref={scrollRef}>
           <div className="space-y-4 py-4">
             {messages.map((msg) => (
               <div key={msg.id} className={cn("flex gap-3", msg.role === 'user' && "flex-row-reverse")}>
@@ -108,9 +118,10 @@ export function AIAdvisorWidget() {
         </ScrollArea>
 
         {/* Quick suggestions */}
+        {semPerguntas && (
         <div className="px-4 pb-2">
           <div className="flex flex-wrap gap-1.5">
-            {QUICK_SUGGESTIONS.map((suggestion) => (
+            {(fill ? QUICK_SUGGESTIONS.slice(0, 3) : QUICK_SUGGESTIONS).map((suggestion) => (
               <Button
                 key={suggestion}
                 variant="outline"
@@ -124,13 +135,14 @@ export function AIAdvisorWidget() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Input */}
         <form onSubmit={handleSubmit} className="flex gap-2 p-4 pt-2 border-t">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Digite sua pergunta..."
+            placeholder="Pergunte à IARA…"
             disabled={isLoading}
             className="flex-1"
           />

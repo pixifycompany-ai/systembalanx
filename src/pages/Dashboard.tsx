@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Plus, TrendingUp, TrendingDown, ArrowLeftRight, Upload, Wallet, PiggyBank } from 'lucide-react';
 import { Sparkle } from '@/components/shared/Sparkle';
 import promoBanner from '@/assets/brand/IMG1.png';
 
@@ -13,7 +13,8 @@ import { NotificationBell } from '@/components/layout/NotificationBell';
 import { DetailSheet } from '@/components/shared/DetailSheet';
 import { ProgressGoal } from '@/components/dashboard/ProgressGoal';
 import { AlertsWidget } from '@/components/dashboard/AlertsWidget';
-import { MetricCard } from '@/components/dashboard/MetricCard';
+import { KpiStatCard, variacaoPct } from '@/components/dashboard/KpiStatCard';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { RevenueAreaChart } from '@/components/dashboard/RevenueAreaChart';
 import { ExpensesByCategoryChart } from '@/components/dashboard/ExpensesByCategoryChart';
 import { TopClientsTable } from '@/components/dashboard/TopClientsTable';
@@ -91,6 +92,11 @@ export default function Dashboard() {
   const proximos = upcomingItems.slice(0, 5);
   const metaValor = getMetaValor('faturamento', currentPeriodo, 15000);
   const metaSubtitle = mesNome.charAt(0).toUpperCase() + mesNome.slice(1);
+  // Comparações: mesmo período do mês anterior (KPIs de caixa) e fechamento do mês anterior (saldo)
+  const mesAnteriorCurto = format(subMonths(new Date(), 1), 'MMM', { locale: ptBR });
+  const hintComparacao = `vs 1–${format(new Date(), 'd')} de ${mesAnteriorCurto}`;
+  const saldoAnterior = consolidatedHistory.length >= 2 ? consolidatedHistory[consolidatedHistory.length - 2].valor : null;
+  const saldoAtualHist = consolidatedHistory.length >= 1 ? consolidatedHistory[consolidatedHistory.length - 1].valor : null;
 
   // Fluxo dia (já é hook que carrega tudo — usa só pra "últimas transações")
   return (
@@ -243,54 +249,101 @@ export default function Dashboard() {
       </button>
       </div>
 
-      {/* ===== DESKTOP: overview com gráficos ===== */}
+      {/* ===== DESKTOP: overview ===== */}
       <div className="hidden md:block space-y-6">
-        {/* Header */}
+        {/* Header: saudação + título + ações */}
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-sm text-foreground-muted">{greeting()},</p>
-            <h1 className="text-3xl font-medium tracking-tight text-foreground">{primeiroNome}</h1>
+            <p className="text-sm text-foreground-muted">{greeting()}, {primeiroNome} 👋</p>
+            <h1 className="mt-0.5 text-[32px] font-semibold tracking-[-0.02em] text-foreground">Visão geral</h1>
           </div>
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted px-3 py-2 rounded-full border border-border/60 bg-surface/70 backdrop-blur-xl">
-            {mesAtual}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="h-10 inline-flex items-center rounded-full border border-border/60 bg-surface/70 px-4 text-xs font-semibold capitalize text-foreground-muted backdrop-blur-xl">
+              {mesNome}
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="h-10 inline-flex items-center gap-2 rounded-full bg-primary pl-3 pr-4 text-sm font-semibold text-primary-foreground shadow-[0_10px_24px_-10px_hsl(var(--primary)/0.8)] transition-transform hover:-translate-y-0.5"
+                >
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-white/20"><Plus className="h-3.5 w-3.5" /></span>
+                  Novo lançamento
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onClick={() => navigate('/fluxo-caixa?action=nova-entrada')}>
+                  <TrendingUp className="mr-2 h-4 w-4 text-[hsl(var(--success))]" /> Nova receita
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/fluxo-caixa?action=nova-saida')}>
+                  <TrendingDown className="mr-2 h-4 w-4 text-[hsl(var(--danger))]" /> Nova despesa
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/fluxo-caixa?action=nova-transferencia')}>
+                  <ArrowLeftRight className="mr-2 h-4 w-4" /> Transferência
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/fluxo-caixa?action=importar')}>
+                  <Upload className="mr-2 h-4 w-4" /> Importar extrato
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
-        {/* KPIs */}
+        {/* KPIs — saldo em destaque; os demais comparam com o mesmo período do mês anterior */}
         <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            title="Saldo consolidado"
+          <KpiStatCard
+            highlight
+            label="Saldo consolidado"
             value={totalBalance}
-            subtitle={`${accountBalances.length} ${accountBalances.length === 1 ? 'conta ativa' : 'contas ativas'}`}
-            variant="info"
+            icon={Wallet}
+            delta={saldoAnterior != null ? variacaoPct(saldoAtualHist ?? totalBalance, saldoAnterior) : null}
+            hint={`${accountBalances.length} ${accountBalances.length === 1 ? 'conta ativa' : 'contas ativas'} · vs fim de ${mesAnteriorCurto}`}
             onClick={() => setSaldoSheetOpen(true)}
           />
-          <MetricCard title="Receitas do mês" value={resumo.faturamento_mes} subtitle={mesNome} variant="positive" />
-          <MetricCard title="Despesas do mês" value={resumo.despesas_mes} subtitle={mesNome} variant="negative" />
-          <MetricCard
-            title="Lucro do mês"
+          <KpiStatCard
+            label="Receitas do mês"
+            value={resumo.faturamento_mes}
+            icon={TrendingUp}
+            delta={variacaoPct(resumo.faturamento_mes, resumo.faturamento_mes_anterior)}
+            hint={hintComparacao}
+            onClick={() => navigate('/fluxo-caixa?tipo=entrada')}
+          />
+          <KpiStatCard
+            label="Despesas do mês"
+            value={resumo.despesas_mes}
+            icon={TrendingDown}
+            invertDelta
+            delta={variacaoPct(resumo.despesas_mes, resumo.despesas_mes_anterior)}
+            hint={hintComparacao}
+            onClick={() => navigate('/fluxo-caixa?tipo=saida')}
+          />
+          <KpiStatCard
+            label="Lucro do mês"
             value={resumo.lucro_mensal}
-            subtitle={`Margem ${resumo.lucro_mensal_percentual}%`}
-            variant={resumo.lucro_mensal >= 0 ? 'positive' : 'negative'}
+            icon={PiggyBank}
+            delta={variacaoPct(resumo.lucro_mensal, resumo.lucro_mensal_anterior)}
+            hint={`Margem ${String(resumo.lucro_mensal_percentual).replace('.', ',')}% · ${hintComparacao}`}
           />
         </div>
 
-        {/* Receita vs Despesas */}
-        <RevenueAreaChart data3m={revenueData3m} data6m={revenueData6m} data12m={revenueData12m} />
-
-        {/* Despesas por categoria + Ranking de clientes */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <ExpensesByCategoryChart data={expensesByCategory} />
-          <TopClientsTable clients={top_clientes} title="Ranking de clientes" />
+        {/* Gráfico + IARA lado a lado (primeira dobra) */}
+        <div className="grid gap-6 xl:grid-cols-3">
+          <RevenueAreaChart className="xl:col-span-2 md:h-[440px]" data3m={revenueData3m} data6m={revenueData6m} data12m={revenueData12m} />
+          <div className="h-[440px]">
+            <AIAdvisorWidget fill />
+          </div>
         </div>
 
-        {/* Próximos vencimentos + Meta / IA */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <UpcomingDueWidget
-            items={upcomingItems}
-            title="Próximos vencimentos"
-            onItemClick={(it) => navigate(it.href ?? '/fluxo-caixa?venc=prox7')}
-          />
+        {/* Próximos vencimentos + Meta/alertas */}
+        <div className="grid gap-6 xl:grid-cols-3">
+          <div className="xl:col-span-2">
+            <UpcomingDueWidget
+              items={upcomingItems}
+              title="Próximos vencimentos"
+              onItemClick={(it) => navigate(it.href ?? '/fluxo-caixa?venc=prox7')}
+            />
+          </div>
           <div className="space-y-6">
             <ProgressGoal
               title="Meta de Faturamento"
@@ -301,8 +354,13 @@ export default function Dashboard() {
               onEditTarget={(v) => upsertMeta.mutate({ tipo: 'faturamento', periodo: currentPeriodo, valor_meta: v })}
             />
             {alerts.length > 0 && <AlertsWidget alerts={alerts} />}
-            <AIAdvisorWidget />
           </div>
+        </div>
+
+        {/* Despesas por categoria + Ranking de clientes */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <ExpensesByCategoryChart data={expensesByCategory} />
+          <TopClientsTable clients={top_clientes} title="Ranking de clientes" />
         </div>
       </div>
 

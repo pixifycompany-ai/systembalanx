@@ -1,6 +1,3 @@
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Calendar, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatCurrency, formatDate } from '@/utils/formatters';
@@ -30,119 +27,83 @@ export function UpcomingDueWidget({
   days = 7,
   onItemClick,
 }: UpcomingDueWidgetProps) {
-  const formatDaysRemaining = (dateStr: string) => {
+  // Dias até o vencimento (negativo = atrasado)
+  const diasAte = (dateStr: string) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(dateStr);
-    dueDate.setHours(0, 0, 0, 0);
-    
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) return 'Atrasado';
-    if (diffDays === 0) return 'Hoje';
-    if (diffDays === 1) return 'Amanhã';
-    return `${diffDays} dias`;
+    const due = new Date(dateStr + 'T00:00:00');
+    return Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  const getDaysRemainingColor = (dateStr: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dueDate = new Date(dateStr);
-    dueDate.setHours(0, 0, 0, 0);
-    
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) return 'text-destructive';
-    if (diffDays <= 2) return 'text-warning';
-    return 'text-muted-foreground';
+  const pill = (dateStr: string) => {
+    const d = diasAte(dateStr);
+    if (d < 0) return { label: `Atrasado ${Math.abs(d)}d`, cls: 'border-[hsl(var(--danger))]/30 bg-[hsl(var(--danger))]/10 text-[hsl(var(--danger))]' };
+    if (d === 0) return { label: 'Hoje', cls: 'border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]' };
+    if (d === 1) return { label: 'Amanhã', cls: 'border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]' };
+    return { label: `em ${d} dias`, cls: 'border-border/70 bg-foreground/[0.04] text-foreground-muted' };
   };
+
+  const cardCls = 'auro-card rounded-2xl border border-border/60 bg-surface/70 p-5 backdrop-blur-xl';
 
   if (items.length === 0) {
     return (
-      <Card className="p-6">
-        <h3 className="text-sm font-medium text-muted-foreground mb-4">{title}</h3>
+      <div className={cardCls}>
+        <h3 className="text-[15px] font-semibold text-foreground mb-4">{title}</h3>
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
             <Calendar className="h-6 w-6 text-primary" />
           </div>
-          <p className="text-sm text-muted-foreground">
-            Nenhum vencimento nos próximos {days} dias
-          </p>
+          <p className="text-sm text-muted-foreground">Nenhum vencimento nos próximos {days} dias</p>
         </div>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-        <span className="text-xs text-muted-foreground">
-          Próximos {days} dias
-        </span>
+    <div className={cardCls}>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[15px] font-semibold text-foreground">{title}</h3>
+        <Link to="/fluxo-caixa?venc=prox7" className="inline-flex items-center gap-1 text-xs font-medium text-foreground-muted hover:text-foreground">
+          Ver todos{items.length > 6 ? ` (${items.length})` : ''} <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
       </div>
 
-      <div className="space-y-2">
-        {items.slice(0, 5).map(item => (
-          <div
-            key={item.id}
-            className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer transition-colors"
-            onClick={() => onItemClick?.(item)}
-          >
-            {/* Icon */}
-            <div className={cn(
-              "h-8 w-8 shrink-0 rounded-lg flex items-center justify-center",
-              item.tipo === 'receita' ? 'bg-primary/10' : 'bg-destructive/10'
-            )}>
-              {item.tipo === 'receita' ? (
-                <TrendingUp className="h-4 w-4 text-primary" />
-              ) : (
-                <TrendingDown className="h-4 w-4 text-destructive" />
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <p className="text-sm font-medium text-foreground truncate min-w-0">
-                  {item.cliente_ou_fornecedor}
-                </p>
-                <Badge variant="outline" className="text-[10px] shrink-0 px-1.5 py-0">
-                  {item.tipo === 'receita' ? 'Receita' : 'Despesa'}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground truncate mb-1.5">
-                {item.descricao}
-              </p>
-              <div className="flex items-center justify-between gap-2">
-                <p className={cn(
-                  "text-sm font-semibold tabular-nums",
-                  item.tipo === 'receita' ? 'text-primary' : 'text-foreground'
-                )}>
-                  {formatCurrency(item.valor)}
-                </p>
-                <p className={cn("text-xs tabular-nums", getDaysRemainingColor(item.data_vencimento))}>
-                  {formatDaysRemaining(item.data_vencimento)}
-                </p>
-              </div>
-            </div>
-          </div>
-        ))}
+      <div className="divide-y divide-border/50">
+        {items.slice(0, 6).map((item) => {
+          const p = pill(item.data_vencimento);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className="flex w-full items-center gap-3 py-2.5 text-left transition-colors hover:bg-foreground/[0.03] -mx-2 px-2 rounded-lg"
+              onClick={() => onItemClick?.(item)}
+            >
+              <span className={cn(
+                'grid h-8 w-8 shrink-0 place-items-center rounded-full',
+                item.tipo === 'receita' ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]' : 'bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]',
+              )}>
+                {item.tipo === 'receita' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-medium text-foreground">{item.cliente_ou_fornecedor}</span>
+                <span className="block truncate text-[11.5px] text-foreground-muted">
+                  {item.descricao} · {formatDate(item.data_vencimento)}
+                </span>
+              </span>
+              <span className={cn(
+                'shrink-0 text-[13px] font-semibold tabular-nums',
+                item.tipo === 'receita' ? 'text-[hsl(var(--success))]' : 'text-foreground',
+              )}>
+                {item.tipo === 'receita' ? '+' : '−'}{formatCurrency(item.valor)}
+              </span>
+              <span className={cn('inline-flex h-6 w-[92px] shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold', p.cls)}>
+                {p.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
-
-      {items.length > 5 && (
-        <div className="mt-4 pt-4 border-t border-border">
-          <Button variant="ghost" className="w-full gap-2" asChild>
-            <Link to="/fluxo-caixa?venc=prox7">
-              Ver todos ({items.length})
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-      )}
-    </Card>
+    </div>
   );
 }
 

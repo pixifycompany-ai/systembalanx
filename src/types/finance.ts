@@ -104,6 +104,10 @@ export interface DashboardResumo {
   receitas_pendentes: number;
   despesas_pendentes: number;
   receita_anual_projetada: number;
+  // Mesmo período do mês anterior (dia 1 até o mesmo dia) — base da variação %
+  faturamento_mes_anterior?: number;
+  despesas_mes_anterior?: number;
+  lucro_mensal_anterior?: number;
 }
 
 export interface MetaFaturamento {

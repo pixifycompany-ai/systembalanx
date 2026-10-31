@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { startOfMonth, endOfMonth, subMonths, format, addMonths, parseISO, isAfter, isBefore, addDays, startOfDay } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, format, addMonths, parseISO, isAfter, isBefore, addDays, startOfDay, endOfDay } from 'date-fns';
 import { isContratoAtivoHoje, isContratoAtivoNoPeriodo, getValorMensalNaData, getValorMensalEquivalente, getMesesRelacionamento, getClientesAtivosHoje } from '@/utils/contractUtils';
 import { ptBR } from 'date-fns/locale';
 import type { Alert } from '@/components/dashboard/AlertsWidget';
@@ -145,6 +145,21 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
     .reduce((sum, d) => sum + Number(d.valor), 0);
 
   const lucroMensal = faturamentoMes - despesasMes;
+
+  // Mesmo período do mês anterior (dia 1 até o mesmo dia do mês) — comparação justa
+  // mesmo no começo do mês. Mesmo critério de caixa dos totais acima.
+  const prevStart = startOfMonth(subMonths(today, 1));
+  const prevEnd = endOfDay(subMonths(today, 1));
+  const noPeriodoAnterior = (iso: string | null) => {
+    const d = iso ? parseISO(iso) : null;
+    return !!d && d >= prevStart && d <= prevEnd;
+  };
+  const faturamentoMesAnterior = receitas
+    .filter(r => r.status === 'recebido' && noPeriodoAnterior(r.data_recebimento))
+    .reduce((sum, r) => sum + Number(r.valor), 0);
+  const despesasMesAnterior = despesas
+    .filter(d => d.status === 'pago' && d.fatura_id == null && noPeriodoAnterior(d.data_pagamento))
+    .reduce((sum, d) => sum + Number(d.valor), 0);
   const lucroMensalPercentual = faturamentoMes > 0 
     ? ((lucroMensal / faturamentoMes) * 100).toFixed(2) 
     : '0.00';
@@ -548,6 +563,9 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
       receitas_pendentes: receitasPendentes,
       despesas_pendentes: despesasPendentes,
       receita_anual_projetada: receitaAnualProjetada,
+      faturamento_mes_anterior: faturamentoMesAnterior,
+      despesas_mes_anterior: despesasMesAnterior,
+      lucro_mensal_anterior: faturamentoMesAnterior - despesasMesAnterior,
     },
     meta_faturamento: {
       valor_meta: 15000, // Default goal - actual value comes from useMetas
