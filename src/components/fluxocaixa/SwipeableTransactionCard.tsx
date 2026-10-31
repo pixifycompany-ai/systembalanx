@@ -182,7 +182,7 @@ export function SwipeableTransactionCard({
       {/* Card content */}
       <div
         ref={cardRef}
-        className="auro-card relative flex items-center gap-3 p-3.5 bg-surface/55 backdrop-blur-xl border border-border/60 rounded-2xl transition-transform duration-150 ease-out active:bg-accent/30"
+        className="auro-card relative flex items-center gap-3 p-3.5 bg-surface border border-border rounded-2xl transition-transform duration-150 ease-out active:bg-accent/30"
         style={{ transform: `translateX(${offsetX}px)` }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -236,7 +236,7 @@ export function SwipeableTransactionCard({
         <div className="fixed inset-0 z-[70]" onClick={() => setMenuOpen(false)}>
           <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
           <div
-            className="absolute inset-x-3 bottom-4 overflow-hidden rounded-2xl border border-border/60 bg-surface/95 shadow-2xl backdrop-blur-2xl"
+            className="absolute inset-x-3 bottom-4 overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
             onClick={(e) => e.stopPropagation()}
             style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
           >
@@ -263,15 +263,15 @@ export function SwipeableTransactionCard({
               </span>
             </div>
             {/* Ações */}
-            <button onClick={() => { setMenuOpen(false); onClick(t); }} className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-sm font-medium text-foreground active:bg-white/5">
+            <button onClick={() => { setMenuOpen(false); onClick(t); }} className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-sm font-medium text-foreground active:bg-foreground/[0.04]">
               <EyeIcon className="h-5 w-5 text-foreground-muted" /> Ver detalhe
             </button>
             {onDuplicate && !isTransfer && (
-              <button onClick={() => { setMenuOpen(false); onDuplicate(t); }} className="flex w-full items-center gap-3 border-t border-border/60 px-4 py-3.5 text-left text-sm font-medium text-foreground active:bg-white/5">
+              <button onClick={() => { setMenuOpen(false); onDuplicate(t); }} className="flex w-full items-center gap-3 border-t border-border/60 px-4 py-3.5 text-left text-sm font-medium text-foreground active:bg-foreground/[0.04]">
                 <DocumentDuplicateIcon className="h-5 w-5 text-foreground-muted" /> Duplicar
               </button>
             )}
-            <button onClick={() => { setMenuOpen(false); onDelete(t); }} className="flex w-full items-center gap-3 border-t border-border/60 px-4 py-3.5 text-left text-sm font-semibold text-[hsl(var(--danger))] active:bg-white/5">
+            <button onClick={() => { setMenuOpen(false); onDelete(t); }} className="flex w-full items-center gap-3 border-t border-border/60 px-4 py-3.5 text-left text-sm font-semibold text-[hsl(var(--danger))] active:bg-foreground/[0.04]">
               <TrashIcon className="h-5 w-5" /> Excluir
             </button>
           </div>

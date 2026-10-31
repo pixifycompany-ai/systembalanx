@@ -863,7 +863,7 @@ export default function Contratos() {
 
         {/* Create/Edit Modal */}
         <Sheet open={modalOpen} onOpenChange={setModalOpen}>
-          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[560px] sm:mx-auto">
+          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[560px] sm:mx-auto">
             <div className="px-5 pt-1 pb-1">
               <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
               <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
@@ -1098,7 +1098,7 @@ export default function Contratos() {
                       onClick={() => setFormData(prev => ({ ...prev, status: s }))}
                       className={cn(
                         'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors',
-                        formData.status === s ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                        formData.status === s ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted',
                       )}
                     >
                       {s === 'ativo' ? 'Ativo' : s === 'encerrado' ? 'Encerrado' : 'Cancelado'}
@@ -1136,7 +1136,7 @@ export default function Contratos() {
                         <Label className="text-xs">Forma de pagamento</Label>
                         <div className="mt-1 grid grid-cols-2 gap-1.5">
                           {[['UNDEFINED', 'Cliente escolhe'], ['PIX', 'Pix'], ['BOLETO', 'Boleto'], ['CREDIT_CARD', 'Cartão']].map(([v, l]) => (
-                            <button key={v} type="button" onClick={() => setNcForma(v)} className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', ncForma === v ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>{l}</button>
+                            <button key={v} type="button" onClick={() => setNcForma(v)} className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', ncForma === v ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>{l}</button>
                           ))}
                         </div>
                       </div>
@@ -1163,7 +1163,7 @@ export default function Contratos() {
                   <Label className="text-sm font-semibold">Cobrança automática (WhatsApp)</Label>
                   <div className="grid grid-cols-3 gap-1.5">
                     {[['padrao', 'Padrão'], ['off', 'Desligado'], ['custom', 'Personalizado']].map(([v, l]) => (
-                      <button key={v} type="button" onClick={() => setCaModo(v as 'padrao' | 'off' | 'custom')} className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', caModo === v ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>{l}</button>
+                      <button key={v} type="button" onClick={() => setCaModo(v as 'padrao' | 'off' | 'custom')} className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', caModo === v ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>{l}</button>
                     ))}
                   </div>
                   <p className="text-[11px] text-foreground-muted">
@@ -1320,7 +1320,7 @@ export default function Contratos() {
                 <button type="button" onClick={() => setModalOpen(false)} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
                   Cancelar
                 </button>
-                <button type="submit" disabled={isSaving} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50">
+                <button type="submit" disabled={isSaving} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-primary-foreground disabled:opacity-50">
                   {isSaving ? 'Salvando…' : (editingContrato ? 'Atualizar' : 'Criar')}
                 </button>
               </div>
@@ -1410,7 +1410,7 @@ export default function Contratos() {
 
         {/* Enviar cobrança por WhatsApp (mensagem editável) */}
         <Sheet open={whatsappOpen} onOpenChange={setWhatsappOpen}>
-          <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.9] backdrop-blur-2xl sm:max-w-[520px] sm:mx-auto">
+          <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
             <div className="pb-1">
               <div className="text-[11.5px] font-medium text-foreground-muted">Cobrança</div>
               <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Enviar por WhatsApp</h2>

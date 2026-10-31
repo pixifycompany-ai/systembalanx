@@ -15,14 +15,14 @@ const sizeClasses = {
   lg: { box: 'h-14 w-14 rounded-[16px]', iso: 'h-[34px]', text: 'text-3xl' }, // Login
 };
 
-// Fundo do ícone BALANX (AURO azul): navy + glow azul + azul profundo embaixo.
-// Mesmo gradiente do favicon/ícones do PWA (public/favicon.svg).
-export const AURO_ICON_BG =
-  'radial-gradient(85% 85% at 24% 20%, rgba(74,138,224,0.95), transparent 60%), radial-gradient(75% 75% at 50% 105%, rgba(37,99,235,0.55), transparent 100%), #0B1226';
+// Fundo do ícone BALANX: navy liso, sem luz azul.
+// Mesmo fundo do favicon/ícones do PWA (public/favicon.svg).
+export const AURO_ICON_BG = '#0B1226';
 
 const AURO_SQUIRCLE: CSSProperties = {
   background: AURO_ICON_BG,
-  boxShadow: '0 8px 20px -6px rgba(60,120,210,0.5), inset 0 1px 0 rgba(255,255,255,0.14)',
+  // contorno interno sutil: separa o navy do fundo no tema escuro
+  boxShadow: '0 6px 16px -8px rgba(11,18,38,0.45), inset 0 0 0 1px rgba(255,255,255,0.10)',
 };
 
 export function PixifyLogo({ size = 'md', className, iconOnly = false }: PixifyLogoProps) {

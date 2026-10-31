@@ -941,21 +941,21 @@ export default function FluxoCaixa() {
                 <button
                   onClick={() => setReportOpen(true)}
                   aria-label="Relatório"
-                  className="grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground"
+                  className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-foreground"
                 >
                   <BarChart3 className="h-[18px] w-[18px]" />
                 </button>
                 <button
                   onClick={() => setImportDialogOpen(true)}
                   aria-label="Importar lançamentos"
-                  className="grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground"
+                  className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-foreground"
                 >
                   <Upload className="h-[18px] w-[18px]" />
                 </button>
                 <button
                   onClick={() => setFiltersOpen(true)}
                   aria-label="Filtros"
-                  className="relative grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground"
+                  className="relative grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-foreground"
                 >
                   <SlidersHorizontal className="h-[18px] w-[18px]" />
                   {(contaFilter !== 'all' || statusFilter.length > 0 || categoriaFilter.length > 0) && (
@@ -1014,7 +1014,7 @@ export default function FluxoCaixa() {
 
         {/* Tabs and Filters */}
         <Tabs value={tipoFilter} onValueChange={(v) => { setTipoFilter(v as TipoTransacao); setStatusFilter([]); }} className="mb-6">
-          <TabsList className="grid w-full grid-cols-3 h-auto rounded-[13px] border border-border/60 bg-surface/70 backdrop-blur-xl p-[3px] gap-0">
+          <TabsList className="grid w-full grid-cols-3 h-auto rounded-[13px] border border-border bg-surface p-[3px] gap-0">
             {[
               { v: 'todas', l: 'Tudo' },
               { v: 'entrada', l: 'Receitas' },
@@ -1278,7 +1278,7 @@ export default function FluxoCaixa() {
                 <div className="max-h-[168px] overflow-y-auto pr-1 space-y-2">
                   {categoriaGrupos.map((g) => (
                     <div key={g.titulo ?? 'cats'} className="space-y-1.5">
-                      {g.titulo && <div className="text-[10.5px] font-medium text-muted-foreground/80">{g.titulo}</div>}
+                      {g.titulo && <div className="text-[10.5px] font-medium text-muted-foreground">{g.titulo}</div>}
                       <div className="flex flex-wrap gap-1.5">
                         {g.itens.map((c) => {
                           const checked = categoriaFilter.includes(c.id);
@@ -1709,7 +1709,7 @@ export default function FluxoCaixa() {
 
         {/* ===== ENTRADA MODAL (modern layout) ===== */}
         <Sheet open={entradaModalOpen} onOpenChange={setEntradaModalOpen}>
-          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[760px] sm:mx-auto">
+          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[760px] sm:mx-auto">
             {/* Header AURO */}
             <div className="px-5 pt-1 pb-1">
               <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[hsl(var(--success))]">
@@ -1848,7 +1848,7 @@ export default function FluxoCaixa() {
                         className={cn(
                           'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors',
                           formEntrada.status === s
-                            ? 'border-transparent bg-primary text-white'
+                            ? 'border-transparent bg-primary text-primary-foreground'
                             : 'border-border/60 bg-surface/60 text-foreground-muted',
                         )}
                       >
@@ -1936,7 +1936,7 @@ export default function FluxoCaixa() {
                   <Button type="button" variant="ghost" size="sm" onClick={() => setEntradaModalOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-white">
+                  <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-primary-foreground">
                     {isSaving ? <><LoadingSpinner size="sm" className="mr-2" />Salvando...</> : (editingItem ? 'Atualizar' : 'Adicionar')}
                   </Button>
                 </div>
@@ -1947,7 +1947,7 @@ export default function FluxoCaixa() {
 
         {/* ===== SAÍDA MODAL (modern layout) ===== */}
         <Sheet open={saidaModalOpen} onOpenChange={setSaidaModalOpen}>
-          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[760px] sm:mx-auto">
+          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[760px] sm:mx-auto">
             {/* Header AURO */}
             <div className="px-5 pt-1 pb-1">
               <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[hsl(var(--danger))]">
@@ -2136,7 +2136,7 @@ export default function FluxoCaixa() {
                       onClick={() => setFormSaida(prev => ({ ...prev, tipo: o.value as 'fixa' | 'variavel' }))}
                       className={cn(
                         'no-touch-min rounded-xl border py-2.5 text-sm font-semibold transition-colors',
-                        formSaida.tipo === o.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                        formSaida.tipo === o.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted',
                       )}
                     >
                       {o.label}
@@ -2160,7 +2160,7 @@ export default function FluxoCaixa() {
                       }))}
                       className={cn(
                         'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors',
-                        formSaida.status === s ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                        formSaida.status === s ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted',
                       )}
                     >
                       {s === 'pago' ? 'Pago' : s === 'pendente' ? 'Pendente' : 'Atrasado'}
@@ -2247,7 +2247,7 @@ export default function FluxoCaixa() {
                   <Button type="button" variant="ghost" size="sm" onClick={() => setSaidaModalOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-white">
+                  <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-primary-foreground">
                     {isSaving ? <><LoadingSpinner size="sm" className="mr-2" />Salvando...</> : (editingItem ? 'Atualizar' : 'Adicionar')}
                   </Button>
                 </div>

@@ -37,8 +37,8 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
               emphasis === 'primary'
                 ? 'shadow-[0_8px_22px_-8px_hsl(var(--primary)/0.6)] hover:bg-primary/90'
                 : emphasis === 'destructive'
-                  ? 'border border-border/60 bg-surface/55 backdrop-blur-xl text-destructive hover:bg-[hsl(var(--danger))]/12 hover:text-destructive'
-                  : 'border border-border/60 bg-surface/55 backdrop-blur-xl text-foreground shadow-sm hover:bg-surface-2 hover:text-foreground',
+                  ? 'border border-border bg-surface text-destructive hover:bg-[hsl(var(--danger))]/12 hover:text-destructive'
+                  : 'border border-border bg-surface text-foreground shadow-sm hover:bg-surface-2 hover:text-foreground',
               className,
             )}
             {...props}

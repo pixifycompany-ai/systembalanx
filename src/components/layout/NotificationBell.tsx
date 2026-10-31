@@ -79,7 +79,7 @@ export function NotificationBell() {
       <PopoverTrigger asChild>
         <button
           aria-label="Notificações"
-          className="relative grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground transition-colors hover:bg-surface-2"
+          className="relative grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-foreground transition-colors hover:bg-surface-2"
         >
           <BellIcon className="h-5 w-5" />
           {totalCount > 0 && (
@@ -87,7 +87,7 @@ export function NotificationBell() {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-[22rem] p-0 overflow-hidden rounded-2xl border border-border/60 bg-surface/95 backdrop-blur-2xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.65)]">
+      <PopoverContent align="end" sideOffset={8} className="w-[22rem] p-0 overflow-hidden rounded-2xl border border-border bg-surface shadow-[0_24px_60px_-20px_rgba(0,0,0,0.65)]">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/50">
           <div>
@@ -99,7 +99,7 @@ export function NotificationBell() {
           {notifications.length > 0 && (
             <button
               onClick={clearAll}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-border-strong"
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-border-strong"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Limpar
@@ -113,7 +113,7 @@ export function NotificationBell() {
             <div className="p-6 text-center text-sm text-muted-foreground">Carregando…</div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center py-10 text-center">
-              <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-white/5 text-muted-foreground/50">
+              <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-surface-2 text-foreground-subtle">
                 <BellIcon className="h-6 w-6" />
               </div>
               <p className="text-sm text-muted-foreground">Nenhuma notificação</p>
@@ -128,7 +128,7 @@ export function NotificationBell() {
 
                 return (
                   <div key={notif.id} className="rounded-xl">
-                    <div className="group flex items-start gap-3 rounded-xl px-2.5 py-2.5 transition-colors hover:bg-white/[0.04]">
+                    <div className="group flex items-start gap-3 rounded-xl px-2.5 py-2.5 transition-colors hover:bg-foreground/[0.04]">
                       <button
                         onClick={() => handleClick(notif)}
                         className="flex flex-1 items-start gap-3 text-left min-w-0"
@@ -141,7 +141,7 @@ export function NotificationBell() {
                           <p className="mt-0.5 text-[11.5px] text-muted-foreground">{notif.description}</p>
                         </div>
                         {hasDupeDetails && (
-                          <span className="mt-0.5 shrink-0 text-muted-foreground/70">
+                          <span className="mt-0.5 shrink-0 text-muted-foreground">
                             {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </span>
                         )}
@@ -149,7 +149,7 @@ export function NotificationBell() {
                       <button
                         onClick={(e) => { e.stopPropagation(); dismissNotification(notif.id); }}
                         aria-label="Dispensar"
-                        className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground/60 opacity-0 transition hover:bg-white/5 hover:text-foreground group-hover:opacity-100"
+                        className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 transition hover:bg-surface-2 hover:text-foreground group-hover:opacity-100"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>

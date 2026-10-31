@@ -43,7 +43,7 @@ export function UpcomingDueWidget({
     return { label: `em ${d} dias`, cls: 'border-border/70 bg-foreground/[0.04] text-foreground-muted' };
   };
 
-  const cardCls = 'auro-card rounded-2xl border border-border/60 bg-surface/70 p-5 backdrop-blur-xl';
+  const cardCls = 'auro-card rounded-2xl border border-border bg-surface p-5';
 
   if (items.length === 0) {
     return (

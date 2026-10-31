@@ -10,43 +10,46 @@
 
 @layer base {
   :root {
-    /* ===== AURO · LIGHT (near-white neutro + azul-aço) ===== */
+    /* ===== BALANX CLARO · LIGHT (padrão) =====
+       Neutros limpos + navy de tinta + um azul só para ação.
+       Contraste WCAG AA conferido (≥ 4,5:1) em todos os pares de texto. */
     /* ===== Surfaces ===== */
-    --background: 240 8% 96%;
-    --surface: 0 0% 100%;
-    --surface-2: 240 6% 94%;
-    --surface-3: 240 6% 91%;
+    --background: 225 20% 96%;   /* #F3F4F7 */
+    --surface: 0 0% 100%;        /* #FFFFFF */
+    --surface-2: 220 21% 95%;    /* #EEF0F4 */
+    --surface-3: 220 19% 91%;    /* #E3E6EC */
 
     /* ===== Foreground ===== */
-    --foreground: 218 36% 10%;
-    --foreground-muted: 218 14% 40%;
-    --foreground-subtle: 218 12% 55%;
+    --foreground: 224 55% 10%;        /* #0B1226 navy — 18,6:1 no card */
+    --foreground-muted: 221 14% 41%;  /* #5B6478 — 5,9:1 card / 5,4:1 fundo */
+    --foreground-subtle: 222 13% 44%; /* #626B80 — 4,85:1 fundo */
+    --navy-card: 224 55% 10%;         /* #0B1226 — cartão de destaque (saldo) */
 
     /* ===== Borders ===== */
-    --border: 220 16% 88%;
-    --border-subtle: 220 16% 93%;
-    --border-strong: 220 14% 80%;
+    --border: 220 19% 91%;        /* #E3E6EC */
+    --border-subtle: 220 21% 95%; /* #EEF0F4 */
+    --border-strong: 220 15% 81%; /* #C7CCD6 */
 
-    /* ===== Primary (azul-aço) ===== */
-    --primary: 212 75% 48%;
+    /* ===== Primary (azul de ação) ===== */
+    --primary: 221 83% 53%;            /* #2563EB — branco em cima: 5,17:1 */
     --primary-foreground: 0 0% 100%;
 
     /* ===== Semantic ===== */
-    --success: 154 80% 36%;
-    --success-bg: 154 55% 92%;
-    --success-fg: 154 80% 26%;
+    --success: 159 79% 27%;     /* #0E7A54 — 5,34:1 card */
+    --success-bg: 152 43% 93%;  /* #E6F5EE */
+    --success-fg: 159 79% 27%;
 
-    --danger: 5 76% 53%;
-    --danger-bg: 5 82% 96%;
-    --danger-fg: 5 74% 42%;
+    --danger: 4 63% 50%;        /* #D03A2F — 4,85:1 card */
+    --danger-bg: 6 76% 95%;     /* #FCEBE9 */
+    --danger-fg: 4 66% 43%;     /* #B42F25 — 5,39:1 no selo */
 
-    --warning: 35 82% 46%;
-    --warning-bg: 40 90% 92%;
-    --warning-fg: 30 80% 32%;
+    --warning: 39 100% 29%;     /* #946000 — 5,34:1 card */
+    --warning-bg: 42 100% 92%;  /* #FFF3D6 */
+    --warning-fg: 39 100% 27%;  /* #8A5A00 — 5,37:1 no selo */
 
-    --info: 212 75% 48%;
-    --info-bg: 212 82% 94%;
-    --info-fg: 212 74% 38%;
+    --info: 221 83% 53%;
+    --info-bg: 221 90% 95%;
+    --info-fg: 221 83% 42%;
 
     /* ===== Tag colors (categorias) ===== */
     --tag-pink: 330 80% 50%;
@@ -65,24 +68,24 @@
     --brand-tabelio: 152 60% 40%;
 
     /* ===== Focus ring ===== */
-    --ring: 212 75% 48%;
+    --ring: 221 83% 53%;
     --ring-offset: 0 0% 100%;
 
-    /* ===== Radii ===== */
-    --radius-xs: 4px;
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 10px;
-    --radius-xl: 14px;
-    --radius-2xl: 20px;
-    --radius: 10px; /* shadcn default alias */
+    /* ===== Radii (mais arredondado, estilo app) ===== */
+    --radius-xs: 6px;
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --radius-2xl: 24px;
+    --radius: 12px; /* shadcn default alias */
 
-    /* ===== Shadows ===== */
-    --shadow-xs: 0 1px 0 0 hsl(240 6% 90% / 0.5);
-    --shadow-sm: 0 1px 2px 0 hsl(240 10% 4% / 0.04), 0 1px 3px 0 hsl(240 10% 4% / 0.06);
-    --shadow-md: 0 4px 6px -1px hsl(240 10% 4% / 0.05), 0 2px 4px -2px hsl(240 10% 4% / 0.04);
-    --shadow-lg: 0 10px 15px -3px hsl(240 10% 4% / 0.06), 0 4px 6px -4px hsl(240 10% 4% / 0.04);
-    --shadow-popover: 0 8px 24px hsl(240 10% 4% / 0.08), 0 2px 4px hsl(240 10% 4% / 0.04);
+    /* ===== Shadows (suaves, sem brilho) ===== */
+    --shadow-xs: 0 1px 0 0 hsl(224 55% 10% / 0.04);
+    --shadow-sm: 0 1px 2px 0 hsl(224 55% 10% / 0.05), 0 1px 3px 0 hsl(224 55% 10% / 0.06);
+    --shadow-md: 0 6px 16px -8px hsl(224 55% 10% / 0.14);
+    --shadow-lg: 0 16px 36px -16px hsl(224 55% 10% / 0.22);
+    --shadow-popover: 0 12px 32px -12px hsl(224 55% 10% / 0.22), 0 0 0 1px hsl(220 19% 91%);
 
     /* ===== Motion ===== */
     --duration-instant: 100ms;
@@ -98,135 +101,140 @@
        continuam funcionando. NOVO código deve usar os tokens acima.
        ============================================================ */
     --card: 0 0% 100%;
-    --card-foreground: 218 36% 10%;
+    --card-foreground: 224 55% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 218 36% 10%;
-    --secondary: 240 6% 94%;
-    --secondary-foreground: 218 36% 10%;
-    --muted: 240 6% 94%;
-    --muted-foreground: 218 14% 40%;
-    --accent: 240 6% 94%;
-    --accent-foreground: 218 36% 10%;
-    --destructive: 5 76% 53%;
+    --popover-foreground: 224 55% 10%;
+    --secondary: 220 21% 95%;
+    --secondary-foreground: 224 55% 10%;
+    --muted: 220 21% 95%;
+    --muted-foreground: 221 14% 41%;
+    --accent: 220 21% 95%;
+    --accent-foreground: 224 55% 10%;
+    --destructive: 4 63% 50%;
     --destructive-foreground: 0 0% 100%;
     --warning-foreground: 0 0% 100%;
     --info-foreground: 0 0% 100%;
-    --input: 220 16% 88%;
+    --input: 220 19% 91%;
 
     /* Chart palette (data viz) */
-    --chart-1: 214 89% 52%;
-    --chart-2: 152 60% 40%;
+    --chart-1: 221 83% 53%;
+    --chart-2: 159 79% 32%;
     --chart-3: 35 92% 48%;
     --chart-4: 260 75% 58%;
-    --chart-5: 0 72% 50%;
+    --chart-5: 4 63% 50%;
 
     /* Financial legacy */
-    --positive: 154 80% 36%;
-    --positive-muted: 154 55% 92%;
-    --negative: 5 76% 53%;
-    --negative-muted: 5 82% 96%;
-    --pending: 35 82% 46%;
-    --pending-muted: 40 90% 92%;
+    --positive: 159 79% 27%;
+    --positive-muted: 152 43% 93%;
+    --negative: 4 63% 50%;
+    --negative-muted: 6 76% 95%;
+    --pending: 39 100% 29%;
+    --pending-muted: 42 100% 92%;
 
-    /* Sidebar */
+    /* Sidebar — item ativo em pílula navy */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 218 14% 40%;
-    --sidebar-primary: 212 75% 48%;
+    --sidebar-foreground: 221 14% 41%;
+    --sidebar-primary: 224 55% 10%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 6% 94%;
-    --sidebar-accent-foreground: 218 36% 10%;
-    --sidebar-border: 220 16% 88%;
-    --sidebar-ring: 212 75% 48%;
+    --sidebar-accent: 220 21% 95%;
+    --sidebar-accent-foreground: 224 55% 10%;
+    --sidebar-border: 220 19% 91%;
+    --sidebar-ring: 221 83% 53%;
   }
 
   .dark {
-    /* ===== AURO · DARK (azul-profundo estilo fintech) ===== */
+    /* ===== BALANX CLARO · DARK =====
+       Mesmo sistema no escuro. O azul é mais claro (#4A8AE0) e o texto em
+       cima dele é NAVY: nenhum azul único passa 4,5:1 com texto branco E
+       como texto sobre o fundo escuro ao mesmo tempo. Contraste conferido. */
     /* ===== Surfaces ===== */
-    --background: 221 58% 6%;
-    --surface: 219 40% 9%;
-    --surface-2: 219 36% 13%;
-    --surface-3: 219 32% 17%;
+    --background: 222 48% 5%;   /* #070B14 */
+    --surface: 222 43% 10%;     /* #0F1626 */
+    --surface-2: 221 38% 15%;   /* #172033 */
+    --surface-3: 218 35% 18%;   /* #1E2A3F */
 
     /* ===== Foreground ===== */
-    --foreground: 214 41% 95%;
-    --foreground-muted: 214 20% 66%;
-    --foreground-subtle: 214 15% 46%;
+    --foreground: 216 42% 95%;        /* #EEF2F8 — 16,1:1 card */
+    --foreground-muted: 219 21% 65%;  /* #93A0B8 — 6,8:1 card */
+    --foreground-subtle: 220 16% 57%; /* #7F8BA3 — 5,3:1 card */
+    --navy-card: 221 44% 17%;         /* #18233F — destaque um tom acima do card escuro */
 
     /* ===== Borders ===== */
-    --border: 214 25% 22%;
-    --border-subtle: 216 30% 14%;
-    --border-strong: 214 22% 30%;
+    --border: 218 35% 18%;        /* #1E2A3F */
+    --border-subtle: 220 39% 14%; /* #151E30 */
+    --border-strong: 219 30% 24%; /* #2B3850 */
 
-    /* ===== Primary (azul-aço vivo) ===== */
-    --primary: 212 87% 56%;
-    --primary-foreground: 0 0% 100%;
+    /* ===== Primary ===== */
+    --primary: 214 71% 58%;              /* #4A8AE0 — 5,2:1 como texto no card */
+    --primary-foreground: 224 55% 10%;   /* navy sobre o azul — 5,32:1 */
 
-    /* ===== Semantic (ajustados) ===== */
-    --success: 154 74% 49%;
-    --success-bg: 154 50% 14%;
-    --success-fg: 154 74% 70%;
+    /* ===== Semantic ===== */
+    --success: 151 65% 54%;     /* #3DD68C — 9,6:1 card */
+    --success-bg: 162 47% 11%;  /* #0F2A22 */
+    --success-fg: 150 71% 62%;  /* #5BE3A0 */
 
-    --danger: 5 96% 61%;
-    --danger-bg: 5 55% 18%;
-    --danger-fg: 5 96% 78%;
+    --danger: 5 100% 72%;       /* #FF7A6E — 7,1:1 card */
+    --danger-bg: 355 37% 13%;   /* #2E1517 */
+    --danger-fg: 5 100% 78%;    /* #FF9A90 */
 
-    --warning: 35 91% 57%;
-    --warning-bg: 35 55% 15%;
-    --warning-fg: 40 90% 70%;
+    --warning: 39 87% 61%;      /* #F2B544 — 9,9:1 card */
+    --warning-bg: 39 45% 11%;   /* #2A2110 */
+    --warning-fg: 39 90% 69%;   /* #F7C66B */
 
-    --info: 213 100% 69%;
-    --info-bg: 213 45% 18%;
-    --info-fg: 213 100% 80%;
+    --info: 214 71% 58%;
+    --info-bg: 216 45% 16%;
+    --info-fg: 214 90% 78%;
 
     /* ===== Focus ===== */
-    --ring: 212 87% 56%;
-    --ring-offset: 222 48% 4%;
+    --ring: 214 71% 58%;
+    --ring-offset: 222 48% 5%;
 
-    /* ===== Shadows (mais evidentes no dark) ===== */
-    --shadow-xs: 0 1px 0 0 hsl(0 0% 0% / 0.2);
-    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
-    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
-    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.5);
-    --shadow-popover: 0 8px 24px hsl(0 0% 0% / 0.5), 0 0 0 1px hsl(var(--border));
+    /* ===== Shadows ===== */
+    --shadow-xs: 0 1px 0 0 hsl(0 0% 0% / 0.25);
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.35);
+    --shadow-md: 0 6px 16px -8px hsl(0 0% 0% / 0.55);
+    --shadow-lg: 0 16px 36px -16px hsl(0 0% 0% / 0.65);
+    --shadow-popover: 0 12px 32px -12px hsl(0 0% 0% / 0.6), 0 0 0 1px hsl(var(--border));
 
     /* ===== Legacy aliases ===== */
-    --card: 219 40% 9%;
-    --card-foreground: 214 41% 95%;
-    --popover: 219 38% 11%;
-    --popover-foreground: 214 41% 95%;
-    --secondary: 217 28% 17%;
-    --secondary-foreground: 214 41% 95%;
-    --muted: 217 28% 17%;
-    --muted-foreground: 214 20% 66%;
-    --accent: 216 26% 21%;
-    --accent-foreground: 214 41% 95%;
-    --destructive: 5 96% 61%;
-    --destructive-foreground: 0 0% 100%;
-    --warning-foreground: 222 48% 6%;
-    --info-foreground: 222 48% 6%;
-    --input: 214 25% 22%;
+    --card: 222 43% 10%;
+    --card-foreground: 216 42% 95%;
+    --popover: 221 38% 13%;
+    --popover-foreground: 216 42% 95%;
+    --secondary: 221 38% 15%;
+    --secondary-foreground: 216 42% 95%;
+    --muted: 221 38% 15%;
+    --muted-foreground: 219 21% 65%;
+    --accent: 218 35% 18%;
+    --accent-foreground: 216 42% 95%;
+    --destructive: 5 100% 72%;
+    --destructive-foreground: 224 55% 10%;
+    --warning-foreground: 224 55% 10%;
+    --info-foreground: 224 55% 10%;
+    --input: 218 35% 18%;
 
-    --chart-1: 214 90% 62%;
-    --chart-2: 152 55% 50%;
-    --chart-3: 38 90% 58%;
-    --chart-4: 260 75% 65%;
-    --chart-5: 0 72% 60%;
+    --chart-1: 214 71% 58%;
+    --chart-2: 151 65% 54%;
+    --chart-3: 39 87% 61%;
+    --chart-4: 260 75% 70%;
+    --chart-5: 5 100% 72%;
 
-    --positive: 154 74% 49%;
-    --positive-muted: 154 50% 14%;
-    --negative: 5 96% 61%;
-    --negative-muted: 5 55% 18%;
-    --pending: 35 91% 57%;
-    --pending-muted: 35 55% 15%;
+    --positive: 151 65% 54%;
+    --positive-muted: 162 47% 11%;
+    --negative: 5 100% 72%;
+    --negative-muted: 355 37% 13%;
+    --pending: 39 87% 61%;
+    --pending-muted: 39 45% 11%;
 
-    --sidebar-background: 217 33% 9%;
-    --sidebar-foreground: 214 20% 66%;
-    --sidebar-primary: 212 87% 56%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 28% 17%;
-    --sidebar-accent-foreground: 214 41% 95%;
-    --sidebar-border: 214 25% 22%;
-    --sidebar-ring: 212 87% 56%;
+    /* Sidebar — item ativo em pílula clara com texto navy */
+    --sidebar-background: 222 43% 10%;
+    --sidebar-foreground: 219 21% 65%;
+    --sidebar-primary: 216 42% 95%;
+    --sidebar-primary-foreground: 224 55% 10%;
+    --sidebar-accent: 221 38% 15%;
+    --sidebar-accent-foreground: 216 42% 95%;
+    --sidebar-border: 218 35% 18%;
+    --sidebar-ring: 214 71% 58%;
   }
 }
 
@@ -272,7 +280,7 @@
     html { font-size: 90%; }
   }
   /* Mobile: corpo na fonte do sistema (San Francisco no iOS) = toque nativo Apple.
-     Títulos seguem em Sora (identidade da marca). */
+     Títulos seguem em Inter Tight (identidade da marca). */
   @media (max-width: 767px) {
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
@@ -300,44 +308,19 @@
     background-repeat: no-repeat;
     background-color: hsl(var(--background));
   }
-  /* Fundo azul-profundo (estilo app fintech): só glows azuis — mesma família
-     do ícone BALANX (navy #0B1226 + azul #4A8AE0 + azul profundo #2563EB). */
+  /* BALANX Claro: fundo LISO nos dois temas (sem glows nem grade). No escuro,
+     só uma luz muito sutil no topo para não ficar "chapado". */
   .dark body::before {
-    background-image:
-      radial-gradient(120% 74% at 50% -12%, rgba(46, 120, 246, 0.60), transparent 58%),
-      radial-gradient(95% 58% at 88% 2%, rgba(56, 122, 216, 0.30), transparent 60%),
-      radial-gradient(100% 60% at 50% 118%, rgba(40, 100, 220, 0.22), transparent 62%),
-      radial-gradient(70% 52% at 2% 104%, rgba(56, 122, 216, 0.18), transparent 60%),
-      radial-gradient(72% 54% at 99% 110%, rgba(74, 138, 224, 0.12), transparent 60%);
-  }
-  /* Grade sutil (techy), some suave no meio — igual referência fintech. */
-  .dark body::after {
-    content: '';
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: 100vh; height: 100lvh;
-    z-index: -1;
-    pointer-events: none;
-    background-image:
-      linear-gradient(rgba(150, 185, 255, 0.055) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(150, 185, 255, 0.055) 1px, transparent 1px);
-    background-size: 44px 44px;
-    -webkit-mask-image: radial-gradient(90% 62% at 50% -6%, #000, transparent 72%);
-    mask-image: radial-gradient(90% 62% at 50% -6%, #000, transparent 72%);
-  }
-  .light body::before {
-    background-image:
-      radial-gradient(90% 55% at 10% -2%, hsl(var(--primary) / 0.08), transparent 60%),
-      radial-gradient(80% 45% at 98% 2%, hsl(214 89% 52% / 0.05), transparent 60%);
+    background-image: linear-gradient(180deg, hsl(221 45% 12% / 0.55), transparent 420px);
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    letter-spacing: -0.02em;
+    font-family: 'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    letter-spacing: -0.025em;
   }
 
-  h1 { @apply font-medium; }
-  h2 { @apply font-medium; }
+  h1 { @apply font-semibold; }
+  h2 { @apply font-semibold; }
   h3 { @apply font-semibold; }
 
   /* Tabular numbers everywhere by default for financial UI */
@@ -549,15 +532,13 @@
   .data-table th.text-center,
   .data-table td.text-center { text-align: center; }
 
-  /* ===== AURO · glass card (metric-card era no-op; agora vidro fosco) ===== */
+  /* ===== BALANX Claro · card liso (sem vidro fosco) ===== */
   .metric-card {
     padding: 1.25rem;
     border-radius: var(--radius-2xl);
-    border: 1px solid hsl(var(--border) / 0.6);
-    background: hsl(var(--surface) / 0.7);
-    -webkit-backdrop-filter: blur(24px) saturate(1.5);
-    backdrop-filter: blur(24px) saturate(1.5);
-    box-shadow: var(--shadow-md);
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--surface));
+    box-shadow: var(--shadow-xs);
   }
   .metric-card-positive { border-color: hsl(var(--success) / 0.3); background: hsl(var(--success) / 0.06); }
   .metric-card-negative { border-color: hsl(var(--danger) / 0.3); background: hsl(var(--danger) / 0.06); }
@@ -567,10 +548,11 @@
 
 /* ===== Sidebar desktop — item de navegação (estado ativo AURO) ===== */
 .sb-nav-item[data-active="true"] {
-  color: hsl(var(--primary)) !important;
+  /* Item ativo = pílula navy (claro) / pílula clara com texto navy (escuro) */
+  color: hsl(var(--sidebar-primary-foreground)) !important;
   font-weight: 600;
-  background: linear-gradient(90deg, hsl(var(--primary) / 0.18), hsl(var(--primary) / 0.05)) !important;
-  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.28), 0 6px 18px -10px hsl(var(--primary) / 0.85);
+  background: hsl(var(--sidebar-primary)) !important;
+  box-shadow: none;
 }
 .sb-nav-item[data-active="true"] > a > svg { opacity: 1; }
 .sb-nav-item::before {
@@ -586,6 +568,7 @@
   box-shadow: 0 0 10px hsl(var(--primary) / 0.9);
   opacity: 0;
   transition: opacity 0.15s;
+  display: none; /* BALANX Claro: a pílula do item ativo já sinaliza (sem barrinha com brilho) */
 }
 .sb-nav-item[data-active="true"]::before { opacity: 1; }
 /* No modo reduzido (rail de ícones) a barra de acento fica esquisita: esconde. */
@@ -610,18 +593,12 @@
 @keyframes balanx-wave { 0%, 100% { transform: scaleY(0.28); } 50% { transform: scaleY(1); } }
 .wavebar { width: 4px; border-radius: 9px; background: hsl(var(--danger)); transform-origin: center; animation: balanx-wave 0.9s ease-in-out infinite; }
 
-/* ===== Luz interna dos cards AURO (redondinho + vidro) ===== */
+/* ===== Cards (BALANX Claro): sombra mínima, sem brilho interno ===== */
 .auro-card {
-  box-shadow:
-    inset 0 1px 0 0 hsl(0 0% 100% / 0.09),
-    inset 0 0 0 1px hsl(0 0% 100% / 0.02),
-    inset 0 -18px 36px -22px hsl(0 0% 0% / 0.35),
-    0 22px 44px -24px rgba(0, 0, 0, 0.62);
+  box-shadow: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
 }
 .light .auro-card {
-  box-shadow:
-    inset 0 1px 0 0 hsl(0 0% 100% / 0.7),
-    0 14px 32px -20px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 1px 2px 0 hsl(224 55% 10% / 0.04);
 }
 
 /* ===== Typing (IARA digitando) ===== */

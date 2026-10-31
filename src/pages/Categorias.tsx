@@ -223,7 +223,7 @@ export default function Categorias() {
 
         {/* Create/Edit Modal */}
         <Sheet open={modalOpen} onOpenChange={setModalOpen}>
-          <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[480px] sm:mx-auto">
+          <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[480px] sm:mx-auto">
             <div className="pb-1">
               <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
               <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
@@ -254,7 +254,7 @@ export default function Categorias() {
                       onClick={() => setFormData(prev => ({ ...prev, tipo: tp, grupo_dre: null }))}
                       className={cn(
                         'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors disabled:opacity-50',
-                        formData.tipo === tp ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                        formData.tipo === tp ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted',
                       )}
                     >
                       {tp === 'despesa' ? 'Despesa' : 'Receita'}
@@ -366,7 +366,7 @@ export default function Categorias() {
                 <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-white">
+                <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-primary-foreground">
                   {isSaving ? (
                     <>
                       <LoadingSpinner size="sm" className="mr-2" />
@@ -444,7 +444,7 @@ function CategoriaGrid({
         <button
           key={categoria.id}
           onClick={() => onEdit(categoria)}
-          className="text-left cursor-pointer rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl p-3.5 transition-colors hover:border-primary/40"
+          className="text-left cursor-pointer rounded-2xl border border-border bg-surface p-3.5 transition-colors hover:border-primary/40"
         >
           <div className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-foreground/5">
             <Tag className="h-[18px] w-[18px] text-foreground/75" />

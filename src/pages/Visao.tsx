@@ -85,21 +85,21 @@ export default function Visao() {
         eyebrow="Deep-dive"
         title="Visão"
         actions={
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground-muted px-3 py-1.5 rounded-full border border-border/60 bg-surface/70 backdrop-blur-xl">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground-muted px-3 py-1.5 rounded-full border border-border bg-surface">
             {semestreBadge}
           </span>
         }
       />
 
       {/* Segmented Semana | Mês | Ano (igual mockup) */}
-      <div className="md:hidden grid grid-cols-3 gap-[3px] rounded-[14px] border border-border/60 bg-surface/70 backdrop-blur-xl p-1">
+      <div className="md:hidden grid grid-cols-3 gap-[3px] rounded-[14px] border border-border bg-surface p-1">
         {([['semana', 'Semana'], ['mes', 'Mês'], ['ano', 'Ano']] as const).map(([v, label]) => (
           <button
             key={v}
             onClick={() => setRange(v)}
             className={cn(
               'rounded-[10px] py-[9px] text-[12.5px] font-semibold transition-colors',
-              range === v ? 'bg-primary text-white' : 'text-foreground-muted',
+              range === v ? 'bg-primary text-primary-foreground' : 'text-foreground-muted',
             )}
           >
             {label}
@@ -108,7 +108,7 @@ export default function Visao() {
       </div>
 
       {/* MRR em destaque com gráfico de área (igual mockup) */}
-      <div className="md:hidden auro-card rounded-[24px] border border-border/60 bg-surface/55 backdrop-blur-xl px-4 pt-4 pb-2 overflow-hidden">
+      <div className="md:hidden auro-card rounded-[24px] border border-border bg-surface px-4 pt-4 pb-2 overflow-hidden">
         <div className="text-[11.5px] text-foreground-muted">Receita recorrente (MRR)</div>
         <div className="mt-1 flex items-baseline gap-2.5">
           <span className="text-[30px] font-semibold tracking-[-0.03em] tabular-nums text-foreground">{formatCurrency(contractsData.mrrTotal)}</span>
@@ -150,7 +150,7 @@ export default function Visao() {
             <h2 className="text-base font-semibold text-foreground">Despesas por categoria</h2>
             <span className="text-xs text-foreground-muted capitalize">{format(new Date(), 'MMMM', { locale: ptBR })}</span>
           </div>
-          <div className="auro-card rounded-2xl border border-border/60 bg-surface/55 backdrop-blur-xl divide-y divide-border/50 overflow-hidden">
+          <div className="auro-card rounded-2xl border border-border bg-surface divide-y divide-border/50 overflow-hidden">
             {expensesByCategory.slice(0, 6).map((c) => {
               const pct = totalDespCat > 0 ? Math.round((c.valor / totalDespCat) * 100) : 0;
               return (

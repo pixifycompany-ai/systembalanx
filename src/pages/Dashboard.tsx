@@ -4,7 +4,7 @@ import { format, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ArrowRight, Plus, TrendingUp, TrendingDown, ArrowLeftRight, Upload, Wallet, PiggyBank } from 'lucide-react';
 import { Sparkle } from '@/components/shared/Sparkle';
-import promoBanner from '@/assets/brand/IMG1.png';
+import promoBanner from '@/assets/brand/home-personagem.webp';
 
 import { HeroStatCard } from '@/components/shared/HeroStatCard';
 import { ListRowCard } from '@/components/shared/ListRowCard';
@@ -105,10 +105,10 @@ export default function Dashboard() {
       <div className="md:hidden">
       <MobilePageHeader
         eyebrow={`${greeting()},`}
-        title={primeiroNome}
+        title={<span className="font-serif italic font-normal tracking-normal">{primeiroNome}</span>}
         actions={
           <>
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted px-3 py-2 rounded-full border border-border/60 bg-surface/70 backdrop-blur-xl">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted px-3 py-2 rounded-full border border-border bg-surface">
               {mesAtual}
             </span>
             {/* Sino só no mobile — no desktop o Header já tem um (evita 2 sinos) */}
@@ -131,8 +131,8 @@ export default function Dashboard() {
           value={totalBalance}
           subtitle={`${accountBalances.length} ${accountBalances.length === 1 ? 'conta' : 'contas'} ativas`}
           footer={[
-            { label: 'Receitas do mês', value: resumo.faturamento_mes, valueClassName: 'text-[hsl(var(--success))]' },
-            { label: 'Despesas do mês', value: resumo.despesas_mes, align: 'right', valueClassName: 'text-[hsl(var(--danger))]' },
+            { label: 'Receitas do mês', value: resumo.faturamento_mes, valueClassName: 'text-[#3ECF8E]' },
+            { label: 'Despesas do mês', value: resumo.despesas_mes, align: 'right', valueClassName: 'text-[#FF7A70]' },
           ]}
         />
       </button>
@@ -140,12 +140,13 @@ export default function Dashboard() {
       {/* Promo banner — resumo do mês */}
       <button
         onClick={() => navigate('/fluxo-caixa')}
-        className="group relative mb-6 block w-full overflow-hidden rounded-2xl h-32 md:h-40 text-left border border-border/50"
+        className="group relative isolate mb-6 block w-full overflow-hidden rounded-2xl h-32 md:h-40 text-left bg-[#0B1226]"
       >
-        <img src={promoBanner} alt="" className="absolute inset-0 h-full w-full object-cover object-[center_18%]" />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(3,7,15,0.92) 26%, rgba(3,7,15,0.15))' }} />
+        {/* Personagem à direita; o texto fica no navy da esquerda */}
+        <img src={promoBanner} alt="" className="absolute inset-y-0 right-0 h-full w-[70%] object-cover object-[center_20%]" />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, #0B1226 32%, rgba(11,18,38,0.55) 50%, rgba(11,18,38,0) 72%)' }} />
         <div className="relative z-10 flex h-full flex-col justify-center px-5">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">Resumo do mês</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/75">Resumo do mês</span>
           <span className="mt-1 text-[17px] md:text-xl font-semibold text-white">
             {resumo.lucro_mensal >= 0 ? `Fechando ${mesNome} no azul` : `Atenção com ${mesNome}`}
           </span>
@@ -171,7 +172,7 @@ export default function Dashboard() {
       <section className="mb-6">
         <button
           onClick={() => navigate('/iara')}
-          className="w-full text-left relative overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl p-4 shadow-md active:scale-[0.99] transition-transform"
+          className="w-full text-left relative overflow-hidden rounded-2xl border border-border bg-surface p-4 shadow-md active:scale-[0.99] transition-transform"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_8px_18px_-6px_hsl(var(--primary)/0.6)]">
@@ -254,11 +255,13 @@ export default function Dashboard() {
         {/* Header: saudação + título + ações */}
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-sm text-foreground-muted">{greeting()}, {primeiroNome} 👋</p>
-            <h1 className="mt-0.5 text-[32px] font-semibold tracking-[-0.02em] text-foreground">Visão geral</h1>
+            <p className="text-sm font-medium text-foreground-muted">Visão geral</p>
+            <h1 className="mt-0.5 text-[34px] font-semibold tracking-[-0.03em] text-foreground">
+              {greeting()}, <span className="font-serif italic font-normal tracking-normal">{primeiroNome}</span>
+            </h1>
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-10 inline-flex items-center rounded-full border border-border/60 bg-surface/70 px-4 text-xs font-semibold capitalize text-foreground-muted backdrop-blur-xl">
+            <span className="h-10 inline-flex items-center rounded-full border border-border bg-surface px-4 text-xs font-semibold capitalize text-foreground-muted">
               {mesNome}
             </span>
             <DropdownMenu>
@@ -267,7 +270,7 @@ export default function Dashboard() {
                   type="button"
                   className="h-10 inline-flex items-center gap-2 rounded-full bg-primary pl-3 pr-4 text-sm font-semibold text-primary-foreground shadow-[0_10px_24px_-10px_hsl(var(--primary)/0.8)] transition-transform hover:-translate-y-0.5"
                 >
-                  <span className="grid h-6 w-6 place-items-center rounded-full bg-white/20"><Plus className="h-3.5 w-3.5" /></span>
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-primary-foreground/15"><Plus className="h-3.5 w-3.5" /></span>
                   Novo lançamento
                 </button>
               </DropdownMenuTrigger>
@@ -372,7 +375,7 @@ export default function Dashboard() {
         title="Detalhe do saldo"
       >
         {/* Card resumo */}
-        <div className="rounded-2xl bg-white/5 px-4 py-4 mb-5">
+        <div className="rounded-2xl bg-foreground/[0.04] px-4 py-4 mb-5">
           <p className="text-[11px] uppercase tracking-wider text-white/55 mb-1">Total disponível</p>
           <p className="text-3xl font-semibold tabular-nums">{formatCurrency(totalBalance)}</p>
           <p className="text-xs text-white/60 mt-1">
@@ -389,7 +392,7 @@ export default function Dashboard() {
                 setSaldoSheetOpen(false);
                 navigate(`/fluxo-caixa?conta=${acc.id}`);
               }}
-              className="w-full flex items-center justify-between rounded-xl bg-white/5 hover:bg-white/10 px-4 py-3 transition-colors no-touch-min text-left"
+              className="w-full flex items-center justify-between rounded-xl bg-foreground/[0.04] hover:bg-foreground/[0.07] px-4 py-3 transition-colors no-touch-min text-left"
             >
               <div className="flex items-center gap-3">
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: acc.cor }} />
@@ -403,7 +406,7 @@ export default function Dashboard() {
         {consolidatedHistory.length > 1 && (
           <>
             <p className="text-[11px] uppercase tracking-wider text-white/55 mb-2">Evolução</p>
-            <div className="rounded-2xl bg-white/5 px-4 py-3">
+            <div className="rounded-2xl bg-foreground/[0.04] px-4 py-3">
               <div className="flex justify-between text-xs">
                 {consolidatedHistory.map((h) => (
                   <div key={h.mes} className="flex flex-col items-center gap-1">

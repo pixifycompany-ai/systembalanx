@@ -135,7 +135,7 @@ export default function Iara() {
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <div className="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white shrink-0">
+        <div className="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground shrink-0">
           <Sparkle className="h-4 w-4" />
         </div>
         <div className="flex-1 min-w-0">
@@ -178,7 +178,7 @@ export default function Iara() {
                 className={cn(
                   'flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full',
                   m.role === 'assistant'
-                    ? 'bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white'
+                    ? 'bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground'
                     : 'bg-surface-3 text-foreground-muted',
                 )}
               >
@@ -188,8 +188,8 @@ export default function Iara() {
                 className={cn(
                   'max-w-[80%] px-3.5 py-2.5 text-[13px] leading-[1.55]',
                   m.role === 'assistant'
-                    ? 'auro-card rounded-[18px_18px_18px_6px] bg-surface/55 backdrop-blur-xl border border-border/60 text-foreground'
-                    : 'rounded-[18px_18px_6px_18px] bg-[linear-gradient(160deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white',
+                    ? 'auro-card rounded-[18px_18px_18px_6px] bg-surface border border-border text-foreground'
+                    : 'rounded-[18px_18px_6px_18px] bg-[linear-gradient(160deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground',
                 )}
               >
                 {m.role === 'assistant' ? (
@@ -208,10 +208,10 @@ export default function Iara() {
         ))}
         {isLoading && lastIsUser && (
           <div className="flex gap-2.5 items-end">
-            <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white">
+            <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground">
               <Sparkle className="h-4 w-4" />
             </div>
-            <div className="auro-card rounded-[18px_18px_18px_6px] bg-surface/55 backdrop-blur-xl border border-border/60 px-3.5 py-3">
+            <div className="auro-card rounded-[18px_18px_18px_6px] bg-surface border border-border px-3.5 py-3">
               <div className="iara-typing"><i /><i /><i /></div>
             </div>
           </div>
@@ -225,7 +225,7 @@ export default function Iara() {
             key={s}
             onClick={() => submit(s)}
             disabled={isLoading}
-            className="shrink-0 text-[11.5px] font-semibold text-foreground bg-surface/55 backdrop-blur-xl border border-border/60 rounded-full px-3.5 py-2 hover:border-border-strong transition-colors disabled:opacity-50"
+            className="shrink-0 text-[11.5px] font-semibold text-foreground bg-surface border border-border rounded-full px-3.5 py-2 hover:border-border-strong transition-colors disabled:opacity-50"
           >
             {s}
           </button>
@@ -242,7 +242,7 @@ export default function Iara() {
           onChange={(e) => setInput(e.target.value)}
           placeholder="Pergunte sobre seu caixa, metas, clientes…"
           disabled={isLoading}
-          className="flex-1 h-11 rounded-2xl bg-surface/70 backdrop-blur-xl border border-border/60 px-4 text-sm text-foreground placeholder:text-foreground-subtle outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex-1 h-11 rounded-2xl bg-surface border border-border px-4 text-sm text-foreground placeholder:text-foreground-subtle outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         <button
           type="button"
@@ -253,7 +253,7 @@ export default function Iara() {
             'flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors active:scale-95',
             listening
               ? 'bg-[hsl(var(--danger))]/15 border-[hsl(var(--danger))] text-[hsl(var(--danger))] animate-pulse'
-              : 'bg-surface/70 backdrop-blur-xl border-border/60 text-foreground-muted',
+              : 'bg-surface border-border text-foreground-muted',
             transcribing && 'opacity-60',
           )}
         >
@@ -263,7 +263,7 @@ export default function Iara() {
           type="submit"
           disabled={isLoading || !input.trim()}
           aria-label="Enviar"
-          className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] text-white shadow-[0_10px_24px_-6px_hsl(var(--primary)/0.5)] active:scale-95 transition-transform disabled:opacity-50"
+          className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] text-primary-foreground shadow-[0_10px_24px_-6px_hsl(var(--primary)/0.5)] active:scale-95 transition-transform disabled:opacity-50"
         >
           {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
         </button>

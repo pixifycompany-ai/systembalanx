@@ -314,7 +314,7 @@ export default function MeuPerfil() {
 
       {/* Avatar + nome */}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarPick} />
-      <div className="flex items-center gap-3.5 rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl p-4 mb-4">
+      <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-surface p-4 mb-4">
         <button onClick={() => fileRef.current?.click()} className="relative shrink-0" aria-label="Trocar avatar">
           <Avatar className="h-14 w-14">
             {avatarSignedUrl && <AvatarImage src={avatarSignedUrl} alt={profile?.nome ?? ''} />}
@@ -328,7 +328,7 @@ export default function MeuPerfil() {
           <div className="text-[15px] font-semibold text-foreground truncate">{profile?.nome || 'Seu nome'}</div>
           <div className="text-[11.5px] text-foreground-muted mt-0.5">Trocar avatar · ajustamos o tamanho pra você</div>
         </button>
-        <ChevronRightIcon className="h-4 w-4 text-foreground-muted/60 shrink-0" onClick={() => setSheet('nome')} />
+        <ChevronRightIcon className="h-4 w-4 text-foreground-subtle shrink-0" onClick={() => setSheet('nome')} />
       </div>
 
       {/* Grupo: acesso */}
@@ -524,7 +524,7 @@ export default function MeuPerfil() {
             <Label>Ambiente</Label>
             <div className="grid grid-cols-2 gap-2">
               {(['production', 'sandbox'] as const).map((e) => (
-                <button key={e} type="button" onClick={() => setAsaasEnv(e)} className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', asaasEnv === e ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
+                <button key={e} type="button" onClick={() => setAsaasEnv(e)} className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', asaasEnv === e ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
                   {e === 'production' ? 'Produção' : 'Sandbox (teste)'}
                 </button>
               ))}
@@ -602,7 +602,7 @@ export default function MeuPerfil() {
 
 function SetGroup({ children }: { children: ReactNode }) {
   return (
-    <div className="mb-3.5 overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl">
+    <div className="mb-3.5 overflow-hidden rounded-2xl border border-border bg-surface">
       {children}
     </div>
   );
@@ -615,7 +615,7 @@ function SetRow({ icon, title, sub, right, chevron, onClick }: {
   return (
     <Comp
       onClick={onClick}
-      className={cn('flex items-center gap-3 w-full px-4 py-3.5 text-left border-b border-border/50 last:border-b-0', onClick && 'hover:bg-white/5 transition-colors')}
+      className={cn('flex items-center gap-3 w-full px-4 py-3.5 text-left border-b border-border/50 last:border-b-0', onClick && 'hover:bg-foreground/[0.04] transition-colors')}
     >
       <span className="text-foreground-muted shrink-0">{icon}</span>
       <div className="flex-1 min-w-0">
@@ -623,7 +623,7 @@ function SetRow({ icon, title, sub, right, chevron, onClick }: {
         {sub && <div className="text-[11.5px] text-foreground-muted truncate">{sub}</div>}
       </div>
       {right}
-      {chevron && <ChevronRightIcon className="h-4 w-4 text-foreground-muted/60 shrink-0" />}
+      {chevron && <ChevronRightIcon className="h-4 w-4 text-foreground-subtle shrink-0" />}
     </Comp>
   );
 }

@@ -310,7 +310,7 @@ export default function Clientes() {
 
       {/* Create/Edit Modal */}
       <Sheet open={modalOpen} onOpenChange={setModalOpen}>
-        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[520px] sm:mx-auto">
+        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
           <div className="pb-1">
             <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
             <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
@@ -367,7 +367,7 @@ export default function Clientes() {
                     onClick={() => setFormData((p) => ({ ...p, tipo: o.value as 'PF' | 'PJ' }))}
                     className={cn(
                       'no-touch-min rounded-xl border py-2.5 text-sm font-semibold transition-colors',
-                      formData.tipo === o.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                      formData.tipo === o.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted',
                     )}
                   >
                     {o.label}
@@ -398,7 +398,7 @@ export default function Clientes() {
                     onClick={() => setFormData((p) => ({ ...p, status: s }))}
                     className={cn(
                       'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors',
-                      formData.status === s ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                      formData.status === s ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted',
                     )}
                   >
                     {s === 'ativo' ? 'Ativo' : 'Inativo'}
@@ -445,7 +445,7 @@ export default function Clientes() {
               <div className="grid grid-cols-3 gap-2">
                 {([['whatsapp', 'WhatsApp'], ['email', 'E-mail'], ['ambos', 'Ambos']] as const).map(([v, l]) => (
                   <button key={v} type="button" onClick={() => setFormData((p) => ({ ...p, canal_cobranca: v }))}
-                    className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', (formData.canal_cobranca || 'whatsapp') === v ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
+                    className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', (formData.canal_cobranca || 'whatsapp') === v ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
                     {l}
                   </button>
                 ))}
@@ -456,7 +456,7 @@ export default function Clientes() {
               <button type="button" onClick={() => setModalOpen(false)} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
                 Cancelar
               </button>
-              <button type="submit" disabled={isSaving} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50">
+              <button type="submit" disabled={isSaving} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-primary-foreground disabled:opacity-50">
                 {isSaving ? 'Salvando…' : editingCliente ? 'Atualizar' : 'Criar'}
               </button>
             </div>

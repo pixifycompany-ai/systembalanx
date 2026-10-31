@@ -157,10 +157,11 @@ export default {
       },
 
       fontFamily: {
-        // Corpo e números: Inter. Títulos: Sora (identidade). Fallback system.
+        // Corpo: Inter. Títulos e números grandes: Inter Tight. Detalhe editorial: Instrument Serif.
         sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
-        heading: ["Sora", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
-        display: ["Sora", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
+        heading: ['"Inter Tight"', "Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
+        display: ['"Inter Tight"', "Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
+        serif: ['"Instrument Serif"', "Georgia", "serif"],
         mono: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],
       },
 

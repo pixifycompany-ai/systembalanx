@@ -266,7 +266,7 @@ export function FaturaDetailDialog({
     w.document.close();
   };
 
-  const sheetClass = 'p-0 max-h-[94dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[1180px] sm:mx-auto';
+  const sheetClass = 'p-0 max-h-[94dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[1180px] sm:mx-auto';
 
   const Header = () => (
     <div className="flex items-center gap-2.5 px-5 pt-1 pb-3">
@@ -433,7 +433,7 @@ export function FaturaDetailDialog({
                 ) : (
                   <div className="auro-card divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/60 bg-surface/55">
                     {lancamentos.map((l) => (
-                      <div key={l.id} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]">
+                      <div key={l.id} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-foreground/[0.04]">
                         <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: l.categoria?.cor || 'hsl(var(--primary))' }} />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-foreground">{l.descricao}</p>
@@ -445,10 +445,10 @@ export function FaturaDetailDialog({
                         </div>
                         <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatCurrency(Number(l.valor))}</span>
                         <div className="flex shrink-0 items-center gap-1 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
-                          <button onClick={() => openEdit(l)} aria-label="Editar" className="grid h-8 w-8 place-items-center rounded-lg text-foreground-muted hover:bg-white/5 hover:text-foreground">
+                          <button onClick={() => openEdit(l)} aria-label="Editar" className="grid h-8 w-8 place-items-center rounded-lg text-foreground-muted hover:bg-foreground/[0.04] hover:text-foreground">
                             <Pencil className="h-4 w-4" />
                           </button>
-                          <button onClick={() => setDeleteState(l)} aria-label="Excluir" className="grid h-8 w-8 place-items-center rounded-lg text-[hsl(var(--danger))] hover:bg-white/5">
+                          <button onClick={() => setDeleteState(l)} aria-label="Excluir" className="grid h-8 w-8 place-items-center rounded-lg text-[hsl(var(--danger))] hover:bg-foreground/[0.04]">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>

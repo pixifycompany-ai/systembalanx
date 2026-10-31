@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { PixifyLogo } from '@/components/shared/PixifyLogo';
-import loginVideo from '@/assets/brand/login.mp4';
+import { AuthShell } from '@/components/auth/AuthShell';
 
 type Estado = 'verificando' | 'pronto' | 'invalido' | 'ok';
 
@@ -75,31 +74,9 @@ export default function RedefinirSenha() {
   };
 
   return (
-    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-[#04060b]">
-      <video className="absolute inset-0 h-full w-full object-cover" autoPlay muted loop playsInline src={loginVideo} />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(3,5,10,0.35), rgba(3,5,10,0.05) 30%, rgba(3,5,10,0.55) 60%, rgba(3,5,10,0.94))',
-        }}
-      />
-
-      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-end px-5 pb-8 pt-20">
-        <div className="mb-4">
-          <PixifyLogo size="md" className="[&_span:last-child]:text-white" />
-        </div>
-
-        <h1
-          className="mb-5 text-[26px] font-semibold leading-[1.15] tracking-tight text-white"
-          style={{ textShadow: '0 2px 22px rgba(0,0,0,0.45)' }}
-        >
-          {estado === 'ok' ? 'Tudo certo!' : 'Nova senha.'}
-        </h1>
-
-        <div className="rounded-3xl p-4 backdrop-blur-2xl border border-white/10" style={{ background: 'rgba(16,22,34,0.46)' }}>
+    <AuthShell title={estado === 'ok' ? 'Tudo certo!' : 'Nova senha.'}>
           {estado === 'verificando' && (
-            <div className="flex items-center justify-center gap-2 py-8 text-white/70">
+            <div className="flex items-center justify-center gap-2 py-8 text-foreground-muted">
               <Loader2 className="h-5 w-5 animate-spin" />
               <span className="text-[13.5px]">Validando o link…</span>
             </div>
@@ -107,28 +84,28 @@ export default function RedefinirSenha() {
 
           {estado === 'invalido' && (
             <div className="space-y-4 py-2 text-center">
-              <p className="text-[13.5px] leading-relaxed text-white/80">
+              <p className="text-[13.5px] leading-relaxed text-foreground-muted">
                 Este link de recuperação é inválido ou expirou. Solicite um novo para redefinir sua senha.
               </p>
               <Link to="/esqueci-senha" className="block">
-                <Button className="w-full h-11 rounded-2xl font-semibold text-[15px]">Solicitar novo link</Button>
+                <Button className="w-full h-11 rounded-full font-semibold text-[15px]">Solicitar novo link</Button>
               </Link>
             </div>
           )}
 
           {estado === 'ok' && (
             <div className="space-y-3 py-4 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20 text-primary">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <ShieldCheck className="h-7 w-7" />
               </div>
-              <p className="text-[13.5px] text-white/80">Senha redefinida com sucesso. Redirecionando…</p>
+              <p className="text-[13.5px] text-foreground-muted">Senha redefinida com sucesso. Redirecionando…</p>
             </div>
           )}
 
           {estado === 'pronto' && (
             <form onSubmit={handleSubmit} className="space-y-3.5">
               <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-[11px] font-medium uppercase tracking-wide text-white/70">Nova senha</Label>
+                <Label htmlFor="password" className="text-[13px] font-semibold text-foreground">Nova senha</Label>
                 <Input
                   id="password"
                   type="password"
@@ -137,11 +114,11 @@ export default function RedefinirSenha() {
                   placeholder="••••••••"
                   autoComplete="new-password"
                   disabled={isSubmitting}
-                  className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:ring-white/40"
+                  className="h-12 rounded-[14px] bg-surface-2"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="confirm" className="text-[11px] font-medium uppercase tracking-wide text-white/70">Confirmar senha</Label>
+                <Label htmlFor="confirm" className="text-[13px] font-semibold text-foreground">Confirmar senha</Label>
                 <Input
                   id="confirm"
                   type="password"
@@ -150,12 +127,12 @@ export default function RedefinirSenha() {
                   placeholder="••••••••"
                   autoComplete="new-password"
                   disabled={isSubmitting}
-                  className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:ring-white/40"
+                  className="h-12 rounded-[14px] bg-surface-2"
                 />
               </div>
               <Button
                 type="submit"
-                className="w-full h-12 rounded-2xl font-semibold text-[15px] shadow-[0_12px_26px_-6px_hsl(var(--primary)/0.6)]"
+                className="w-full h-12 rounded-full font-semibold text-[15px]"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -169,8 +146,6 @@ export default function RedefinirSenha() {
               </Button>
             </form>
           )}
-        </div>
-      </div>
-    </div>
+    </AuthShell>
   );
 }

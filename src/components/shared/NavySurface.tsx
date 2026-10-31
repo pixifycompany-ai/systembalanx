@@ -1,0 +1,18 @@
+import { cn } from '@/lib/utils';
+
+/** Marca d'água do isotipo (hex) no canto do cartão navy. O pai precisa de `isolate`. */
+export function HexWatermark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="81 54 350 404"
+      aria-hidden
+      className={cn('pointer-events-none absolute -z-10 -right-8 -bottom-10 h-44 w-auto opacity-[0.07]', className)}
+    >
+      <path
+        fill="#FFFFFF"
+        fillRule="evenodd"
+        d="M 207.50 82.00 Q 256.00 54.00 304.50 82.00 L 382.44 127.00 Q 430.94 155.00 430.94 211.00 L 430.94 301.00 Q 430.94 357.00 382.44 385.00 L 304.50 430.00 Q 256.00 458.00 207.50 430.00 L 129.56 385.00 Q 81.06 357.00 81.06 301.00 L 81.06 211.00 Q 81.06 155.00 129.56 127.00 Z M 242.14 146.00 Q 256.00 138.00 256.00 154.00 L 256.00 244.00 Q 256.00 260.00 242.14 252.00 L 164.20 207.00 Q 150.34 199.00 164.20 191.00 Z M 361.66 223.00 Q 361.66 199.00 340.87 211.00 L 276.78 248.00 Q 256.00 260.00 256.00 284.00 L 256.00 358.00 Q 256.00 382.00 276.78 370.00 L 340.87 333.00 Q 361.66 321.00 361.66 297.00 Z"
+      />
+    </svg>
+  );
+}

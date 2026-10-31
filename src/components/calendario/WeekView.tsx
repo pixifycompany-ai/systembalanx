@@ -102,7 +102,7 @@ export function WeekView({ refDate, days, onPrev, onNext }: WeekViewProps) {
                     )}
                   </div>
                 ) : (
-                  <span className="text-[11px] text-muted-foreground/60">Sem lançamentos</span>
+                  <span className="text-[11px] text-foreground-subtle">Sem lançamentos</span>
                 )}
               </button>
             );

@@ -31,7 +31,7 @@ function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) 
   const despesa = Number(payload.find((p) => p.dataKey === 'despesa')?.value ?? 0);
   const resultado = receita - despesa;
   return (
-    <div className="rounded-xl border border-border/70 bg-popover/95 px-3.5 py-3 text-xs shadow-xl backdrop-blur-xl">
+    <div className="rounded-xl border border-border bg-popover/95 px-3.5 py-3 text-xs shadow-xl">
       <p className="mb-2 font-semibold text-foreground">{label}</p>
       <div className="flex gap-4">
         <div className="border-l-2 pl-2" style={{ borderColor: COR_RECEITA }}>
@@ -57,7 +57,7 @@ export function RevenueAreaChart({ data3m, data6m, data12m, className }: Revenue
   return (
     <div
       className={cn(
-        'auro-card flex h-[320px] md:h-[400px] flex-col overflow-hidden rounded-2xl border border-border/60 bg-surface/70 p-5 backdrop-blur-xl animate-fade-in',
+        'auro-card flex h-[320px] md:h-[400px] flex-col overflow-hidden rounded-2xl border border-border bg-surface p-5 animate-fade-in',
         className,
       )}
     >

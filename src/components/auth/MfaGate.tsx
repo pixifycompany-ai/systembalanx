@@ -58,7 +58,7 @@ export function MfaGate({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-border/60 bg-surface/70 p-6 backdrop-blur-xl">
+      <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6">
         <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
           <ShieldCheck className="h-6 w-6" />
         </div>

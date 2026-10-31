@@ -28,7 +28,7 @@ export function KpiTriple({ items, className }: { items: KpiItem[]; className?: 
       {items.map((k) => (
         <div
           key={k.label}
-          className="relative overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl px-2.5 py-3 md:px-4 md:py-4"
+          className="relative overflow-hidden rounded-2xl border border-border bg-surface px-2.5 py-3 md:px-4 md:py-4"
         >
           <span className={cn('absolute inset-x-0 top-0 h-[3px]', TONE_BAR[k.tone])} />
           <div className="truncate text-[8.5px] md:text-[10px] font-semibold uppercase tracking-wide text-foreground-muted">

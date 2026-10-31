@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import {
   HomeIcon as HomeSolid, DocumentTextIcon as DocumentSolid,
-  ChartBarIcon as ChartSolid, Squares2X2Icon as GridSolid,
+  Squares2X2Icon as GridSolid,
 } from '@heroicons/react/24/solid';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
@@ -28,19 +28,18 @@ const mainItems = [
   { href: '/', label: 'Início', icon: HomeIcon, iconSolid: HomeSolid },
   { href: '/fluxo-caixa', label: 'Lançamentos', icon: DocumentTextIcon, iconSolid: DocumentSolid },
   { href: '__fab__', label: '', icon: PlusIcon, iconSolid: PlusIcon },
-  { href: '/visao', label: 'Visão', icon: ChartBarIcon, iconSolid: ChartSolid },
+  { href: '/iara', label: 'IARA', icon: Sparkle, iconSolid: Sparkle },
   { href: '__more__', label: 'Menu', icon: Squares2X2Icon, iconSolid: GridSolid },
 ];
 
 const moreSections = [
   {
-    label: 'Financeiro',
+    label: 'Análise',
     items: [
-      { href: '/iara', label: 'IARA · Assistente', icon: Sparkle },
-      { href: '/contas', label: 'Contas', icon: WalletIcon },
       { href: '/calendario', label: 'Calendário', icon: CalendarDaysIcon },
+      { href: '/visao', label: 'Visão', icon: ChartBarIcon },
+      { href: '/analises', label: 'Análises', icon: PresentationChartLineIcon },
       { href: '/relatorios', label: 'Relatórios', icon: DocumentChartBarIcon },
-      { href: '/analises', label: 'Análises (deep-dive)', icon: PresentationChartLineIcon },
     ],
   },
   {
@@ -54,6 +53,7 @@ const moreSections = [
   {
     label: 'Sistema',
     items: [
+      { href: '/contas', label: 'Contas', icon: WalletIcon },
       { href: '/categorias', label: 'Categorias', icon: TagIcon },
       { href: '/perfil', label: 'Meu Perfil', icon: Cog6ToothIcon },
     ],
@@ -102,7 +102,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
   return (
     <>
       <nav
-        className="fixed left-1/2 z-50 flex md:hidden w-[min(88%,360px)] -translate-x-1/2 items-center justify-between px-3 py-2 rounded-[24px] border border-border/60 bg-card/70 backdrop-blur-2xl shadow-[0_18px_40px_-12px_rgba(0,0,0,0.55)]"
+        className="fixed left-1/2 z-50 flex md:hidden w-[min(90%,360px)] -translate-x-1/2 items-center justify-between p-1.5 rounded-full border border-border bg-card shadow-[0_16px_36px_-16px_hsl(224_55%_10%/0.45)]"
         style={{ bottom: 'calc(0.9rem + env(safe-area-inset-bottom, 0px))' }}
       >
         {mainItems.map((item) => {
@@ -112,7 +112,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
                 key="fab"
                 onClick={handleFab}
                 aria-label={fab.kind === 'nav' ? fab.label : 'Novo lançamento'}
-                className="mx-0.5 flex h-12 w-12 items-center justify-center rounded-[16px] bg-primary text-primary-foreground shadow-[0_10px_24px_hsl(var(--primary)/0.45)] active:scale-95 transition-transform"
+                className="mx-0.5 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_18px_-6px_hsl(var(--primary)/0.6)] active:scale-95 transition-transform"
               >
                 <PlusIcon className="h-6 w-6" strokeWidth={2.4} />
               </button>
@@ -130,8 +130,9 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
               onClick={() => handleNavClick(item.href)}
               aria-label={item.label}
               className={cn(
-                "flex h-11 w-11 items-center justify-center rounded-2xl transition-colors",
-                active ? "text-primary bg-primary/15" : "text-muted-foreground hover:text-foreground"
+                "flex h-12 w-12 items-center justify-center rounded-full transition-colors",
+                // Ativo = pílula navy no claro / pílula clara com ícone navy no escuro
+                active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
               )}
             >
               <Icon className="h-[22px] w-[22px]" />
@@ -142,7 +143,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
 
       {/* FAB Action Sheet — seletor "Novo lançamento" (igual mockup) */}
       <Sheet open={fabOpen} onOpenChange={setFabOpen}>
-        <SheetContent side="bottom" className="rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8]" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)' }}>
+        <SheetContent side="bottom" className="rounded-t-[26px] border-t border-border bg-surface" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)' }}>
           <SheetHeader className="text-left space-y-0 pb-3.5">
             <span className="text-[11px] font-medium text-foreground-muted">Adicionar</span>
             <SheetTitle className="text-[19px] font-semibold tracking-[-0.02em]">Novo lançamento</SheetTitle>
@@ -157,7 +158,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
               <button
                 key={t.label}
                 onClick={() => { setFabOpen(false); t.onClick(); }}
-                className="auro-card flex flex-1 flex-col items-center gap-2.5 rounded-2xl border border-border/60 bg-surface/55 px-2 py-4 backdrop-blur-xl transition-transform active:scale-[0.97]"
+                className="flex flex-1 flex-col items-center gap-2.5 rounded-2xl border border-border bg-surface-2 px-2 py-4 transition-transform active:scale-[0.97]"
               >
                 <span className={cn('grid h-11 w-11 place-items-center rounded-[14px]', t.tint)}>
                   <t.icon className="h-5 w-5" strokeWidth={2.4} />
@@ -170,14 +171,14 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             <button
               onClick={() => { setFabOpen(false); navigate('/lancar-voz'); }}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-surface/55 py-3 text-[13px] font-semibold text-foreground backdrop-blur-xl transition-transform active:scale-[0.99]"
+              className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface-2 py-3 text-[13px] font-semibold text-foreground transition-transform active:scale-[0.99]"
             >
               <MicrophoneIcon className="h-4 w-4 text-primary" />
               Lançar por voz
             </button>
             <button
               onClick={() => { setFabOpen(false); navigate('/fluxo-caixa?action=importar'); }}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-border/60 bg-surface/55 py-3 text-[13px] font-semibold text-foreground backdrop-blur-xl transition-transform active:scale-[0.99]"
+              className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface-2 py-3 text-[13px] font-semibold text-foreground transition-transform active:scale-[0.99]"
             >
               <ArrowUpTrayIcon className="h-4 w-4 text-primary" />
               Subir print
@@ -191,14 +192,9 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
         <SheetContent
           side="bottom"
           showHandle={false}
-          className="top-0 bottom-auto left-0 right-0 h-lvh w-auto max-w-none rounded-none border-0 flex flex-col gap-0 px-5 pb-safe bg-background backdrop-blur-none data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
+          className="top-0 bottom-auto left-0 right-0 h-lvh w-auto max-w-none rounded-none border-0 flex flex-col gap-0 px-5 pb-safe bg-background data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
           style={{
             paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
-            // Mesmo glow ambiente das páginas (body::before) — o menu vira uma
-            // página cheia opaca (sem faixa translúcida na área da status bar).
-            backgroundImage:
-              'radial-gradient(125% 78% at 12% -4%, hsl(var(--primary) / 0.22), transparent 56%), radial-gradient(115% 62% at 99% 0%, hsl(214 89% 60% / 0.14), transparent 54%)',
-            backgroundRepeat: 'no-repeat',
           }}
         >
           <SheetHeader className="shrink-0 text-left space-y-0">
@@ -212,18 +208,18 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-3.5 mb-2 px-0.5">
                   {section.label}
                 </p>
-                <div className="mb-3.5 overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl">
+                <div className="mb-3.5 overflow-hidden rounded-2xl border border-border bg-surface">
                   {section.items.map((item) => {
                     const active = isActive(item.href);
                     return (
                       <button
                         key={item.href}
                         onClick={() => { setMoreOpen(false); navigate(item.href); }}
-                        className="flex items-center gap-3 w-full px-4 py-3.5 text-left border-b border-border/50 last:border-b-0 transition-colors hover:bg-white/5"
+                        className="flex items-center gap-3 w-full px-4 py-3.5 text-left border-b border-border/50 last:border-b-0 transition-colors hover:bg-foreground/[0.04]"
                       >
                         <item.icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-primary' : 'text-foreground-muted')} />
                         <span className={cn('flex-1 text-sm font-medium', active ? 'text-primary' : 'text-foreground')}>{item.label}</span>
-                        <ChevronRightIcon className="h-4 w-4 text-foreground-muted/60 shrink-0" />
+                        <ChevronRightIcon className="h-4 w-4 text-foreground-subtle shrink-0" />
                       </button>
                     );
                   })}
@@ -237,14 +233,14 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-3.5 mb-2 px-0.5">
                   Plataforma
                 </p>
-                <div className="mb-3.5 overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl">
+                <div className="mb-3.5 overflow-hidden rounded-2xl border border-border bg-surface">
                   <button
                     onClick={() => { setMoreOpen(false); navigate('/superadmin'); }}
-                    className="flex items-center gap-3 w-full px-4 py-3.5 text-left transition-colors hover:bg-white/5"
+                    className="flex items-center gap-3 w-full px-4 py-3.5 text-left transition-colors hover:bg-foreground/[0.04]"
                   >
                     <ShieldCheckIcon className="h-[18px] w-[18px] shrink-0 text-primary" />
                     <span className="flex-1 text-sm font-medium text-foreground">Superadmin</span>
-                    <ChevronRightIcon className="h-4 w-4 text-foreground-muted/60 shrink-0" />
+                    <ChevronRightIcon className="h-4 w-4 text-foreground-subtle shrink-0" />
                   </button>
                 </div>
               </>
@@ -254,7 +250,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-3.5 mb-2 px-0.5">
               Preferências
             </p>
-            <div className="mb-3.5 overflow-hidden rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl">
+            <div className="mb-3.5 overflow-hidden rounded-2xl border border-border bg-surface">
               <div className="flex items-center gap-3 w-full px-4 py-3.5">
                 <MoonIcon className="h-[18px] w-[18px] shrink-0 text-foreground-muted" />
                 <div className="flex-1 min-w-0">

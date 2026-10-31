@@ -47,7 +47,7 @@ export function EditarClienteSheet({ open, onOpenChange, cliente, onSalvar }: Pr
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.97] backdrop-blur-2xl sm:max-w-[520px] sm:mx-auto">
+      <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
         <div className="mx-auto w-full max-w-[480px] pb-6 pt-1">
           <p className="text-xs font-medium text-foreground-muted">Cadastro</p>
           <h2 className="mt-0.5 mb-4 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Editar cliente</h2>
@@ -63,7 +63,7 @@ export function EditarClienteSheet({ open, onOpenChange, cliente, onSalvar }: Pr
               <div className="mt-1 grid grid-cols-2 gap-2">
                 {(['PF', 'PJ'] as const).map((t) => (
                   <button key={t} type="button" onClick={() => set({ tipo: t })}
-                    className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', form.tipo === t ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
+                    className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', form.tipo === t ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
                     {t === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}
                   </button>
                 ))}
@@ -103,7 +103,7 @@ export function EditarClienteSheet({ open, onOpenChange, cliente, onSalvar }: Pr
               <div className="mt-1 grid grid-cols-3 gap-2">
                 {([['whatsapp', 'WhatsApp'], ['email', 'E-mail'], ['ambos', 'Ambos']] as const).map(([v, l]) => (
                   <button key={v} type="button" onClick={() => set({ canal_cobranca: v })}
-                    className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', (form.canal_cobranca || 'whatsapp') === v ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
+                    className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', (form.canal_cobranca || 'whatsapp') === v ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
                     {l}
                   </button>
                 ))}
@@ -115,7 +115,7 @@ export function EditarClienteSheet({ open, onOpenChange, cliente, onSalvar }: Pr
               <div className="mt-1 grid grid-cols-2 gap-2">
                 {(['ativo', 'inativo'] as const).map((s) => (
                   <button key={s} type="button" onClick={() => set({ status: s })}
-                    className={cn('rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors', form.status === s ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
+                    className={cn('rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors', form.status === s ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
                     {s}
                   </button>
                 ))}

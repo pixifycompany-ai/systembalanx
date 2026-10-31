@@ -52,7 +52,7 @@ export function ListRowCard({
         }
       }}
       className={cn(
-        'auro-card flex items-center gap-3 rounded-2xl bg-surface/55 backdrop-blur-xl border border-border/60 px-4 py-3 transition-all',
+        'auro-card flex items-center gap-3 rounded-2xl bg-surface border border-border px-4 py-3 transition-all',
         interactive && 'hover:border-border-strong active:scale-[0.99] cursor-pointer',
         dimmed && 'opacity-60',
         className,

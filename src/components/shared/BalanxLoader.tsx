@@ -40,34 +40,16 @@ export function BalanxLoader({
       // Safe-area no conteúdo pra não encostar na status bar / home indicator.
       style={fullscreen ? { paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' } : undefined}
     >
-      {/* Glow ambiente AURO — só no modo tela cheia (inline usa o glow do body) */}
-      {fullscreen && (
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(60% 42% at 18% 8%, hsl(var(--primary) / 0.42), transparent 70%), radial-gradient(55% 38% at 88% 4%, rgba(37,99,235,0.30), transparent 68%), radial-gradient(70% 45% at 50% 108%, hsl(var(--primary) / 0.28), transparent 72%)',
-          }}
-        />
-      )}
       <div className="relative z-[1] grid place-items-center" style={{ width: 120, height: 120 }}>
-        <div
-          className="absolute rounded-full"
-          style={{
-            inset: 10,
-            background: 'radial-gradient(closest-side, hsl(var(--primary) / 0.35), transparent 72%)',
-            filter: 'blur(6px)',
-          }}
-        />
         <span className="balanx-cring" />
-        {/* Ícone do app (squircle AURO + hexágono): legível no tema claro e no escuro */}
+        {/* Ícone do app (squircle navy + hexágono): legível no tema claro e no escuro */}
         <span
           className="relative z-[2] grid place-items-center rounded-[18px]"
           style={{
             width: 64,
             height: 64,
             background: AURO_ICON_BG,
-            boxShadow: '0 10px 26px -8px rgba(37,99,235,0.55), inset 0 1px 0 rgba(255,255,255,0.14)',
+            boxShadow: '0 10px 24px -10px rgba(11,18,38,0.45), inset 0 0 0 1px rgba(255,255,255,0.10)',
           }}
         >
           <img src={iso} alt="balanx" className="w-auto" style={{ height: 38 }} />

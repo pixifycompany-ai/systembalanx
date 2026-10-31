@@ -17,7 +17,7 @@ const toneCls: Record<string, string> = {
   success: 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]',
   warning: 'bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]',
   danger: 'bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]',
-  muted: 'bg-white/8 text-foreground-muted',
+  muted: 'bg-foreground/[0.06] text-foreground-muted',
 };
 
 interface Props {
@@ -80,11 +80,11 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
     return (
       <Popover onOpenChange={(o) => { if (!o) { setMode('criar'); setAssinaturas(null); } }}>
         <PopoverTrigger asChild>
-          <button className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-surface/60 px-2.5 py-1.5 text-xs font-semibold text-foreground backdrop-blur-xl transition-colors hover:bg-surface-2">
+          <button className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-surface-2">
             <Zap className="h-3.5 w-3.5 text-primary" /> Cobrar via Asaas
           </button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-[340px] max-w-[92vw] p-3.5 rounded-2xl border border-border/60 bg-surface/95 backdrop-blur-2xl">
+        <PopoverContent align="end" className="w-[340px] max-w-[92vw] p-3.5 rounded-2xl border border-border bg-surface">
           {/* Contexto: de qual contrato/cliente é esta cobrança */}
           <div className="mb-3 flex items-start gap-2 rounded-xl border border-border/50 bg-surface-2/40 px-3 py-2.5">
             <Zap className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -100,7 +100,7 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Forma de pagamento</p>
               <div className="grid grid-cols-2 gap-1.5">
                 {FORMAS.map((f) => (
-                  <button key={f.value} onClick={() => setForma(f.value)} className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', forma === f.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
+                  <button key={f.value} onClick={() => setForma(f.value)} className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', forma === f.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
                     {f.label}
                   </button>
                 ))}
@@ -118,7 +118,7 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
                 </div>
               </div>
               <p className="mt-1.5 text-[10px] leading-snug text-foreground-muted">Multa/juros só incidem se atrasar. Juros é <b>ao mês</b> (proporcional aos dias de atraso).</p>
-              <button onClick={() => onCobrar(forma, contaId || null, { multa_percent: parseFloat(multa) || 0, juros_percent: parseFloat(juros) || 0 })} className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-white transition-transform active:scale-[0.99]">
+              <button onClick={() => onCobrar(forma, contaId || null, { multa_percent: parseFloat(multa) || 0, juros_percent: parseFloat(juros) || 0 })} className="mt-3 w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground transition-transform active:scale-[0.99]">
                 Criar cobrança nova
               </button>
               <button onClick={abrirVincular} className="mt-2 flex w-full items-center justify-center gap-1.5 text-[11px] font-medium text-primary hover:underline">
@@ -156,9 +156,9 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
                       </div>
                       <div className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-foreground-muted">{s.description || 'Sem descrição'}</div>
                       <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] text-foreground-subtle">
-                        {s.cycle && <span className="rounded-full bg-white/8 px-1.5 py-0.5">{s.cycle}</span>}
-                        {s.billingType && <span className="rounded-full bg-white/8 px-1.5 py-0.5">{s.billingType}</span>}
-                        {s.status && <span className="rounded-full bg-white/8 px-1.5 py-0.5">{s.status}</span>}
+                        {s.cycle && <span className="rounded-full bg-foreground/[0.06] px-1.5 py-0.5">{s.cycle}</span>}
+                        {s.billingType && <span className="rounded-full bg-foreground/[0.06] px-1.5 py-0.5">{s.billingType}</span>}
+                        {s.status && <span className="rounded-full bg-foreground/[0.06] px-1.5 py-0.5">{s.status}</span>}
                       </div>
                     </button>
                   ))}
@@ -182,7 +182,7 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
             : cobranca.tipo === 'recorrente' && <RefreshCw className="h-3 w-3 opacity-70" />}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-56 p-1.5 rounded-xl border border-border/60 bg-surface/95 backdrop-blur-2xl">
+      <PopoverContent align="end" className="w-56 p-1.5 rounded-xl border border-border bg-surface">
         {grupoQtd > 1 && (
           <p className="mb-1 flex items-start gap-1.5 rounded-lg bg-primary/10 px-2.5 py-2 text-[11px] leading-snug text-foreground">
             <Layers className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
@@ -190,26 +190,26 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
           </p>
         )}
         {cobranca.invoice_url && (
-          <a href={cobranca.invoice_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-white/5">
+          <a href={cobranca.invoice_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
             <ExternalLink className="h-4 w-4 text-foreground-muted" /> Abrir link de pagamento
           </a>
         )}
-        <button onClick={onWhatsapp} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+        <button onClick={onWhatsapp} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
           <MessageCircle className="h-4 w-4 text-[hsl(var(--success))]" /> Enviar por WhatsApp
         </button>
         {cobranca.status !== 'pago' && (
-          <button onClick={onReceberManual} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+          <button onClick={onReceberManual} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
             <HandCoins className="h-4 w-4 text-[hsl(var(--success))]" /> Identificar pagamento manual
           </button>
         )}
-        <button onClick={onSincronizar} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+        <button onClick={onSincronizar} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
           <RefreshCw className="h-4 w-4 text-foreground-muted" /> Sincronizar status
         </button>
-        <button onClick={onCancelar} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+        <button onClick={onCancelar} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
           <XCircle className="h-4 w-4 text-foreground-muted" /> Cancelar cobrança
         </button>
         {onDesvincular && cobranca.asaas_subscription_id && (
-          <button onClick={onDesvincular} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+          <button onClick={onDesvincular} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
             <Unlink className="h-4 w-4 text-foreground-muted" /> Desvincular do Asaas
           </button>
         )}

@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, MailCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { PixifyLogo } from '@/components/shared/PixifyLogo';
-import loginVideo from '@/assets/brand/login.mp4';
+import { AuthShell } from '@/components/auth/AuthShell';
 
 export default function EsqueciSenha() {
   const { resetPassword } = useAuth();
@@ -34,50 +33,28 @@ export default function EsqueciSenha() {
   };
 
   return (
-    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-[#04060b]">
-      <video className="absolute inset-0 h-full w-full object-cover" autoPlay muted loop playsInline src={loginVideo} />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(3,5,10,0.35), rgba(3,5,10,0.05) 30%, rgba(3,5,10,0.55) 60%, rgba(3,5,10,0.94))',
-        }}
-      />
-
-      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-end px-5 pb-8 pt-20">
-        <div className="mb-4">
-          <PixifyLogo size="md" className="[&_span:last-child]:text-white" />
-        </div>
-
-        <h1
-          className="mb-5 text-[26px] font-semibold leading-[1.15] tracking-tight text-white"
-          style={{ textShadow: '0 2px 22px rgba(0,0,0,0.45)' }}
-        >
-          {sent ? 'Verifique seu email.' : 'Recuperar acesso.'}
-        </h1>
-
-        <div className="rounded-3xl p-4 backdrop-blur-2xl border border-white/10" style={{ background: 'rgba(16,22,34,0.46)' }}>
+    <AuthShell title={sent ? 'Verifique seu email.' : 'Recuperar acesso.'}>
           {sent ? (
             <div className="space-y-4 py-2 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20 text-primary">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <MailCheck className="h-7 w-7" />
               </div>
-              <p className="text-[13.5px] leading-relaxed text-white/80">
-                Se existe uma conta para <span className="font-semibold text-white">{email.trim()}</span>, enviamos um link
+              <p className="text-[13.5px] leading-relaxed text-foreground-muted">
+                Se existe uma conta para <span className="font-semibold text-primary hover:underline">{email.trim()}</span>, enviamos um link
                 para redefinir a senha. Confira também o spam.
               </p>
               <Link to="/login" className="block">
-                <Button className="w-full h-11 rounded-2xl font-semibold text-[15px]">Voltar para o login</Button>
+                <Button className="w-full h-11 rounded-full font-semibold text-[15px]">Voltar para o login</Button>
               </Link>
             </div>
           ) : (
             <>
-              <p className="mb-3.5 text-[13px] leading-relaxed text-white/70">
+              <p className="mb-3.5 text-[13px] leading-relaxed text-foreground-muted">
                 Digite o email da sua conta. Enviaremos um link para você criar uma nova senha.
               </p>
               <form onSubmit={handleSubmit} className="space-y-3.5">
                 <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-[11px] font-medium uppercase tracking-wide text-white/70">Email</Label>
+                  <Label htmlFor="email" className="text-[13px] font-semibold text-foreground">Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -86,12 +63,12 @@ export default function EsqueciSenha() {
                     placeholder="seu@email.com"
                     autoComplete="email"
                     disabled={isSubmitting}
-                    className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus-visible:ring-white/40"
+                    className="h-12 rounded-[14px] bg-surface-2"
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="w-full h-12 rounded-2xl font-semibold text-[15px] shadow-[0_12px_26px_-6px_hsl(var(--primary)/0.6)]"
+                  className="w-full h-12 rounded-full font-semibold text-[15px]"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
@@ -104,13 +81,11 @@ export default function EsqueciSenha() {
                   )}
                 </Button>
               </form>
-              <p className="mt-3 text-center text-[12.5px] text-white/70">
-                Lembrou a senha? <Link to="/login" className="font-semibold text-white">Entrar</Link>
+              <p className="mt-3 text-center text-[12.5px] text-foreground-muted">
+                Lembrou a senha? <Link to="/login" className="font-semibold text-primary hover:underline">Entrar</Link>
               </p>
             </>
           )}
-        </div>
-      </div>
-    </div>
+    </AuthShell>
   );
 }

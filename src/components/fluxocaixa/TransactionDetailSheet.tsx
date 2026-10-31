@@ -56,7 +56,7 @@ export function TransactionDetailSheet({
 
   return (
     <Sheet open={!!t} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[560px] sm:mx-auto">
+      <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[560px] sm:mx-auto">
         {/* Header */}
         <div className="px-5 pt-1 pb-3">
           <div className="text-[11.5px] font-medium text-foreground-muted">

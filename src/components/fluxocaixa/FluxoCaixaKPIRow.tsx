@@ -44,7 +44,7 @@ export function FluxoCaixaKPIRow({ entradas, saidas, saldo, itemCount }: FluxoCa
 
   return (
     <div className="mb-6 relative rounded-xl border bg-card shadow-sm overflow-hidden">
-      <span className="absolute top-3 right-4 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80 px-2 py-0.5 rounded-full bg-muted/50">
+      <span className="absolute top-3 right-4 text-[10px] font-medium uppercase tracking-wider text-muted-foreground px-2 py-0.5 rounded-full bg-muted/50">
         {itemCount} {itemCount === 1 ? 'item' : 'itens'}
       </span>
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x">

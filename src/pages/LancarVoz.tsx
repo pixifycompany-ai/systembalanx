@@ -178,21 +178,12 @@ export default function LancarVoz() {
 
   return (
     <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-background">
-      {/* Glow ambiente AURO */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(60% 40% at 12% 4%, hsl(var(--primary) / 0.34), transparent 66%), radial-gradient(55% 36% at 92% 2%, rgba(37,99,235,0.26), transparent 64%), radial-gradient(80% 50% at 50% 116%, hsl(var(--primary) / 0.22), transparent 72%)',
-        }}
-      />
-
       {fase === 'sem-suporte' && (
         <div className="relative flex flex-1 place-items-center px-8 text-center">
           <div className="m-auto">
             <p className="mb-1 font-medium text-foreground">Voz indisponível neste navegador</p>
             <p className="text-sm text-foreground-muted">Use o Chrome no celular ou desktop para lançar falando.</p>
-            <button className="mt-5 rounded-2xl bg-primary px-6 py-3 text-sm font-semibold text-white" onClick={() => navigate('/fluxo-caixa?action=nova-saida')}>
+            <button className="mt-5 rounded-2xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground" onClick={() => navigate('/fluxo-caixa?action=nova-saida')}>
               Lançar manualmente
             </button>
           </div>
@@ -203,11 +194,11 @@ export default function LancarVoz() {
         <div className="relative flex flex-1 flex-col px-4 pt-[calc(env(safe-area-inset-top)+14px)]">
           {/* Header do chat */}
           <div className="flex items-center gap-2.5 pb-3">
-            <button onClick={() => navigate(-1)} aria-label="Voltar" className="grid h-9 w-9 flex-none place-items-center rounded-[11px] border border-border/60 bg-surface/70 text-foreground backdrop-blur-xl">
+            <button onClick={() => navigate(-1)} aria-label="Voltar" className="grid h-9 w-9 flex-none place-items-center rounded-[11px] border border-border bg-surface text-foreground">
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
             <div className="flex min-w-0 flex-1 items-center gap-2.5">
-              <div className="grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px] bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white">
+              <div className="grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px] bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground">
                 <Sparkle className="h-4 w-4" />
               </div>
               <div>
@@ -226,17 +217,17 @@ export default function LancarVoz() {
           {/* Mensagem da IARA */}
           <div className="flex flex-1 flex-col gap-3.5 pt-1">
             <div className="flex items-end gap-2.5">
-              <div className="grid h-[30px] w-[30px] flex-none place-items-center rounded-full bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-white">
+              <div className="grid h-[30px] w-[30px] flex-none place-items-center rounded-full bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground">
                 <Sparkle className="h-4 w-4" />
               </div>
-              <div className="max-w-[82%] rounded-[18px_18px_18px_6px] border border-border/60 bg-surface/70 px-3.5 py-2.5 text-[13px] leading-[1.55] text-foreground backdrop-blur-xl">
+              <div className="max-w-[82%] rounded-[18px_18px_18px_6px] border border-border bg-surface px-3.5 py-2.5 text-[13px] leading-[1.55] text-foreground">
                 Pode falar seus lançamentos que eu registro. Ex: <b>"lance 20 de mercado e 50 de uber"</b>.
               </div>
             </div>
           </div>
 
           {/* Voicedock */}
-          <div className="mb-4 mt-auto rounded-[24px] border border-border/70 bg-surface/80 px-4 pb-4 pt-[18px] shadow-[0_-10px_30px_-14px_rgba(0,0,0,0.5)] backdrop-blur-2xl">
+          <div className="mb-4 mt-auto rounded-[24px] border border-border bg-surface px-4 pb-4 pt-[18px] shadow-[0_-10px_30px_-14px_rgba(0,0,0,0.5)]">
             <div className="mb-3 flex items-center gap-2">
               <span className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.04em] text-[hsl(var(--danger))]">
                 <span className={cn('h-2 w-2 rounded-full bg-[hsl(var(--danger))]', gravando && 'animate-pulse')} />
@@ -290,7 +281,7 @@ export default function LancarVoz() {
             <div className="grid h-9 w-9 flex-none place-items-center rounded-[11px] border border-border/60 bg-surface/70 text-foreground">
               <ChevronLeftIcon className="h-5 w-5" />
             </div>
-            <div className="grid h-[30px] w-[30px] place-items-center rounded-[9px] bg-primary text-white"><Sparkle className="h-4 w-4" /></div>
+            <div className="grid h-[30px] w-[30px] place-items-center rounded-[9px] bg-primary text-primary-foreground"><Sparkle className="h-4 w-4" /></div>
             <div>
               <div className="text-[15.5px] font-semibold text-foreground">IARA</div>
               <div className="text-[10.5px] font-semibold text-foreground-muted">processou seu áudio</div>
@@ -301,7 +292,7 @@ export default function LancarVoz() {
           <div className="fixed inset-0 z-40 bg-black/60" onClick={() => refazer()} />
 
           {/* Sheet */}
-          <div className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col rounded-t-[26px] border-t border-border/60 bg-surface/95 px-4 pb-[calc(env(safe-area-inset-bottom)+18px)] shadow-[0_-20px_50px_-20px_rgba(0,0,0,0.6)] backdrop-blur-2xl">
+          <div className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col rounded-t-[26px] border-t border-border bg-surface px-4 pb-[calc(env(safe-area-inset-bottom)+18px)] shadow-[0_-20px_50px_-20px_rgba(0,0,0,0.6)]">
             <div className="mx-auto mb-1 mt-2.5 h-1 w-9 rounded-full bg-white/20" />
             <div className="flex items-start justify-between gap-2.5 px-0.5 pb-3">
               <div>
@@ -504,7 +495,7 @@ export default function LancarVoz() {
               <button
                 onClick={salvarTudo}
                 disabled={salvando || itens.length === 0}
-                className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50"
+                className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
               >
                 {salvando ? 'Salvando…' : `Confirmar ${itens.length} ${itens.length === 1 ? 'lançamento' : 'lançamentos'}`}
               </button>

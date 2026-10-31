@@ -69,7 +69,7 @@ export function WeeklyForecast({
   if (weeks.length === 0) return null;
 
   return (
-    <section className="auro-card rounded-2xl border border-border/60 bg-surface/55 backdrop-blur-xl overflow-hidden">
+    <section className="auro-card rounded-2xl border border-border bg-surface overflow-hidden">
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Resumo por semana</h3>

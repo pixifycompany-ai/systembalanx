@@ -40,7 +40,7 @@ const toneCls: Record<string, string> = {
   success: 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]',
   warning: 'bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]',
   danger: 'bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]',
-  muted: 'bg-white/8 text-foreground-muted',
+  muted: 'bg-foreground/[0.06] text-foreground-muted',
 };
 
 const FORMA_LABEL: Record<string, string> = {
@@ -455,30 +455,30 @@ export default function Cobrancas() {
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
           </button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-56 p-1.5 rounded-xl border border-border/60 bg-surface/95 backdrop-blur-2xl">
+        <PopoverContent align="end" className="w-56 p-1.5 rounded-xl border border-border bg-surface">
           {cob.invoice_url && (
-            <a href={cob.invoice_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-white/5">
+            <a href={cob.invoice_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
               <ExternalLink className="h-4 w-4 text-foreground-muted" /> Abrir link de pagamento
             </a>
           )}
-          <button onClick={() => openWhatsapp(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+          <button onClick={() => openWhatsapp(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
             <MessageCircle className="h-4 w-4 text-[hsl(var(--success))]" /> Enviar por WhatsApp
           </button>
-          <button onClick={() => openEmail(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+          <button onClick={() => openEmail(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
             <Mail className="h-4 w-4 text-primary" /> Enviar por e-mail
           </button>
           {cob.status !== 'pago' && (
-            <button onClick={() => receberManual(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+            <button onClick={() => receberManual(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
               <HandCoins className="h-4 w-4 text-[hsl(var(--success))]" /> Identificar pagamento manual
             </button>
           )}
           {/* Nota fiscal (PDF) */}
           {cob.nota_fiscal_path ? (
             <>
-              <button onClick={() => abrirNota(cob.nota_fiscal_path!)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+              <button onClick={() => abrirNota(cob.nota_fiscal_path!)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
                 <FileText className="h-4 w-4 text-primary" /> Ver nota fiscal
               </button>
-              <button onClick={() => pedirUploadNota(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+              <button onClick={() => pedirUploadNota(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
                 <Paperclip className="h-4 w-4 text-foreground-muted" /> Trocar nota fiscal
               </button>
               <button onClick={() => removerNota(cob.linhas.find((l) => l.nota_fiscal_path)?.id || cob.id, cob.nota_fiscal_path)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-[hsl(var(--danger))] transition-colors hover:bg-[hsl(var(--danger))]/10">
@@ -486,33 +486,33 @@ export default function Cobrancas() {
               </button>
             </>
           ) : (
-            <button onClick={() => pedirUploadNota(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+            <button onClick={() => pedirUploadNota(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
               <Paperclip className="h-4 w-4 text-foreground-muted" /> Anexar nota fiscal (PDF)
             </button>
           )}
-          <button onClick={() => setExigirNf(cob.linhas.map((l) => l.id), !cob.exigir_nf)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+          <button onClick={() => setExigirNf(cob.linhas.map((l) => l.id), !cob.exigir_nf)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
             {cob.exigir_nf ? <ShieldOff className="h-4 w-4 text-foreground-muted" /> : <ShieldCheck className="h-4 w-4 text-foreground-muted" />}
             {cob.exigir_nf ? 'Não exigir NF p/ disparar' : 'Exigir NF p/ disparar'}
           </button>
-          <button onClick={() => setEnvioPix(cob.linhas.map((l) => l.id), !cob.envio_pix)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+          <button onClick={() => setEnvioPix(cob.linhas.map((l) => l.id), !cob.envio_pix)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
             <KeyRound className={cn('h-4 w-4', cob.envio_pix ? 'text-[hsl(var(--success))]' : 'text-foreground-muted')} />
             {cob.envio_pix ? 'WhatsApp: voltar ao link Asaas' : 'WhatsApp: enviar chave PIX'}
           </button>
           {cob.status !== 'pago' && cob.status !== 'cancelado' && (
-            <button onClick={() => abrirForma(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+            <button onClick={() => abrirForma(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
               <CreditCard className="h-4 w-4 text-foreground-muted" /> Alterar forma de recebimento
             </button>
           )}
-          <button onClick={() => abrirConta(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+          <button onClick={() => abrirConta(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
             <Wallet className="h-4 w-4 text-foreground-muted" /> {cob.conta_id ? 'Alterar conta de recebimento' : 'Definir conta de recebimento'}
           </button>
-          <button onClick={() => abrirCliente(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+          <button onClick={() => abrirCliente(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
             <Users className="h-4 w-4 text-foreground-muted" /> {cob.cliente_id ? 'Alterar cliente' : 'Vincular a um cliente'}
           </button>
-          <button onClick={() => sincronizar(cob.contrato_id || undefined)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+          <button onClick={() => sincronizar(cob.contrato_id || undefined)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
             <RefreshCw className="h-4 w-4 text-foreground-muted" /> Sincronizar status
           </button>
-          <button onClick={() => cancelar(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-white/5">
+          <button onClick={() => cancelar(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
             <XCircle className="h-4 w-4 text-foreground-muted" /> Cancelar cobrança
           </button>
           <button onClick={() => excluir(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-[hsl(var(--danger))] transition-colors hover:bg-[hsl(var(--danger))]/10">
@@ -529,7 +529,7 @@ export default function Cobrancas() {
         <Repeat className="h-3 w-3" /> Recorrente
       </span>
     ) : (
-      <span className="inline-flex items-center gap-1 rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-semibold text-foreground-muted">
+      <span className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[10px] font-semibold text-foreground-muted">
         <Receipt className="h-3 w-3" /> Avulsa
       </span>
     );
@@ -566,7 +566,7 @@ export default function Cobrancas() {
         <div className="inline-flex rounded-lg border border-border/60 bg-surface/60 p-0.5">
           {([['mes', 'Mês'], ['custom', 'Período'], ['tudo', 'Tudo']] as const).map(([v, l]) => (
             <button key={v} onClick={() => setPeriodoModo(v)}
-              className={cn('rounded-md px-3 py-1.5 text-xs font-semibold transition-colors', periodoModo === v ? 'bg-primary text-white' : 'text-foreground-muted hover:text-foreground')}>
+              className={cn('rounded-md px-3 py-1.5 text-xs font-semibold transition-colors', periodoModo === v ? 'bg-primary text-primary-foreground' : 'text-foreground-muted hover:text-foreground')}>
               {l}
             </button>
           ))}
@@ -647,7 +647,7 @@ export default function Cobrancas() {
               onClick={() => setTipoFiltro(t)}
               className={cn(
                 'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors',
-                tipoFiltro === t ? 'bg-primary text-white' : 'border border-border/60 bg-surface/60 text-foreground-muted hover:bg-surface-2',
+                tipoFiltro === t ? 'bg-primary text-primary-foreground' : 'border border-border/60 bg-surface/60 text-foreground-muted hover:bg-surface-2',
               )}
             >
               {t === 'todas' ? 'Todas' : t === 'recorrente' ? 'Recorrentes' : 'Avulsas'}
@@ -664,7 +664,7 @@ export default function Cobrancas() {
               onClick={() => setStatusFiltro(s.value)}
               className={cn(
                 'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                statusFiltro === s.value ? 'bg-surface-2 text-foreground ring-1 ring-border-strong' : 'text-foreground-muted hover:bg-white/5',
+                statusFiltro === s.value ? 'bg-surface-2 text-foreground ring-1 ring-border-strong' : 'text-foreground-muted hover:bg-foreground/[0.04]',
               )}
             >
               {s.label}
@@ -684,7 +684,7 @@ export default function Cobrancas() {
           {filtradas.map((cob) => {
             const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
             return (
-              <div key={cob.id} className={cn('rounded-2xl border border-border/60 bg-surface/70 p-3.5 backdrop-blur-xl', selecionadas.has(cob.id) && 'ring-1 ring-primary/40')}>
+              <div key={cob.id} className={cn('rounded-2xl border border-border bg-surface p-3.5', selecionadas.has(cob.id) && 'ring-1 ring-primary/40')}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 items-start gap-2.5">
                     <Checkbox className="mt-0.5" checked={selecionadas.has(cob.id)} onCheckedChange={() => toggleSel(cob.id)} aria-label="Selecionar cobrança" />
@@ -723,7 +723,7 @@ export default function Cobrancas() {
           })}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border/60 bg-surface/60 backdrop-blur-xl">
+        <div className="overflow-hidden rounded-2xl border border-border bg-surface">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border/60 text-left text-[11px] uppercase tracking-wide text-foreground-muted">
@@ -746,7 +746,7 @@ export default function Cobrancas() {
                 const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
                 const conta = cob.conta_id ? contaById.get(cob.conta_id) : undefined;
                 return (
-                  <tr key={cob.id} className={cn('border-b border-border/40 last:border-0 transition-colors hover:bg-white/[0.02]', selecionadas.has(cob.id) && 'bg-primary/[0.04]')}>
+                  <tr key={cob.id} className={cn('border-b border-border/40 last:border-0 transition-colors hover:bg-foreground/[0.04]', selecionadas.has(cob.id) && 'bg-primary/[0.04]')}>
                     <td className="px-3 py-3">
                       <Checkbox checked={selecionadas.has(cob.id)} onCheckedChange={() => toggleSel(cob.id)} aria-label="Selecionar cobrança" />
                     </td>
@@ -755,12 +755,12 @@ export default function Cobrancas() {
                         {cli?.nome ? (
                           <span className="truncate">{cli.nome}</span>
                         ) : cob.asaas_customer_nome ? (
-                          <button onClick={() => abrirCliente(cob)} className="group flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-white/5" title="Vir do Asaas — clique para vincular a um cliente">
+                          <button onClick={() => abrirCliente(cob)} className="group flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-foreground/[0.04]" title="Vir do Asaas — clique para vincular a um cliente">
                             <span className="truncate text-foreground-muted">{cob.asaas_customer_nome}</span>
                             <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">Asaas · vincular</span>
                           </button>
                         ) : (
-                          <button onClick={() => abrirCliente(cob)} className="rounded-md px-1.5 py-0.5 text-left font-semibold text-primary transition-colors hover:bg-white/5">
+                          <button onClick={() => abrirCliente(cob)} className="rounded-md px-1.5 py-0.5 text-left font-semibold text-primary transition-colors hover:bg-foreground/[0.04]">
                             Vincular cliente
                           </button>
                         )}
@@ -777,7 +777,7 @@ export default function Cobrancas() {
                     <td className="px-3 py-3 text-foreground-muted">{formatDate(cob.vencimento)}</td>
                     <td className="px-3 py-3">
                       {cob.status !== 'pago' && cob.status !== 'cancelado' ? (
-                        <button onClick={() => abrirForma(cob)} className="rounded-md px-1.5 py-0.5 text-left text-foreground-muted transition-colors hover:bg-white/5 hover:text-foreground">
+                        <button onClick={() => abrirForma(cob)} className="rounded-md px-1.5 py-0.5 text-left text-foreground-muted transition-colors hover:bg-foreground/[0.04] hover:text-foreground">
                           {FORMA_LABEL[cob.forma_pagamento] || cob.forma_pagamento}
                         </button>
                       ) : (
@@ -785,7 +785,7 @@ export default function Cobrancas() {
                       )}
                     </td>
                     <td className="px-3 py-3">
-                      <button onClick={() => abrirConta(cob)} className={cn('rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-white/5', conta ? 'text-foreground-muted' : 'text-primary')}>
+                      <button onClick={() => abrirConta(cob)} className={cn('rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-foreground/[0.04]', conta ? 'text-foreground-muted' : 'text-primary')}>
                         {conta?.nome || 'Definir'}
                       </button>
                     </td>
@@ -808,7 +808,7 @@ export default function Cobrancas() {
 
       {/* Sheet: Nova cobrança avulsa */}
       <Sheet open={avulsaOpen} onOpenChange={setAvulsaOpen}>
-        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.95] backdrop-blur-2xl sm:max-w-[520px] sm:mx-auto">
+        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
           <div className="mx-auto w-full max-w-[480px] pb-6 pt-1">
             <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
             <h2 className="mt-0.5 mb-4 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Nova cobrança avulsa</h2>
@@ -901,7 +901,7 @@ export default function Cobrancas() {
                     <button
                       key={f.value}
                       onClick={() => setAvulsa((p) => ({ ...p, forma: f.value }))}
-                      className={cn('rounded-lg border py-1.5 text-[11px] font-semibold transition-colors', avulsa.forma === f.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}
+                      className={cn('rounded-lg border py-1.5 text-[11px] font-semibold transition-colors', avulsa.forma === f.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}
                     >
                       {f.label}
                     </button>
@@ -956,7 +956,7 @@ export default function Cobrancas() {
 
       {/* Sheet: alterar forma de recebimento */}
       <Sheet open={formaOpen} onOpenChange={setFormaOpen}>
-        <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.95] backdrop-blur-2xl sm:max-w-[460px] sm:mx-auto">
+        <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[460px] sm:mx-auto">
           <div className="mx-auto w-full max-w-[420px] pb-6 pt-1">
             <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
             <h2 className="mt-0.5 mb-1 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Forma de recebimento</h2>
@@ -970,7 +970,7 @@ export default function Cobrancas() {
                 <button
                   key={f.value}
                   onClick={() => setFormaSel(f.value)}
-                  className={cn('rounded-lg border py-2.5 text-sm font-semibold transition-colors', formaSel === f.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted hover:bg-surface-2')}
+                  className={cn('rounded-lg border py-2.5 text-sm font-semibold transition-colors', formaSel === f.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted hover:bg-surface-2')}
                 >
                   {f.label}
                 </button>
@@ -991,7 +991,7 @@ export default function Cobrancas() {
 
       {/* Sheet: definir/alterar conta de recebimento */}
       <Sheet open={contaOpen} onOpenChange={setContaOpen}>
-        <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.95] backdrop-blur-2xl sm:max-w-[460px] sm:mx-auto">
+        <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[460px] sm:mx-auto">
           <div className="mx-auto w-full max-w-[420px] pb-6 pt-1">
             <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
             <h2 className="mt-0.5 mb-1 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Conta de recebimento</h2>
@@ -1022,7 +1022,7 @@ export default function Cobrancas() {
 
       {/* Sheet: vincular cliente (cobrança veio do Asaas sem cliente) */}
       <Sheet open={clienteOpen} onOpenChange={setClienteOpen}>
-        <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.95] backdrop-blur-2xl sm:max-w-[460px] sm:mx-auto">
+        <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[460px] sm:mx-auto">
           <div className="mx-auto w-full max-w-[420px] pb-6 pt-1">
             <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
             <h2 className="mt-0.5 mb-1 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Vincular a um cliente</h2>
@@ -1059,7 +1059,7 @@ export default function Cobrancas() {
 
       {/* Sheet: E-mail */}
       <Sheet open={emOpen} onOpenChange={setEmOpen}>
-        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.95] backdrop-blur-2xl sm:max-w-[520px] sm:mx-auto">
+        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
           <div className="mx-auto w-full max-w-[480px] pb-6 pt-1">
             <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
             <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Enviar por e-mail</h2>
@@ -1104,7 +1104,7 @@ export default function Cobrancas() {
 
       {/* Sheet: WhatsApp */}
       <Sheet open={waOpen} onOpenChange={setWaOpen}>
-        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.9] backdrop-blur-2xl sm:max-w-[520px] sm:mx-auto">
+        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
           <div className="mx-auto w-full max-w-[480px] pb-6 pt-1">
             <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
             <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Enviar por WhatsApp</h2>

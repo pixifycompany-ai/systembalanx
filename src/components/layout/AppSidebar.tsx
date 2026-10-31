@@ -46,8 +46,13 @@ const navGroups = [
       { href: '/', label: 'Início', icon: LayoutDashboard },
       { href: '/iara', label: 'IARA · Assistente', icon: Sparkles },
       { href: '/fluxo-caixa', label: 'Fluxo de Caixa', icon: ArrowLeftRight },
-      { href: '/visao', label: 'Visão', icon: LineChart },
       { href: '/calendario', label: 'Calendário', icon: CalendarDays },
+    ],
+  },
+  {
+    label: 'Análise',
+    items: [
+      { href: '/visao', label: 'Visão', icon: LineChart },
       { href: '/analises', label: 'Análises', icon: BarChart3 },
       { href: '/relatorios', label: 'Relatórios', icon: FileBarChart },
     ],
@@ -77,7 +82,7 @@ const navGroups = [
 // Layout no Tailwind; o visual do estado ATIVO (gradiente + glow + barra de
 // acento) fica na classe .sb-nav-item do index.css (garante que aplica).
 const itemClass =
-  'sb-nav-item group/nav relative my-0.5 h-9 rounded-xl px-3 font-medium text-sidebar-foreground/85 transition-all duration-150 ' +
+  'sb-nav-item group/nav relative my-0.5 h-9 rounded-xl px-3 font-medium text-sidebar-foreground transition-all duration-150 ' +
   'hover:bg-sidebar-accent/55 hover:text-foreground ' +
   '[&>a>svg]:h-[18px] [&>a>svg]:w-[18px] [&>a>svg]:transition-colors';
 
@@ -122,7 +127,7 @@ export function AppSidebar() {
       <SidebarContent>
         {navGroups.map((group) => (
           <SidebarGroup key={group.label} className="py-1.5">
-            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-semibold uppercase tracking-[0.13em] text-sidebar-foreground/45">
+            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-semibold uppercase tracking-[0.13em] text-sidebar-foreground">
               {group.label}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -147,7 +152,7 @@ export function AppSidebar() {
 
         {isSuperadmin && (
           <SidebarGroup className="py-1.5">
-            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-semibold uppercase tracking-[0.13em] text-sidebar-foreground/45">
+            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-semibold uppercase tracking-[0.13em] text-sidebar-foreground">
               Plataforma
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -191,7 +196,7 @@ export function AppSidebar() {
                 <div className="truncate text-[13px] font-semibold text-sidebar-foreground group-hover:text-foreground">{nome}</div>
                 {activeTenant && (
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate text-[11px] text-sidebar-foreground/60">{activeTenant.nome}</span>
+                    <span className="truncate text-[11px] text-sidebar-foreground">{activeTenant.nome}</span>
                     <span
                       className={cn(
                         'shrink-0 rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide',
@@ -212,7 +217,7 @@ export function AppSidebar() {
               <ThemeToggle />
               <button
                 onClick={() => signOut()}
-                className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-medium text-sidebar-foreground/70 hover:bg-[hsl(var(--danger))]/10 hover:text-[hsl(var(--danger))]"
+                className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-medium text-sidebar-foreground hover:bg-[hsl(var(--danger))]/10 hover:text-[hsl(var(--danger))]"
               >
                 <LogOut className="h-3.5 w-3.5" />
                 Sair

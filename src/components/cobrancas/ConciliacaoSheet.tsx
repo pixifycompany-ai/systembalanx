@@ -88,7 +88,7 @@ export function ConciliacaoSheet({ open, onOpenChange, listar, aplicar, nomeClie
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.95] backdrop-blur-2xl sm:max-w-[640px] sm:mx-auto">
+      <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[640px] sm:mx-auto">
         <div className="mx-auto w-full max-w-[600px] pb-6 pt-1">
           <p className="text-xs font-medium text-foreground-muted">Cobranças</p>
           <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Conciliar com o financeiro</h2>

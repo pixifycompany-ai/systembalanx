@@ -52,7 +52,7 @@ export function PropostaLancamentos({ lancamentos, onResolved }: Props) {
   }
 
   return (
-    <div className="mt-2.5 rounded-2xl border border-border/60 bg-surface/70 p-2.5 backdrop-blur-xl">
+    <div className="mt-2.5 rounded-2xl border border-border bg-surface p-2.5">
       <div className="mb-1.5 px-1 text-[10.5px] font-semibold uppercase tracking-wide text-foreground-subtle">
         Prévia · confira antes de lançar
       </div>
@@ -123,7 +123,7 @@ export function PropostaLancamentos({ lancamentos, onResolved }: Props) {
         <button
           onClick={confirmar}
           disabled={salvando || lancamentos.length === 0}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] px-3 py-2 text-[12.5px] font-semibold text-white disabled:opacity-50"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] px-3 py-2 text-[12.5px] font-semibold text-primary-foreground disabled:opacity-50"
         >
           {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
           {salvando ? 'Lançando…' : `Confirmar ${lancamentos.length} ${lancamentos.length === 1 ? 'lançamento' : 'lançamentos'}`}

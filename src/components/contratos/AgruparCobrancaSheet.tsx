@@ -117,7 +117,7 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.95] backdrop-blur-2xl sm:max-w-[560px] sm:mx-auto">
+      <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[560px] sm:mx-auto">
         <div className="mx-auto w-full max-w-[520px] pb-6 pt-1">
           <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
           <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Cobrar juntos num boleto só</h2>
@@ -131,7 +131,7 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
                 <span className="shrink-0 text-[13px] tabular-nums text-foreground-muted">{formatCurrency(Number(c.valor))}</span>
               </div>
             ))}
-            <div className="flex items-center justify-between gap-3 bg-white/[0.03] px-3 py-2">
+            <div className="flex items-center justify-between gap-3 bg-foreground/[0.04] px-3 py-2">
               <span className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground"><Layers className="h-3.5 w-3.5 text-primary" /> Total por fatura</span>
               <span className="text-sm font-semibold tabular-nums text-foreground">{formatCurrency(total)}</span>
             </div>
@@ -165,8 +165,8 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
 
           {/* Modo */}
           <div className="mt-4 grid grid-cols-2 gap-1.5">
-            <button type="button" onClick={() => setModo('criar')} className={cn('rounded-lg border py-2 text-xs font-semibold transition-colors', modo === 'criar' ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>Criar assinatura nova</button>
-            <button type="button" onClick={abrirVincular} className={cn('rounded-lg border py-2 text-xs font-semibold transition-colors', modo === 'vincular' ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>Vincular existente</button>
+            <button type="button" onClick={() => setModo('criar')} className={cn('rounded-lg border py-2 text-xs font-semibold transition-colors', modo === 'criar' ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>Criar assinatura nova</button>
+            <button type="button" onClick={abrirVincular} className={cn('rounded-lg border py-2 text-xs font-semibold transition-colors', modo === 'vincular' ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>Vincular existente</button>
           </div>
 
           {modo === 'criar' ? (
@@ -175,7 +175,7 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
                 <Label className="text-xs">Forma de pagamento</Label>
                 <div className="mt-1 grid grid-cols-4 gap-1.5">
                   {FORMAS.map((f) => (
-                    <button key={f.value} type="button" onClick={() => setForma(f.value)} className={cn('rounded-lg border py-1.5 text-[11px] font-semibold transition-colors', forma === f.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted')}>{f.label}</button>
+                    <button key={f.value} type="button" onClick={() => setForma(f.value)} className={cn('rounded-lg border py-1.5 text-[11px] font-semibold transition-colors', forma === f.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>{f.label}</button>
                   ))}
                 </div>
               </div>

@@ -2,20 +2,14 @@ import type { LucideIcon } from 'lucide-react';
 import { ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
+import { HexWatermark } from '@/components/shared/NavySurface';
+import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW } from '@/components/shared/navyTokens';
 
 /** Variação % entre atual e anterior; null quando não há base de comparação. */
 export function variacaoPct(atual: number, anterior: number | undefined | null): number | null {
   if (anterior == null || anterior === 0) return null;
   return ((atual - anterior) / Math.abs(anterior)) * 100;
 }
-
-// Destaque (1º card): mesmo navy + glows azuis do ícone BALANX.
-// O brilho de baixo fica fora da quina (não "acende" a borda).
-const HIGHLIGHT_BG =
-  'radial-gradient(120% 110% at 0% 0%, rgba(74,138,224,0.95), transparent 55%), radial-gradient(75% 80% at 88% 118%, rgba(37,99,235,0.42), transparent 62%), #0B1226';
-// Sem borda: contorno interno uniforme + luz no topo + sombra suave.
-const HIGHLIGHT_SHADOW =
-  'inset 0 0 0 1px rgba(255,255,255,0.07), inset 0 1px 0 rgba(255,255,255,0.14), 0 20px 40px -26px rgba(37,99,235,0.5)';
 
 interface KpiStatCardProps {
   label: string;
@@ -41,20 +35,21 @@ export function KpiStatCard({ label, value, icon: Icon, delta, invertDelta, hint
       type={onClick ? 'button' : undefined}
       onClick={onClick}
       className={cn(
-        'group relative w-full overflow-hidden rounded-2xl p-5 text-left transition-all animate-fade-in',
+        'group relative isolate w-full overflow-hidden rounded-2xl p-5 text-left transition-all animate-fade-in',
         highlight
           ? 'border-0 text-white'
-          : 'auro-card border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground',
+          : 'auro-card border border-border bg-surface text-foreground',
         onClick && 'cursor-pointer hover:-translate-y-0.5',
         onClick && !highlight && 'hover:border-primary/40',
       )}
-      style={highlight ? { background: HIGHLIGHT_BG, boxShadow: HIGHLIGHT_SHADOW } : undefined}
+      style={highlight ? { background: NAVY_SURFACE_BG, boxShadow: NAVY_SURFACE_SHADOW } : undefined}
     >
+      {highlight && <HexWatermark className="h-36 -right-6 -bottom-8" />}
       <div className="flex items-start justify-between">
         <span
           className={cn(
             'grid h-10 w-10 place-items-center rounded-full border',
-            highlight ? 'border-white/20 bg-white/10' : 'border-border/60 bg-foreground/[0.04]',
+            highlight ? 'border-white/20 bg-white/10' : 'border-border bg-surface-2',
           )}
         >
           <Icon className={cn('h-[18px] w-[18px]', highlight ? 'text-white' : 'text-foreground/80')} />
@@ -90,7 +85,7 @@ export function KpiStatCard({ label, value, icon: Icon, delta, invertDelta, hint
           </span>
         )}
       </div>
-      {hint && <p className={cn('mt-1.5 text-[11.5px]', highlight ? 'text-white/60' : 'text-foreground-muted')}>{hint}</p>}
+      {hint && <p className={cn('mt-1.5 text-[11.5px]', highlight ? 'text-white/70' : 'text-foreground-muted')}>{hint}</p>}
     </Wrapper>
   );
 }

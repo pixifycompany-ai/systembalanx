@@ -1,6 +1,8 @@
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
+import { HexWatermark } from './NavySurface';
+import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW, NAVY_TONE } from './navyTokens';
 
 interface HeroStatFooterItem {
   label: string;
@@ -35,7 +37,12 @@ const toneClass: Record<NonNullable<HeroStatCardProps['progressTone']>, string> 
   success: 'bg-[hsl(var(--success))]',
   danger: 'bg-[hsl(var(--danger))]',
   warning: 'bg-[hsl(var(--warning))]',
-  neutral: 'bg-white/70',
+  neutral: 'bg-foreground/40',
+};
+// Sobre o navy: cores fixas e claras (independem do tema).
+const toneColorNavy: Record<NonNullable<HeroStatCardProps['progressTone']>, string> = {
+  ...NAVY_TONE,
+  neutral: 'rgba(255,255,255,0.7)',
 };
 
 export function HeroStatCard({
@@ -57,25 +64,19 @@ export function HeroStatCard({
     <div className={cn('relative', className)}>
       <div
         className={cn(
-          'relative overflow-hidden rounded-3xl px-5 py-5 md:px-7 md:py-6 animate-fade-in',
+          'relative isolate overflow-hidden rounded-3xl px-5 py-5 md:px-7 md:py-6 animate-fade-in',
           isDark
-            ? 'text-white border border-white/10 shadow-[0_18px_44px_-20px_rgba(0,0,0,0.7)]'
+            ? 'text-white'
             : 'auro-card bg-surface text-foreground border border-border',
         )}
-        style={
-          isDark
-            ? {
-                background:
-                  'linear-gradient(160deg, rgba(6,10,18,0.24), rgba(6,10,18,0.55)), radial-gradient(120% 96% at 6% -4%, rgba(42,114,226,0.92), transparent 54%), radial-gradient(120% 82% at 99% 2%, rgba(76,141,255,0.55), transparent 52%), radial-gradient(150% 120% at 55% 134%, rgba(60,132,236,0.88), transparent 58%), #0b1420',
-              }
-            : undefined
-        }
+        style={isDark ? { background: NAVY_SURFACE_BG, boxShadow: NAVY_SURFACE_SHADOW } : undefined}
       >
+        {isDark && <HexWatermark />}
         <div className="flex items-center justify-between mb-3">
           <span
             className={cn(
               'text-[11px] font-medium tracking-wide',
-              isDark ? 'text-white/55' : 'text-foreground-muted',
+              isDark ? 'text-white/70' : 'text-foreground-muted',
             )}
           >
             {eyebrow}
@@ -84,7 +85,7 @@ export function HeroStatCard({
             <span
               className={cn(
                 'text-[10px] font-semibold uppercase tracking-widest',
-                isDark ? 'text-white/45' : 'text-foreground-subtle',
+                isDark ? 'text-white/60' : 'text-foreground-subtle',
               )}
             >
               {context}
@@ -119,8 +120,11 @@ export function HeroStatCard({
             )}
           >
             <div
-              className={cn('h-full rounded-full transition-all', toneClass[progressTone])}
-              style={{ width: `${Math.max(0, Math.min(progress, 1)) * 100}%` }}
+              className={cn('h-full rounded-full transition-all', !isDark && toneClass[progressTone])}
+              style={{
+                width: `${Math.max(0, Math.min(progress, 1)) * 100}%`,
+                ...(isDark ? { background: toneColorNavy[progressTone] } : {}),
+              }}
             />
           </div>
         )}
@@ -135,7 +139,7 @@ export function HeroStatCard({
                 <span
                   className={cn(
                     'text-[10px] uppercase tracking-wider',
-                    isDark ? 'text-white/45' : 'text-foreground-subtle',
+                    isDark ? 'text-white/60' : 'text-foreground-subtle',
                   )}
                 >
                   {item.label}

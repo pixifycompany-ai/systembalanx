@@ -109,7 +109,7 @@ export default function Onboarding() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl px-4">
+            <div className="rounded-2xl border border-border bg-surface px-4">
               <StepRow state="done" title="Conta criada" desc={`Perfil ${tipo === 'agencia' ? 'Agência' : 'Pessoal'} ativo`} />
               <StepRow state="done" title="E-mail confirmado" desc="Verifique sua caixa de entrada" />
               <StepRow state="now" n={3} title="Adicione uma conta" desc="Banco, carteira ou cartão" chevron />
@@ -168,7 +168,7 @@ export default function Onboarding() {
             </button>
 
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-5 mb-2">Já na conta</p>
-            <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-surface/70 backdrop-blur-xl px-4 py-3">
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
               <span className="grid h-9 w-9 place-items-center rounded-full bg-primary/15 text-primary text-xs font-semibold">
                 {(primeiroNome[0] || 'V').toUpperCase()}
               </span>
@@ -211,7 +211,7 @@ export default function Onboarding() {
               className="grid h-[88px] w-[88px] place-items-center rounded-[24px]"
               style={{
                 background: AURO_ICON_BG,
-                boxShadow: '0 12px 28px -8px rgba(60,120,210,0.5), inset 0 1px 0 rgba(255,255,255,0.14)',
+                boxShadow: '0 10px 24px -10px rgba(11,18,38,0.45), inset 0 0 0 1px rgba(255,255,255,0.10)',
               }}
             >
               <img src={iso} alt="balanx" className="h-[54px] w-auto" />
@@ -246,7 +246,7 @@ function ChoiceCard({
       onClick={onClick}
       className={cn(
         'flex w-full items-center gap-3 rounded-[18px] border p-4 text-left mb-2.5 transition-colors',
-        selected ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border/60 bg-surface/70 backdrop-blur-xl hover:border-border',
+        selected ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-surface hover:border-border',
       )}
     >
       <span className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-[14px]', iconClass)}>{icon}</span>
@@ -284,7 +284,7 @@ function StepRow({
         <div className={cn('text-sm font-semibold', state === 'now' ? 'text-primary' : 'text-foreground')}>{title}</div>
         <div className="text-[11.5px] text-foreground-muted mt-0.5">{desc}</div>
       </div>
-      {chevron && <ChevronRightIcon className="h-4 w-4 text-foreground-muted/60 shrink-0 mt-1" />}
+      {chevron && <ChevronRightIcon className="h-4 w-4 text-foreground-subtle shrink-0 mt-1" />}
     </div>
   );
 }

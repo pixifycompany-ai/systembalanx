@@ -201,11 +201,11 @@ export default function Contas() {
 
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList className="grid w-full grid-cols-2 h-auto rounded-[14px] border border-border/60 bg-surface/70 backdrop-blur-xl p-1 gap-[3px] mb-3.5">
-          <TabsTrigger value="contas" className="flex items-center justify-center gap-1.5 rounded-[10px] py-[9px] text-[12.5px] font-semibold text-foreground-muted data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-none">
+        <TabsList className="grid w-full grid-cols-2 h-auto rounded-[14px] border border-border bg-surface p-1 gap-[3px] mb-3.5">
+          <TabsTrigger value="contas" className="flex items-center justify-center gap-1.5 rounded-[10px] py-[9px] text-[12.5px] font-semibold text-foreground-muted data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none">
             <BuildingLibraryIcon className="h-[15px] w-[15px]" />Contas
           </TabsTrigger>
-          <TabsTrigger value="cartoes" className="flex items-center justify-center gap-1.5 rounded-[10px] py-[9px] text-[12.5px] font-semibold text-foreground-muted data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-none">
+          <TabsTrigger value="cartoes" className="flex items-center justify-center gap-1.5 rounded-[10px] py-[9px] text-[12.5px] font-semibold text-foreground-muted data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none">
             <CreditCardIcon className="h-[15px] w-[15px]" />Cartões
           </TabsTrigger>
         </TabsList>
@@ -311,7 +311,7 @@ export default function Contas() {
 
         {/* TAB CARTOES */}
         <TabsContent value="cartoes">
-          <div className="md:hidden mb-3 auro-card rounded-[20px] border border-border/60 bg-surface/55 backdrop-blur-xl px-4 py-[15px]">
+          <div className="md:hidden mb-3 auro-card rounded-[20px] border border-border bg-surface px-4 py-[15px]">
             <div className="text-[11.5px] font-medium text-foreground-muted">Total em Faturas Abertas</div>
             <div className="mt-[5px] whitespace-nowrap text-[26px] font-semibold tracking-[-0.03em] tabular-nums text-[hsl(var(--danger))]">
               {formatCurrency(totalCartoes)}
@@ -369,7 +369,7 @@ export default function Contas() {
 
       {/* Conta bancária dialog */}
       <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[480px] sm:mx-auto">
+        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[480px] sm:mx-auto">
           <div className="pb-1">
             <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
             <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">{editingConta ? 'Editar conta' : 'Nova conta'}</h2>
@@ -394,7 +394,7 @@ export default function Contas() {
                     onClick={() => setFormData(p => ({ ...p, tipo: t.value as any }))}
                     className={cn(
                       'no-touch-min rounded-xl border py-2.5 text-sm font-semibold transition-colors',
-                      formData.tipo === t.value ? 'border-transparent bg-primary text-white' : 'border-border/60 bg-surface/60 text-foreground-muted',
+                      formData.tipo === t.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted',
                     )}
                   >
                     {t.label}
@@ -427,7 +427,7 @@ export default function Contas() {
             <button onClick={() => setIsFormOpen(false)} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
               Cancelar
             </button>
-            <button onClick={handleSubmit} disabled={!formData.nome.trim()} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50">
+            <button onClick={handleSubmit} disabled={!formData.nome.trim()} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-primary-foreground disabled:opacity-50">
               {editingConta ? 'Salvar' : 'Criar'}
             </button>
           </div>

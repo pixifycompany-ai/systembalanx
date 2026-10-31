@@ -21,7 +21,7 @@ export function EmptyState({
       'flex flex-col items-center justify-center py-12 px-4 text-center',
       className
     )}>
-      <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-border/60 bg-surface/60 text-muted-foreground backdrop-blur-sm">
+      <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-border bg-surface text-muted-foreground">
         {icon ?? <Inbox className="h-6 w-6" strokeWidth={1.6} />}
       </div>
 

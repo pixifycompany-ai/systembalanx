@@ -98,7 +98,7 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[520px] sm:mx-auto">
+      <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
         <div className="px-5 pt-1 pb-1">
           <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
           <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">{cartao ? 'Editar cartão' : 'Novo cartão'}</h2>
@@ -256,7 +256,7 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
           <button onClick={() => onOpenChange(false)} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
             Cancelar
           </button>
-          <button onClick={handleSubmit} disabled={!valid} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={!valid} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-primary-foreground disabled:opacity-50">
             {cartao ? 'Salvar' : 'Criar cartão'}
           </button>
         </div>

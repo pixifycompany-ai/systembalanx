@@ -67,7 +67,7 @@ export function PagarFaturaDialog({ open, onOpenChange, cartao, fatura, contasBa
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border/60 bg-surface/[0.55] backdrop-blur-2xl backdrop-saturate-[1.8] sm:max-w-[560px] sm:mx-auto">
+      <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[560px] sm:mx-auto">
         {/* Header */}
         <div className="px-5 pt-1 pb-3">
           <div className="text-[11.5px] font-medium text-foreground-muted">
@@ -149,7 +149,7 @@ export function PagarFaturaDialog({ open, onOpenChange, cartao, fatura, contasBa
             <button
               onClick={handleConfirm}
               disabled={!podeConfirmar || loading}
-              className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50"
+              className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
             >
               {loading ? 'Processando…' : 'Confirmar pagamento'}
             </button>
