@@ -694,16 +694,16 @@ export function FileImportDialog({ open, onOpenChange, onImportComplete }: FileI
                         key={index}
                         className={cn(
                           "flex items-center justify-between p-2 rounded-lg text-sm",
-                          fileStatus.status === 'done' && "bg-emerald-50 dark:bg-emerald-950/20",
-                          fileStatus.status === 'processing' && "bg-blue-50 dark:bg-blue-950/20",
-                          fileStatus.status === 'error' && "bg-red-50 dark:bg-red-950/20",
+                          fileStatus.status === 'done' && "bg-success-bg",
+                          fileStatus.status === 'processing' && "bg-info-bg",
+                          fileStatus.status === 'error' && "bg-danger-bg",
                           fileStatus.status === 'pending' && "bg-muted/30"
                         )}
                       >
                         <div className="flex items-center gap-2">
-                          {fileStatus.status === 'done' && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                          {fileStatus.status === 'processing' && <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />}
-                          {fileStatus.status === 'error' && <AlertCircle className="h-4 w-4 text-red-600" />}
+                          {fileStatus.status === 'done' && <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success-fg))]" />}
+                          {fileStatus.status === 'processing' && <Loader2 className="h-4 w-4 text-info-fg animate-spin" />}
+                          {fileStatus.status === 'error' && <AlertCircle className="h-4 w-4 text-[hsl(var(--danger-fg))]" />}
                           {fileStatus.status === 'pending' && <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30" />}
                           <span className="truncate max-w-[200px]">{fileStatus.name}</span>
                         </div>
@@ -731,7 +731,7 @@ export function FileImportDialog({ open, onOpenChange, onImportComplete }: FileI
             <div className="space-y-4">
               {/* Summary with duplicate warning */}
               {duplicateCount.length > 0 && (
-                <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 rounded-lg">
+                <div className="flex items-center gap-2 text-sm text-warning-fg bg-warning-bg p-3 rounded-lg">
                   <AlertTriangle className="h-4 w-4 flex-shrink-0" />
                   <span>
                     {duplicateCount.length} possíve{duplicateCount.length === 1 ? 'l' : 'is'} duplicado{duplicateCount.length === 1 ? '' : 's'} detectado{duplicateCount.length === 1 ? '' : 's'} (desmarcados por padrão)
@@ -775,22 +775,22 @@ export function FileImportDialog({ open, onOpenChange, onImportComplete }: FileI
           {/* Complete Step */}
           {step === 'complete' && importResult && (
             <div className="flex flex-col items-center justify-center py-12 gap-4">
-              <div className="rounded-full bg-emerald-100 dark:bg-emerald-900/30 p-4">
-                <CheckCircle2 className="h-12 w-12 text-emerald-600" />
+              <div className="rounded-full bg-success-bg p-4">
+                <CheckCircle2 className="h-12 w-12 text-[hsl(var(--success-fg))]" />
               </div>
               <div className="text-center">
                 <p className="text-lg font-medium">Importação concluída!</p>
                 <p className="text-muted-foreground mt-2">
                   {importResult.receitas > 0 && (
-                    <><span className="text-emerald-600 font-medium">{importResult.receitas}</span> receitas</>
+                    <><span className="text-[hsl(var(--success-fg))] font-medium">{importResult.receitas}</span> receitas</>
                   )}
                   {importResult.receitas > 0 && importResult.despesas > 0 && ', '}
                   {importResult.despesas > 0 && (
-                    <><span className="text-red-600 font-medium">{importResult.despesas}</span> despesas</>
+                    <><span className="text-[hsl(var(--danger-fg))] font-medium">{importResult.despesas}</span> despesas</>
                   )}
                   {(importResult.receitas > 0 || importResult.despesas > 0) && importResult.transferencias > 0 && ' e '}
                   {importResult.transferencias > 0 && (
-                    <><span className="text-blue-600 font-medium">{importResult.transferencias}</span> transferências</>
+                    <><span className="text-info-fg font-medium">{importResult.transferencias}</span> transferências</>
                   )}
                   {' '}importadas.
                 </p>

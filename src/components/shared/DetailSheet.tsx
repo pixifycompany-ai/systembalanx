@@ -29,7 +29,7 @@ export function DetailSheet({
   eyebrow,
   title,
   children,
-  variant = 'dark',
+  variant = 'light',
   maxHeight = '88dvh',
   className,
 }: DetailSheetProps) {
@@ -44,7 +44,7 @@ export function DetailSheet({
         className={cn(
           'rounded-t-3xl border-t-0 p-0 pb-safe overflow-hidden flex flex-col',
           isDark
-            ? 'bg-[hsl(240_10%_8%)] text-white border-[hsl(240_8%_12%)]'
+            ? 'bg-[hsl(var(--navy-card))] text-white border-white/10'
             : 'bg-surface text-foreground',
           'md:max-w-lg md:left-1/2 md:-translate-x-1/2 md:rounded-3xl md:bottom-4',
           className,
@@ -63,7 +63,7 @@ export function DetailSheet({
               <p
                 className={cn(
                   'text-xs mb-0.5 font-medium',
-                  isDark ? 'text-white/55' : 'text-foreground-muted',
+                  isDark ? 'text-white/70' : 'text-foreground-muted',
                 )}
               >
                 {eyebrow}

@@ -10,12 +10,19 @@ import { WeeklyForecast, itemMatches, type CalFiltro } from '@/components/calend
 
 import { useCalendario, type CalendarioModo, type DayTransactions } from '@/hooks/useCalendario';
 import { SkeletonChart } from '@/components/shared/LoadingSpinner';
+import { cn } from '@/lib/utils';
 
 const FILTROS: { value: CalFiltro; label: string }[] = [
   { value: 'a_receber', label: 'A receber' },
   { value: 'recebido', label: 'Recebido' },
   { value: 'a_pagar', label: 'A pagar' },
   { value: 'pago', label: 'Pago' },
+];
+
+const MODOS: { value: CalendarioModo; label: string }[] = [
+  { value: 'mes', label: 'Mês' },
+  { value: 'semana', label: 'Semana' },
+  { value: 'hoje', label: 'Hoje' },
 ];
 
 const STORAGE_KEY = 'calendario:modo';
@@ -70,28 +77,35 @@ export default function Calendario() {
 
   const dayKey = format(refDate, 'yyyy-MM-dd');
 
+  const showSide = modo === 'mes' || modo === 'semana';
+
   return (
-    <main className="container py-3 md:py-6 max-w-full">
-      <MobilePageHeader eyebrow="Financeiro" title="Calendário" />
-
-
-      {/* Mode toggle */}
-      <div className="mb-4">
-        <ScrollPills>
-          <Pill active={modo === 'mes'} onClick={() => { setModo('mes'); setRefDate(new Date()); }}>
-            Mês
-          </Pill>
-          <Pill active={modo === 'semana'} onClick={() => { setModo('semana'); setRefDate(new Date()); }}>
-            Semana
-          </Pill>
-          <Pill active={modo === 'hoje'} onClick={() => { setModo('hoje'); setRefDate(new Date()); }}>
-            Hoje
-          </Pill>
-        </ScrollPills>
-      </div>
+    <main className="container max-w-full py-3 md:py-6">
+      <MobilePageHeader
+        eyebrow="Análise"
+        title="Calendário"
+        actions={
+          <div role="group" aria-label="Visualização" className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">
+            {MODOS.map((m) => (
+              <button
+                key={m.value}
+                type="button"
+                aria-pressed={modo === m.value}
+                onClick={() => { setModo(m.value); setRefDate(new Date()); }}
+                className={cn(
+                  'no-touch-min h-8 rounded-full px-3.5 text-[13px] font-semibold transition-colors',
+                  modo === m.value ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground',
+                )}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {/* Filtro de previsão de caixa (multi-seleção) */}
-      <div className="mb-4">
+      <div className="mb-4 md:mb-6">
         <ScrollPills>
           <Pill active={filtros.size === 0} onClick={() => setFiltros(new Set())}>
             Tudo
@@ -107,36 +121,41 @@ export default function Calendario() {
       {isLoading ? (
         <SkeletonChart />
       ) : (
-        <div className="space-y-4 md:space-y-6">
-          {modo === 'mes' && (
-            <CalendarGrid
-              year={refDate.getFullYear()}
-              month={refDate.getMonth()}
-              days={filteredDays}
-              onPrev={handlePrev}
-              onNext={handleNext}
-            />
-          )}
-          {modo === 'semana' && (
-            <WeekView
-              refDate={refDate}
-              days={filteredDays}
-              onPrev={handlePrev}
-              onNext={handleNext}
-            />
-          )}
-          {modo === 'hoje' && (
-            <DayView
-              refDate={refDate}
-              day={filteredDays[dayKey] || null}
-              onPrev={handlePrev}
-              onNext={handleNext}
-            />
-          )}
+        <div className={cn('grid gap-4 md:gap-6', showSide && 'xl:grid-cols-3')}>
+          <div className={cn('min-w-0', showSide && 'xl:col-span-2')}>
+            {modo === 'mes' && (
+              <CalendarGrid
+                year={refDate.getFullYear()}
+                month={refDate.getMonth()}
+                days={filteredDays}
+                onPrev={handlePrev}
+                onNext={handleNext}
+              />
+            )}
+            {modo === 'semana' && (
+              <WeekView
+                refDate={refDate}
+                days={filteredDays}
+                onPrev={handlePrev}
+                onNext={handleNext}
+              />
+            )}
+            {modo === 'hoje' && (
+              <DayView
+                refDate={refDate}
+                day={filteredDays[dayKey] || null}
+                onPrev={handlePrev}
+                onNext={handleNext}
+              />
+            )}
+          </div>
 
-          {(modo === 'mes' || modo === 'semana') && <WeeklyForecast days={days} filtros={filtros} />}
-
-          {modo === 'mes' && <TopDespesasChart data={topDespesas} total={totalDespesas} />}
+          {showSide && (
+            <div className="min-w-0 space-y-4 md:space-y-6">
+              <WeeklyForecast days={days} filtros={filtros} />
+              {modo === 'mes' && <TopDespesasChart data={topDespesas} total={totalDespesas} />}
+            </div>
+          )}
         </div>
       )}
     </main>

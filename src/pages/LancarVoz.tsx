@@ -5,6 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CometSpinner } from '@/components/shared/BalanxLoader';
+import { Sparkle } from '@/components/shared/Sparkle';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useReceitas } from '@/hooks/useReceitas';
 import { useDespesas } from '@/hooks/useDespesas';
@@ -16,15 +19,6 @@ import { type ItemLancamento, FREQ_LABEL, FORMA_LABEL, salvarItens, contaPadrao 
 type Fase = 'ouvindo' | 'processando' | 'revisar' | 'sem-suporte';
 
 type ItemVoz = ItemLancamento;
-
-/** Estrelinha de 4 pontas (isotipo IARA), igual mockup. */
-function Sparkle({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className}>
-      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" fill="currentColor" />
-    </svg>
-  );
-}
 
 export default function LancarVoz() {
   const navigate = useNavigate();
@@ -176,163 +170,164 @@ export default function LancarVoz() {
   const ouvindo = fase === 'ouvindo';
   const processando = fase === 'processando';
 
+  // Cabeçalho da tela (fica atrás do sheet na revisão).
+  const header = (
+    <div className="flex items-end gap-3">
+      <button
+        onClick={() => navigate(-1)}
+        aria-label="Voltar"
+        className="grid h-10 w-10 flex-none place-items-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-surface-2"
+      >
+        <ChevronLeftIcon className="h-5 w-5" />
+      </button>
+      <MobilePageHeader
+        className="mb-0 min-w-0 flex-1 md:mb-0"
+        eyebrow={ouvindo ? 'IARA · ouvindo' : processando ? 'IARA · processando seu áudio' : 'IARA · processou seu áudio'}
+        title={<>Lançar por <span className="font-serif italic font-normal tracking-normal">voz</span></>}
+      />
+    </div>
+  );
+
   return (
     <div className="relative flex min-h-[100dvh] flex-col overflow-hidden bg-background">
       {fase === 'sem-suporte' && (
-        <div className="relative flex flex-1 place-items-center px-8 text-center">
-          <div className="m-auto">
-            <p className="mb-1 font-medium text-foreground">Voz indisponível neste navegador</p>
-            <p className="text-sm text-foreground-muted">Use o Chrome no celular ou desktop para lançar falando.</p>
-            <button className="mt-5 rounded-2xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground" onClick={() => navigate('/fluxo-caixa?action=nova-saida')}>
+        <div className="flex flex-1 items-center justify-center px-4 text-center">
+          <div className="w-full max-w-sm rounded-[20px] border border-border bg-surface p-6 md:rounded-3xl">
+            <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-surface-2 text-foreground-muted">
+              <MicrophoneIcon className="h-6 w-6" />
+            </span>
+            <p className="mb-1 text-[16px] font-semibold text-foreground">Voz indisponível neste navegador</p>
+            <p className="text-[14px] text-foreground-muted">Use o Chrome no celular ou desktop para lançar falando.</p>
+            <Button className="mt-5 h-12 w-full rounded-full font-semibold" onClick={() => navigate('/fluxo-caixa?action=nova-saida')}>
               Lançar manualmente
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {(ouvindo || processando) && (
-        <div className="relative flex flex-1 flex-col px-4 pt-[calc(env(safe-area-inset-top)+14px)]">
-          {/* Header do chat */}
-          <div className="flex items-center gap-2.5 pb-3">
-            <button onClick={() => navigate(-1)} aria-label="Voltar" className="grid h-9 w-9 flex-none place-items-center rounded-[11px] border border-border bg-surface text-foreground">
-              <ChevronLeftIcon className="h-5 w-5" />
-            </button>
-            <div className="flex min-w-0 flex-1 items-center gap-2.5">
-              <div className="grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px] bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground">
-                <Sparkle className="h-4 w-4" />
-              </div>
-              <div>
-                <div className="text-[15.5px] font-semibold leading-tight tracking-[-0.02em] text-foreground">IARA</div>
-                {ouvindo ? (
-                  <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-[hsl(var(--success))]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />ouvindo
-                  </div>
-                ) : (
-                  <div className="text-[10.5px] font-semibold text-foreground-muted">processando seu áudio</div>
-                )}
-              </div>
-            </div>
+        <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-[calc(env(safe-area-inset-top)+16px)] md:pt-12">
+          {header}
+
+          {/* Dica da IARA */}
+          <div className="mt-5 flex items-start gap-3 rounded-[20px] border border-border bg-surface p-4">
+            <span className="grid h-10 w-10 flex-none place-items-center rounded-[13px] bg-info-bg text-info-fg">
+              <Sparkle className="h-[18px] w-[18px]" />
+            </span>
+            <p className="text-[14px] leading-[1.55] text-foreground">
+              Pode falar seus lançamentos que eu registro. Ex: <b className="font-semibold">"lance 20 de mercado e 50 de uber"</b>.
+            </p>
           </div>
 
-          {/* Mensagem da IARA */}
-          <div className="flex flex-1 flex-col gap-3.5 pt-1">
-            <div className="flex items-end gap-2.5">
-              <div className="grid h-[30px] w-[30px] flex-none place-items-center rounded-full bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground">
-                <Sparkle className="h-4 w-4" />
-              </div>
-              <div className="max-w-[82%] rounded-[18px_18px_18px_6px] border border-border bg-surface px-3.5 py-2.5 text-[13px] leading-[1.55] text-foreground">
-                Pode falar seus lançamentos que eu registro. Ex: <b>"lance 20 de mercado e 50 de uber"</b>.
-              </div>
-            </div>
-          </div>
-
-          {/* Voicedock */}
-          <div className="mb-4 mt-auto rounded-[24px] border border-border bg-surface px-4 pb-4 pt-[18px] shadow-[0_-10px_30px_-14px_rgba(0,0,0,0.5)]">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.04em] text-[hsl(var(--danger))]">
-                <span className={cn('h-2 w-2 rounded-full bg-[hsl(var(--danger))]', gravando && 'animate-pulse')} />
-                {processando ? 'Transcrevendo' : gravando ? 'Gravando' : 'Pronto'}
-              </span>
-              <span className="ml-auto text-[11px] font-semibold text-foreground-subtle">IARA</span>
-            </div>
-
-            {processando ? (
-              <div className="grid h-9 place-items-center"><CometSpinner size={30} /></div>
-            ) : (
-              <div className={cn('vwave', !gravando && 'opacity-40')} aria-hidden>
-                {[0, 0.1, 0.25, 0.15, 0.35, 0.05, 0.3, 0.2, 0.4, 0.12, 0.28, 0.18, 0.36, 0.08].map((d, i) => (
-                  <i key={i} style={{ animationDelay: `${d}s` }} />
-                ))}
-              </div>
-            )}
-
-            <div className="mt-3 min-h-[44px] text-center text-[14px] leading-[1.5] text-foreground">
-              {gravando
-                ? <span className="text-foreground-subtle">Ouvindo… fale seus lançamentos</span>
-                : transcript
-                  ? `"${transcript}"`
-                  : <span className="text-foreground-subtle">Toque no microfone e fale</span>}
-            </div>
+          {/* Microfone */}
+          <div className="flex flex-1 flex-col items-center justify-center gap-5 py-8">
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold',
+                processando ? 'bg-info-bg text-info-fg' : gravando ? 'bg-danger-bg text-danger-fg' : 'bg-surface-2 text-foreground-muted',
+              )}
+            >
+              <span className={cn('h-1.5 w-1.5 rounded-full bg-current', gravando && 'animate-pulse')} />
+              {processando ? 'Transcrevendo' : gravando ? 'Gravando' : 'Pronto'}
+            </span>
 
             <button
               onClick={toggleGravar}
               disabled={processando}
               aria-label={gravando ? 'Parar e revisar' : 'Falar'}
               className={cn(
-                'mx-auto mt-3.5 grid h-[60px] w-[60px] place-items-center rounded-full text-white transition-colors disabled:opacity-60',
+                'grid h-28 w-28 place-items-center rounded-full ring-[10px] transition-colors active:scale-95 disabled:opacity-60',
                 gravando
-                  ? 'bg-[linear-gradient(160deg,hsl(var(--danger)),#c62b1e)] shadow-[0_0_0_8px_hsl(var(--danger)/0.16),0_10px_24px_hsl(var(--danger)/0.4)]'
-                  : 'bg-[linear-gradient(160deg,hsl(var(--primary)/0.95),hsl(var(--primary)))] shadow-[0_0_0_8px_hsl(var(--primary)/0.16),0_10px_24px_hsl(var(--primary)/0.4)]',
+                  ? 'bg-destructive text-destructive-foreground ring-danger-bg'
+                  : 'bg-primary text-primary-foreground ring-surface-2',
               )}
             >
-              <MicrophoneIcon className="h-7 w-7" />
+              <MicrophoneIcon className="h-11 w-11" />
             </button>
-            <div className="mt-2.5 text-center text-[11px] text-foreground-subtle">
-              {processando ? 'Transcrevendo e interpretando…' : gravando ? 'Toque para parar' : 'Toque para falar'}
+
+            <div className="h-9">
+              {processando ? (
+                <div className="grid h-9 place-items-center"><CometSpinner size={30} /></div>
+              ) : (
+                <div className={cn('vwave', !gravando && 'opacity-40')} aria-hidden>
+                  {[0, 0.1, 0.25, 0.15, 0.35, 0.05, 0.3, 0.2, 0.4, 0.12, 0.28, 0.18, 0.36, 0.08].map((d, i) => (
+                    <i key={i} style={{ animationDelay: `${d}s` }} />
+                  ))}
+                </div>
+              )}
             </div>
+
+            <p className="text-[13px] font-medium text-foreground-muted">
+              {processando ? 'Transcrevendo e interpretando…' : gravando ? 'Toque para parar' : 'Toque para falar'}
+            </p>
           </div>
+
+          {/* Transcrição */}
+          <section className="rounded-[20px] border border-border bg-surface p-4 md:rounded-3xl md:p-5">
+            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Transcrição</h2>
+            <div className="min-h-[44px] text-[15px] leading-[1.5] text-foreground">
+              {gravando
+                ? <span className="text-foreground-muted">Ouvindo… fale seus lançamentos</span>
+                : transcript
+                  ? `"${transcript}"`
+                  : <span className="text-foreground-muted">Toque no microfone e fale</span>}
+            </div>
+          </section>
         </div>
       )}
 
       {fase === 'revisar' && (
         <>
-          {/* Cabeçalho residual do chat (blur atrás) */}
-          <div className="relative flex items-center gap-2.5 px-4 pt-[calc(env(safe-area-inset-top)+14px)] pb-3 opacity-40">
-            <div className="grid h-9 w-9 flex-none place-items-center rounded-[11px] border border-border/60 bg-surface/70 text-foreground">
-              <ChevronLeftIcon className="h-5 w-5" />
-            </div>
-            <div className="grid h-[30px] w-[30px] place-items-center rounded-[9px] bg-primary text-primary-foreground"><Sparkle className="h-4 w-4" /></div>
-            <div>
-              <div className="text-[15.5px] font-semibold text-foreground">IARA</div>
-              <div className="text-[10.5px] font-semibold text-foreground-muted">processou seu áudio</div>
-            </div>
+          {/* Cabeçalho residual (atrás do sheet) */}
+          <div className="mx-auto w-full max-w-md px-4 pt-[calc(env(safe-area-inset-top)+16px)] opacity-40 md:pt-12">
+            {header}
           </div>
 
           {/* Backdrop */}
           <div className="fixed inset-0 z-40 bg-black/60" onClick={() => refazer()} />
 
           {/* Sheet */}
-          <div className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col rounded-t-[26px] border-t border-border bg-surface px-4 pb-[calc(env(safe-area-inset-bottom)+18px)] shadow-[0_-20px_50px_-20px_rgba(0,0,0,0.6)]">
-            <div className="mx-auto mb-1 mt-2.5 h-1 w-9 rounded-full bg-white/20" />
-            <div className="flex items-start justify-between gap-2.5 px-0.5 pb-3">
+          <div className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[90dvh] w-full max-w-xl flex-col rounded-t-[26px] border-t border-border bg-surface px-4 pb-[calc(env(safe-area-inset-bottom)+18px)] md:bottom-6 md:rounded-[26px] md:border">
+            <div className="mx-auto mb-1 mt-2.5 h-1 w-9 rounded-full bg-border-strong" />
+            <div className="flex items-start justify-between gap-2.5 px-0.5 pb-3 pt-1">
               <div>
-                <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground-muted">
+                <div className="flex items-center gap-1.5 text-[12px] font-medium text-foreground-muted">
                   <Sparkle className="h-3 w-3 text-primary" />Reconhecido por voz · IARA
                 </div>
-                <h4 className="mt-[3px] text-[19px] font-semibold tracking-[-0.02em] text-foreground">Revisar lançamentos</h4>
+                <h4 className="mt-[3px] text-[20px] font-semibold tracking-[-0.02em] text-foreground">Revisar lançamentos</h4>
               </div>
-              <button onClick={() => refazer()} aria-label="Fechar" className="grid h-[30px] w-[30px] flex-none place-items-center rounded-full bg-surface-2 text-foreground-muted">
+              <button onClick={() => refazer()} aria-label="Fechar" className="grid h-9 w-9 flex-none place-items-center rounded-full bg-surface-2 text-foreground-muted transition-colors hover:text-foreground">
                 <XMarkIcon className="h-4 w-4" />
               </button>
             </div>
 
             <div className="flex flex-col gap-2.5 overflow-y-auto pb-2">
               {/* Transcrição */}
-              <div className="flex items-start gap-2 rounded-xl border border-border/60 bg-surface/70 px-3 py-2.5 text-[12px] italic leading-[1.5] text-foreground-muted">
+              <div className="flex items-start gap-2 rounded-[16px] bg-surface-2 px-3.5 py-3 text-[13px] italic leading-[1.5] text-foreground-muted">
                 <MicrophoneIcon className="mt-0.5 h-3.5 w-3.5 flex-none" />
                 <span>"{transcript}"</span>
               </div>
 
               {/* Padrão para todos: conta/cartão + status. Cartão de crédito cai na fatura aberta. */}
               {itens.length > 0 && (
-                <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-surface-2/60 px-2.5 py-2">
-                  <span className="flex-none text-[10.5px] font-semibold uppercase tracking-wide text-foreground-subtle">Todos</span>
+                <div className="flex items-center gap-2 rounded-[16px] border border-border px-3 py-2">
+                  <span className="flex-none text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Todos</span>
                   <Select value={itens[0]?.conta_id || 'none'} onValueChange={(v) => aplicarContaTodos(v)}>
-                    <SelectTrigger className="h-8 flex-1 text-[12.5px]"><SelectValue placeholder="Conta/Cartão" /></SelectTrigger>
+                    <SelectTrigger className="h-9 flex-1 rounded-full text-[13px]"><SelectValue placeholder="Conta/Cartão" /></SelectTrigger>
                     <SelectContent>
                       {contasAtivas.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.nome}{c.tipo === 'cartao_credito' ? ' · cartão' : ''}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <div className="inline-flex flex-none rounded-[9px] border border-border/60 bg-surface p-0.5">
+                  <div className="inline-flex flex-none rounded-full bg-surface-2 p-0.5">
                     {([true, false] as const).map((q) => (
                       <button
                         key={String(q)}
                         onClick={() => aplicarQuitadoTodos(q)}
                         className={cn(
-                          'rounded-[7px] px-2 py-[5px] text-[10.5px] font-semibold transition-colors',
-                          itens.every((x) => x.quitado === q) ? (q ? 'bg-[hsl(var(--success))] text-white' : 'bg-surface-2 text-foreground') : 'text-foreground-muted',
+                          'rounded-full px-2.5 py-1.5 text-[11px] font-semibold transition-colors',
+                          itens.every((x) => x.quitado === q) ? (q ? 'bg-success-bg text-success-fg' : 'bg-surface text-foreground') : 'text-foreground-muted',
                         )}
                       >
                         {q ? 'Quitado' : 'Pendente'}
@@ -347,10 +342,10 @@ export default function LancarVoz() {
                 const isReceita = it.tipo === 'receita';
                 const editing = editIdx === idx;
                 return (
-                  <div key={idx} className="rounded-2xl border border-border/60 bg-surface/70 p-3.5">
+                  <div key={idx} className="rounded-[20px] border border-border bg-surface p-3.5">
                     <div className="flex items-center gap-2.5">
                       {/* segmini */}
-                      <div className="inline-flex flex-none rounded-[9px] border border-border/60 bg-surface-2 p-0.5">
+                      <div className="inline-flex flex-none rounded-full bg-surface-2 p-0.5">
                         {(['despesa', 'receita'] as const).map((tp) => {
                           const active = it.tipo === tp;
                           return (
@@ -358,9 +353,9 @@ export default function LancarVoz() {
                               key={tp}
                               onClick={() => setItens((prev) => prev.map((x, i) => i === idx ? { ...x, tipo: tp, categoria_id: null } : x))}
                               className={cn(
-                                'rounded-[7px] px-2.5 py-[5px] text-[10.5px] font-semibold transition-colors',
+                                'rounded-full px-2.5 py-1.5 text-[11px] font-semibold transition-colors',
                                 active
-                                  ? tp === 'despesa' ? 'bg-[hsl(var(--danger))] text-white' : 'bg-[hsl(var(--success))] text-white'
+                                  ? tp === 'despesa' ? 'bg-danger-bg text-danger-fg' : 'bg-success-bg text-success-fg'
                                   : 'text-foreground-muted',
                               )}
                             >
@@ -370,61 +365,61 @@ export default function LancarVoz() {
                         })}
                       </div>
                       <div className="min-w-0 flex-1 truncate text-[14px] font-semibold capitalize text-foreground">{it.descricao}</div>
-                      <div className={cn('flex-none text-[15px] font-semibold tabular-nums', isReceita ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]')}>
+                      <div className={cn('flex-none font-heading text-[15px] font-semibold tabular-nums tracking-[-0.02em]', isReceita ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]')}>
                         {isReceita ? '+' : '−'}{formatCurrency(it.valor).replace('R$', 'R$ ')}
                       </div>
                     </div>
 
                     <div className="mt-2.5 flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-surface-2 px-2.5 py-1.5 text-[11.5px] font-semibold text-foreground">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2.5 py-1.5 text-[12px] font-semibold text-foreground">
                         <span className="h-2.5 w-2.5 rounded-full" style={{ background: corCategoria(it) }} />
                         {it.categoria_nome || 'Sem categoria'}
                       </span>
                       {it.categoria_nome && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/25 px-2 py-1 text-[10px] font-semibold text-[hsl(var(--primary))]">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-info-bg px-2 py-1 text-[11px] font-semibold text-info-fg">
                           sugerida
                         </span>
                       )}
-                      <button onClick={() => setEditIdx(editing ? null : idx)} className="ml-auto text-[11.5px] font-semibold text-foreground-muted">
+                      <button onClick={() => setEditIdx(editing ? null : idx)} className="ml-auto text-[12px] font-semibold text-primary">
                         {editing ? 'Fechar' : 'Editar'}
                       </button>
                     </div>
 
                     {/* Conta/cartão + status do item */}
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-foreground">
-                        <span className="h-2 w-2 rounded-full" style={{ background: contasAtivas.find((c) => c.id === it.conta_id)?.cor || '#8fb0f0' }} />
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-foreground">
+                        <span className="h-2 w-2 rounded-full" style={{ background: contasAtivas.find((c) => c.id === it.conta_id)?.cor || 'hsl(var(--foreground-muted))' }} />
                         {nomeConta(it.conta_id)}{isCartao(it.conta_id) ? ' · cartão' : ''}
                       </span>
                       <span
                         className={cn(
-                          'rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide',
+                          'rounded-full px-2 py-1 text-[11px] font-semibold',
                           it.tipo === 'despesa' && isCartao(it.conta_id)
-                            ? 'bg-primary/15 text-[hsl(var(--primary))]'
+                            ? 'bg-info-bg text-info-fg'
                             : it.quitado
-                              ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]'
-                              : 'bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]',
+                              ? 'bg-success-bg text-success-fg'
+                              : 'bg-warning-bg text-warning-fg',
                         )}
                       >
                         {statusLabel(it)}
                       </span>
                       {/* O que a IARA detectou na fala */}
                       {it.fornecedor && (
-                        <span className="rounded-full border border-border/60 bg-surface-2 px-2 py-1 text-[10px] font-medium text-foreground-muted">🏪 {it.fornecedor}</span>
+                        <span className="rounded-full bg-surface-2 px-2 py-1 text-[11px] font-medium text-foreground-muted">🏪 {it.fornecedor}</span>
                       )}
                       {it.forma_pagamento && !isCartao(it.conta_id) && (
-                        <span className="rounded-full border border-border/60 bg-surface-2 px-2 py-1 text-[10px] font-medium text-foreground-muted">{FORMA_LABEL[it.forma_pagamento] || it.forma_pagamento}</span>
+                        <span className="rounded-full bg-surface-2 px-2 py-1 text-[11px] font-medium text-foreground-muted">{FORMA_LABEL[it.forma_pagamento] || it.forma_pagamento}</span>
                       )}
                       {it.parcelas && it.parcelas > 1 && (
-                        <span className="rounded-full bg-primary/15 px-2 py-1 text-[10px] font-semibold text-[hsl(var(--primary))]">{it.parcelas}x no cartão</span>
+                        <span className="rounded-full bg-info-bg px-2 py-1 text-[11px] font-semibold text-info-fg">{it.parcelas}x no cartão</span>
                       )}
                       {it.recorrente && (
-                        <span className="rounded-full bg-primary/15 px-2 py-1 text-[10px] font-semibold text-[hsl(var(--primary))]">repete {it.recorrente.repeticoes}× / {FREQ_LABEL[it.recorrente.frequencia]}</span>
+                        <span className="rounded-full bg-info-bg px-2 py-1 text-[11px] font-semibold text-info-fg">repete {it.recorrente.repeticoes}× / {FREQ_LABEL[it.recorrente.frequencia]}</span>
                       )}
                     </div>
 
                     {editing && (
-                      <div className="mt-3 space-y-2 border-t border-border/60 pt-3">
+                      <div className="mt-3 space-y-2 border-t border-border pt-3">
                         <Input value={it.descricao} onChange={(e) => setItens((prev) => prev.map((x, i) => i === idx ? { ...x, descricao: e.target.value } : x))} placeholder="Descrição" />
                         <div className="grid grid-cols-2 gap-2">
                           <Input type="number" step="0.01" value={it.valor || ''} onChange={(e) => setItens((prev) => prev.map((x, i) => i === idx ? { ...x, valor: parseFloat(e.target.value) || 0 } : x))} placeholder="Valor" />
@@ -450,18 +445,18 @@ export default function LancarVoz() {
 
                         {/* Status */}
                         {it.tipo === 'despesa' && isCartao(it.conta_id) ? (
-                          <p className="rounded-lg bg-primary/10 px-2.5 py-2 text-[11px] leading-[1.4] text-[hsl(var(--primary))]">
+                          <p className="rounded-[14px] bg-info-bg px-3 py-2 text-[12px] leading-[1.45] text-info-fg">
                             Cartão de crédito → entra na <b>fatura aberta</b>. Fica pendente até você pagar a fatura.
                           </p>
                         ) : (
-                          <div className="inline-flex rounded-[9px] border border-border/60 bg-surface p-0.5">
+                          <div className="inline-flex rounded-full bg-surface-2 p-0.5">
                             {([true, false] as const).map((q) => (
                               <button
                                 key={String(q)}
                                 onClick={() => setItem(idx, { quitado: q })}
                                 className={cn(
-                                  'rounded-[7px] px-3 py-[6px] text-[11px] font-semibold transition-colors',
-                                  it.quitado === q ? (q ? 'bg-[hsl(var(--success))] text-white' : 'bg-[hsl(var(--warning))] text-white') : 'text-foreground-muted',
+                                  'rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-colors',
+                                  it.quitado === q ? (q ? 'bg-success-bg text-success-fg' : 'bg-warning-bg text-warning-fg') : 'text-foreground-muted',
                                 )}
                               >
                                 {q ? (it.tipo === 'receita' ? 'Recebido' : 'Pago') : 'Pendente'}
@@ -470,7 +465,7 @@ export default function LancarVoz() {
                           </div>
                         )}
 
-                        <button onClick={() => setItens((prev) => prev.filter((_, i) => i !== idx))} className="block text-[11.5px] font-semibold text-[hsl(var(--danger))]">
+                        <button onClick={() => setItens((prev) => prev.filter((_, i) => i !== idx))} className="block text-[12px] font-semibold text-[hsl(var(--danger-fg))]">
                           Remover item
                         </button>
                       </div>
@@ -480,8 +475,8 @@ export default function LancarVoz() {
               })}
 
               {/* Aviso + total */}
-              <p className="px-2 pt-1 text-center text-[11px] leading-[1.4] text-foreground-subtle">
-                A IARA pode errar valor ou categoria — confira antes de salvar. Total: <b className={totalRevisar < 0 ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}>{totalRevisar < 0 ? '−' : ''}{formatCurrency(Math.abs(totalRevisar))}</b>
+              <p className="px-2 pt-1 text-center text-[12px] leading-[1.45] text-foreground-muted">
+                A IARA pode errar valor ou categoria — confira antes de salvar. Total: <b className={cn('font-heading font-semibold tabular-nums', totalRevisar < 0 ? 'text-[hsl(var(--danger-fg))]' : 'text-[hsl(var(--success-fg))]')}>{totalRevisar < 0 ? '−' : ''}{formatCurrency(Math.abs(totalRevisar))}</b>
                 {nSaidas > 0 && ` · ${nSaidas} ${nSaidas === 1 ? 'saída' : 'saídas'}`}
                 {nEntradas > 0 && ` · ${nEntradas} ${nEntradas === 1 ? 'entrada' : 'entradas'}`}.
               </p>
@@ -489,16 +484,16 @@ export default function LancarVoz() {
 
             {/* Rodapé */}
             <div className="flex gap-2.5 pt-3.5">
-              <button onClick={() => refazer()} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
+              <Button variant="outline" onClick={() => refazer()} className="h-12 flex-[0_0_34%] rounded-full text-[14px] font-semibold">
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={salvarTudo}
                 disabled={salvando || itens.length === 0}
-                className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
+                className="h-12 flex-1 rounded-full text-[14px] font-semibold"
               >
                 {salvando ? 'Salvando…' : `Confirmar ${itens.length} ${itens.length === 1 ? 'lançamento' : 'lançamentos'}`}
-              </button>
+              </Button>
             </div>
           </div>
         </>

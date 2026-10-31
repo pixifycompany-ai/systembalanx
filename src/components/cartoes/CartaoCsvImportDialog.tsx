@@ -19,7 +19,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useDespesas, type CategoriaDB } from '@/hooks/useDespesas';
@@ -199,8 +198,12 @@ export function CartaoCsvImportDialog({
     <Dialog open={open} onOpenChange={(o) => (!o ? handleClose() : onOpenChange(o))}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5" /> Importar CSV — {cartao.nome}
+          <p className="text-[13px] text-foreground-muted">Importar CSV · IA</p>
+          <DialogTitle className="flex items-center gap-2 text-[22px] font-semibold tracking-[-0.03em]">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-surface-2 text-foreground">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <span className="truncate">{cartao.nome}</span>
           </DialogTitle>
           <DialogDescription>
             Faça upload do CSV exportado do banco. A IA categoriza e identifica os fornecedores automaticamente.
@@ -215,8 +218,8 @@ export function CartaoCsvImportDialog({
             onDrop={handleDrop}
             onClick={() => inputRef.current?.click()}
             className={cn(
-              'border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition',
-              dragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+              'cursor-pointer rounded-[20px] border-2 border-dashed p-8 text-center transition-colors md:p-10',
+              dragActive ? 'border-primary bg-info-bg' : 'border-border bg-surface hover:border-border-strong'
             )}
           >
             <input
@@ -226,11 +229,13 @@ export function CartaoCsvImportDialog({
               className="hidden"
               onChange={handleFileSelect}
             />
-            <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-            <p className="font-medium">Arraste o CSV aqui ou clique para selecionar</p>
-            <p className="text-xs text-muted-foreground mt-1">Aceita CSV de Nubank, Itaú, Bradesco, Inter, C6 e similares</p>
+            <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-[14px] bg-surface-2 text-foreground">
+              <Upload className="h-5 w-5" />
+            </span>
+            <p className="font-semibold text-foreground">Arraste o CSV aqui ou clique para selecionar</p>
+            <p className="mt-1 text-[12px] text-foreground-muted">Aceita CSV de Nubank, Itaú, Bradesco, Inter, C6 e similares</p>
             {error && (
-              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-destructive">
+              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-[hsl(var(--danger-fg))]">
                 <AlertCircle className="h-4 w-4" /> {error}
               </div>
             )}
@@ -240,45 +245,45 @@ export function CartaoCsvImportDialog({
         {step === 'processing' && (
           <div className="py-10 text-center">
             <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary mb-3" />
-            <p className="font-medium">Analisando CSV e categorizando com IA…</p>
-            <p className="text-xs text-muted-foreground mt-1">Isso pode levar alguns segundos.</p>
+            <p className="font-semibold text-foreground">Analisando CSV e categorizando com IA…</p>
+            <p className="mt-1 text-[12px] text-foreground-muted">Isso pode levar alguns segundos.</p>
           </div>
         )}
 
         {step === 'preview' && (
           <>
-            <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-hidden rounded-[20px] border border-border bg-surface">
               <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/50 sticky top-0 z-10">
+                  <thead className="sticky top-0 z-10 bg-surface-2 text-[12px] text-foreground-muted">
                     <tr>
-                      <th className="w-10 px-2 py-2">
+                      <th className="w-10 px-3 py-2.5">
                         <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
                       </th>
-                      <th className="px-2 py-2 text-left">Data</th>
-                      <th className="px-2 py-2 text-left">Descrição</th>
-                      <th className="px-2 py-2 text-left">Fornecedor</th>
-                      <th className="px-2 py-2 text-left">Categoria</th>
-                      <th className="px-2 py-2 text-left">Tipo</th>
-                      <th className="px-2 py-2 text-right">Valor</th>
+                      <th className="px-3 py-2.5 font-medium text-left">Data</th>
+                      <th className="px-3 py-2.5 font-medium text-left">Descrição</th>
+                      <th className="px-3 py-2.5 font-medium text-left">Fornecedor</th>
+                      <th className="px-3 py-2.5 font-medium text-left">Categoria</th>
+                      <th className="px-3 py-2.5 font-medium text-left">Tipo</th>
+                      <th className="px-3 py-2.5 font-medium text-right">Valor</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map(r => (
-                      <tr key={r.id} className="border-t">
-                        <td className="px-2 py-1.5">
+                      <tr key={r.id} className="border-t border-border">
+                        <td className="px-3 py-2">
                           <Checkbox
                             checked={r.selected}
                             onCheckedChange={() => updateRow(r.id, { selected: !r.selected })}
                           />
                         </td>
-                        <td className="px-2 py-1.5 whitespace-nowrap text-xs">
+                        <td className="px-3 py-2 whitespace-nowrap text-xs">
                           {r.data.split('-').reverse().join('/')}
                         </td>
-                        <td className="px-2 py-1.5 max-w-[200px] truncate" title={r.descricao}>
+                        <td className="px-3 py-2 max-w-[200px] truncate" title={r.descricao}>
                           {r.descricao}
                         </td>
-                        <td className="px-2 py-1.5">
+                        <td className="px-3 py-2">
                           <Input
                             value={r.fornecedor}
                             onChange={(e) => updateRow(r.id, { fornecedor: e.target.value })}
@@ -286,7 +291,7 @@ export function CartaoCsvImportDialog({
                             placeholder="Fornecedor"
                           />
                         </td>
-                        <td className="px-2 py-1.5 min-w-[150px]">
+                        <td className="px-3 py-2 min-w-[150px]">
                           <Select
                             value={r.categoria_id || 'none'}
                             onValueChange={(v) => updateRow(r.id, { categoria_id: v === 'none' ? '' : v })}
@@ -302,7 +307,7 @@ export function CartaoCsvImportDialog({
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className="px-2 py-1.5">
+                        <td className="px-3 py-2">
                           <Select
                             value={r.tipo_despesa}
                             onValueChange={(v: 'fixa' | 'variavel') => updateRow(r.id, { tipo_despesa: v })}
@@ -316,7 +321,7 @@ export function CartaoCsvImportDialog({
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className="px-2 py-1.5 text-right tabular-nums font-medium whitespace-nowrap">
+                        <td className="px-3 py-2 text-right font-heading font-semibold tabular-nums whitespace-nowrap">
                           {formatCurrency(r.valor)}
                         </td>
                       </tr>
@@ -326,15 +331,15 @@ export function CartaoCsvImportDialog({
               </div>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <div className="flex gap-3 items-center">
-                <Badge variant="secondary">{selectedCount} de {rows.length} selecionados</Badge>
-                <span className="text-muted-foreground">Total: <span className="font-semibold text-foreground">{formatCurrency(totalSelected)}</span></span>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center whitespace-nowrap rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] font-semibold text-foreground-muted">{selectedCount} de {rows.length} selecionados</span>
+                <span className="text-foreground-muted">Total: <span className="font-heading font-semibold tabular-nums text-foreground">{formatCurrency(totalSelected)}</span></span>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={handleClose}>Cancelar</Button>
               <Button onClick={handleImport} disabled={selectedCount === 0}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                <FileSpreadsheet className="h-4 w-4" />
                 Importar {selectedCount} lançamentos
               </Button>
             </DialogFooter>
@@ -345,8 +350,8 @@ export function CartaoCsvImportDialog({
           <div className="py-8 space-y-4">
             <div className="text-center">
               <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary mb-2" />
-              <p className="font-medium">Importando lançamentos…</p>
-              <p className="text-xs text-muted-foreground">{imported} de {rows.filter(r => r.selected).length}</p>
+              <p className="font-semibold text-foreground">Importando lançamentos…</p>
+              <p className="text-[12px] text-foreground-muted">{imported} de {rows.filter(r => r.selected).length}</p>
             </div>
             <Progress value={progress} />
           </div>
@@ -354,10 +359,12 @@ export function CartaoCsvImportDialog({
 
         {step === 'done' && (
           <div className="py-8 text-center space-y-3">
-            <CheckCircle2 className="h-12 w-12 mx-auto text-emerald-500" />
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-success-bg text-success-fg">
+              <CheckCircle2 className="h-7 w-7" />
+            </span>
             <div>
               <p className="font-semibold">{imported} lançamentos importados!</p>
-              <p className="text-xs text-muted-foreground">Os valores foram adicionados à fatura do cartão.</p>
+              <p className="text-[12px] text-foreground-muted">Os valores foram adicionados à fatura do cartão.</p>
             </div>
             <Button onClick={handleClose}>Fechar</Button>
           </div>

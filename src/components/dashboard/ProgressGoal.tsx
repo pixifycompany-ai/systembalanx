@@ -55,74 +55,74 @@ export function ProgressGoal({
 
   return (
     <>
-      <div className={cn('metric-card animate-fade-in', className)}>
+      <section className={cn('rounded-[20px] border border-border bg-surface p-4 md:rounded-3xl md:p-6', className)}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</h3>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
-            )}
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">{title}</h3>
+            {subtitle && <p className="mt-0.5 text-[13px] text-foreground-muted">{subtitle}</p>}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
+            {showPercentage && (
+              <span
+                className={cn(
+                  'font-heading text-[26px] font-semibold leading-none tracking-[-0.02em] tabular-nums',
+                  isExceeded ? 'text-[hsl(var(--success-fg))]' : 'text-foreground',
+                )}
+              >
+                {isExceeded && '+'}
+                {formatPercentage(displayPercentage, 0)}
+              </span>
+            )}
             {editable && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-8 w-8"
                 onClick={handleOpenDialog}
+                aria-label="Editar meta"
               >
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
-            )}
-            {showPercentage && (
-              <div className={cn(
-                "text-2xl font-semibold tabular-nums",
-                isExceeded ? "text-green-500" : "text-foreground"
-              )}>
-                {isExceeded && '+'}
-                {formatPercentage(displayPercentage, 0)}
-              </div>
             )}
           </div>
         </div>
 
         {/* Progress Bar */}
-        <div className="relative">
-          <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
-            <div
-              className={cn(
-                "h-full rounded-full transition-all duration-500 ease-out",
-                isExceeded ? "bg-green-500" : "bg-foreground"
-              )}
-              style={{ width: `${barPercentage}%` }}
-            />
-          </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
+          <div
+            className={cn(
+              'h-full rounded-full transition-all duration-500 ease-out',
+              isExceeded ? 'bg-success' : 'bg-primary',
+            )}
+            style={{ width: `${barPercentage}%` }}
+          />
         </div>
 
         {/* Values */}
-        <div className="flex items-center justify-between mt-3 text-sm">
-          <span className="text-muted-foreground">
-            Atual: <span className="font-medium text-foreground">{formatCurrency(current)}</span>
+        <div className="mt-3 flex items-center justify-between gap-3 text-[13px]">
+          <span className="text-foreground-muted">
+            Atual: <span className="font-heading font-semibold tabular-nums text-foreground">{formatCurrency(current)}</span>
           </span>
-          <span className="text-muted-foreground">
-            Meta: <span className="font-medium text-foreground">{formatCurrency(target)}</span>
+          <span className="text-foreground-muted">
+            Meta: <span className="font-heading font-semibold tabular-nums text-foreground">{formatCurrency(target)}</span>
           </span>
         </div>
 
         {/* Status Message */}
         {isComplete && (
-          <div className={cn(
-            "mt-3 text-sm font-medium",
-            isExceeded ? "text-green-500" : "text-foreground"
-          )}>
-            {isExceeded 
+          <div
+            className={cn(
+              'mt-3 inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-semibold leading-none',
+              isExceeded ? 'bg-success-bg text-success-fg' : 'bg-info-bg text-info-fg',
+            )}
+          >
+            {isExceeded
               ? `Meta ultrapassada em ${formatPercentage(displayPercentage - 100, 0)}!`
-              : 'Meta atingida!'
-            }
+              : 'Meta atingida!'}
           </div>
         )}
-      </div>
+      </section>
 
       {/* Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -132,7 +132,7 @@ export function ProgressGoal({
           </DialogHeader>
           <div className="py-4">
             {subtitle && (
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="mb-4 text-sm text-foreground-muted">
                 Período: {subtitle}
               </p>
             )}

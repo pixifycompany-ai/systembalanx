@@ -1,9 +1,12 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/utils/formatters';
 import { EmpresaFonteBadge } from '@/components/shared/EmpresaFonteBadge';
+import { SectionCard } from '@/components/shared/SectionCard';
+import { KpiTriple } from '@/components/shared/KpiTriple';
+import { cn } from '@/lib/utils';
+import { CalNav } from './CalNav';
 import type { DayTransactions } from '@/hooks/useCalendario';
 
 interface DayViewProps {
@@ -30,92 +33,78 @@ export function DayView({ refDate, day, onPrev, onNext }: DayViewProps) {
   });
 
   return (
-    <div className="metric-card animate-fade-in overflow-hidden">
-      <div className="flex items-center justify-between mb-4 gap-2">
-        <Button variant="ghost" size="icon" onClick={onPrev} className="h-8 w-8 shrink-0">
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1 min-w-0 text-center">
-          <h3 className="text-sm font-semibold text-foreground truncate">{label}</h3>
+    <SectionCard
+      flush
+      className="overflow-hidden animate-fade-in"
+      title={
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate">{label}</span>
           {isToday && (
-            <span className="text-[10px] text-primary font-medium uppercase tracking-wide">
-              Hoje
-            </span>
+            <span className="shrink-0 rounded-full bg-info-bg px-2 py-0.5 text-[11px] font-semibold text-info-fg">Hoje</span>
           )}
-        </div>
-        <Button variant="ghost" size="icon" onClick={onNext} className="h-8 w-8 shrink-0">
-          <ChevronRight className="h-4 w-4" />
-        </Button>
+        </span>
+      }
+      action={<CalNav onPrev={onPrev} onNext={onNext} />}
+    >
+      {/* Totais do dia */}
+      <div className="px-4 pb-4 md:px-6">
+        <KpiTriple
+          className="mb-0"
+          items={[
+            { label: 'Entradas', value: receitas, tone: 'green' },
+            { label: 'Saídas', value: despesas, tone: 'red' },
+            { label: 'Saldo', value: saldo, tone: 'steel' },
+          ]}
+        />
       </div>
 
-      {/* Day totals */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <div className="rounded-lg border border-border p-3 bg-emerald-50/50 dark:bg-emerald-900/10">
-          <p className="text-[10px] text-muted-foreground uppercase mb-1">Entradas</p>
-          <p className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 truncate">
-            {formatCurrency(receitas)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border p-3 bg-red-50/50 dark:bg-red-900/10">
-          <p className="text-[10px] text-muted-foreground uppercase mb-1">Saídas</p>
-          <p className="text-sm font-semibold tabular-nums text-red-700 dark:text-red-400 truncate">
-            {formatCurrency(despesas)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border p-3 bg-surface-2/50">
-          <p className="text-[10px] text-muted-foreground uppercase mb-1">Saldo</p>
-          <p
-            className={`text-sm font-semibold tabular-nums truncate ${saldo >= 0 ? 'text-foreground' : 'text-red-700 dark:text-red-400'}`}
-          >
-            {formatCurrency(saldo)}
-          </p>
-        </div>
-      </div>
-
-      {/* Transactions timeline */}
+      {/* Lançamentos do dia */}
       {items.length === 0 ? (
-        <div className="flex items-center justify-center min-h-[120px] text-sm text-muted-foreground">
+        <div className="flex min-h-[120px] items-center justify-center border-t border-border text-sm text-foreground-muted">
           Sem lançamentos neste dia
         </div>
       ) : (
-        <ul className="space-y-2">
-          {items.map((it) => (
-            <li
-              key={`${it.tipo}-${it.id}`}
-              className="flex items-center gap-3 rounded-lg border border-border p-3 bg-card"
-            >
-              <span
-                className="h-2 w-2 rounded-full shrink-0"
-                style={{
-                  backgroundColor:
-                    it.categoriaCor ||
-                    (it.tipo === 'receita' ? 'hsl(var(--success))' : 'hsl(var(--danger))'),
-                }}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-medium text-foreground truncate">{it.descricao}</p>
-                  {it.empresaFonte && <EmpresaFonteBadge empresa={it.empresaFonte} size="xs" />}
+        <ul>
+          {items.map((it) => {
+            const isRec = it.tipo === 'receita';
+            const Icon = isRec ? ArrowUpRight : ArrowDownRight;
+            return (
+              <li key={`${it.tipo}-${it.id}`} className="flex items-center gap-3 border-t border-border px-4 py-3 md:px-6">
+                <span
+                  className={cn(
+                    'grid h-10 w-10 shrink-0 place-items-center rounded-[13px]',
+                    isRec ? 'bg-success-bg text-success-fg' : 'bg-danger-bg text-danger-fg',
+                  )}
+                >
+                  <Icon className="h-[18px] w-[18px]" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-foreground">{it.descricao}</p>
+                    {it.empresaFonte && <EmpresaFonteBadge empresa={it.empresaFonte} size="xs" />}
+                  </div>
+                  {(it.clienteOuFornecedor || it.categoriaCor) && (
+                    <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px] text-foreground-muted">
+                      {it.categoriaCor && (
+                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: it.categoriaCor }} />
+                      )}
+                      <span className="truncate">{it.clienteOuFornecedor}</span>
+                    </p>
+                  )}
                 </div>
-                {it.clienteOuFornecedor && (
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    {it.clienteOuFornecedor}
-                  </p>
-                )}
-              </div>
-              <span
-                className={`text-sm font-semibold tabular-nums shrink-0 ${
-                  it.tipo === 'receita'
-                    ? 'text-emerald-700 dark:text-emerald-400'
-                    : 'text-red-700 dark:text-red-400'
-                }`}
-              >
-                {it.tipo === 'receita' ? '+' : '−'} {formatCurrency(it.valor)}
-              </span>
-            </li>
-          ))}
+                <span
+                  className={cn(
+                    'shrink-0 font-heading text-sm font-semibold tabular-nums',
+                    isRec ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]',
+                  )}
+                >
+                  {isRec ? '+' : '−'} {formatCurrency(it.valor)}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
-    </div>
+    </SectionCard>
   );
 }

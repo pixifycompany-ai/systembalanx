@@ -161,15 +161,15 @@ export function FluxoCaixaReport({ open, onOpenChange, transacoes, contas }: Flu
           <div className="grid grid-cols-3 gap-4">
             <div className="rounded-lg border p-4 text-center">
               <p className="text-xs text-muted-foreground">Entradas</p>
-              <p className="text-lg font-semibold text-emerald-600">{formatCurrency(totals.entradas)}</p>
+              <p className="text-lg font-semibold text-[hsl(var(--success-fg))]">{formatCurrency(totals.entradas)}</p>
             </div>
             <div className="rounded-lg border p-4 text-center">
               <p className="text-xs text-muted-foreground">Saídas</p>
-              <p className="text-lg font-semibold text-rose-600">{formatCurrency(totals.saidas)}</p>
+              <p className="text-lg font-semibold text-[hsl(var(--danger-fg))]">{formatCurrency(totals.saidas)}</p>
             </div>
             <div className="rounded-lg border p-4 text-center">
               <p className="text-xs text-muted-foreground">Saldo</p>
-              <p className={cn("text-lg font-semibold", totals.saldo >= 0 ? 'text-emerald-600' : 'text-rose-600')}>
+              <p className={cn("text-lg font-semibold", totals.saldo >= 0 ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]')}>
                 {formatCurrency(totals.saldo)}
               </p>
             </div>
@@ -232,7 +232,7 @@ export function FluxoCaixaReport({ open, onOpenChange, transacoes, contas }: Flu
                       <td className="p-2 max-w-[150px] truncate">{t.descricao}</td>
                       <td className="p-2">{t.categoria?.nome || '-'}</td>
                       <td className="p-2">{t.cliente?.nome || t.fornecedor || '-'}</td>
-                      <td className={cn("p-2 text-right font-medium", t.tipo === 'entrada' ? 'text-emerald-600' : 'text-rose-600')}>
+                      <td className={cn("p-2 text-right font-medium", t.tipo === 'entrada' ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]')}>
                         {t.tipo === 'entrada' ? '+' : '-'} {formatCurrency(t.valor)}
                       </td>
                       <td className="p-2 text-center">{t.status_display}</td>

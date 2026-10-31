@@ -20,6 +20,8 @@ import {
   CreditCardIcon, CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
+import { useTenant } from '@/contexts/TenantContext';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 
 type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas';
 
@@ -27,6 +29,7 @@ export default function MeuPerfil() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { profile, avatarSignedUrl, loading, updateNome, updatePushEnabled, uploadAvatar } = useProfile();
+  const { activeTenant } = useTenant();
   const fileRef = useRef<HTMLInputElement>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
 
@@ -306,83 +309,90 @@ export default function MeuPerfil() {
   if (loading) return <BalanxLoader fullscreen={false} />;
 
   return (
-    <div className="max-w-lg mx-auto">
-      <div className="mb-5">
-        <p className="text-xs text-foreground-muted mb-0.5 font-medium">Conta</p>
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">Meu Perfil</h1>
-      </div>
+    <div className="mx-auto max-w-2xl">
+      <MobilePageHeader eyebrow="Conta" title="Meu Perfil" />
 
-      {/* Avatar + nome */}
+      {/* Cartão do perfil: avatar + nome + plano */}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarPick} />
-      <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-surface p-4 mb-4">
+      <div className="mb-5 flex items-center gap-3.5 rounded-[20px] border border-border bg-surface p-4 md:mb-6 md:rounded-3xl md:p-5">
         <button onClick={() => fileRef.current?.click()} className="relative shrink-0" aria-label="Trocar avatar">
           <Avatar className="h-14 w-14">
             {avatarSignedUrl && <AvatarImage src={avatarSignedUrl} alt={profile?.nome ?? ''} />}
-            <AvatarFallback>{initials}</AvatarFallback>
+            <AvatarFallback className="bg-foreground font-semibold text-background">{initials}</AvatarFallback>
           </Avatar>
-          <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full bg-primary text-primary-foreground">
+          <span className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full border-2 border-surface bg-primary text-primary-foreground">
             {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <CameraIcon className="h-3 w-3" />}
           </span>
         </button>
-        <button onClick={() => setSheet('nome')} className="flex-1 min-w-0 text-left">
-          <div className="text-[15px] font-semibold text-foreground truncate">{profile?.nome || 'Seu nome'}</div>
-          <div className="text-[11.5px] text-foreground-muted mt-0.5">Trocar avatar · ajustamos o tamanho pra você</div>
+        <button onClick={() => setSheet('nome')} className="min-w-0 flex-1 text-left">
+          <div className="truncate text-[16px] font-semibold tracking-[-0.01em] text-foreground md:text-[17px]">{profile?.nome || 'Seu nome'}</div>
+          <div className="mt-0.5 truncate text-[12.5px] text-foreground-muted">
+            {planoLabel(activeTenant) ? `Plano ${planoLabel(activeTenant)}` : 'Trocar avatar · ajustamos o tamanho pra você'}
+            {activeTenant?.nome ? ` · ${activeTenant.nome}` : ''}
+          </div>
         </button>
-        <ChevronRightIcon className="h-4 w-4 text-foreground-subtle shrink-0" onClick={() => setSheet('nome')} />
+        <button onClick={() => setSheet('nome')} className="shrink-0 text-[13px] font-semibold text-primary hover:underline">
+          Editar
+        </button>
       </div>
 
-      {/* Grupo: acesso */}
-      <SetGroup>
-        <SetRow icon={<EnvelopeIcon className="h-[18px] w-[18px]" />} title="E-mail de login" sub={user?.email || ''} onClick={() => setSheet('email')} chevron />
-        <SetRow icon={<LockClosedIcon className="h-[18px] w-[18px]" />} title="Alterar senha" sub="Atualize sua senha de acesso" onClick={() => setSheet('senha')} chevron />
-        <SetRow icon={<ShieldCheck className="h-[18px] w-[18px]" />} title="Verificação em duas etapas (2FA)" sub="Código do autenticador além da senha" onClick={() => setSheet('mfa')} chevron />
-      </SetGroup>
+      <div className="space-y-5 md:space-y-6">
+        {/* Grupo: acesso */}
+        <SetGroup title="Acesso">
+          <SetRow icon={<EnvelopeIcon className="h-[18px] w-[18px]" />} title="E-mail de login" sub={user?.email || ''} onClick={() => setSheet('email')} chevron />
+          <SetRow icon={<LockClosedIcon className="h-[18px] w-[18px]" />} title="Alterar senha" sub="Atualize sua senha de acesso" onClick={() => setSheet('senha')} chevron />
+          <SetRow icon={<ShieldCheck className="h-[18px] w-[18px]" />} title="Verificação em duas etapas (2FA)" sub="Código do autenticador além da senha" onClick={() => setSheet('mfa')} chevron />
+        </SetGroup>
 
-      {/* Grupo: notificações */}
-      <SetGroup>
-        <SetRow
-          icon={<BellAlertIcon className="h-[18px] w-[18px]" />}
-          title="Avisos de vencimento"
-          sub="Push diário às 8h no iPhone"
-          right={<Switch checked={!!profile?.push_enabled} disabled={pushSaving} onCheckedChange={handleTogglePush} />}
-        />
-        {profile?.push_enabled && (
-          <>
-            <SetRow icon={<PaperAirplaneIcon className="h-[18px] w-[18px]" />} title="Enviar notificação de teste" onClick={enviarTeste} chevron />
-            <SetRow icon={<ArrowPathIcon className="h-[18px] w-[18px]" />} title="Reinstalar push" onClick={reinstalarPush} chevron />
-          </>
-        )}
-      </SetGroup>
+        {/* Grupo: notificações */}
+        <SetGroup title="Notificações">
+          <SetRow
+            icon={<BellAlertIcon className="h-[18px] w-[18px]" />}
+            title="Avisos de vencimento"
+            sub="Push diário às 8h no iPhone"
+            right={<Switch checked={!!profile?.push_enabled} disabled={pushSaving} onCheckedChange={handleTogglePush} />}
+          />
+          {profile?.push_enabled && (
+            <>
+              <SetRow icon={<PaperAirplaneIcon className="h-[18px] w-[18px]" />} title="Enviar notificação de teste" onClick={enviarTeste} chevron />
+              <SetRow icon={<ArrowPathIcon className="h-[18px] w-[18px]" />} title="Reinstalar push" onClick={reinstalarPush} chevron />
+            </>
+          )}
+        </SetGroup>
 
-      {/* Grupo: cobrança (Asaas) */}
-      <SetGroup>
-        <SetRow
-          icon={<CreditCardIcon className="h-[18px] w-[18px]" />}
-          title="Cobrança automática (Asaas)"
-          sub={asaasStatus?.connected
-            ? `Conectado${asaasStatus.accountName ? ` · ${asaasStatus.accountName}` : ''}${asaasStatus.env === 'sandbox' ? ' (sandbox)' : ''}`
-            : 'Conecte sua conta Asaas para cobrar seus clientes'}
-          right={asaasStatus?.connected ? <CheckCircleIcon className="h-5 w-5 text-[hsl(var(--success))]" /> : undefined}
-          onClick={() => setSheet('asaas')}
-          chevron
-        />
-      </SetGroup>
+        {/* Grupo: cobrança (Asaas) */}
+        <SetGroup title="Cobrança">
+          <SetRow
+            icon={<CreditCardIcon className="h-[18px] w-[18px]" />}
+            title="Cobrança automática (Asaas)"
+            sub={asaasStatus?.connected
+              ? `Conectado${asaasStatus.accountName ? ` · ${asaasStatus.accountName}` : ''}${asaasStatus.env === 'sandbox' ? ' (sandbox)' : ''}`
+              : 'Conecte sua conta Asaas para cobrar seus clientes'}
+            right={asaasStatus?.connected ? <CheckCircleIcon className="h-5 w-5 text-[hsl(var(--success-fg))]" /> : undefined}
+            onClick={() => setSheet('asaas')}
+            chevron
+          />
+        </SetGroup>
 
-      {/* Sair */}
-      <button
-        onClick={() => signOut()}
-        className="mt-2 w-full h-[46px] rounded-2xl border border-[hsl(var(--danger))]/30 bg-[hsl(var(--danger))]/10 text-[hsl(var(--danger))] font-semibold text-sm inline-flex items-center justify-center gap-2"
-      >
-        <ArrowRightOnRectangleIcon className="h-4 w-4" /> Sair da conta
-      </button>
+        {/* Sessão */}
+        <div className="space-y-3">
+          <Button
+            variant="outline"
+            onClick={() => signOut()}
+            className="h-12 w-full gap-2 rounded-full font-semibold text-[hsl(var(--danger-fg))] hover:text-[hsl(var(--danger-fg))]"
+          >
+            <ArrowRightOnRectangleIcon className="h-4 w-4" /> Sair da conta
+          </Button>
 
-      {/* Zona de perigo — excluir conta */}
-      <button
-        onClick={() => { setConfirmText(''); setSheet('excluir'); }}
-        className="mt-4 mb-2 w-full text-center text-[12.5px] font-medium text-foreground-muted underline underline-offset-2 hover:text-[hsl(var(--danger))] transition-colors"
-      >
-        Excluir minha conta
-      </button>
+          {/* Zona de perigo — excluir conta */}
+          <button
+            onClick={() => { setConfirmText(''); setSheet('excluir'); }}
+            className="mb-2 w-full text-center text-[13px] font-medium text-foreground-muted underline underline-offset-2 transition-colors hover:text-[hsl(var(--danger-fg))]"
+          >
+            Excluir minha conta
+          </button>
+        </div>
+      </div>
 
       {/* Sheet: nome */}
       <DetailSheet open={sheet === 'nome'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Identidade" title="Seu nome">
@@ -399,14 +409,14 @@ export default function MeuPerfil() {
       <DetailSheet open={sheet === 'asaas'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Cobrança" title="Conta Asaas">
         {asaasStatus?.connected ? (
           <div className="space-y-4 pb-2">
-            <div className="rounded-xl border border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-semibold text-[hsl(var(--success))]"><CheckCircleIcon className="h-4 w-4" /> Conectado</div>
+            <div className="rounded-[16px] bg-success-bg p-3.5 text-sm">
+              <div className="flex items-center gap-2 font-semibold text-success-fg"><CheckCircleIcon className="h-4 w-4" /> Conectado</div>
               <p className="mt-1 text-foreground-muted">{asaasStatus.accountName || 'Conta Asaas'} · {asaasStatus.env === 'sandbox' ? 'Sandbox (teste)' : 'Produção'}</p>
             </div>
             <p className="text-xs text-foreground-muted">As cobranças dos seus clientes vão pra ESTA conta Asaas — o dinheiro cai direto pra você.</p>
 
             {/* Webhook: baixa automática */}
-            <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-2.5">
+            <div className="rounded-[16px] border border-border bg-surface-2 p-3.5 space-y-2.5">
               <p className="text-xs font-semibold text-foreground">Baixa automática (webhook)</p>
               <p className="text-[11px] text-foreground-muted">No Asaas → <b>Configurações → Integrações → Webhooks</b>, cadastre esta URL e cole o token no campo de autenticação. Aí, quando o cliente pagar, a receita baixa sozinha.</p>
               <div className="space-y-1">
@@ -426,7 +436,7 @@ export default function MeuPerfil() {
             </div>
 
             {/* Mensagem padrão do WhatsApp */}
-            <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-2">
+            <div className="rounded-[16px] border border-border bg-surface-2 p-3.5 space-y-2">
               <p className="text-xs font-semibold text-foreground">Mensagem padrão do WhatsApp</p>
               <p className="text-[11px] text-foreground-muted">Usada ao enviar a cobrança. Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{link}'}</b> <b>{'{prazo}'}</b> <b>{'{dias}'}</b> (ex.: "vence em 7 dias", "vence hoje", "está vencida há 5 dias"). Aceita *negrito*, _itálico_ e quebra de linha.</p>
               <Textarea value={whatsappTpl} onChange={(e) => setWhatsappTpl(e.target.value)} rows={8} className="font-mono text-[12px] leading-relaxed" />
@@ -436,7 +446,7 @@ export default function MeuPerfil() {
             </div>
 
             {/* E-mail de cobrança (assunto + corpo) */}
-            <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-2">
+            <div className="rounded-[16px] border border-border bg-surface-2 p-3.5 space-y-2">
               <p className="text-xs font-semibold text-foreground">E-mail de cobrança</p>
               <p className="text-[11px] text-foreground-muted">Usado no envio por e-mail (manual e automático). O layout (botão de pagamento, valor, vencimento, PIX e NF em anexo) já vem pronto — aqui você define o <b>assunto</b> e a <b>mensagem de abertura</b>. Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{link}'}</b> <b>{'{pix}'}</b> <b>{'{titular}'}</b> <b>{'{prazo}'}</b> <b>{'{dias}'}</b> (ex.: "vence em 7 dias", "vence hoje", "está vencida há 5 dias").</p>
               <div>
@@ -453,7 +463,7 @@ export default function MeuPerfil() {
             </div>
 
             {/* Chave PIX (para cobranças enviadas por PIX em vez do link Asaas) */}
-            <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-2">
+            <div className="rounded-[16px] border border-border bg-surface-2 p-3.5 space-y-2">
               <p className="text-xs font-semibold text-foreground">Recebimento por PIX (chave própria)</p>
               <p className="text-[11px] text-foreground-muted">Usada nas cobranças marcadas como "enviar chave PIX". O cliente paga na sua chave (fora do Asaas) e você dá baixa com "Identificar pagamento manual".</p>
               <div className="grid grid-cols-2 gap-2">
@@ -475,7 +485,7 @@ export default function MeuPerfil() {
             </div>
 
             {/* Envio automático por WhatsApp (regra global) */}
-            <div className="rounded-xl border border-border/60 bg-surface/60 p-3 space-y-3">
+            <div className="rounded-[16px] border border-border bg-surface-2 p-3.5 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold text-foreground">Envio automático por WhatsApp</p>
@@ -485,7 +495,7 @@ export default function MeuPerfil() {
               </div>
 
               {autoCfg.enabled && (
-                <div className="space-y-2.5 border-t border-border/50 pt-3">
+                <div className="space-y-2.5 border-t border-border pt-3">
                   <div className="flex items-center justify-between gap-3">
                     <Label className="text-xs font-normal">Enviar <b>X dias antes</b> do vencimento</Label>
                     <Input type="number" min="0" value={autoCfg.antesDias} onChange={(e) => setAutoCfg((p) => ({ ...p, antesDias: parseInt(e.target.value) || 0 }))} className="h-8 w-16 text-center text-sm" />
@@ -514,7 +524,7 @@ export default function MeuPerfil() {
               </Button>
             </div>
 
-            <Button variant="outline" className="w-full text-[hsl(var(--danger))]" onClick={handleDesconectarAsaas} disabled={asaasConnecting}>
+            <Button variant="outline" className="w-full text-[hsl(var(--danger-fg))]" onClick={handleDesconectarAsaas} disabled={asaasConnecting}>
               {asaasConnecting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Desconectar
             </Button>
           </div>
@@ -524,7 +534,7 @@ export default function MeuPerfil() {
             <Label>Ambiente</Label>
             <div className="grid grid-cols-2 gap-2">
               {(['production', 'sandbox'] as const).map((e) => (
-                <button key={e} type="button" onClick={() => setAsaasEnv(e)} className={cn('rounded-xl border py-2.5 text-sm font-semibold transition-colors', asaasEnv === e ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>
+                <button key={e} type="button" onClick={() => setAsaasEnv(e)} className={cn('h-10 rounded-full border text-[13px] font-semibold transition-colors', asaasEnv === e ? 'border-transparent bg-foreground text-background' : 'border-border bg-surface text-foreground-muted hover:bg-surface-2')}>
                   {e === 'production' ? 'Produção' : 'Sandbox (teste)'}
                 </button>
               ))}
@@ -580,7 +590,7 @@ export default function MeuPerfil() {
       {/* Sheet: excluir conta (LGPD) */}
       <DetailSheet open={sheet === 'excluir'} onOpenChange={(o) => { if (!o && !deleting) setSheet(null); }} eyebrow="Zona de perigo" title="Excluir minha conta">
         <div className="space-y-4 pb-2">
-          <div className="rounded-xl border border-[hsl(var(--danger))]/30 bg-[hsl(var(--danger))]/10 p-3.5 text-[13px] leading-relaxed text-foreground">
+          <div className="rounded-[16px] bg-danger-bg p-3.5 text-[13px] leading-relaxed text-foreground">
             Isso apaga <b>permanentemente</b> a sua conta e <b>todos os dados</b>: lançamentos, contas, contratos, clientes, categorias, cartões, metas e o seu login. Se houver assinatura ativa, ela é cancelada. <b>Não dá pra desfazer.</b>
           </div>
           <div className="space-y-1.5">
@@ -590,7 +600,7 @@ export default function MeuPerfil() {
           <Button
             onClick={handleExcluirConta}
             disabled={deleting || confirmText.trim().toUpperCase() !== 'EXCLUIR'}
-            className="w-full h-12 rounded-2xl font-semibold bg-[hsl(var(--danger))] text-white hover:bg-[hsl(var(--danger))]/90 disabled:opacity-50"
+            className="h-12 w-full rounded-full bg-destructive font-semibold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
           >
             {deleting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Excluindo tudo…</> : 'Excluir minha conta para sempre'}
           </Button>
@@ -600,11 +610,26 @@ export default function MeuPerfil() {
   );
 }
 
-function SetGroup({ children }: { children: ReactNode }) {
+type TenantInfo = ReturnType<typeof useTenant>['activeTenant'];
+
+/** Rótulo curto do plano do workspace (mesma regra do menu lateral). */
+function planoLabel(t: TenantInfo): string {
+  if (!t) return '';
+  if (t.cortesia) return 'Cortesia';
+  if (t.status_assinatura === 'ativa') return 'ativo';
+  if (t.status_assinatura === 'trial') return 'em teste';
+  if (t.status_assinatura === 'inadimplente') return 'com pagamento pendente';
+  return t.status_assinatura || '';
+}
+
+function SetGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="mb-3.5 overflow-hidden rounded-2xl border border-border bg-surface">
-      {children}
-    </div>
+    <section className="flex flex-col gap-2">
+      <h2 className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">{title}</h2>
+      <div className="overflow-hidden rounded-[20px] border border-border bg-surface">
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -615,15 +640,15 @@ function SetRow({ icon, title, sub, right, chevron, onClick }: {
   return (
     <Comp
       onClick={onClick}
-      className={cn('flex items-center gap-3 w-full px-4 py-3.5 text-left border-b border-border/50 last:border-b-0', onClick && 'hover:bg-foreground/[0.04] transition-colors')}
+      className={cn('flex w-full items-center gap-3 border-b border-border px-3.5 py-3 text-left last:border-b-0', onClick && 'transition-colors hover:bg-foreground/[0.04]')}
     >
-      <span className="text-foreground-muted shrink-0">{icon}</span>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-foreground truncate">{title}</div>
-        {sub && <div className="text-[11.5px] text-foreground-muted truncate">{sub}</div>}
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-surface-2 text-foreground">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[14px] font-semibold text-foreground">{title}</div>
+        {sub && <div className="truncate text-[12px] text-foreground-muted">{sub}</div>}
       </div>
       {right}
-      {chevron && <ChevronRightIcon className="h-4 w-4 text-foreground-subtle shrink-0" />}
+      {chevron && <ChevronRightIcon className="h-4 w-4 shrink-0 text-foreground-muted" />}
     </Comp>
   );
 }

@@ -1,7 +1,9 @@
-import { Calendar, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatCurrency, formatDate } from '@/utils/formatters';
+import { formatCurrency } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
+import { SectionCard } from '@/components/shared/SectionCard';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export interface UpcomingItem {
   id: string;
@@ -21,8 +23,8 @@ interface UpcomingDueWidgetProps {
   onItemClick?: (item: UpcomingItem) => void;
 }
 
-export function UpcomingDueWidget({ 
-  items, 
+export function UpcomingDueWidget({
+  items,
   title = 'Próximos Vencimentos',
   days = 7,
   onItemClick,
@@ -37,73 +39,94 @@ export function UpcomingDueWidget({
 
   const pill = (dateStr: string) => {
     const d = diasAte(dateStr);
-    if (d < 0) return { label: `Atrasado ${Math.abs(d)}d`, cls: 'border-[hsl(var(--danger))]/30 bg-[hsl(var(--danger))]/10 text-[hsl(var(--danger))]' };
-    if (d === 0) return { label: 'Hoje', cls: 'border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]' };
-    if (d === 1) return { label: 'Amanhã', cls: 'border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/10 text-[hsl(var(--warning))]' };
-    return { label: `em ${d} dias`, cls: 'border-border/70 bg-foreground/[0.04] text-foreground-muted' };
+    if (d < 0) return { label: `Atrasado ${Math.abs(d)}d`, cls: 'bg-danger-bg text-danger-fg' };
+    if (d === 0) return { label: 'Hoje', cls: 'bg-warning-bg text-warning-fg' };
+    if (d === 1) return { label: 'Amanhã', cls: 'bg-warning-bg text-warning-fg' };
+    return { label: `em ${d} dias`, cls: 'bg-surface-2 text-foreground-muted' };
   };
 
-  const cardCls = 'auro-card rounded-2xl border border-border bg-surface p-5';
+  const dataCurta = (dateStr: string) => {
+    const d = diasAte(dateStr);
+    if (d === 0) return 'Hoje';
+    if (d === 1) return 'Amanhã';
+    const [, mm, dd] = dateStr.split('T')[0].split('-');
+    return dd && mm ? `${dd}/${mm}` : dateStr;
+  };
+
+  const verTodos = (
+    <Link
+      to="/fluxo-caixa?venc=prox7"
+      className="text-[13px] font-medium text-foreground-muted transition-colors hover:text-foreground"
+    >
+      Ver todos{items.length > 6 ? ` (${items.length})` : ''}
+    </Link>
+  );
 
   if (items.length === 0) {
     return (
-      <div className={cardCls}>
-        <h3 className="text-[15px] font-semibold text-foreground mb-4">{title}</h3>
+      <SectionCard title={title}>
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-            <Calendar className="h-6 w-6 text-primary" />
+          <div className="mb-3 grid h-10 w-10 place-items-center rounded-[13px] bg-surface-2 text-foreground-muted">
+            <Calendar className="h-5 w-5" />
           </div>
-          <p className="text-sm text-muted-foreground">Nenhum vencimento nos próximos {days} dias</p>
+          <p className="text-sm text-foreground-muted">Nenhum vencimento nos próximos {days} dias</p>
         </div>
-      </div>
+      </SectionCard>
     );
   }
 
   return (
-    <div className={cardCls}>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[15px] font-semibold text-foreground">{title}</h3>
-        <Link to="/fluxo-caixa?venc=prox7" className="inline-flex items-center gap-1 text-xs font-medium text-foreground-muted hover:text-foreground">
-          Ver todos{items.length > 6 ? ` (${items.length})` : ''} <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
-      </div>
-
-      <div className="divide-y divide-border/50">
-        {items.slice(0, 6).map((item) => {
-          const p = pill(item.data_vencimento);
-          return (
-            <button
-              key={item.id}
-              type="button"
-              className="flex w-full items-center gap-3 py-2.5 text-left transition-colors hover:bg-foreground/[0.03] -mx-2 px-2 rounded-lg"
-              onClick={() => onItemClick?.(item)}
-            >
-              <span className={cn(
-                'grid h-8 w-8 shrink-0 place-items-center rounded-full',
-                item.tipo === 'receita' ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]' : 'bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]',
-              )}>
-                {item.tipo === 'receita' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium text-foreground">{item.cliente_ou_fornecedor}</span>
-                <span className="block truncate text-[11.5px] text-foreground-muted">
-                  {item.descricao} · {formatDate(item.data_vencimento)}
-                </span>
-              </span>
-              <span className={cn(
-                'shrink-0 text-[13px] font-semibold tabular-nums',
-                item.tipo === 'receita' ? 'text-[hsl(var(--success))]' : 'text-foreground',
-              )}>
-                {item.tipo === 'receita' ? '+' : '−'}{formatCurrency(item.valor)}
-              </span>
-              <span className={cn('inline-flex h-6 w-[92px] shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold', p.cls)}>
-                {p.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <SectionCard flush title={title} action={verTodos} className="overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="pl-4 md:pl-6">Lançamento</TableHead>
+            <TableHead>Vencimento</TableHead>
+            <TableHead className="text-right">Valor</TableHead>
+            <TableHead className="pr-4 text-right md:pr-6">Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {items.slice(0, 6).map((item) => {
+            const p = pill(item.data_vencimento);
+            const isReceita = item.tipo === 'receita';
+            return (
+              <TableRow
+                key={item.id}
+                tabIndex={0}
+                className="cursor-pointer border-border"
+                onClick={() => onItemClick?.(item)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onItemClick?.(item);
+                  }
+                }}
+              >
+                <TableCell className="w-full max-w-0 pl-4 md:pl-6">
+                  <span className="block truncate text-sm font-semibold text-foreground">{item.descricao}</span>
+                  <span className="block truncate text-[12px] text-foreground-muted">{item.cliente_ou_fornecedor}</span>
+                </TableCell>
+                <TableCell className="whitespace-nowrap text-foreground-muted">{dataCurta(item.data_vencimento)}</TableCell>
+                <TableCell
+                  className={cn(
+                    'whitespace-nowrap text-right font-heading font-semibold tabular-nums',
+                    isReceita ? 'text-[hsl(var(--success-fg))]' : 'text-foreground',
+                  )}
+                >
+                  {isReceita ? '+' : '−'}{formatCurrency(item.valor)}
+                </TableCell>
+                <TableCell className="pr-4 text-right md:pr-6">
+                  <span className={cn('inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-semibold leading-none', p.cls)}>
+                    {p.label}
+                  </span>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </SectionCard>
   );
 }
 

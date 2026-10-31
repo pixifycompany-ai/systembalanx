@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { getMonthNameFull } from '@/utils/formatters';
+import { getMonthNameFull, formatCurrencyShort } from '@/utils/formatters';
+import { SectionCard } from '@/components/shared/SectionCard';
+import { cn } from '@/lib/utils';
 import { DayDetailDialog } from './DayDetailDialog';
+import { CalNav } from './CalNav';
 import type { DayTransactions } from '@/hooks/useCalendario';
 
 interface CalendarGridProps {
@@ -51,65 +52,81 @@ export function CalendarGrid({ year, month, days, onPrev, onNext }: CalendarGrid
 
   return (
     <>
-      <div className="metric-card animate-fade-in">
-        <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" size="icon" onClick={onPrev} className="h-8 w-8">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h3 className="text-sm font-semibold text-foreground">
-            {getMonthNameFull(month)} {year}
-          </h3>
-          <Button variant="ghost" size="icon" onClick={onNext} className="h-8 w-8">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-7 gap-px mb-1">
+      <SectionCard
+        className="animate-fade-in"
+        title={<span className="capitalize">{getMonthNameFull(month)} {year}</span>}
+        action={<CalNav onPrev={onPrev} onNext={onNext} />}
+      >
+        <div className="mb-1 grid grid-cols-7 gap-1">
           {weekDays.map((wd, i) => (
-            <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">
+            <div key={i} className="py-1 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">
               {wd}
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-px">
+        <div className="grid grid-cols-7 gap-1">
           {cells.map((cell, idx) => {
             const dayData = days[cell.dateStr];
             const isToday = cell.dateStr === todayStr;
-            const hasData = dayData && cell.currentMonth && dayData.items.length > 0;
+            const hasData = !!dayData && cell.currentMonth && dayData.items.length > 0;
+            const showMarks = !!dayData && cell.currentMonth && (dayData.receitas > 0 || dayData.despesas > 0);
 
             return (
-              <div
+              <button
                 key={idx}
+                type="button"
+                disabled={!hasData}
                 onClick={() => hasData && setSelectedDate(cell.dateStr)}
-                className={`min-h-[60px] md:min-h-[80px] p-1 rounded-md border border-transparent transition-colors ${
-                  cell.currentMonth ? 'bg-card' : 'bg-card/40'
-                } ${isToday ? 'ring-1 ring-primary' : ''} ${
-                  hasData ? 'cursor-pointer hover:bg-accent/50 hover:border-border' : ''
-                }`}
+                aria-label={hasData ? `Ver lançamentos do dia ${cell.day}` : undefined}
+                className={cn(
+                  'no-touch-min flex min-h-[52px] flex-col items-center gap-1 rounded-[12px] p-1 text-left transition-colors md:min-h-[88px] md:items-stretch md:p-2',
+                  hasData ? 'cursor-pointer hover:bg-surface-2' : 'cursor-default',
+                )}
               >
                 <span
-                  className={`text-[11px] font-medium ${
-                    cell.currentMonth ? 'text-foreground' : 'text-foreground-subtle'
-                  } ${isToday ? 'text-primary font-semibold' : ''}`}
+                  className={cn(
+                    'grid h-7 w-7 place-items-center rounded-full text-[12px] font-semibold tabular-nums md:text-[13px]',
+                    isToday
+                      ? 'bg-foreground text-background'
+                      : cell.currentMonth ? 'text-foreground' : 'text-foreground-subtle',
+                  )}
                 >
                   {cell.day}
                 </span>
-                {dayData && cell.currentMonth && (dayData.receitas > 0 || dayData.despesas > 0) && (
-                  <div className="mt-1 flex items-center gap-1">
-                    {dayData.receitas > 0 && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />
-                    )}
-                    {dayData.despesas > 0 && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--danger))]" />
-                    )}
-                  </div>
+                {showMarks && (
+                  <>
+                    {/* Mobile: pontos */}
+                    <span className="flex items-center gap-1 md:hidden">
+                      {dayData.receitas > 0 && <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />}
+                      {dayData.despesas > 0 && <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--danger))]" />}
+                    </span>
+                    {/* Desktop: selos tonais com o total do dia */}
+                    <span className="hidden flex-col gap-1 md:flex">
+                      {dayData.receitas > 0 && (
+                        <span className="truncate rounded-full bg-success-bg px-2 py-0.5 text-[11px] font-semibold tabular-nums text-success-fg">
+                          +{formatCurrencyShort(dayData.receitas)}
+                        </span>
+                      )}
+                      {dayData.despesas > 0 && (
+                        <span className="truncate rounded-full bg-danger-bg px-2 py-0.5 text-[11px] font-semibold tabular-nums text-danger-fg">
+                          −{formatCurrencyShort(dayData.despesas)}
+                        </span>
+                      )}
+                    </span>
+                  </>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>
-      </div>
+
+        <div className="mt-3 flex items-center gap-4 border-t border-border pt-3 text-[12px] text-foreground-muted">
+          <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(var(--success))]" />Receitas</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[hsl(var(--danger))]" />Despesas</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-foreground" />Hoje</span>
+        </div>
+      </SectionCard>
 
       <DayDetailDialog
         open={!!selectedDate}

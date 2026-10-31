@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react';
+import { SectionCard } from '@/components/shared/SectionCard';
+import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
+import { EmptyNote } from '@/components/relatorios/ReportKit';
+import { ArrowDown, ArrowUp, ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ClientProfitability } from '@/hooks/useAnalises';
 
@@ -11,6 +12,16 @@ interface ClientProfitabilityTableProps {
 }
 
 type SortKey = 'receitaTotal' | 'margemPercentual' | 'ltvCliente' | 'tempoRelacionamento';
+
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: 'receitaTotal', label: 'Receita' },
+  { key: 'margemPercentual', label: 'Margem' },
+  { key: 'ltvCliente', label: 'LTV' },
+  { key: 'tempoRelacionamento', label: 'Tempo' },
+];
+
+const marginTone = (m: number) =>
+  m >= 40 ? 'text-[hsl(var(--success-fg))]' : m >= 20 ? 'text-[hsl(var(--warning-fg))]' : 'text-[hsl(var(--danger-fg))]';
 
 export function ClientProfitabilityTable({ clients }: ClientProfitabilityTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('receitaTotal');
@@ -43,115 +54,113 @@ export function ClientProfitabilityTable({ clients }: ClientProfitabilityTablePr
 
   if (clients.length === 0) {
     return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Rentabilidade por Cliente</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center text-muted-foreground py-8">
-            Nenhum cliente com dados de rentabilidade
-          </div>
-        </CardContent>
-      </Card>
+      <SectionCard title="Rentabilidade por Cliente">
+        <EmptyNote>Nenhum cliente com dados de rentabilidade</EmptyNote>
+      </SectionCard>
     );
   }
 
+  const meses = (n: number) => `${n} ${n === 1 ? 'mês' : 'meses'}`;
+  const DirIcon = sortDesc ? ArrowDown : ArrowUp;
+
+  const Rank = ({ index }: { index: number }) => (
+    <span
+      className={cn(
+        'grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-semibold tabular-nums',
+        index < 3 ? 'bg-info-bg text-info-fg' : 'bg-surface-2 text-foreground-muted',
+      )}
+    >
+      {index + 1}
+    </span>
+  );
+
+  const SortHead = ({ k, label }: { k: SortKey; label: string }) => {
+    const active = sortKey === k;
+    const Icon = active ? DirIcon : ArrowUpDown;
+    return (
+      <TableHead>
+        <button
+          type="button"
+          onClick={() => handleSort(k)}
+          className={cn(
+            'no-touch-min inline-flex h-8 items-center gap-1 rounded-full px-2.5 -ml-2.5 text-xs font-medium transition-colors hover:bg-surface-2',
+            active ? 'text-foreground' : 'text-foreground-muted',
+          )}
+        >
+          {label}
+          <Icon className="h-3 w-3" />
+        </button>
+      </TableHead>
+    );
+  };
+
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Rentabilidade por Cliente - Top 10</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto -mx-6 px-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-48">Cliente</TableHead>
-                <TableHead>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => handleSort('receitaTotal')}
-                  >
-                    Receita
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => handleSort('margemPercentual')}
-                  >
-                    Margem
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => handleSort('ltvCliente')}
-                  >
-                    LTV
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => handleSort('tempoRelacionamento')}
-                  >
-                    Tempo
-                    <ArrowUpDown className="ml-1 h-3 w-3" />
-                  </Button>
-                </TableHead>
+    <SectionCard flush className="overflow-hidden animate-fade-in" title="Rentabilidade por Cliente - Top 10">
+      {/* Mobile: ordenação em chips + lista */}
+      <div className="md:hidden">
+        <ScrollPills className="mx-0 px-4 pb-3">
+          {SORTS.map((s) => (
+            <Pill key={s.key} active={sortKey === s.key} onClick={() => handleSort(s.key)}>
+              {s.label}
+              {sortKey === s.key && <DirIcon className="h-3 w-3" />}
+            </Pill>
+          ))}
+        </ScrollPills>
+        {topClients.map((client, index) => (
+          <div key={client.clienteId} className="flex items-center gap-3 border-t border-border px-4 py-3">
+            <Rank index={index} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">{client.clienteNome}</p>
+              <p className="mt-0.5 truncate text-[12px] text-foreground-muted">
+                LTV {formatCurrency(client.ltvCliente)} · {meses(client.tempoRelacionamento)}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="font-heading text-sm font-semibold tabular-nums text-foreground">{formatCurrency(client.receitaTotal)}</p>
+              <p className={cn('mt-0.5 inline-flex items-center gap-0.5 text-[12px] font-semibold tabular-nums', marginTone(client.margemPercentual))}>
+                {client.margemPercentual >= 40 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                {client.margemPercentual.toFixed(1)}%
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: tabela com cabeçalhos ordenáveis */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-t border-border hover:bg-transparent">
+              <TableHead className="w-64 pl-6">Cliente</TableHead>
+              <SortHead k="receitaTotal" label="Receita" />
+              <SortHead k="margemPercentual" label="Margem" />
+              <SortHead k="ltvCliente" label="LTV" />
+              <SortHead k="tempoRelacionamento" label="Tempo" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {topClients.map((client, index) => (
+              <TableRow key={client.clienteId} className="border-border">
+                <TableCell className="pl-6">
+                  <div className="flex items-center gap-2.5">
+                    <Rank index={index} />
+                    <span className="max-w-[200px] truncate font-medium">{client.clienteNome}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="font-heading font-semibold tabular-nums">{formatCurrency(client.receitaTotal)}</TableCell>
+                <TableCell>
+                  <div className={cn('flex items-center gap-1 font-semibold tabular-nums', marginTone(client.margemPercentual))}>
+                    {client.margemPercentual >= 40 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    {client.margemPercentual.toFixed(1)}%
+                  </div>
+                </TableCell>
+                <TableCell className="font-heading font-semibold tabular-nums">{formatCurrency(client.ltvCliente)}</TableCell>
+                <TableCell className="pr-6 text-foreground-muted">{meses(client.tempoRelacionamento)}</TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {topClients.map((client, index) => (
-                <TableRow key={client.clienteId}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className={cn(
-                        "flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold",
-                        index === 0 ? "bg-yellow-500/20 text-yellow-600" :
-                        index === 1 ? "bg-gray-400/20 text-gray-500" :
-                        index === 2 ? "bg-orange-500/20 text-orange-600" :
-                        "bg-muted text-muted-foreground"
-                      )}>
-                        {index + 1}
-                      </span>
-                      <span className="font-medium truncate max-w-[160px]">{client.clienteNome}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{formatCurrency(client.receitaTotal)}</TableCell>
-                  <TableCell>
-                    <div className={cn(
-                      "flex items-center gap-1",
-                      client.margemPercentual >= 40 ? "text-green-500" :
-                      client.margemPercentual >= 20 ? "text-yellow-500" :
-                      "text-red-500"
-                    )}>
-                      {client.margemPercentual >= 40 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {client.margemPercentual.toFixed(1)}%
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{formatCurrency(client.ltvCliente)}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {client.tempoRelacionamento} {client.tempoRelacionamento === 1 ? 'mês' : 'meses'}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </SectionCard>
   );
 }

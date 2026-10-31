@@ -41,7 +41,7 @@ export function DuplicateWarningDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <AlertTriangle className="h-5 w-5 text-[hsl(var(--warning-fg))]" />
             Possível lançamento duplicado
           </AlertDialogTitle>
           <AlertDialogDescription className="space-y-4">
@@ -54,7 +54,7 @@ export function DuplicateWarningDialog({
               </p>
               <p className="text-foreground">{duplicateMatch.descricao}</p>
               <p className="text-sm">
-                <span className={duplicateMatch.tipo === 'receita' ? 'text-emerald-600' : 'text-red-600'}>
+                <span className={duplicateMatch.tipo === 'receita' ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]'}>
                   {formatCurrency(duplicateMatch.valor)}
                 </span>
                 {' • '}

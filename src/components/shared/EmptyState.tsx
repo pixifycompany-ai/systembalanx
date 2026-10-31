@@ -21,14 +21,14 @@ export function EmptyState({
       'flex flex-col items-center justify-center py-12 px-4 text-center',
       className
     )}>
-      <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-border bg-surface text-muted-foreground">
+      <div className="mb-4 grid h-14 w-14 place-items-center rounded-[18px] bg-surface-2 text-foreground-muted">
         {icon ?? <Inbox className="h-6 w-6" strokeWidth={1.6} />}
       </div>
 
-      <h3 className="text-lg font-medium text-foreground mb-1">{title}</h3>
+      <h3 className="mb-1 text-[17px] font-semibold tracking-[-0.01em] text-foreground">{title}</h3>
       
       {description && (
-        <p className="text-sm text-muted-foreground max-w-sm mb-4">{description}</p>
+        <p className="mb-4 max-w-sm text-sm text-foreground-muted">{description}</p>
       )}
       
       {action}

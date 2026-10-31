@@ -129,10 +129,10 @@ export function TransactionPreviewTable({
 
       {/* Paired Transfers Section */}
       {pairedTransfers.length > 0 && (
-        <div className="border rounded-lg overflow-hidden border-blue-200 dark:border-blue-800">
-          <div className="bg-blue-50 dark:bg-blue-900/20 px-3 py-2 border-b border-blue-200 dark:border-blue-800">
+        <div className="border rounded-lg overflow-hidden border-border">
+          <div className="bg-info-bg px-3 py-2 border-b border-border">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-blue-700 dark:text-blue-300">
+              <span className="font-medium text-info-fg">
                 Transferências Detectadas ({pairedTransfers.length})
               </span>
               <Checkbox
@@ -158,7 +158,7 @@ export function TransactionPreviewTable({
                 {pairedTransfers.map((transfer) => (
                   <tr 
                     key={transfer.id}
-                    className={cn(transfer.selected && 'bg-blue-50/50 dark:bg-blue-900/10')}
+                    className={cn(transfer.selected && 'bg-info-bg')}
                   >
                     <td className="px-3 py-2">
                       <Checkbox
@@ -170,14 +170,14 @@ export function TransactionPreviewTable({
                     <td className="px-3 py-2 whitespace-nowrap">
                       {formatDate(transfer.enviada.data)}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-red-600">
+                    <td className="px-3 py-2 whitespace-nowrap text-[hsl(var(--danger-fg))]">
                       {transfer.enviada.conta_pagamento || 'Conta não identificada'}
                     </td>
                     <td className="px-3 py-2 text-center text-muted-foreground">→</td>
-                    <td className="px-3 py-2 whitespace-nowrap text-emerald-600">
+                    <td className="px-3 py-2 whitespace-nowrap text-[hsl(var(--success-fg))]">
                       {transfer.recebida.conta_pagamento || 'Conta não identificada'}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap font-medium text-blue-600">
+                    <td className="px-3 py-2 text-right tabular-nums whitespace-nowrap font-medium text-info-fg">
                       {formatCurrency(transfer.enviada.valor)}
                     </td>
                   </tr>
@@ -212,7 +212,7 @@ function TransactionRow({
     <tr
       className={cn(
         transaction.ignorar && 'opacity-50 bg-muted/30',
-        transaction.isDuplicate && !transaction.ignorar && 'bg-amber-50 dark:bg-amber-950/20',
+        transaction.isDuplicate && !transaction.ignorar && 'bg-warning-bg',
         transaction.selected && !transaction.ignorar && !transaction.isDuplicate && 'bg-primary/5'
       )}
     >
@@ -241,7 +241,7 @@ function TransactionRow({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning-fg))] flex-shrink-0" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-[300px]">
                   <p className="font-medium">Possível duplicado:</p>
@@ -260,7 +260,7 @@ function TransactionRow({
       <td className="px-3 py-2.5 text-right">
         <span className={cn(
           "tabular-nums whitespace-nowrap font-medium text-sm",
-          isReceita ? 'text-emerald-600' : 'text-red-600'
+          isReceita ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]'
         )}>
           {transaction.tipo === 'despesa' ? '-' : '+'}
           {formatCurrency(transaction.valor)}
@@ -270,8 +270,8 @@ function TransactionRow({
         <span className={cn(
           "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
           isReceita
-            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+            ? 'bg-success-bg text-success-fg'
+            : 'bg-danger-bg text-danger-fg'
         )}>
           {isReceita ? 'Receita' : 'Despesa'}
         </span>
@@ -281,7 +281,7 @@ function TransactionRow({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 mx-auto" />
+                <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success-fg))] mx-auto" />
               </TooltipTrigger>
               <TooltipContent>
                 <p className="text-xs">Revisado</p>

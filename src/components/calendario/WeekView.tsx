@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addDays, startOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Button } from '@/components/ui/button';
 import { formatCurrencyShort } from '@/utils/formatters';
+import { SectionCard } from '@/components/shared/SectionCard';
 import { DayDetailDialog } from './DayDetailDialog';
+import { CalNav } from './CalNav';
 import type { DayTransactions } from '@/hooks/useCalendario';
 import { cn } from '@/lib/utils';
 
@@ -25,21 +25,14 @@ export function WeekView({ refDate, days, onPrev, onNext }: WeekViewProps) {
 
   return (
     <>
-      <div className="metric-card animate-fade-in">
-        <div className="flex items-center justify-between mb-4 gap-2">
-          <Button variant="ghost" size="icon" onClick={onPrev} className="h-8 w-8 shrink-0">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h3 className="text-sm font-semibold text-foreground truncate text-center">
-            {rangeLabel}
-          </h3>
-          <Button variant="ghost" size="icon" onClick={onNext} className="h-8 w-8 shrink-0">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Vertical stack of day cards */}
-        <div className="flex flex-col gap-2">
+      <SectionCard
+        flush
+        className="overflow-hidden animate-fade-in"
+        title={rangeLabel}
+        action={<CalNav onPrev={onPrev} onNext={onNext} />}
+      >
+        {/* Lista agrupada: uma linha por dia */}
+        <div>
           {week.map((d) => {
             const ds = format(d, 'yyyy-MM-dd');
             const dayData = days[ds];
@@ -47,6 +40,7 @@ export function WeekView({ refDate, days, onPrev, onNext }: WeekViewProps) {
             const dayName = format(d, 'EEEE', { locale: ptBR });
             const dayNum = format(d, 'd');
             const monthShort = format(d, 'MMM', { locale: ptBR });
+            const clickable = !!dayData?.items.length;
 
             return (
               <button
@@ -54,61 +48,65 @@ export function WeekView({ refDate, days, onPrev, onNext }: WeekViewProps) {
                 type="button"
                 onClick={() => dayData?.items.length && setSelectedDate(ds)}
                 className={cn(
-                  'flex flex-col text-left rounded-lg border p-3 bg-card transition-all w-full',
-                  isToday ? 'ring-1 ring-primary border-primary/40' : 'border-border',
-                  dayData?.items.length ? 'hover:bg-accent/40 cursor-pointer' : 'cursor-default'
+                  'flex w-full items-start gap-3 border-t border-border px-4 py-3 text-left transition-colors md:px-6',
+                  isToday && 'bg-foreground/[0.03]',
+                  clickable ? 'cursor-pointer hover:bg-surface-2' : 'cursor-default',
                 )}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-baseline gap-2">
-                    <span className={cn('text-xl font-semibold tabular-nums', isToday ? 'text-primary' : 'text-foreground')}>
-                      {dayNum}
-                    </span>
-                    <span className="text-[11px] font-medium uppercase text-muted-foreground">
-                      {dayName} · {monthShort}
-                    </span>
-                  </div>
-                  {dayData && (dayData.receitas > 0 || dayData.despesas > 0) && (
-                    <div className="flex items-center gap-2 text-[11px] tabular-nums">
-                      {dayData.receitas > 0 && (
-                        <span className="text-emerald-600 dark:text-emerald-400">+ {formatCurrencyShort(dayData.receitas)}</span>
-                      )}
-                      {dayData.despesas > 0 && (
-                        <span className="text-red-600 dark:text-red-400">− {formatCurrencyShort(dayData.despesas)}</span>
-                      )}
-                    </div>
+                <span
+                  className={cn(
+                    'grid h-10 w-10 shrink-0 place-items-center rounded-[13px] font-heading text-[15px] font-semibold tabular-nums',
+                    isToday ? 'bg-foreground text-background' : 'bg-surface-2 text-foreground',
                   )}
-                </div>
+                >
+                  {dayNum}
+                </span>
 
-                {dayData?.items.length ? (
-                  <div className="space-y-1">
-                    {dayData.items.slice(0, 4).map((it) => (
-                      <div
-                        key={it.id}
-                        className={cn(
-                          'text-[11px] rounded px-2 py-1 truncate',
-                          it.tipo === 'receita'
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-                            : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold capitalize text-foreground">
+                      {dayName} <span className="font-normal text-foreground-muted">· {monthShort}</span>
+                    </span>
+                    {dayData && (dayData.receitas > 0 || dayData.despesas > 0) && (
+                      <span className="flex shrink-0 items-center gap-1.5 text-[12px] font-semibold tabular-nums">
+                        {dayData.receitas > 0 && (
+                          <span className="rounded-full bg-success-bg px-2 py-0.5 text-success-fg">+{formatCurrencyShort(dayData.receitas)}</span>
                         )}
-                      >
-                        {it.tipo === 'receita' ? '+' : '-'} {it.descricao}
-                      </div>
-                    ))}
-                    {dayData.items.length > 4 && (
-                      <div className="text-[11px] text-muted-foreground px-2">
-                        +{dayData.items.length - 4} lançamentos
-                      </div>
+                        {dayData.despesas > 0 && (
+                          <span className="rounded-full bg-danger-bg px-2 py-0.5 text-danger-fg">−{formatCurrencyShort(dayData.despesas)}</span>
+                        )}
+                      </span>
                     )}
                   </div>
-                ) : (
-                  <span className="text-[11px] text-foreground-subtle">Sem lançamentos</span>
-                )}
+
+                  {dayData?.items.length ? (
+                    <div className="mt-1.5 space-y-1">
+                      {dayData.items.slice(0, 4).map((it) => (
+                        <div key={it.id} className="flex min-w-0 items-center gap-2 text-[12px] text-foreground-muted">
+                          <span
+                            className={cn(
+                              'h-1.5 w-1.5 shrink-0 rounded-full',
+                              it.tipo === 'receita' ? 'bg-[hsl(var(--success))]' : 'bg-[hsl(var(--danger))]',
+                            )}
+                          />
+                          <span className="truncate">{it.descricao}</span>
+                        </div>
+                      ))}
+                      {dayData.items.length > 4 && (
+                        <div className="pl-3.5 text-[12px] font-medium text-foreground-muted">
+                          +{dayData.items.length - 4} lançamentos
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="mt-0.5 block text-[12px] text-foreground-subtle">Sem lançamentos</span>
+                  )}
+                </div>
               </button>
             );
           })}
         </div>
-      </div>
+      </SectionCard>
 
       <DayDetailDialog
         open={!!selectedDate}

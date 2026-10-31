@@ -9,15 +9,15 @@ import { ClientCohortTable } from '@/components/analises/ClientCohortTable';
 import { ClientProfitabilityTable } from '@/components/analises/ClientProfitabilityTable';
 
 export default function Analises() {
-  const { 
-    ltvEvolution, 
-    churnData, 
-    cohorts, 
-    revenueProjection, 
-    clientProfitability, 
+  const {
+    ltvEvolution,
+    churnData,
+    cohorts,
+    revenueProjection,
+    clientProfitability,
     healthScore,
     isLoading,
-    error 
+    error
   } = useAnalises();
 
   if (isLoading) {
@@ -31,7 +31,7 @@ export default function Analises() {
   if (error) {
     return (
       <main className="container py-6">
-        <div className="text-center text-destructive">
+        <div className="rounded-[20px] border border-border bg-surface p-6 text-center text-sm text-[hsl(var(--danger-fg))]">
           Erro ao carregar dados: {error}
         </div>
       </main>
@@ -39,36 +39,28 @@ export default function Analises() {
   }
 
   return (
-    <main className="container py-4 md:py-6 overflow-hidden">
-      {/* Header mobile estilo iOS */}
-      <div className="md:hidden">
-        <MobilePageHeader eyebrow="Insights profundos" title="Análises" />
-      </div>
-      <div className="hidden md:block mb-6">
-        <h1 className="text-xl md:text-2xl font-semibold tracking-tight">Análises Avançadas</h1>
-        <p className="text-sm text-muted-foreground">
-          Métricas detalhadas e insights sobre seu negócio
-        </p>
-      </div>
+    <main className="container overflow-hidden py-3 md:py-6">
+      <MobilePageHeader eyebrow="Análise" title="Análises" />
 
-      <div className="grid gap-4 md:grid-cols-2 mb-4">
-        <FinancialHealthScore healthScore={healthScore} />
-        <ChurnRateChart churnData={churnData} />
-      </div>
+      <div className="space-y-4 md:space-y-6">
+        {/* Saúde financeira (destaque) + churn */}
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-3">
+            <FinancialHealthScore healthScore={healthScore} />
+          </div>
+          <div className="lg:col-span-2">
+            <ChurnRateChart churnData={churnData} />
+          </div>
+        </div>
 
-      <div className="mb-4">
-        <LTVEvolutionChart data={ltvEvolution} />
-      </div>
+        {/* Tendências */}
+        <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
+          <LTVEvolutionChart data={ltvEvolution} />
+          <RevenueProjectionChart data={revenueProjection} />
+        </div>
 
-      <div className="mb-4">
-        <RevenueProjectionChart data={revenueProjection} />
-      </div>
-
-      <div className="mb-4">
         <ClientCohortTable cohorts={cohorts} />
-      </div>
 
-      <div className="mb-4">
         <ClientProfitabilityTable clients={clientProfitability} />
       </div>
     </main>

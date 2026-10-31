@@ -6,6 +6,7 @@ import { PlusIcon } from '@heroicons/react/24/outline';
 import { exportToCSV } from '@/utils/exportCSV';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -270,10 +271,13 @@ export function FaturaDetailDialog({
 
   const Header = () => (
     <div className="flex items-center gap-2.5 px-5 pt-1 pb-3">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-primary">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-surface-2 text-foreground">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
       </span>
-      <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-foreground">Faturas — {cartao.nome}</h2>
+      <div className="min-w-0">
+        <p className="text-[13px] text-foreground-muted">Faturas</p>
+        <h2 className="truncate text-[20px] font-semibold tracking-[-0.03em] text-foreground">{cartao.nome}</h2>
+      </div>
     </div>
   );
 
@@ -283,13 +287,13 @@ export function FaturaDetailDialog({
         <SheetContent side="bottom" showHandle className={sheetClass}>
           <Header />
           <div className="px-5 pb-6">
-            <div className="py-6 text-center text-sm text-foreground-muted">
+            <div className="mb-4 rounded-[20px] border border-border px-4 py-8 text-center text-sm text-foreground-muted">
               Nenhuma fatura ainda. Crie um lançamento para abrir a primeira fatura deste cartão.
             </div>
             {!formOpen && (
-              <button onClick={openCreate} className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white">
+              <Button onClick={openCreate} size="lg" className="w-full">
                 <PlusIcon className="h-4 w-4" strokeWidth={2.4} /> Novo lançamento
-              </button>
+              </Button>
             )}
             {formOpen && (
               <LancamentoFormInline
@@ -321,28 +325,31 @@ export function FaturaDetailDialog({
         <SheetContent side="bottom" showHandle className={sheetClass}>
           {/* Top bar: título + navegação de competência (pr p/ não colidir com o X) */}
           <div className="flex flex-wrap items-center gap-2.5 pl-5 pr-14 pt-1 pb-3 md:pl-7 md:pr-16 md:pt-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary/15 text-primary">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-surface-2 text-foreground">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
             </span>
-            <h2 className="text-[18px] font-semibold tracking-[-0.02em] text-foreground md:text-[21px]">Faturas — {cartao.nome}</h2>
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="min-w-0">
+              <p className="text-[13px] text-foreground-muted">Faturas</p>
+              <h2 className="truncate text-[20px] font-semibold tracking-[-0.03em] text-foreground md:text-[24px]">{cartao.nome}</h2>
+            </div>
+            <div className="ml-auto flex items-center gap-1 rounded-full border border-border bg-surface p-1">
               <button
                 disabled={idx >= cartaoFaturas.length - 1}
                 onClick={() => setIdx(i => i + 1)}
                 aria-label="Competência anterior"
-                className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-surface/60 text-foreground transition-colors hover:bg-surface-2 disabled:opacity-30"
+                className="no-touch-min grid h-8 w-8 place-items-center rounded-full bg-surface-2 text-foreground transition-colors hover:bg-surface-3 disabled:opacity-30"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <div className="min-w-[116px] text-center">
-                <p className="text-[9.5px] uppercase tracking-wide text-foreground-muted">Competência</p>
-                <p className="text-[13.5px] font-semibold text-foreground">{rotuloCompetencia(fatura.competencia)}</p>
+              <div className="min-w-[110px] px-1 text-center">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Competência</p>
+                <p className="text-[14px] font-semibold text-foreground">{rotuloCompetencia(fatura.competencia)}</p>
               </div>
               <button
                 disabled={idx <= 0}
                 onClick={() => setIdx(i => i - 1)}
                 aria-label="Próxima competência"
-                className="grid h-9 w-9 place-items-center rounded-xl border border-border/60 bg-surface/60 text-foreground transition-colors hover:bg-surface-2 disabled:opacity-30"
+                className="no-touch-min grid h-8 w-8 place-items-center rounded-full bg-surface-2 text-foreground transition-colors hover:bg-surface-3 disabled:opacity-30"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -352,21 +359,21 @@ export function FaturaDetailDialog({
           <div className="px-5 pb-6 md:flex md:items-start md:gap-6 md:px-7 md:pb-7">
             {/* COLUNA ESQUERDA: resumo + pagar + novo lançamento */}
             <div className="space-y-3.5 md:sticky md:top-2 md:w-[316px] md:shrink-0 md:self-start">
-              <div className="auro-card rounded-2xl border border-border/60 bg-surface/55 p-4 md:p-5">
-                <p className="text-[10.5px] uppercase tracking-wide text-foreground-muted">Em aberto</p>
-                <p className={`mt-0.5 text-[30px] font-bold leading-none tracking-[-0.02em] tabular-nums md:text-[34px] ${restante > 0 ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--success))]'}`}>
+              <div className="rounded-[20px] border border-border bg-surface p-4 md:rounded-3xl md:p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Em aberto</p>
+                <p className={`mt-1.5 font-heading text-[30px] font-semibold leading-none tracking-[-0.02em] tabular-nums md:text-[34px] ${restante > 0 ? 'text-[hsl(var(--danger-fg))]' : 'text-[hsl(var(--success-fg))]'}`}>
                   {formatCurrency(restante)}
                 </p>
 
                 {/* Progresso pago/total */}
-                <div className="mt-3.5 h-2 overflow-hidden rounded-full bg-white/10">
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-2">
                   <div className="h-full rounded-full bg-[hsl(var(--success))] transition-all" style={{ width: `${pct}%` }} />
                 </div>
-                <p className="mt-1.5 text-[11px] text-foreground-muted">
+                <p className="mt-1.5 text-[12px] text-foreground-muted">
                   Pago <b className="text-foreground">{formatCurrency(pago)}</b> de {formatCurrency(total)} · {pct}%
                 </p>
 
-                <div className="mt-4 grid grid-cols-2 gap-y-3 border-t border-border/50 pt-3.5">
+                <div className="mt-4 grid grid-cols-2 gap-y-3 border-t border-border pt-3.5">
                   <Summary lab="Vencimento" val={format(parseISO(fatura.data_vencimento), 'dd/MM/yyyy')} />
                   <Summary lab="Fechamento" val={format(parseISO(fatura.data_fechamento), 'dd/MM/yyyy')} />
                   <Summary lab="Status" val={fatura.status.replace('_', ' ')} capitalize tone={statusTone} />
@@ -374,19 +381,16 @@ export function FaturaDetailDialog({
                 </div>
 
                 {restante > 0 && (
-                  <button
-                    onClick={() => onPagar(fatura)}
-                    className="mt-4 w-full rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13.5px] font-semibold text-white transition-transform active:scale-[0.99]"
-                  >
+                  <Button onClick={() => onPagar(fatura)} size="lg" className="mt-4 w-full">
                     Pagar fatura
-                  </button>
+                  </Button>
                 )}
               </div>
 
               {!formOpen && (
-                <button onClick={openCreate} className="flex w-full items-center justify-center gap-2 rounded-[14px] border border-border/60 bg-surface/60 py-3 text-[13px] font-semibold text-foreground transition-colors hover:bg-surface-2">
+                <Button onClick={openCreate} variant="outline" size="lg" className="w-full">
                   <PlusIcon className="h-4 w-4" strokeWidth={2.4} /> Novo lançamento
-                </button>
+                </Button>
               )}
 
               {/* Exportar lançamentos da fatura */}
@@ -394,14 +398,14 @@ export function FaturaDetailDialog({
                 <button
                   onClick={baixarCsv}
                   disabled={lancamentos.length === 0}
-                  className="flex items-center justify-center gap-1.5 rounded-[12px] border border-border/60 bg-surface/40 py-2.5 text-[12.5px] font-semibold text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-40"
+                  className="no-touch-min flex h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-surface text-[13px] font-semibold text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-40"
                 >
                   <Download className="h-3.5 w-3.5" /> CSV
                 </button>
                 <button
                   onClick={baixarPdf}
                   disabled={lancamentos.length === 0}
-                  className="flex items-center justify-center gap-1.5 rounded-[12px] border border-border/60 bg-surface/40 py-2.5 text-[12.5px] font-semibold text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-40"
+                  className="no-touch-min flex h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-surface text-[13px] font-semibold text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-40"
                 >
                   <Download className="h-3.5 w-3.5" /> PDF
                 </button>
@@ -423,32 +427,38 @@ export function FaturaDetailDialog({
               )}
 
               <div>
-                <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
-                  Lançamentos ({lancamentos.length})
-                </h4>
+                <div className="flex items-baseline justify-between px-0.5 pb-1.5">
+                  <h4 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Lançamentos</h4>
+                  <span className="text-[12px] text-foreground-muted">{lancamentos.length} {lancamentos.length === 1 ? 'item' : 'itens'}</span>
+                </div>
                 {loadingLancs ? (
                   <p className="py-3 text-center text-sm text-foreground-muted">Carregando…</p>
                 ) : lancamentos.length === 0 ? (
-                  <p className="rounded-2xl border border-border/60 bg-surface/55 py-8 text-center text-sm text-foreground-muted">Sem lançamentos nesta fatura.</p>
+                  <p className="rounded-[20px] border border-border bg-surface py-8 text-center text-sm text-foreground-muted">Sem lançamentos nesta fatura.</p>
                 ) : (
-                  <div className="auro-card divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/60 bg-surface/55">
+                  <div className="rounded-[20px] border border-border bg-surface px-3.5">
                     {lancamentos.map((l) => (
-                      <div key={l.id} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-foreground/[0.04]">
-                        <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: l.categoria?.cor || 'hsl(var(--primary))' }} />
+                      <div key={l.id} className="group flex items-center gap-3 border-b border-border py-3 last:border-b-0">
+                        <span
+                          className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px]"
+                          style={{ background: `color-mix(in srgb, ${l.categoria?.cor || 'hsl(var(--primary))'} 14%, transparent)` }}
+                        >
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: l.categoria?.cor || 'hsl(var(--primary))' }} />
+                        </span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-foreground">{l.descricao}</p>
-                          <p className="truncate text-[11px] text-foreground-muted">
+                          <p className="truncate text-[14px] font-semibold text-foreground">{l.descricao}</p>
+                          <p className="truncate text-[12px] text-foreground-muted">
                             {format(parseISO(l.data_competencia), "dd 'de' MMM", { locale: ptBR })}
                             {l.categoria?.nome ? ` · ${l.categoria.nome}` : ''}
                             {l.fornecedor ? ` · ${l.fornecedor}` : ''}
                           </p>
                         </div>
-                        <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatCurrency(Number(l.valor))}</span>
-                        <div className="flex shrink-0 items-center gap-1 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
-                          <button onClick={() => openEdit(l)} aria-label="Editar" className="grid h-8 w-8 place-items-center rounded-lg text-foreground-muted hover:bg-foreground/[0.04] hover:text-foreground">
+                        <span className="shrink-0 whitespace-nowrap font-heading text-[15px] font-semibold tabular-nums tracking-[-0.01em] text-foreground">{formatCurrency(Number(l.valor))}</span>
+                        <div className="flex shrink-0 items-center gap-0.5 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
+                          <button onClick={() => openEdit(l)} aria-label="Editar" className="no-touch-min grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2 hover:text-foreground">
                             <Pencil className="h-4 w-4" />
                           </button>
-                          <button onClick={() => setDeleteState(l)} aria-label="Excluir" className="grid h-8 w-8 place-items-center rounded-lg text-[hsl(var(--danger))] hover:bg-foreground/[0.04]">
+                          <button onClick={() => setDeleteState(l)} aria-label="Excluir" className="no-touch-min grid h-8 w-8 place-items-center rounded-full text-[hsl(var(--danger-fg))] hover:bg-danger-bg">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
@@ -460,17 +470,17 @@ export function FaturaDetailDialog({
 
               {pagsFatura.length > 0 && (
                 <div>
-                  <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">Pagamentos</h4>
-                  <div className="auro-card divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/60 bg-surface/55">
+                  <h4 className="px-0.5 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Pagamentos</h4>
+                  <div className="rounded-[20px] border border-border bg-surface px-3.5">
                     {pagsFatura.map(p => {
                       const conta = contas.find(c => c.id === p.conta_id);
                       return (
-                        <div key={p.id} className="flex items-center justify-between px-4 py-3">
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">{conta?.nome || 'Conta'}</p>
-                            <p className="text-[11px] text-foreground-muted">{format(parseISO(p.data_pagamento), 'dd/MM/yyyy')}</p>
+                        <div key={p.id} className="flex items-center justify-between gap-3 border-b border-border py-3 last:border-b-0">
+                          <div className="min-w-0">
+                            <p className="truncate text-[14px] font-semibold text-foreground">{conta?.nome || 'Conta'}</p>
+                            <p className="text-[12px] text-foreground-muted">{format(parseISO(p.data_pagamento), 'dd/MM/yyyy')}</p>
                           </div>
-                          <span className="text-sm font-semibold tabular-nums text-[hsl(var(--success))]">{formatCurrency(Number(p.valor))}</span>
+                          <span className="shrink-0 font-heading text-[15px] font-semibold tabular-nums text-[hsl(var(--success-fg))]">{formatCurrency(Number(p.valor))}</span>
                         </div>
                       );
                     })}
@@ -497,15 +507,15 @@ export function FaturaDetailDialog({
 
 function Summary({ lab, val, danger, capitalize, tone }: { lab: string; val: string; strong?: boolean; danger?: boolean; capitalize?: boolean; tone?: 'success' | 'danger' | 'muted' }) {
   const color = danger || tone === 'danger'
-    ? 'text-[hsl(var(--danger))]'
+    ? 'text-[hsl(var(--danger-fg))]'
     : tone === 'success'
-      ? 'text-[hsl(var(--success))]'
+      ? 'text-[hsl(var(--success-fg))]'
       : tone === 'muted'
         ? 'text-foreground-muted'
         : 'text-foreground';
   return (
     <div>
-      <p className="text-[10.5px] text-foreground-muted">{lab}</p>
+      <p className="text-[11px] text-foreground-muted">{lab}</p>
       <p className={`mt-0.5 text-[13.5px] font-semibold tabular-nums ${color} ${capitalize ? 'capitalize' : ''}`}>
         {val}
       </p>
@@ -534,14 +544,14 @@ function LancamentoFormInline({
 }) {
   const catSel = categorias.find(c => c.id === form.categoria_id);
   return (
-    <div className="auro-card space-y-3.5 rounded-2xl border border-primary/30 bg-surface/60 p-4">
-      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-primary">
-        <span className="h-2 w-2 rounded-full bg-primary" />
+    <section className="space-y-2">
+      <h4 className="px-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">
         {editing ? 'Editar lançamento' : 'Novo lançamento'}
-      </div>
+      </h4>
+    <div className="space-y-3.5 rounded-[20px] border border-border bg-surface p-4">
 
       <div className="space-y-1.5">
-        <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Descrição *</Label>
+        <Label>Descrição *</Label>
         <Input
           value={form.descricao}
           onChange={(e) => setForm((p: any) => ({ ...p, descricao: e.target.value }))}
@@ -551,19 +561,19 @@ function LancamentoFormInline({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Valor *</Label>
+          <Label>Valor *</Label>
           <Input
             type="number"
             step="0.01"
             value={form.valor}
             onChange={(e) => setForm((p: any) => ({ ...p, valor: e.target.value }))}
             placeholder="R$ 0,00"
-            className="h-12 text-lg font-semibold tabular-nums text-[hsl(var(--danger))]"
+            className="h-12 font-heading text-lg font-semibold tabular-nums"
           />
         </div>
         {!editing && (
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Parcelas</Label>
+            <Label>Parcelas</Label>
             <Input
               type="number"
               min="1"
@@ -587,7 +597,7 @@ function LancamentoFormInline({
       />
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Categoria</Label>
+        <Label>Categoria</Label>
         <Select
           value={form.categoria_id || 'none'}
           onValueChange={(v) => setForm((p: any) => ({ ...p, categoria_id: v === 'none' ? '' : v }))}
@@ -609,7 +619,7 @@ function LancamentoFormInline({
       </div>
 
       <div className="space-y-1.5">
-        <Label className="text-xs">Fornecedor</Label>
+        <Label>Fornecedor</Label>
         <Input
           value={form.fornecedor}
           onChange={(e) => setForm((p: any) => ({ ...p, fornecedor: e.target.value }))}
@@ -618,18 +628,20 @@ function LancamentoFormInline({
       </div>
 
       <div className="flex gap-2.5 pt-1">
-        <button type="button" onClick={onCancel} disabled={saving} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground disabled:opacity-50">
+        <Button type="button" variant="outline" size="lg" className="flex-1" onClick={onCancel} disabled={saving}>
           Cancelar
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          size="lg"
+          className="flex-[2]"
           onClick={onSave}
           disabled={saving || !form.descricao.trim() || !form.valor}
-          className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-white disabled:opacity-50"
         >
           {saving ? 'Salvando…' : editing ? 'Salvar' : 'Adicionar'}
-        </button>
+        </Button>
       </div>
     </div>
+    </section>
   );
 }

@@ -22,40 +22,49 @@ interface StatusBadgeProps {
   className?: string;
 }
 
+// Selos em tokens do tema (contraste ok no claro e no escuro).
+const OK = 'bg-success-bg text-success-fg';
+const BAD = 'bg-danger-bg text-danger-fg';
+const WARN = 'bg-warning-bg text-warning-fg';
+const INFO = 'bg-info-bg text-info-fg';
+const NEUTRAL = 'bg-surface-2 text-foreground-muted';
+
 const statusConfig: Record<string, { label: string; className: string }> = {
   // Financial Status
-  recebido: { label: 'Recebido', className: 'status-recebido' },
-  pago: { label: 'Pago', className: 'status-pago' },
-  pendente: { label: 'Pendente', className: 'status-pendente' },
-  atrasado: { label: 'Atrasado', className: 'status-atrasado' },
-  cancelado: { label: 'Cancelado', className: 'status-cancelado' },
-  vence_hoje: { label: 'Vence Hoje', className: 'bg-amber-500/30 text-amber-400 animate-pulse' },
-  
+  recebido: { label: 'Recebido', className: OK },
+  pago: { label: 'Pago', className: OK },
+  pendente: { label: 'Pendente', className: WARN },
+  atrasado: { label: 'Atrasado', className: BAD },
+  cancelado: { label: 'Cancelado', className: NEUTRAL },
+  vence_hoje: { label: 'Vence hoje', className: WARN },
+
   // Entity Status
-  ativo: { label: 'Ativo', className: 'status-ativo' },
-  inativo: { label: 'Inativo', className: 'status-inativo' },
-  suspenso: { label: 'Suspenso', className: 'bg-amber-500/20 text-amber-400' },
-  concluido: { label: 'Concluído', className: 'bg-blue-500/20 text-blue-400' },
-  
+  ativo: { label: 'Ativo', className: OK },
+  inativo: { label: 'Inativo', className: NEUTRAL },
+  suspenso: { label: 'Suspenso', className: WARN },
+  concluido: { label: 'Concluído', className: INFO },
+
   // Contract Types
-  recorrente: { label: 'Recorrente', className: 'bg-primary/20 text-primary' },
-  projeto: { label: 'Projeto', className: 'bg-blue-500/20 text-blue-400' },
-  avulso: { label: 'Avulso', className: 'bg-purple-500/20 text-purple-400' },
-  
+  recorrente: { label: 'Recorrente', className: INFO },
+  projeto: { label: 'Projeto', className: NEUTRAL },
+  avulso: { label: 'Avulso', className: NEUTRAL },
+
   // Expense Types
-  fixa: { label: 'Fixa', className: 'bg-blue-500/20 text-blue-400' },
-  variavel: { label: 'Variável', className: 'bg-orange-500/20 text-orange-400' },
-  investimento: { label: 'Investimento', className: 'bg-purple-500/20 text-purple-400' },
+  fixa: { label: 'Fixa', className: NEUTRAL },
+  variavel: { label: 'Variável', className: NEUTRAL },
+  investimento: { label: 'Investimento', className: INFO },
 };
+
+const BASE = 'inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold';
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const config = statusConfig[status.toLowerCase()] || {
     label: status,
-    className: 'bg-muted text-muted-foreground',
+    className: NEUTRAL,
   };
 
   return (
-    <span className={cn('status-badge', config.className, className)}>
+    <span className={cn(BASE, config.className, className)}>
       {config.label}
     </span>
   );
@@ -68,14 +77,10 @@ interface CategoryBadgeProps {
 }
 
 export function CategoryBadge({ name, color, className }: CategoryBadgeProps) {
+  // Cor da categoria só no ponto: texto sempre no tom do tema (contraste garantido).
   return (
-    <span 
-      className={cn('status-badge', className)}
-      style={{
-        backgroundColor: color ? `${color}20` : undefined,
-        color: color || undefined,
-      }}
-    >
+    <span className={cn(BASE, 'gap-1.5 bg-surface-2 text-foreground', className)}>
+      {color && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />}
       {name}
     </span>
   );

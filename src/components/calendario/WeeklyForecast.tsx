@@ -3,6 +3,7 @@ import { format, parseISO, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
+import { SectionCard } from '@/components/shared/SectionCard';
 import type { DayTransactions, DayItem } from '@/hooks/useCalendario';
 
 export type CalFiltro = 'a_pagar' | 'a_receber' | 'pago' | 'recebido';
@@ -69,38 +70,42 @@ export function WeeklyForecast({
   if (weeks.length === 0) return null;
 
   return (
-    <section className="auro-card rounded-2xl border border-border bg-surface overflow-hidden">
-      <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">Resumo por semana</h3>
-          <p className="text-[11px] text-foreground-muted">Previsão de caixa</p>
-        </div>
-      </div>
-      <div className="divide-y divide-border/50">
+    <SectionCard flush className="overflow-hidden animate-fade-in" title="Resumo por semana" description="Previsão de caixa">
+      <div>
         {weeks.map((w) => (
-          <div key={w.key} className={cn('px-4 py-3', w.isCurrent && 'bg-primary/[0.06]')}>
-            <div className="flex items-center justify-between">
+          <div
+            key={w.key}
+            className={cn('flex items-center gap-3 border-t border-border px-4 py-3 md:px-6', w.isCurrent && 'bg-foreground/[0.03]')}
+          >
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className={cn('text-[13px] font-semibold', w.isCurrent ? 'text-primary' : 'text-foreground')}>
-                  {w.label}
-                </span>
-                {w.isCurrent && <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary">ATUAL</span>}
+                <span className="text-sm font-semibold tabular-nums text-foreground">{w.label}</span>
+                {w.isCurrent && (
+                  <span className="rounded-full bg-info-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-info-fg">Atual</span>
+                )}
               </div>
-              <span className={cn('text-sm font-semibold tabular-nums', w.saldo >= 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]')}>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] tabular-nums text-foreground-muted">
+                <span className="text-[hsl(var(--success-fg))]">↑ {formatCurrency(w.entradas)}</span>
+                <span>·</span>
+                <span className="text-[hsl(var(--danger-fg))]">↓ {formatCurrency(w.saidas)}</span>
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <span
+                className={cn(
+                  'block font-heading text-sm font-semibold tabular-nums',
+                  w.saldo >= 0 ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]',
+                )}
+              >
                 {w.saldo >= 0 ? '+' : '−'}{formatCurrency(Math.abs(w.saldo))}
               </span>
-            </div>
-            <div className="mt-1 flex items-center justify-between text-[11px] text-foreground-muted">
-              <span>
-                <span className="text-[hsl(var(--success))]">↑ {formatCurrency(w.entradas)}</span>
-                <span className="mx-1.5">·</span>
-                <span className="text-[hsl(var(--danger))]">↓ {formatCurrency(w.saidas)}</span>
+              <span className="mt-0.5 block text-[12px] tabular-nums text-foreground-muted">
+                acum. {w.acumulado >= 0 ? '' : '−'}{formatCurrency(Math.abs(w.acumulado))}
               </span>
-              <span className="tabular-nums">acum. {w.acumulado >= 0 ? '' : '−'}{formatCurrency(Math.abs(w.acumulado))}</span>
             </div>
           </div>
         ))}
       </div>
-    </section>
+    </SectionCard>
   );
 }

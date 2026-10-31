@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { PixifyLogo } from '@/components/shared/PixifyLogo';
+import { AuthShell } from '@/components/auth/AuthShell';
+import { BalanxLoader } from '@/components/shared/BalanxLoader';
 import { cn } from '@/lib/utils';
 
 /** Força de senha 0..4 */
@@ -60,101 +61,92 @@ export default function CriarConta() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-foreground-muted" />
-      </div>
-    );
+    return <BalanxLoader />;
   }
 
+  const fieldClass = 'h-12 rounded-[14px] bg-surface-2';
+  const labelClass = 'text-[13px] font-semibold text-foreground';
+
   return (
-    <div className="min-h-[100dvh] w-full bg-background">
-      <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-5 pb-8 pt-14">
-        <div className="mb-8">
-          <PixifyLogo size="sm" />
-        </div>
-
-        {/* Cabeçalho */}
-        <div className="mb-6">
-          <p className="text-xs font-medium text-foreground-muted mb-0.5">Comece agora</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Criar conta</h1>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col">
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="nome" className="text-[11px] font-semibold text-foreground-muted">Nome</Label>
-              <Input
-                id="nome"
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Como podemos te chamar?"
-                autoComplete="name"
-                disabled={isSubmitting}
-                className="h-11"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-[11px] font-semibold text-foreground-muted">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="voce@email.com"
-                autoComplete="email"
-                disabled={isSubmitting}
-                className="h-11"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-[11px] font-semibold text-foreground-muted">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="new-password"
-                disabled={isSubmitting}
-                className="h-11"
-              />
-              {/* Medidor de força */}
-              <div className="flex gap-1 pt-1">
-                {[0, 1, 2, 3].map((i) => (
-                  <span
-                    key={i}
-                    className={cn(
-                      'h-[3px] flex-1 rounded-full transition-colors',
-                      password.length === 0
-                        ? 'bg-border'
-                        : i < score
-                          ? score <= 1 ? 'bg-[hsl(var(--danger))]' : score <= 2 ? 'bg-[hsl(var(--warning))]' : 'bg-[hsl(var(--success))]'
-                          : 'bg-border',
-                    )}
-                  />
-                ))}
-              </div>
-              {password.length > 0 && (
-                <p className="text-[11px] text-foreground-muted pt-0.5">{STRENGTH_LABEL[score]}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-1" />
-
-          <Button type="submit" className="w-full h-12 rounded-2xl font-semibold text-[15px] mt-8" disabled={isSubmitting}>
-            {isSubmitting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Criando...</>) : 'Criar conta'}
-          </Button>
-
-          <p className="text-[11px] text-foreground-muted text-center mt-4 leading-relaxed">
-            Ao continuar você concorda com os <b className="text-foreground/80">Termos</b> e a <b className="text-foreground/80">Privacidade</b>.
-          </p>
-          <p className="text-[12.5px] text-foreground-muted text-center mt-2.5">
-            Já tem conta? <Link to="/login" className="font-semibold text-primary">Entrar</Link>
-          </p>
-        </form>
+    <AuthShell
+      title={<>Comece agora, <span className="font-serif italic font-normal tracking-normal">sem planilha.</span></>}
+    >
+      <div className="mb-5">
+        <h2 className="text-[20px] font-semibold tracking-tight text-foreground">Criar conta</h2>
+        <p className="mt-1 text-[14px] text-foreground-muted">Leva menos de um minuto.</p>
       </div>
-    </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3.5">
+        <div className="space-y-1.5">
+          <Label htmlFor="nome" className={labelClass}>Nome</Label>
+          <Input
+            id="nome"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            placeholder="Como podemos te chamar?"
+            autoComplete="name"
+            disabled={isSubmitting}
+            className={fieldClass}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="email" className={labelClass}>E-mail</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="voce@email.com"
+            autoComplete="email"
+            disabled={isSubmitting}
+            className={fieldClass}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="password" className={labelClass}>Senha</Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="new-password"
+            disabled={isSubmitting}
+            className={fieldClass}
+          />
+          {/* Medidor de força */}
+          <div className="flex gap-1 pt-1">
+            {[0, 1, 2, 3].map((i) => (
+              <span
+                key={i}
+                className={cn(
+                  'h-1 flex-1 rounded-full transition-colors',
+                  password.length === 0
+                    ? 'bg-surface-3'
+                    : i < score
+                      ? score <= 1 ? 'bg-[hsl(var(--danger))]' : score <= 2 ? 'bg-[hsl(var(--warning))]' : 'bg-[hsl(var(--success))]'
+                      : 'bg-surface-3',
+                )}
+              />
+            ))}
+          </div>
+          {password.length > 0 && (
+            <p className="pt-0.5 text-[12px] text-foreground-muted">{STRENGTH_LABEL[score]}</p>
+          )}
+        </div>
+
+        <Button type="submit" className="!mt-5 h-12 w-full rounded-full text-[15px] font-semibold" disabled={isSubmitting}>
+          {isSubmitting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Criando...</>) : 'Criar conta'}
+        </Button>
+
+        <p className="text-center text-[12px] leading-relaxed text-foreground-muted">
+          Ao continuar você concorda com os <b className="font-semibold text-foreground">Termos</b> e a <b className="font-semibold text-foreground">Privacidade</b>.
+        </p>
+      </form>
+
+      <p className="mt-4 text-center text-[14px] text-foreground-muted">
+        Já tem conta? <Link to="/login" className="font-semibold text-primary hover:underline">Entrar</Link>
+      </p>
+    </AuthShell>
   );
 }

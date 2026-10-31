@@ -500,16 +500,16 @@ export function ContractImportDialog({ open, onOpenChange, onImportComplete }: C
             <div className="space-y-6">
               {/* Client Status Alert */}
               {existingClient ? (
-                <Alert className="border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20">
-                  <User className="h-4 w-4 text-emerald-600" />
-                  <AlertDescription className="text-emerald-700 dark:text-emerald-400">
+                <Alert className="border-border bg-success-bg">
+                  <User className="h-4 w-4 text-[hsl(var(--success-fg))]" />
+                  <AlertDescription className="text-success-fg">
                     Cliente encontrado: <strong>{existingClient.nome}</strong>
                   </AlertDescription>
                 </Alert>
               ) : willCreateClient ? (
-                <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/20">
-                  <UserPlus className="h-4 w-4 text-amber-600" />
-                  <AlertDescription className="text-amber-700 dark:text-amber-400">
+                <Alert className="border-border bg-warning-bg">
+                  <UserPlus className="h-4 w-4 text-[hsl(var(--warning-fg))]" />
+                  <AlertDescription className="text-warning-fg">
                     Novo cliente será criado: <strong>{formData.cliente_nome}</strong>
                   </AlertDescription>
                 </Alert>
@@ -714,8 +714,8 @@ export function ContractImportDialog({ open, onOpenChange, onImportComplete }: C
           {/* Complete Step */}
           {step === 'complete' && (
             <div className="flex flex-col items-center justify-center py-12 gap-4">
-              <div className="rounded-full bg-emerald-100 dark:bg-emerald-900/30 p-4">
-                <CheckCircle2 className="h-12 w-12 text-emerald-600" />
+              <div className="rounded-full bg-success-bg p-4">
+                <CheckCircle2 className="h-12 w-12 text-[hsl(var(--success-fg))]" />
               </div>
               <div className="text-center">
                 <p className="text-lg font-medium">Contrato importado!</p>

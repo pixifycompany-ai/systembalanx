@@ -10,6 +10,10 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { LoadingSpinner, SkeletonTable } from '@/components/shared/LoadingSpinner';
 import { MultiSelectBar } from '@/components/shared/MultiSelectBar';
+import { SectionCard } from '@/components/shared/SectionCard';
+import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ChoiceChip, FormSection, InitialsAvatar, InlineNotice, NATIVE_SELECT_CLS, SheetFooter, SheetHeading } from '@/components/cobrancas/formParts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -50,7 +54,7 @@ import { useContratoAditivos, type AditivoFormData } from '@/hooks/useContratoAd
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { findPossibleDuplicate, findDuplicateGroups, type DuplicateMatch, type DuplicateGroup } from '@/utils/contractDuplicates';
 import { isContratoAtivoHoje, getValorMensalEquivalente } from '@/utils/contractUtils';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Search } from 'lucide-react';
 
 const RECORRENCIA_OPTIONS = [
   { value: 'semanal', label: 'Semanal (7 dias)' },
@@ -640,57 +644,63 @@ export default function Contratos() {
     <main className="container py-4 md:py-6">
         {/* Page Header */}
         <MobilePageHeader
-          eyebrow="Recorrência"
+          eyebrow="Gestão · Recorrência"
           title="Contratos"
           actions={
             <>
-              <IconButton label="Sincronizar cobranças (Asaas)" onClick={() => sincronizarCobrancas()} disabled={cobrLoading}>
+              <IconButton label="Sincronizar cobranças (Asaas)" onClick={() => sincronizarCobrancas()} disabled={cobrLoading} className="h-10 w-10 rounded-full">
                 <RefreshCw className={cn('h-4 w-4', cobrLoading && 'animate-spin')} />
               </IconButton>
-              <IconButton label="Importar contrato (PDF)" onClick={() => setImportDialogOpen(true)}>
+              <IconButton label="Importar contrato (PDF)" onClick={() => setImportDialogOpen(true)} className="h-10 w-10 rounded-full">
                 <Upload className="h-4 w-4" />
               </IconButton>
-              <IconButton label="Novo Contrato" emphasis="primary" onClick={handleNew}>
+              <Button onClick={handleNew} className="gap-1.5" aria-label="Novo Contrato">
                 <Plus className="h-4 w-4" />
-              </IconButton>
+                <span className="sm:hidden">Novo</span>
+                <span className="hidden sm:inline">Novo contrato</span>
+              </Button>
             </>
           }
         />
 
-        {/* Summary — 3 KPIs compactos (igual mockup) */}
+        {/* Resumo — 3 KPIs colados; MRR é a célula navy de destaque */}
         <KpiTriple
+          className="md:mb-6"
           items={[
-            { label: 'MRR Total', value: totals.mrrTotal, tone: 'green' },
-            { label: 'Ativos', value: totals.ativos, tone: 'steel', format: 'count' },
+            { label: 'Ativos', value: totals.ativos, tone: 'green', format: 'count' },
             { label: 'Valor Total', value: totals.valorTotal, tone: 'amber' },
+            { label: 'MRR Total', value: totals.mrrTotal, tone: 'steel' },
           ]}
         />
 
         {/* Banner: existing duplicate active contracts */}
         {duplicateGroups.length > 0 && (
-          <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">
+          <SectionCard className="mb-4 md:mb-6" flush>
+            <div className="flex items-start gap-3 px-4 pt-4 md:px-6 md:pt-5">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-warning-bg text-warning-fg">
+                <AlertTriangle className="h-[18px] w-[18px]" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-semibold text-foreground">
                   {duplicateGroups.length === 1
                     ? '1 possível contrato duplicado'
                     : `${duplicateGroups.length} possíveis contratos duplicados`} inflando o MRR
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="mt-0.5 text-[12.5px] text-foreground-muted">
                   Mescle para manter apenas um contrato vigente por serviço/cliente. Os demais serão encerrados.
                 </p>
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="mt-2 px-4 pb-1 md:px-6">
               {duplicateGroups.map((group, idx) => (
                 <div
                   key={`${group.cliente_id}-${idx}`}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border bg-background p-3"
+                  className="flex items-center gap-3 border-b border-border py-3 last:border-b-0"
                 >
+                  <InitialsAvatar nome={group.cliente_nome} />
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium truncate">{group.cliente_nome}</div>
-                    <div className="text-xs text-muted-foreground truncate">
+                    <div className="truncate text-[14px] font-semibold text-foreground">{group.cliente_nome}</div>
+                    <div className="truncate text-[12px] text-foreground-muted">
                       {group.contratos.map(c => `${c.descricao} (${formatCurrency(Number(c.valor))})`).join(' • ')}
                     </div>
                   </div>
@@ -700,32 +710,29 @@ export default function Contratos() {
                 </div>
               ))}
             </div>
-          </div>
+          </SectionCard>
         )}
 
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <Input
-            type="search"
-            placeholder="Buscar por descrição ou cliente..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="sm:w-80"
-          />
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="sm:w-48">
-              <SelectValue placeholder="Filtrar por status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              {STATUS_OPTIONS.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Filtros: status em pílulas + busca */}
+        <div className="mb-4 flex flex-col gap-3 md:mb-5 md:flex-row md:items-center md:justify-between">
+          <ScrollPills aria-label="Filtrar por status">
+            <Pill active={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>Todos</Pill>
+            {STATUS_OPTIONS.map(option => (
+              <Pill key={option.value} active={statusFilter === option.value} onClick={() => setStatusFilter(option.value)}>
+                {option.label}
+              </Pill>
+            ))}
+          </ScrollPills>
+          <div className="relative md:w-80">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
+            <Input
+              type="search"
+              placeholder="Buscar por descrição ou cliente..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="rounded-full bg-surface pl-10"
+            />
+          </div>
         </div>
 
         {/* Table / Mobile List */}
@@ -759,7 +766,7 @@ export default function Contratos() {
             )}
           />
         ) : (
-        <div className="metric-card overflow-hidden">
+        <SectionCard flush className="overflow-hidden">
           {isLoading ? (
             <SkeletonTable rows={5} />
           ) : filteredContratos.length === 0 ? (
@@ -774,107 +781,111 @@ export default function Contratos() {
               }
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="data-table w-full min-w-[1200px] [&_th]:px-5 [&_td]:px-5">
-                <thead>
-                  <tr>
-                    <th className="w-10">
+            <Table className="min-w-[1080px]">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-12 pl-5 md:pl-6">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Selecionar todos"
+                      className={isSomeSelected ? 'data-[state=checked]:bg-primary/50' : ''}
+                    />
+                  </TableHead>
+                  <TableHead className="min-w-[220px]"><SortBtn label="Cliente" onClick={() => toggleSort('cliente')} icon={sortIcon('cliente')} /></TableHead>
+                  <TableHead className="min-w-[240px]"><SortBtn label="Descrição" onClick={() => toggleSort('descricao')} icon={sortIcon('descricao')} /></TableHead>
+                  <TableHead className="w-[130px]"><SortBtn label="Recorrência" onClick={() => toggleSort('recorrencia')} icon={sortIcon('recorrencia')} /></TableHead>
+                  <TableHead className="w-[140px] text-right"><SortBtn label="Valor" onClick={() => toggleSort('valor')} icon={sortIcon('valor')} align="right" /></TableHead>
+                  <TableHead className="w-[110px]"><SortBtn label="Início" onClick={() => toggleSort('inicio')} icon={sortIcon('inicio')} /></TableHead>
+                  <TableHead className="w-[110px]"><SortBtn label="Status" onClick={() => toggleSort('status')} icon={sortIcon('status')} /></TableHead>
+                  <TableHead className="w-[160px]">Cobrança</TableHead>
+                  <TableHead className="w-[100px] pr-5 text-right md:pr-6">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedContratos.map(contrato => (
+                  <TableRow
+                    key={contrato.id}
+                    data-state={isSelected(contrato.id) ? 'selected' : undefined}
+                    className="border-b border-border"
+                  >
+                    <TableCell className="pl-5 md:pl-6">
                       <Checkbox
-                        checked={isAllSelected}
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="Selecionar todos"
-                        className={isSomeSelected ? 'data-[state=checked]:bg-primary/50' : ''}
+                        checked={isSelected(contrato.id)}
+                        onCheckedChange={() => toggleSelect(contrato.id)}
+                        aria-label={`Selecionar ${contrato.descricao}`}
                       />
-                    </th>
-                    <th className="min-w-[240px]"><button type="button" onClick={() => toggleSort('cliente')} className="inline-flex items-center gap-1 hover:text-foreground">Cliente {sortIcon('cliente')}</button></th>
-                    <th className="hidden md:table-cell min-w-[280px]"><button type="button" onClick={() => toggleSort('descricao')} className="inline-flex items-center gap-1 hover:text-foreground">Descrição {sortIcon('descricao')}</button></th>
-                    <th className="hidden sm:table-cell w-[130px]"><button type="button" onClick={() => toggleSort('recorrencia')} className="inline-flex items-center gap-1 hover:text-foreground">Recorrência {sortIcon('recorrencia')}</button></th>
-                    <th className="w-[140px] text-right"><button type="button" onClick={() => toggleSort('valor')} className="inline-flex items-center gap-1 ml-auto hover:text-foreground">Valor {sortIcon('valor')}</button></th>
-                    <th className="hidden md:table-cell w-[120px]"><button type="button" onClick={() => toggleSort('inicio')} className="inline-flex items-center gap-1 hover:text-foreground">Início {sortIcon('inicio')}</button></th>
-                    <th className="w-[110px]"><button type="button" onClick={() => toggleSort('status')} className="inline-flex items-center gap-1 hover:text-foreground">Status {sortIcon('status')}</button></th>
-                    <th className="w-[160px]">Cobrança</th>
-                    <th className="w-[100px] text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedContratos.map(contrato => (
-                    <tr key={contrato.id} className={cn(
-                      contrato.recorrencia === 'mensal' && 'bg-primary/5',
-                      isSelected(contrato.id) && 'ring-2 ring-primary'
-                    )}>
-                      <td>
-                        <Checkbox
-                          checked={isSelected(contrato.id)}
-                          onCheckedChange={() => toggleSelect(contrato.id)}
-                          aria-label={`Selecionar ${contrato.descricao}`}
-                        />
-                      </td>
-                      <td className="font-medium">{contrato.cliente?.nome || '-'}</td>
-                      <td className="max-w-[200px] truncate hidden md:table-cell">{contrato.descricao}</td>
-                      <td className="hidden sm:table-cell">
-                        <StatusBadge status={contrato.recorrencia} />
-                      </td>
-                      <td className="tabular-nums text-right">
-                        <span className="value-positive">{formatCurrency(Number(contrato.valor))}</span>
-                      </td>
-                      <td className="hidden md:table-cell">{formatDate(contrato.data_inicio)}</td>
-                      <td>
-                        <StatusBadge status={contrato.status} />
-                      </td>
-                      <td>
-                        <ContratoCobrancaCell
-                          contratoId={contrato.id}
-                          cobranca={cobrancaDoContrato(contrato.id)}
-                          busy={cobrBusyId === contrato.id || cobrBusyId === cobrancaDoContrato(contrato.id)?.id}
-                          contas={contasRecebimento}
-                          clienteNome={contrato.cliente?.nome || ''}
-                          contratoDescricao={contrato.descricao}
-                          contratoValor={contrato.valor}
-                          onCobrar={(forma, contaId, extra) => criarCobranca(contrato.id, forma, contaId, extra)}
-                          onListarAssinaturas={() => listarAssinaturas(contrato.cliente_id)}
-                          onVincular={async (subId, contaId) => { await vincularAssinatura(contrato.id, subId, contaId); refetchContratos(); }}
-                          onDesvincular={() => setDesvincularAlvo({ id: contrato.id, nome: contrato.cliente?.nome || contrato.descricao || 'contrato' })}
-                          onCancelar={() => { const c = cobrancaDoContrato(contrato.id); if (c) cancelarCobranca(c.id); }}
-                          onExcluir={() => { const c = cobrancaDoContrato(contrato.id); if (c) excluirCobranca(c.id); }}
-                          onSincronizar={() => sincronizarCobrancas(contrato.id)}
-                          onReceberManual={() => { const c = cobrancaDoContrato(contrato.id); if (c) receberManualCobranca(c.id); }}
-                          onWhatsapp={() => openWhatsapp(cobrancaDoContrato(contrato.id))}
-                          grupoQtd={(() => { const cb = cobrancaDoContrato(contrato.id); return cb ? linhasDaFatura(cb).length : 1; })()}
-                        />
-                      </td>
-                      <td>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(contrato)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => { setDeletingId(contrato.id); setDeleteDialogOpen(true); }}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <InitialsAvatar nome={contrato.cliente?.nome} className="h-9 w-9 rounded-[12px] text-[12px]" />
+                        <span className="truncate font-semibold text-foreground">{contrato.cliente?.nome || '-'}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-[260px] truncate text-foreground-muted">{contrato.descricao}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={contrato.recorrencia} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className="whitespace-nowrap font-heading font-semibold tabular-nums tracking-[-0.02em] text-[hsl(var(--success-fg))]">{formatCurrency(Number(contrato.valor))}</span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-foreground-muted">{formatDate(contrato.data_inicio)}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={contrato.status} />
+                    </TableCell>
+                    <TableCell>
+                      <ContratoCobrancaCell
+                        contratoId={contrato.id}
+                        cobranca={cobrancaDoContrato(contrato.id)}
+                        busy={cobrBusyId === contrato.id || cobrBusyId === cobrancaDoContrato(contrato.id)?.id}
+                        contas={contasRecebimento}
+                        clienteNome={contrato.cliente?.nome || ''}
+                        contratoDescricao={contrato.descricao}
+                        contratoValor={contrato.valor}
+                        onCobrar={(forma, contaId, extra) => criarCobranca(contrato.id, forma, contaId, extra)}
+                        onListarAssinaturas={() => listarAssinaturas(contrato.cliente_id)}
+                        onVincular={async (subId, contaId) => { await vincularAssinatura(contrato.id, subId, contaId); refetchContratos(); }}
+                        onDesvincular={() => setDesvincularAlvo({ id: contrato.id, nome: contrato.cliente?.nome || contrato.descricao || 'contrato' })}
+                        onCancelar={() => { const c = cobrancaDoContrato(contrato.id); if (c) cancelarCobranca(c.id); }}
+                        onExcluir={() => { const c = cobrancaDoContrato(contrato.id); if (c) excluirCobranca(c.id); }}
+                        onSincronizar={() => sincronizarCobrancas(contrato.id)}
+                        onReceberManual={() => { const c = cobrancaDoContrato(contrato.id); if (c) receberManualCobranca(c.id); }}
+                        onWhatsapp={() => openWhatsapp(cobrancaDoContrato(contrato.id))}
+                        grupoQtd={(() => { const cb = cobrancaDoContrato(contrato.id); return cb ? linhasDaFatura(cb).length : 1; })()}
+                      />
+                    </TableCell>
+                    <TableCell className="pr-5 md:pr-6">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label="Editar contrato" onClick={() => handleEdit(contrato)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-danger-bg" aria-label="Excluir contrato" onClick={() => { setDeletingId(contrato.id); setDeleteDialogOpen(true); }}>
+                          <Trash2 className="h-4 w-4 text-[hsl(var(--danger-fg))]" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
-        </div>
+        </SectionCard>
         )}
 
         {/* Create/Edit Modal */}
         <Sheet open={modalOpen} onOpenChange={setModalOpen}>
           <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[560px] sm:mx-auto">
-            <div className="px-5 pt-1 pb-1">
-              <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
-              <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
-                {editingContrato ? 'Editar contrato' : 'Novo contrato'}
-              </h2>
-            </div>
+            <SheetHeading
+              className="px-5 pt-1"
+              eyebrow="Cadastro"
+              title={editingContrato ? 'Editar contrato' : 'Novo contrato'}
+            />
 
-            <form onSubmit={handleSubmit} className="space-y-4 p-5 pt-3">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="cliente_id">Cliente</Label>
+            <form onSubmit={handleSubmit} className="space-y-6 p-5 pt-4">
+              {/* ===== Cliente e serviço ===== */}
+              <FormSection
+                label="Cliente e serviço"
+                action={
                   <div className="flex items-center gap-3">
                     {formData.cliente_id && !novoClienteOpen && (
                       <button
@@ -893,352 +904,362 @@ export default function Contratos() {
                       {novoClienteOpen ? 'Cancelar' : '+ Novo cliente'}
                     </button>
                   </div>
+                }
+              >
+                <div className="space-y-1.5">
+                  <Label htmlFor="cliente_id">Cliente</Label>
+                  {novoClienteOpen ? (
+                    <div className="flex gap-2">
+                      <Input
+                        autoFocus
+                        value={novoClienteNome}
+                        onChange={(e) => setNovoClienteNome(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCriarClienteInline(); } }}
+                        placeholder="Nome do novo cliente"
+                      />
+                      <Button type="button" size="lg" onClick={handleCriarClienteInline} disabled={criandoCliente || !novoClienteNome.trim()}>
+                        {criandoCliente ? 'Criando…' : 'Criar'}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Select
+                      value={formData.cliente_id}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, cliente_id: value }))}
+                    >
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeClientes.map(cliente => (
+                          <SelectItem key={cliente.id} value={cliente.id}>
+                            {cliente.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
-                {novoClienteOpen ? (
-                  <div className="flex gap-2">
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="descricao">Descrição *</Label>
+                  <Textarea
+                    id="descricao"
+                    value={formData.descricao}
+                    onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+                    placeholder="Descrição do contrato..."
+                    rows={2}
+                    required
+                  />
+                </div>
+              </FormSection>
+
+              {/* ===== Valor e recorrência ===== */}
+              <FormSection label="Valor e recorrência">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="valor">Valor *</Label>
                     <Input
-                      autoFocus
-                      value={novoClienteNome}
-                      onChange={(e) => setNovoClienteNome(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCriarClienteInline(); } }}
-                      placeholder="Nome do novo cliente"
+                      id="valor"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.valor}
+                      onChange={(e) => setFormData(prev => ({ ...prev, valor: e.target.value }))}
+                      placeholder="0,00"
+                      required
                     />
-                    <Button type="button" onClick={handleCriarClienteInline} disabled={criandoCliente || !novoClienteNome.trim()}>
-                      {criandoCliente ? 'Criando…' : 'Criar'}
-                    </Button>
                   </div>
-                ) : (
-                  <Select
-                    value={formData.cliente_id}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, cliente_id: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeClientes.map(cliente => (
-                        <SelectItem key={cliente.id} value={cliente.id}>
-                          {cliente.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição *</Label>
-                <Textarea
-                  id="descricao"
-                  value={formData.descricao}
-                  onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-                  placeholder="Descrição do contrato..."
-                  rows={2}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="valor">Valor *</Label>
-                  <Input
-                    id="valor"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.valor}
-                    onChange={(e) => setFormData(prev => ({ ...prev, valor: e.target.value }))}
-                    placeholder="0,00"
-                    required
-                  />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="recorrencia">Recorrência</Label>
+                    <Select
+                      value={formData.recorrencia}
+                      onValueChange={(value: typeof formData.recorrencia) => setFormData(prev => ({ ...prev, recorrencia: value }))}
+                    >
+                      <SelectTrigger className="h-11">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RECORRENCIA_OPTIONS.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="recorrencia">Recorrência</Label>
-                  <Select
-                    value={formData.recorrencia}
-                    onValueChange={(value: typeof formData.recorrencia) => setFormData(prev => ({ ...prev, recorrencia: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {RECORRENCIA_OPTIONS.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
-              {/* Conditional: Dia de Vencimento for recurring contracts */}
-              {formData.recorrencia !== 'unico' && (
-                <div className="space-y-2">
-                  <Label htmlFor="dia_vencimento" className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Dia de Vencimento *
-                  </Label>
-                  <Input
-                    id="dia_vencimento"
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={formData.dia_vencimento}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dia_vencimento: e.target.value }))}
-                    placeholder="Ex: 10"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Dia do mês para cobrança (1-31)
-                  </p>
-                </div>
-              )}
-
-              {/* Conditional: Parcelas for unique contracts */}
-              {formData.recorrencia === 'unico' && (
-                <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
-                  <div className="space-y-2">
-                    <Label htmlFor="num_parcelas" className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Número de Parcelas
+                {/* Conditional: Dia de Vencimento for recurring contracts */}
+                {formData.recorrencia !== 'unico' && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dia_vencimento" className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-foreground-muted" />
+                      Dia de Vencimento *
                     </Label>
                     <Input
-                      id="num_parcelas"
+                      id="dia_vencimento"
                       type="number"
                       min="1"
-                      max="60"
-                      value={formData.num_parcelas}
-                      onChange={(e) => setFormData(prev => ({ ...prev, num_parcelas: e.target.value }))}
+                      max="31"
+                      value={formData.dia_vencimento}
+                      onChange={(e) => setFormData(prev => ({ ...prev, dia_vencimento: e.target.value }))}
+                      placeholder="Ex: 10"
+                      required
                     />
+                    <p className="text-[11.5px] text-foreground-muted">
+                      Dia do mês para cobrança (1-31)
+                    </p>
                   </div>
+                )}
 
-                  {parcelas.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Parcelas</Label>
-                      <div className="border rounded-lg overflow-hidden">
-                        <table className="w-full text-sm">
-                          <thead className="bg-muted">
-                            <tr>
-                              <th className="px-3 py-2 text-left">#</th>
-                              <th className="px-3 py-2 text-left">Vencimento</th>
-                              <th className="px-3 py-2 text-right">Valor</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {parcelas.map((parcela, index) => (
-                              <tr key={index} className="border-t">
-                                <td className="px-3 py-2 text-muted-foreground">
-                                  {parcela.numero_parcela}/{parcelas.length}
-                                </td>
-                                <td className="px-3 py-2">
-                                  <Input
-                                    type="date"
-                                    value={parcela.data_vencimento}
-                                    onChange={(e) => {
-                                      const newParcelas = [...parcelas];
-                                      newParcelas[index] = { ...newParcelas[index], data_vencimento: e.target.value };
-                                      setParcelas(newParcelas);
-                                    }}
-                                    className="h-8 w-full"
-                                  />
-                                </td>
-                                <td className="px-3 py-2">
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={parcela.valor}
-                                    onChange={(e) => {
-                                      const newParcelas = [...parcelas];
-                                      newParcelas[index] = { ...newParcelas[index], valor: parseFloat(e.target.value) || 0 };
-                                      setParcelas(newParcelas);
-                                    }}
-                                    className="h-8 w-24 text-right"
-                                  />
+                {/* Conditional: Parcelas for unique contracts */}
+                {formData.recorrencia === 'unico' && (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="num_parcelas" className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-foreground-muted" />
+                        Número de Parcelas
+                      </Label>
+                      <Input
+                        id="num_parcelas"
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={formData.num_parcelas}
+                        onChange={(e) => setFormData(prev => ({ ...prev, num_parcelas: e.target.value }))}
+                      />
+                    </div>
+
+                    {parcelas.length > 0 && (
+                      <div className="space-y-1.5">
+                        <Label>Parcelas</Label>
+                        <div className="overflow-hidden rounded-[20px] border border-border">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="text-left text-xs font-medium text-foreground-muted">
+                                <th className="px-3 py-2.5">#</th>
+                                <th className="px-3 py-2.5">Vencimento</th>
+                                <th className="px-3 py-2.5 text-right">Valor</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {parcelas.map((parcela, index) => (
+                                <tr key={index} className="border-t border-border">
+                                  <td className="px-3 py-2 text-foreground-muted">
+                                    {parcela.numero_parcela}/{parcelas.length}
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <Input
+                                      type="date"
+                                      value={parcela.data_vencimento}
+                                      onChange={(e) => {
+                                        const newParcelas = [...parcelas];
+                                        newParcelas[index] = { ...newParcelas[index], data_vencimento: e.target.value };
+                                        setParcelas(newParcelas);
+                                      }}
+                                      className="w-full"
+                                    />
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      value={parcela.valor}
+                                      onChange={(e) => {
+                                        const newParcelas = [...parcelas];
+                                        newParcelas[index] = { ...newParcelas[index], valor: parseFloat(e.target.value) || 0 };
+                                        setParcelas(newParcelas);
+                                      }}
+                                      className="w-24 text-right"
+                                    />
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="border-t border-border bg-surface-2 font-medium">
+                                <td colSpan={2} className="px-3 py-2.5">Total</td>
+                                <td className="px-3 py-2.5 text-right font-heading font-semibold tabular-nums">
+                                  {formatCurrency(parcelas.reduce((sum, p) => sum + p.valor, 0))}
                                 </td>
                               </tr>
-                            ))}
-                          </tbody>
-                          <tfoot className="bg-muted">
-                            <tr className="border-t font-medium">
-                              <td colSpan={2} className="px-3 py-2">Total</td>
-                              <td className="px-3 py-2 text-right">
-                                {formatCurrency(parcelas.reduce((sum, p) => sum + p.valor, 0))}
-                              </td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <DatePickerField
-                  label="Data Início *"
-                  value={formData.data_inicio}
-                  onChange={(d) => setFormData(prev => ({ ...prev, data_inicio: d }))}
-                  required
-                />
-                <DatePickerField
-                  label="Data Fim"
-                  value={formData.data_fim}
-                  onChange={(d) => setFormData(prev => ({ ...prev, data_fim: d }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['ativo', 'encerrado', 'cancelado'] as const).map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, status: s }))}
-                      className={cn(
-                        'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors',
-                        formData.status === s ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted',
-                      )}
-                    >
-                      {s === 'ativo' ? 'Ativo' : s === 'encerrado' ? 'Encerrado' : 'Cancelado'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Data de Inativação - only when status is not ativo */}
-              {formData.status !== 'ativo' && (
-                <div className="space-y-2">
-                  <DatePickerField
-                    label="Data de Inativação"
-                    value={formData.data_inativacao}
-                    onChange={(d) => setFormData(prev => ({ ...prev, data_inativacao: d }))}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Data efetiva de encerramento/cancelamento. Se não informada, será usada a data atual.
-                  </p>
-                </div>
-              )}
-
-              {/* Criar cobrança no Asaas junto com o contrato (só na criação, recorrente) */}
-              {!editingContrato && formData.recorrencia !== 'unico' && (
-                <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/[0.05] p-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-2 text-sm font-semibold">
-                      <Zap className="h-4 w-4 text-primary" /> Criar cobrança no Asaas
-                    </Label>
-                    <Switch checked={novoContratoCobranca} onCheckedChange={setNovoContratoCobranca} />
-                  </div>
-                  {novoContratoCobranca && (
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-xs">Forma de pagamento</Label>
-                        <div className="mt-1 grid grid-cols-2 gap-1.5">
-                          {[['UNDEFINED', 'Cliente escolhe'], ['PIX', 'Pix'], ['BOLETO', 'Boleto'], ['CREDIT_CARD', 'Cartão']].map(([v, l]) => (
-                            <button key={v} type="button" onClick={() => setNcForma(v)} className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', ncForma === v ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>{l}</button>
-                          ))}
+                            </tfoot>
+                          </table>
                         </div>
                       </div>
-                      <div>
-                        <Label className="text-xs">Conta de recebimento</Label>
-                        <select value={ncConta} onChange={(e) => setNcConta(e.target.value)} className="mt-1 w-full rounded-lg border border-border/60 bg-surface/60 px-2.5 py-2 text-sm text-foreground outline-none">
-                          <option value="">Sem conta (defino depois)</option>
-                          {contasRecebimento.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                        </select>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div><Label className="text-xs">Multa atraso (%)</Label><Input type="number" step="0.01" min="0" value={ncMulta} onChange={(e) => setNcMulta(e.target.value)} placeholder="0" className="mt-1" /></div>
-                        <div><Label className="text-xs">Juros ao mês (%)</Label><Input type="number" step="0.01" min="0" value={ncJuros} onChange={(e) => setNcJuros(e.target.value)} placeholder="0" className="mt-1" /></div>
-                      </div>
-                      <p className="text-[11px] text-foreground-muted">Cria a assinatura no Asaas e lança a receita a receber. Multa/juros só incidem se atrasar — juros é <b>ao mês</b> (proporcional aos dias). O juros/multa recebido entra como receita extra na baixa.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Cobrança automática (exceção) + exigir nota fiscal — por contrato */}
-              {formData.recorrencia !== 'unico' && (
-                <div className="space-y-3 rounded-xl border border-border/60 bg-surface/40 p-3">
-                  <Label className="text-sm font-semibold">Cobrança automática (WhatsApp)</Label>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {[['padrao', 'Padrão'], ['off', 'Desligado'], ['custom', 'Personalizado']].map(([v, l]) => (
-                      <button key={v} type="button" onClick={() => setCaModo(v as 'padrao' | 'off' | 'custom')} className={cn('rounded-lg border py-1.5 text-xs font-semibold transition-colors', caModo === v ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>{l}</button>
-                    ))}
-                  </div>
-                  <p className="text-[11px] text-foreground-muted">
-                    {caModo === 'padrao' ? 'Usa a regra global (Meu Perfil).' : caModo === 'off' ? 'Nunca dispara automático para este contrato.' : 'Define uma regra só para este contrato.'}
-                  </p>
-                  {caModo === 'custom' && (
-                    <div className="space-y-2.5 border-t border-border/50 pt-2.5">
-                      <div className="flex items-center justify-between gap-3">
-                        <Label className="text-xs font-normal">Enviar <b>X dias antes</b></Label>
-                        <Input type="number" min="0" value={caAntes} onChange={(e) => setCaAntes(e.target.value)} placeholder="0" className="h-8 w-16 text-center text-sm" />
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <Label className="text-xs font-normal">Enviar <b>no dia</b></Label>
-                        <Switch checked={caNoDia} onCheckedChange={setCaNoDia} />
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <Label className="text-xs font-normal">Reenviar <b>todo dia em atraso</b></Label>
-                        <Switch checked={caAtraso} onCheckedChange={setCaAtraso} />
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-2.5">
-                    <Label className="text-xs font-normal">Exigir <b>nota fiscal (PDF)</b> para disparar</Label>
-                    <Switch checked={caExigirNf} onCheckedChange={setCaExigirNf} />
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <Label className="text-xs font-normal">No WhatsApp, enviar <b>chave PIX</b> (não o link Asaas)</Label>
-                    <Switch checked={caEnvioPix} onCheckedChange={setCaEnvioPix} />
-                  </div>
-                  <p className="text-[11px] text-foreground-muted">Vale para as próximas cobranças geradas deste contrato. A chave PIX é a de Meu Perfil; a baixa é pelo "Identificar pagamento manual".</p>
-                </div>
-              )}
-
-              {editingContrato && (
-                <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-2 text-sm font-semibold">
-                      <TrendingUp className="h-4 w-4" />
-                      Histórico de Reajustes
-                    </Label>
-                    {!showAditivoForm && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const nextMonth = new Date();
-                          nextMonth.setMonth(nextMonth.getMonth() + 1);
-                          nextMonth.setDate(1);
-                          setAditivoData({
-                            valor_novo: '',
-                            data_vigencia: nextMonth.toISOString().split('T')[0],
-                            motivo: '',
-                          });
-                          setShowAditivoForm(true);
-                        }}
-                        className="gap-1"
-                      >
-                        <Plus className="h-3 w-3" />
-                        Novo Reajuste
-                      </Button>
                     )}
                   </div>
+                )}
+              </FormSection>
 
+              {/* ===== Vigência ===== */}
+              <FormSection label="Vigência">
+                <div className="grid grid-cols-2 gap-3">
+                  <DatePickerField
+                    label="Data Início *"
+                    value={formData.data_inicio}
+                    onChange={(d) => setFormData(prev => ({ ...prev, data_inicio: d }))}
+                    required
+                  />
+                  <DatePickerField
+                    label="Data Fim"
+                    value={formData.data_fim}
+                    onChange={(d) => setFormData(prev => ({ ...prev, data_fim: d }))}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="status">Status</Label>
+                  <div className="grid grid-cols-3 gap-1 rounded-full border border-border bg-surface p-1">
+                    {(['ativo', 'encerrado', 'cancelado'] as const).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, status: s }))}
+                        className={cn(
+                          'no-touch-min h-9 rounded-full text-[13px] font-semibold transition-colors',
+                          formData.status === s ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground',
+                        )}
+                      >
+                        {s === 'ativo' ? 'Ativo' : s === 'encerrado' ? 'Encerrado' : 'Cancelado'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Data de Inativação - only when status is not ativo */}
+                {formData.status !== 'ativo' && (
+                  <div className="space-y-1.5">
+                    <DatePickerField
+                      label="Data de Inativação"
+                      value={formData.data_inativacao}
+                      onChange={(d) => setFormData(prev => ({ ...prev, data_inativacao: d }))}
+                    />
+                    <p className="text-[11.5px] text-foreground-muted">
+                      Data efetiva de encerramento/cancelamento. Se não informada, será usada a data atual.
+                    </p>
+                  </div>
+                )}
+              </FormSection>
+
+              {/* ===== Criar cobrança no Asaas junto com o contrato (só na criação, recorrente) ===== */}
+              {!editingContrato && formData.recorrencia !== 'unico' && (
+                <FormSection label="Cobrança no Asaas">
+                  <div className="rounded-[20px] border border-border p-3.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <Label className="flex items-center gap-2.5 text-sm font-semibold">
+                        <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-info-bg text-info-fg"><Zap className="h-4 w-4" /></span>
+                        Criar cobrança no Asaas
+                      </Label>
+                      <Switch checked={novoContratoCobranca} onCheckedChange={setNovoContratoCobranca} />
+                    </div>
+                    {novoContratoCobranca && (
+                      <div className="mt-4 space-y-3.5 border-t border-border pt-3.5">
+                        <div className="space-y-1.5">
+                          <Label className="text-[12px] text-foreground-muted">Forma de pagamento</Label>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {[['UNDEFINED', 'Cliente escolhe'], ['PIX', 'Pix'], ['BOLETO', 'Boleto'], ['CREDIT_CARD', 'Cartão']].map(([v, l]) => (
+                              <ChoiceChip key={v} active={ncForma === v} onClick={() => setNcForma(v)}>{l}</ChoiceChip>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[12px] text-foreground-muted">Conta de recebimento</Label>
+                          <select value={ncConta} onChange={(e) => setNcConta(e.target.value)} className={NATIVE_SELECT_CLS}>
+                            <option value="">Sem conta (defino depois)</option>
+                            {contasRecebimento.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5"><Label className="text-[12px] text-foreground-muted">Multa atraso (%)</Label><Input type="number" step="0.01" min="0" value={ncMulta} onChange={(e) => setNcMulta(e.target.value)} placeholder="0" /></div>
+                          <div className="space-y-1.5"><Label className="text-[12px] text-foreground-muted">Juros ao mês (%)</Label><Input type="number" step="0.01" min="0" value={ncJuros} onChange={(e) => setNcJuros(e.target.value)} placeholder="0" /></div>
+                        </div>
+                        <p className="text-[11.5px] leading-snug text-foreground-muted">Cria a assinatura no Asaas e lança a receita a receber. Multa/juros só incidem se atrasar — juros é <b>ao mês</b> (proporcional aos dias). O juros/multa recebido entra como receita extra na baixa.</p>
+                      </div>
+                    )}
+                  </div>
+                </FormSection>
+              )}
+
+              {/* ===== Cobrança automática (exceção) + exigir nota fiscal — por contrato ===== */}
+              {formData.recorrencia !== 'unico' && (
+                <FormSection label="Cobrança automática (WhatsApp)">
+                  <div className="grid grid-cols-3 gap-1 rounded-full border border-border bg-surface p-1">
+                    {[['padrao', 'Padrão'], ['off', 'Desligado'], ['custom', 'Personalizado']].map(([v, l]) => (
+                      <button key={v} type="button" onClick={() => setCaModo(v as 'padrao' | 'off' | 'custom')} className={cn('no-touch-min h-9 rounded-full text-[12.5px] font-semibold transition-colors', caModo === v ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground')}>{l}</button>
+                    ))}
+                  </div>
+                  <p className="text-[11.5px] text-foreground-muted">
+                    {caModo === 'padrao' ? 'Usa a regra global (Meu Perfil).' : caModo === 'off' ? 'Nunca dispara automático para este contrato.' : 'Define uma regra só para este contrato.'}
+                  </p>
+                  <div className="rounded-[20px] border border-border px-3.5">
+                    {caModo === 'custom' && (
+                      <>
+                        <div className="flex items-center justify-between gap-3 border-b border-border py-2.5">
+                          <Label className="text-[13px] font-normal">Enviar <b>X dias antes</b></Label>
+                          <Input type="number" min="0" value={caAntes} onChange={(e) => setCaAntes(e.target.value)} placeholder="0" className="w-20 text-center" />
+                        </div>
+                        <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-border py-2.5">
+                          <Label className="text-[13px] font-normal">Enviar <b>no dia</b></Label>
+                          <Switch checked={caNoDia} onCheckedChange={setCaNoDia} />
+                        </div>
+                        <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-border py-2.5">
+                          <Label className="text-[13px] font-normal">Reenviar <b>todo dia em atraso</b></Label>
+                          <Switch checked={caAtraso} onCheckedChange={setCaAtraso} />
+                        </div>
+                      </>
+                    )}
+                    <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-border py-2.5">
+                      <Label className="text-[13px] font-normal">Exigir <b>nota fiscal (PDF)</b> para disparar</Label>
+                      <Switch checked={caExigirNf} onCheckedChange={setCaExigirNf} />
+                    </div>
+                    <div className="flex min-h-[52px] items-center justify-between gap-3 py-2.5">
+                      <Label className="text-[13px] font-normal">No WhatsApp, enviar <b>chave PIX</b> (não o link Asaas)</Label>
+                      <Switch checked={caEnvioPix} onCheckedChange={setCaEnvioPix} />
+                    </div>
+                  </div>
+                  <p className="text-[11.5px] text-foreground-muted">Vale para as próximas cobranças geradas deste contrato. A chave PIX é a de Meu Perfil; a baixa é pelo "Identificar pagamento manual".</p>
+                </FormSection>
+              )}
+
+              {/* ===== Histórico de reajustes (edição) ===== */}
+              {editingContrato && (
+                <FormSection
+                  label={<span className="inline-flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5" /> Histórico de Reajustes</span>}
+                  action={!showAditivoForm && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const nextMonth = new Date();
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+                        nextMonth.setDate(1);
+                        setAditivoData({
+                          valor_novo: '',
+                          data_vigencia: nextMonth.toISOString().split('T')[0],
+                          motivo: '',
+                        });
+                        setShowAditivoForm(true);
+                      }}
+                      className="gap-1"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Novo Reajuste
+                    </Button>
+                  )}
+                >
                   {showAditivoForm && (
-                    <div className="space-y-3 border rounded-md p-3 bg-background">
+                    <div className="space-y-3 rounded-[20px] border border-border p-3.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Novo Reajuste</span>
-                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowAditivoForm(false)}>
-                          <X className="h-3 w-3" />
+                        <span className="text-sm font-semibold text-foreground">Novo Reajuste</span>
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full" aria-label="Fechar novo reajuste" onClick={() => setShowAditivoForm(false)}>
+                          <X className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Novo Valor *</Label>
+                        <div className="space-y-1.5">
+                          <Label className="text-[12px] text-foreground-muted">Novo Valor *</Label>
                           <Input
                             type="number"
                             step="0.01"
@@ -1248,8 +1269,8 @@ export default function Contratos() {
                             placeholder="0,00"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Vigência a partir de *</Label>
+                        <div className="space-y-1.5">
+                          <Label className="text-[12px] text-foreground-muted">Vigência a partir de *</Label>
                           <DatePickerField
                             label=""
                             value={aditivoData.data_vigencia}
@@ -1257,8 +1278,8 @@ export default function Contratos() {
                           />
                         </div>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Motivo</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-[12px] text-foreground-muted">Motivo</Label>
                         <Input
                           value={aditivoData.motivo}
                           onChange={(e) => setAditivoData(prev => ({ ...prev, motivo: e.target.value }))}
@@ -1267,7 +1288,6 @@ export default function Contratos() {
                       </div>
                       <Button
                         type="button"
-                        size="sm"
                         onClick={handleSaveAditivo}
                         disabled={isSaving || !aditivoData.valor_novo || !aditivoData.data_vigencia}
                         className="w-full"
@@ -1278,52 +1298,53 @@ export default function Contratos() {
                   )}
 
                   {aditivosLoading ? (
-                    <p className="text-xs text-muted-foreground">Carregando...</p>
+                    <p className="text-xs text-foreground-muted">Carregando...</p>
                   ) : aditivos.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhum reajuste registrado.</p>
+                    <p className="text-xs text-foreground-muted">Nenhum reajuste registrado.</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="rounded-[20px] border border-border px-3.5">
                       {aditivos.map(aditivo => (
-                        <div key={aditivo.id} className="flex items-center justify-between text-sm border rounded-md p-2 bg-background">
-                          <div className="flex-1 min-w-0">
+                        <div key={aditivo.id} className="flex items-center justify-between gap-3 border-b border-border py-2.5 text-sm last:border-b-0">
+                          <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground line-through tabular-nums">
+                              <span className="tabular-nums text-foreground-muted line-through">
                                 {formatCurrency(Number(aditivo.valor_anterior))}
                               </span>
                               <span className="text-foreground">→</span>
-                              <span className="font-semibold text-primary tabular-nums">
+                              <span className="font-heading font-semibold tabular-nums text-foreground">
                                 {formatCurrency(Number(aditivo.valor_novo))}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2 text-[12px] text-foreground-muted">
                               <span>A partir de {formatDate(aditivo.data_vigencia)}</span>
-                              {aditivo.motivo && <span>• {aditivo.motivo}</span>}
+                              {aditivo.motivo && <span className="truncate">• {aditivo.motivo}</span>}
                             </div>
                           </div>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 shrink-0"
+                            className="h-8 w-8 shrink-0 rounded-full hover:bg-danger-bg"
+                            aria-label="Excluir reajuste"
                             onClick={() => deleteAditivo(aditivo.id)}
                           >
-                            <Trash2 className="h-3 w-3 text-destructive" />
+                            <Trash2 className="h-3.5 w-3.5 text-[hsl(var(--danger-fg))]" />
                           </Button>
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
+                </FormSection>
               )}
 
-              <div className="flex gap-2.5 pt-2">
-                <button type="button" onClick={() => setModalOpen(false)} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
+              <SheetFooter className="border-t border-border pt-4">
+                <Button type="button" variant="outline" size="lg" onClick={() => setModalOpen(false)}>
                   Cancelar
-                </button>
-                <button type="submit" disabled={isSaving} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-primary-foreground disabled:opacity-50">
+                </Button>
+                <Button type="submit" size="lg" disabled={isSaving}>
                   {isSaving ? 'Salvando…' : (editingContrato ? 'Atualizar' : 'Criar')}
-                </button>
-              </div>
+                </Button>
+              </SheetFooter>
             </form>
           </SheetContent>
         </Sheet>
@@ -1411,38 +1432,37 @@ export default function Contratos() {
         {/* Enviar cobrança por WhatsApp (mensagem editável) */}
         <Sheet open={whatsappOpen} onOpenChange={setWhatsappOpen}>
           <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
-            <div className="pb-1">
-              <div className="text-[11.5px] font-medium text-foreground-muted">Cobrança</div>
-              <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Enviar por WhatsApp</h2>
-            </div>
-            <div className="space-y-3 pt-3">
-              <div className="space-y-1.5">
-                <Label>WhatsApp do cliente</Label>
-                <Input value={whatsappTel} onChange={(e) => setWhatsappTel(e.target.value)} placeholder="(65) 99902-0102" />
-                <p className="text-[11px] text-foreground-muted">Vem do cadastro do cliente. Enviamos com DDI+DDD, sem o nono dígito.</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Mensagem</Label>
-                <Textarea value={whatsappText} onChange={(e) => setWhatsappText(e.target.value)} rows={10} className="font-mono text-[13px] leading-relaxed" />
-                <p className="text-[11px] text-foreground-muted">Aceita *negrito*, _itálico_ e quebra de linha. Edite à vontade — o padrão vem de Meu Perfil.</p>
-              </div>
-              {whatsappCob?.nota_fiscal_path ? (
-                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-surface/60 px-3 py-2 text-xs text-foreground">
-                  <FileText className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="truncate">Vai anexar: {whatsappCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
+            <SheetHeading eyebrow="Cobrança" title="Enviar por WhatsApp" />
+            <div className="space-y-6 pt-3">
+              <FormSection label="Destinatário">
+                <div className="space-y-1.5">
+                  <Label>WhatsApp do cliente</Label>
+                  <Input value={whatsappTel} onChange={(e) => setWhatsappTel(e.target.value)} placeholder="(65) 99902-0102" />
+                  <p className="text-[11.5px] text-foreground-muted">Vem do cadastro do cliente. Enviamos com DDI+DDD, sem o nono dígito.</p>
                 </div>
-              ) : whatsappBloqueado ? (
-                <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning))]">
-                  <FileText className="h-4 w-4 shrink-0" />
-                  <span>Esta cobrança exige nota fiscal anexada. Anexe na tela de Cobranças.</span>
+              </FormSection>
+              <FormSection label="Mensagem">
+                <div className="space-y-1.5">
+                  <Label className="sr-only">Mensagem</Label>
+                  <Textarea value={whatsappText} onChange={(e) => setWhatsappText(e.target.value)} rows={10} className="font-mono text-[13px] leading-relaxed" />
+                  <p className="text-[11.5px] text-foreground-muted">Aceita *negrito*, _itálico_ e quebra de linha. Edite à vontade — o padrão vem de Meu Perfil.</p>
                 </div>
-              ) : null}
-              <div className="flex gap-2 pt-1">
-                <Button variant="outline" className="flex-1" onClick={() => setWhatsappOpen(false)}>Cancelar</Button>
-                <Button className="flex-1" onClick={handleEnviarWhatsapp} disabled={whatsappSending || whatsappBloqueado || !whatsappTel.trim() || !whatsappText.trim()}>
+                {whatsappCob?.nota_fiscal_path ? (
+                  <InlineNotice tone="neutral" icon={<FileText className="text-primary" />}>
+                    <span className="block truncate">Vai anexar: {whatsappCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
+                  </InlineNotice>
+                ) : whatsappBloqueado ? (
+                  <InlineNotice tone="warning" icon={<FileText />}>
+                    Esta cobrança exige nota fiscal anexada. Anexe na tela de Cobranças.
+                  </InlineNotice>
+                ) : null}
+              </FormSection>
+              <SheetFooter>
+                <Button variant="outline" size="lg" onClick={() => setWhatsappOpen(false)}>Cancelar</Button>
+                <Button size="lg" onClick={handleEnviarWhatsapp} disabled={whatsappSending || whatsappBloqueado || !whatsappTel.trim() || !whatsappText.trim()}>
                   {whatsappSending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Enviar
                 </Button>
-              </div>
+              </SheetFooter>
             </div>
           </SheetContent>
         </Sheet>
@@ -1463,40 +1483,43 @@ export default function Contratos() {
             </DialogHeader>
             {duplicateMatch && pendingSubmitData && (
               <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Encontramos um contrato ativo parecido para <strong>{duplicateMatch.contrato.cliente?.nome}</strong>:
+                <p className="text-sm text-foreground-muted">
+                  Encontramos um contrato ativo parecido para <strong className="text-foreground">{duplicateMatch.contrato.cliente?.nome}</strong>:
                 </p>
-                <div className="rounded-md border p-3 bg-muted/30 space-y-1 text-sm">
-                  <div className="font-medium">{duplicateMatch.contrato.descricao}</div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Valor atual:</span>
-                    <span className="tabular-nums">{formatCurrency(Number(duplicateMatch.contrato.valor))}</span>
-                    {!duplicateMatch.sameValue && (
-                      <>
-                        <span>→</span>
-                        <span className="font-semibold tabular-nums text-primary">
-                          {formatCurrency(pendingSubmitData.valor)}
-                        </span>
-                      </>
-                    )}
+                <div className="flex items-center gap-3 rounded-[20px] border border-border p-3.5">
+                  <InitialsAvatar nome={duplicateMatch.contrato.cliente?.nome} />
+                  <div className="min-w-0 flex-1 space-y-0.5 text-sm">
+                    <div className="truncate font-semibold text-foreground">{duplicateMatch.contrato.descricao}</div>
+                    <div className="flex flex-wrap items-center gap-x-2 text-[12.5px]">
+                      <span className="text-foreground-muted">Valor atual:</span>
+                      <span className="font-heading font-semibold tabular-nums text-foreground">{formatCurrency(Number(duplicateMatch.contrato.valor))}</span>
+                      {!duplicateMatch.sameValue && (
+                        <>
+                          <span className="text-foreground-muted">→</span>
+                          <span className="font-heading font-semibold tabular-nums text-primary">
+                            {formatCurrency(pendingSubmitData.valor)}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {duplicateMatch.sameValue ? (
-                  <p className="text-sm">
+                  <p className="text-sm text-foreground">
                     O valor é igual ao do contrato existente. Tem certeza que deseja criar um novo contrato?
                   </p>
                 ) : (
-                  <p className="text-sm">
+                  <p className="text-sm text-foreground">
                     Parece um <strong>reajuste de valor</strong>. Recomendamos registrar como Aditivo no contrato existente para preservar o histórico e não duplicar o MRR.
                   </p>
                 )}
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 pt-1">
                   {!duplicateMatch.sameValue && (
-                    <Button onClick={handleApplyAsAditivo} disabled={isSaving} className="w-full">
+                    <Button size="lg" onClick={handleApplyAsAditivo} disabled={isSaving} className="w-full">
                       {isSaving ? 'Aplicando...' : 'Registrar como Aditivo (recomendado)'}
                     </Button>
                   )}
-                  <Button variant="outline" onClick={handleCreateAnyway} disabled={isSaving} className="w-full">
+                  <Button size="lg" variant="outline" onClick={handleCreateAnyway} disabled={isSaving} className="w-full">
                     Criar novo contrato mesmo assim
                   </Button>
                   <Button
@@ -1525,40 +1548,42 @@ export default function Contratos() {
               <DialogTitle>Mesclar contratos duplicados</DialogTitle>
             </DialogHeader>
             {mergeGroup && (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Escolha qual contrato de <strong>{mergeGroup.cliente_nome}</strong> deve permanecer ativo. Os demais serão <strong>encerrados</strong> e seus lançamentos pendentes futuros serão removidos.
+              <div className="space-y-5">
+                <p className="text-sm text-foreground-muted">
+                  Escolha qual contrato de <strong className="text-foreground">{mergeGroup.cliente_nome}</strong> deve permanecer ativo. Os demais serão <strong className="text-foreground">encerrados</strong> e seus lançamentos pendentes futuros serão removidos.
                 </p>
-                <div className="space-y-2">
-                  {mergeGroup.contratos.map(c => (
-                    <label
-                      key={c.id}
-                      className={cn(
-                        'flex items-start gap-3 rounded-md border p-3 cursor-pointer transition-colors',
-                        keepContratoId === c.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/30'
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        name="keepContrato"
-                        checked={keepContratoId === c.id}
-                        onChange={() => setKeepContratoId(c.id)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium">{c.descricao}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Início {formatDate(c.data_inicio)} • {formatCurrency(Number(c.valor))}
+                <FormSection label="Contrato que permanece">
+                  <div className="space-y-2">
+                    {mergeGroup.contratos.map(c => (
+                      <label
+                        key={c.id}
+                        className={cn(
+                          'flex cursor-pointer items-start gap-3 rounded-[20px] border p-3.5 transition-colors',
+                          keepContratoId === c.id ? 'border-foreground bg-surface-2' : 'border-border hover:border-border-strong'
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="keepContrato"
+                          checked={keepContratoId === c.id}
+                          onChange={() => setKeepContratoId(c.id)}
+                          className="mt-1 accent-[hsl(var(--foreground))]"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold text-foreground">{c.descricao}</div>
+                          <div className="text-[12px] text-foreground-muted">
+                            Início {formatDate(c.data_inicio)} • <span className="font-heading font-semibold tabular-nums text-foreground">{formatCurrency(Number(c.valor))}</span>
+                          </div>
                         </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
+                      </label>
+                    ))}
+                  </div>
+                </FormSection>
+                <p className="text-[12px] text-foreground-muted">
                   Dica: mantenha o contrato com o valor mais atual. Se algum reajuste do encerrado fizer sentido como histórico, ele será anotado como aditivo.
                 </p>
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="ghost" onClick={() => { setMergeGroup(null); setKeepContratoId(null); }} disabled={isMerging}>
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button variant="outline" onClick={() => { setMergeGroup(null); setKeepContratoId(null); }} disabled={isMerging}>
                     Cancelar
                   </Button>
                   <Button onClick={handleMergeDuplicates} disabled={isMerging || !keepContratoId}>
@@ -1574,3 +1599,10 @@ export default function Contratos() {
   );
 }
 
+function SortBtn({ label, onClick, icon, align = 'left' }: { label: string; onClick: () => void; icon: React.ReactNode; align?: 'left' | 'right' }) {
+  return (
+    <button type="button" onClick={onClick} className={cn('inline-flex items-center gap-1 hover:text-foreground', align === 'right' && 'ml-auto flex-row-reverse')}>
+      {label} {icon}
+    </button>
+  );
+}

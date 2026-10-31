@@ -31,7 +31,7 @@ function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) 
   const despesa = Number(payload.find((p) => p.dataKey === 'despesa')?.value ?? 0);
   const resultado = receita - despesa;
   return (
-    <div className="rounded-xl border border-border bg-popover/95 px-3.5 py-3 text-xs shadow-xl">
+    <div className="rounded-2xl border border-border bg-popover px-3.5 py-3 text-xs shadow-lg">
       <p className="mb-2 font-semibold text-foreground">{label}</p>
       <div className="flex gap-4">
         <div className="border-l-2 pl-2" style={{ borderColor: COR_RECEITA }}>
@@ -43,7 +43,7 @@ function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) 
           <p className="text-[13px] font-semibold tabular-nums text-foreground">{formatCurrency(despesa)}</p>
         </div>
       </div>
-      <p className={cn('mt-2 border-t border-border/60 pt-1.5 font-medium tabular-nums', resultado >= 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]')}>
+      <p className={cn('mt-2 border-t border-border/60 pt-1.5 font-medium tabular-nums', resultado >= 0 ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]')}>
         Resultado {resultado >= 0 ? '+' : ''}{formatCurrency(resultado)}
       </p>
     </div>
@@ -55,29 +55,31 @@ export function RevenueAreaChart({ data3m, data6m, data12m, className }: Revenue
   const data = { '3': data3m, '6': data6m, '12': data12m }[period];
 
   return (
-    <div
+    <section
       className={cn(
-        'auro-card flex h-[320px] md:h-[400px] flex-col overflow-hidden rounded-2xl border border-border bg-surface p-5 animate-fade-in',
+        'flex h-[320px] flex-col overflow-hidden rounded-[20px] border border-border bg-surface p-4 md:h-[400px] md:rounded-3xl md:p-6',
         className,
       )}
     >
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-[15px] font-semibold text-foreground">Receitas × Despesas</h3>
-          <div className="mt-1 flex items-center gap-3 text-[11.5px] text-foreground-muted">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-foreground md:text-[17px]">Receitas × Despesas</h2>
+          <div className="mt-1 flex items-center gap-3 text-[12px] text-foreground-muted">
             <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: COR_RECEITA }} />Receitas</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: COR_DESPESA }} />Despesas</span>
           </div>
         </div>
-        <div className="inline-flex rounded-full border border-border/60 bg-background/40 p-0.5">
+        <div className="flex items-center gap-1.5" role="group" aria-label="Período do gráfico">
           {PERIODOS.map((p) => (
             <button
               key={p.value}
               type="button"
               onClick={() => setPeriod(p.value)}
               className={cn(
-                'h-7 rounded-full px-3 text-[11.5px] font-semibold transition-colors',
-                period === p.value ? 'bg-primary text-primary-foreground' : 'text-foreground-muted hover:text-foreground',
+                'h-8 rounded-full px-3 text-[12px] font-semibold transition-colors',
+                period === p.value
+                  ? 'bg-foreground text-background'
+                  : 'border border-border bg-surface text-foreground-muted hover:text-foreground',
               )}
               aria-pressed={period === p.value}
             >
@@ -129,6 +131,6 @@ export function RevenueAreaChart({ data3m, data6m, data12m, className }: Revenue
           </AreaChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </section>
   );
 }

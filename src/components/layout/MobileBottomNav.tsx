@@ -102,7 +102,7 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
   return (
     <>
       <nav
-        className="fixed left-1/2 z-50 flex md:hidden w-[min(90%,360px)] -translate-x-1/2 items-center justify-between p-1.5 rounded-full border border-border bg-card shadow-[0_16px_36px_-16px_hsl(224_55%_10%/0.45)]"
+        className="fixed left-1/2 z-50 flex md:hidden w-[min(92%,380px)] -translate-x-1/2 items-center justify-between gap-0.5 p-1.5 rounded-full border border-border bg-card shadow-[0_16px_36px_-16px_hsl(224_55%_10%/0.45)]"
         style={{ bottom: 'calc(0.9rem + env(safe-area-inset-bottom, 0px))' }}
       >
         {mainItems.map((item) => {
@@ -129,13 +129,15 @@ export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }
               key={item.href}
               onClick={() => handleNavClick(item.href)}
               aria-label={item.label}
+              aria-current={active ? 'page' : undefined}
               className={cn(
-                "flex h-12 w-12 items-center justify-center rounded-full transition-colors",
-                // Ativo = pílula navy no claro / pílula clara com ícone navy no escuro
-                active ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                "flex h-12 shrink-0 items-center justify-center gap-2 rounded-full transition-all duration-200",
+                // Ativo = pílula com o nome (navy no claro / clara com texto navy no escuro)
+                active ? "bg-foreground px-4 text-background" : "w-11 text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className="h-[22px] w-[22px]" />
+              <Icon className={cn("shrink-0", active ? "h-[19px] w-[19px]" : "h-[22px] w-[22px]")} />
+              {active && <span className="whitespace-nowrap text-[13px] font-semibold">{item.label}</span>}
             </button>
           );
         })}

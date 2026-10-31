@@ -7,6 +7,7 @@ import { Loader2, AlertTriangle, Layers, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
 import type { AsaasAssinatura } from '@/hooks/useCobrancas';
+import { ChoiceChip, FormSection, InlineNotice, NATIVE_SELECT_CLS, SheetFooter, SheetHeading } from '@/components/cobrancas/formParts';
 
 export interface ContratoParaAgrupar {
   id: string;
@@ -109,7 +110,7 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
   };
 
   const contaSelect = (
-    <select value={contaId} onChange={(e) => setContaId(e.target.value)} className="mt-1 w-full rounded-lg border border-border/60 bg-surface/60 px-3 py-2.5 text-sm text-foreground outline-none focus:border-border-strong">
+    <select value={contaId} onChange={(e) => setContaId(e.target.value)} className={NATIVE_SELECT_CLS}>
       <option value="">Sem conta (defino depois)</option>
       {contas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
     </select>
@@ -118,133 +119,139 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[560px] sm:mx-auto">
-        <div className="mx-auto w-full max-w-[520px] pb-6 pt-1">
-          <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
-          <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Cobrar juntos num boleto só</h2>
-          {clienteId && <p className="mt-0.5 text-sm text-foreground-muted">{nomeCliente(clienteId)}</p>}
+        <div className="mx-auto w-full max-w-[520px] space-y-6 pb-6 pt-1">
+          <SheetHeading
+            eyebrow="Cobrança"
+            title="Cobrar juntos num boleto só"
+            subtitle={clienteId ? nomeCliente(clienteId) : undefined}
+          />
 
           {/* Contratos do grupo */}
-          <div className="mt-4 rounded-xl border border-border/60 bg-surface/40">
-            {contratos.map((c) => (
-              <div key={c.id} className="flex items-center justify-between gap-3 border-b border-border/40 px-3 py-2 last:border-0">
-                <span className="min-w-0 truncate text-[13px] text-foreground">{c.descricao}</span>
-                <span className="shrink-0 text-[13px] tabular-nums text-foreground-muted">{formatCurrency(Number(c.valor))}</span>
-              </div>
-            ))}
-            <div className="flex items-center justify-between gap-3 bg-foreground/[0.04] px-3 py-2">
-              <span className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground"><Layers className="h-3.5 w-3.5 text-primary" /> Total por fatura</span>
-              <span className="text-sm font-semibold tabular-nums text-foreground">{formatCurrency(total)}</span>
-            </div>
-          </div>
-          <p className="mt-1.5 text-[11px] text-foreground-muted">No financeiro entra uma receita por contrato; ao pagar, todas são baixadas juntas.</p>
-
-          {problemas.length > 0 && (
-            <div className="mt-3 space-y-1 rounded-lg border border-[hsl(var(--danger))]/40 bg-[hsl(var(--danger))]/10 px-3 py-2">
-              {problemas.map((p) => (
-                <p key={p} className="flex items-start gap-1.5 text-[12px] text-[hsl(var(--danger))]"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {p}</p>
+          <FormSection label="Contratos do grupo">
+            <div className="rounded-[20px] border border-border px-3.5">
+              {contratos.map((c) => (
+                <div key={c.id} className="flex items-center justify-between gap-3 border-b border-border py-2.5">
+                  <span className="min-w-0 truncate text-[13px] text-foreground">{c.descricao}</span>
+                  <span className="shrink-0 font-heading text-[13px] font-semibold tabular-nums text-foreground-muted">{formatCurrency(Number(c.valor))}</span>
+                </div>
               ))}
+              <div className="flex items-center justify-between gap-3 py-3">
+                <span className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground"><Layers className="h-3.5 w-3.5 text-primary" /> Total por fatura</span>
+                <span className="font-heading text-[17px] font-semibold tabular-nums tracking-[-0.02em] text-foreground">{formatCurrency(total)}</span>
+              </div>
             </div>
-          )}
+            <p className="text-[11.5px] text-foreground-muted">No financeiro entra uma receita por contrato; ao pagar, todas são baixadas juntas.</p>
 
-          {/* Contratos que já têm assinatura individual: confirmar cancelamento */}
-          {problemas.length === 0 && cobrados.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setCancelarExistentes((v) => !v)}
-              className="mt-3 flex w-full items-start gap-2.5 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2.5 text-left"
-            >
-              <span className={cn('mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border', cancelarExistentes ? 'border-[hsl(var(--warning))] bg-[hsl(var(--warning))] text-black' : 'border-[hsl(var(--warning))]/60')}>
-                {cancelarExistentes && <Check className="h-3 w-3" strokeWidth={3} />}
-              </span>
-              <span className="text-[12px] leading-snug text-[hsl(var(--warning))]">
-                <b>{cobrados.map((c) => c.descricao).join(', ')}</b> já {cobrados.length > 1 ? 'têm' : 'tem'} assinatura no Asaas.
-                Confirmo <b>cancelar a(s) assinatura(s) individual(is)</b> e unificar nesta nova cobrança.
-              </span>
-            </button>
-          )}
+            {problemas.length > 0 && (
+              <InlineNotice tone="danger" icon={<AlertTriangle />}>
+                <div className="space-y-1">
+                  {problemas.map((p) => <p key={p}>{p}</p>)}
+                </div>
+              </InlineNotice>
+            )}
+
+            {/* Contratos que já têm assinatura individual: confirmar cancelamento */}
+            {problemas.length === 0 && cobrados.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setCancelarExistentes((v) => !v)}
+                className="flex w-full items-start gap-2.5 rounded-2xl bg-warning-bg px-3.5 py-3 text-left"
+              >
+                <span className={cn('mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-warning-fg', cancelarExistentes && 'bg-warning-fg text-background')}>
+                  {cancelarExistentes && <Check className="h-3 w-3" strokeWidth={3} />}
+                </span>
+                <span className="text-[12.5px] leading-snug text-warning-fg">
+                  <b>{cobrados.map((c) => c.descricao).join(', ')}</b> já {cobrados.length > 1 ? 'têm' : 'tem'} assinatura no Asaas.
+                  Confirmo <b>cancelar a(s) assinatura(s) individual(is)</b> e unificar nesta nova cobrança.
+                </span>
+              </button>
+            )}
+          </FormSection>
 
           {/* Modo */}
-          <div className="mt-4 grid grid-cols-2 gap-1.5">
-            <button type="button" onClick={() => setModo('criar')} className={cn('rounded-lg border py-2 text-xs font-semibold transition-colors', modo === 'criar' ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>Criar assinatura nova</button>
-            <button type="button" onClick={abrirVincular} className={cn('rounded-lg border py-2 text-xs font-semibold transition-colors', modo === 'vincular' ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>Vincular existente</button>
-          </div>
-
-          {modo === 'criar' ? (
-            <div className="mt-3 space-y-3">
-              <div>
-                <Label className="text-xs">Forma de pagamento</Label>
-                <div className="mt-1 grid grid-cols-4 gap-1.5">
-                  {FORMAS.map((f) => (
-                    <button key={f.value} type="button" onClick={() => setForma(f.value)} className={cn('rounded-lg border py-1.5 text-[11px] font-semibold transition-colors', forma === f.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}>{f.label}</button>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">Dia do vencimento</Label>
-                  <Input type="number" min="1" max="28" value={dia} onChange={(e) => setDia(e.target.value)} className="mt-1" />
-                </div>
-                <div>
-                  <Label className="text-xs">Conta (recebimento)</Label>
-                  {contaSelect}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">Multa atraso (%)</Label>
-                  <Input type="number" step="0.01" min="0" value={multa} onChange={(e) => setMulta(e.target.value)} placeholder="0" className="mt-1" />
-                </div>
-                <div>
-                  <Label className="text-xs">Juros ao mês (%)</Label>
-                  <Input type="number" step="0.01" min="0" value={juros} onChange={(e) => setJuros(e.target.value)} placeholder="0" className="mt-1" />
-                </div>
-              </div>
-              <p className="text-[11px] text-foreground-muted">Os contratos passam a vencer todos nesse dia. Multa/juros só incidem se atrasar — juros é <b>ao mês</b>.</p>
+          <FormSection label="Assinatura no Asaas">
+            <div className="grid grid-cols-2 gap-1 rounded-full border border-border bg-surface p-1">
+              <button type="button" onClick={() => setModo('criar')} className={cn('no-touch-min h-9 rounded-full text-[13px] font-semibold transition-colors', modo === 'criar' ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground')}>Criar assinatura nova</button>
+              <button type="button" onClick={abrirVincular} className={cn('no-touch-min h-9 rounded-full text-[13px] font-semibold transition-colors', modo === 'vincular' ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground')}>Vincular existente</button>
             </div>
-          ) : (
-            <div className="mt-3 space-y-3">
-              <div>
-                <Label className="text-xs">Conta (recebimento)</Label>
-                {contaSelect}
-              </div>
-              <div>
-                <Label className="text-xs">Assinaturas deste cliente no Asaas</Label>
-                {assinaturas === null ? (
-                  <div className="flex items-center gap-2 py-3 text-xs text-foreground-muted"><Loader2 className="h-4 w-4 animate-spin" /> Buscando…</div>
-                ) : assinaturas.length === 0 ? (
-                  <p className="py-2 text-xs text-foreground-muted">Nenhuma assinatura encontrada para este cliente no Asaas.</p>
-                ) : (
-                  <div className="mt-1 max-h-52 space-y-1 overflow-y-auto">
-                    {assinaturas.map((s) => (
-                      <button key={s.id} type="button" disabled={s.vinculada} onClick={() => setSubId(s.id)}
-                        className={cn('w-full rounded-lg border px-3 py-2 text-left transition-colors',
-                          subId === s.id ? 'border-primary bg-primary/10' : 'border-border/60 bg-surface/60 hover:bg-surface-2',
-                          s.vinculada && 'cursor-not-allowed opacity-50')}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-semibold text-foreground">{formatCurrency(Number(s.value))}</span>
-                          <span className="text-[10px] text-foreground-muted">{s.vinculada ? 'já vinculada' : s.nextDueDate || ''}</span>
-                        </div>
-                        <div className="truncate text-[11px] text-foreground-muted">{s.description || 'Sem descrição'}</div>
-                      </button>
+
+            {modo === 'criar' ? (
+              <div className="space-y-4 pt-1">
+                <div className="space-y-2">
+                  <Label className="text-[12px] text-foreground-muted">Forma de pagamento</Label>
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                    {FORMAS.map((f) => (
+                      <ChoiceChip key={f.value} active={forma === f.value} onClick={() => setForma(f.value)}>{f.label}</ChoiceChip>
                     ))}
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[12px] text-foreground-muted">Dia do vencimento</Label>
+                    <Input type="number" min="1" max="28" value={dia} onChange={(e) => setDia(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[12px] text-foreground-muted">Conta (recebimento)</Label>
+                    {contaSelect}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[12px] text-foreground-muted">Multa atraso (%)</Label>
+                    <Input type="number" step="0.01" min="0" value={multa} onChange={(e) => setMulta(e.target.value)} placeholder="0" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[12px] text-foreground-muted">Juros ao mês (%)</Label>
+                    <Input type="number" step="0.01" min="0" value={juros} onChange={(e) => setJuros(e.target.value)} placeholder="0" />
+                  </div>
+                </div>
+                <p className="text-[11.5px] text-foreground-muted">Os contratos passam a vencer todos nesse dia. Multa/juros só incidem se atrasar — juros é <b>ao mês</b>.</p>
+              </div>
+            ) : (
+              <div className="space-y-4 pt-1">
+                <div className="space-y-1.5">
+                  <Label className="text-[12px] text-foreground-muted">Conta (recebimento)</Label>
+                  {contaSelect}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[12px] text-foreground-muted">Assinaturas deste cliente no Asaas</Label>
+                  {assinaturas === null ? (
+                    <div className="flex items-center gap-2 py-3 text-xs text-foreground-muted"><Loader2 className="h-4 w-4 animate-spin" /> Buscando…</div>
+                  ) : assinaturas.length === 0 ? (
+                    <p className="py-2 text-xs text-foreground-muted">Nenhuma assinatura encontrada para este cliente no Asaas.</p>
+                  ) : (
+                    <div className="max-h-52 space-y-1.5 overflow-y-auto">
+                      {assinaturas.map((s) => (
+                        <button key={s.id} type="button" disabled={s.vinculada} onClick={() => setSubId(s.id)}
+                          className={cn('w-full rounded-2xl border px-3.5 py-2.5 text-left transition-colors',
+                            subId === s.id ? 'border-foreground bg-surface-2' : 'border-border bg-surface hover:border-border-strong',
+                            s.vinculada && 'cursor-not-allowed opacity-50')}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-heading text-sm font-semibold tabular-nums text-foreground">{formatCurrency(Number(s.value))}</span>
+                            <span className="text-[11px] text-foreground-muted">{s.vinculada ? 'já vinculada' : s.nextDueDate || ''}</span>
+                          </div>
+                          <div className="truncate text-[12px] text-foreground-muted">{s.description || 'Sem descrição'}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {diverge && (
+                  <InlineNotice tone="warning" icon={<AlertTriangle />}>
+                    A assinatura cobra {formatCurrency(Number(sub!.value))} e a soma dos contratos é {formatCurrency(total)}. Vale o valor do Asaas: os contratos serão ajustados proporcionalmente.
+                  </InlineNotice>
                 )}
               </div>
-              {diverge && (
-                <p className="rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2 text-[11.5px] text-[hsl(var(--warning))]">
-                  A assinatura cobra {formatCurrency(Number(sub!.value))} e a soma dos contratos é {formatCurrency(total)}. Vale o valor do Asaas: os contratos serão ajustados proporcionalmente.
-                </p>
-              )}
-            </div>
-          )}
+            )}
+          </FormSection>
 
-          <div className="mt-5 flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button className="flex-1" onClick={handleAgrupar} disabled={!podeEnviar}>
+          <SheetFooter>
+            <Button variant="outline" size="lg" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button size="lg" onClick={handleAgrupar} disabled={!podeEnviar}>
               {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {modo === 'criar' ? `Criar cobrança de ${formatCurrency(total)}` : 'Vincular e agrupar'}
             </Button>
-          </div>
+          </SheetFooter>
         </div>
       </SheetContent>
     </Sheet>

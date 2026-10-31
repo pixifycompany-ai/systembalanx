@@ -4,8 +4,8 @@ import { SkeletonTable } from '@/components/shared/LoadingSpinner';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate } from '@/utils/formatters';
-import { Plus, Pencil, Trash2, RefreshCw, Calendar } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus, Calendar } from 'lucide-react';
+import { InitialsAvatar, SECTION_LABEL_CLS } from '@/components/cobrancas/formParts';
 
 interface Contrato {
   id: string;
@@ -28,6 +28,8 @@ interface MobileContratosListProps {
 }
 
 const recorrenciaLabels: Record<string, string> = {
+  semanal: 'Semanal',
+  quinzenal: 'Quinzenal',
   mensal: 'Mensal',
   trimestral: 'Trimestral',
   semestral: 'Semestral',
@@ -35,52 +37,63 @@ const recorrenciaLabels: Record<string, string> = {
   unico: 'Único',
 };
 
-export function MobileContratosList({ contratos, isLoading, onEdit, onDelete, onNew, renderCobranca }: MobileContratosListProps) {
+export function MobileContratosList({ contratos, isLoading, onEdit, onNew, renderCobranca }: MobileContratosListProps) {
   if (isLoading) return <SkeletonTable rows={5} />;
 
   if (contratos.length === 0) {
     return (
-      <EmptyState title="Nenhum contrato encontrado" description="Crie seu primeiro contrato."
-        action={<Button onClick={onNew} className="gap-2"><Plus className="h-4 w-4" />Novo Contrato</Button>}
-      />
+      <div className="rounded-[20px] border border-border bg-surface">
+        <EmptyState title="Nenhum contrato encontrado" description="Crie seu primeiro contrato."
+          action={<Button onClick={onNew} className="gap-2"><Plus className="h-4 w-4" />Novo Contrato</Button>}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {contratos.map((c) => (
-        <div
-          key={c.id}
-          className={cn(
-            "bg-card border border-border/50 rounded-lg p-3",
-            c.recorrencia === 'mensal' && c.status === 'ativo' && 'border-l-[3px] border-l-[hsl(var(--warning))]'
-          )}
-          onClick={() => onEdit(c)}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">{c.cliente?.nome || '-'}</p>
-              <p className="text-xs text-muted-foreground truncate mt-0.5">{c.descricao}</p>
+    <div className="flex flex-col">
+      <div className="flex items-baseline justify-between px-0.5 pb-1.5 pt-1">
+        <span className={SECTION_LABEL_CLS}>
+          {contratos.length} {contratos.length === 1 ? 'contrato' : 'contratos'}
+        </span>
+      </div>
+      <div className="rounded-[20px] border border-border bg-surface px-3.5">
+        {contratos.map((c) => (
+          <div
+            key={c.id}
+            role="button"
+            tabIndex={0}
+            className="cursor-pointer border-b border-border py-3 last:border-b-0"
+            onClick={() => onEdit(c)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onEdit(c); }}
+          >
+            <div className="flex items-center gap-3">
+              <InitialsAvatar nome={c.cliente?.nome} />
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <p className="truncate text-[14px] font-semibold text-foreground">{c.cliente?.nome || '-'}</p>
+                <p className="truncate text-[12px] text-foreground-muted">
+                  {recorrenciaLabels[c.recorrencia] || c.recorrencia} · {c.descricao}
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <span className="font-heading text-[15px] font-semibold tabular-nums tracking-[-0.02em] text-[hsl(var(--success-fg))]">
+                  {formatCurrency(Number(c.valor))}
+                </span>
+                <StatusBadge status={c.status} />
+              </div>
             </div>
-            <span className="text-[15px] font-semibold tabular-nums text-emerald-600 dark:text-emerald-400 shrink-0">
-              {formatCurrency(Number(c.valor))}
-            </span>
+            <div className="mt-2 flex items-center gap-2 pl-[52px]">
+              {renderCobranca && (
+                <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>{renderCobranca(c)}</span>
+              )}
+              <span className="ml-auto flex items-center gap-1 text-[11px] text-foreground-muted">
+                <Calendar className="h-3 w-3" />
+                {formatDate(c.data_inicio)}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-              {recorrenciaLabels[c.recorrencia] || c.recorrencia}
-            </span>
-            <StatusBadge status={c.status} />
-            {renderCobranca && (
-              <span onClick={(e) => e.stopPropagation()}>{renderCobranca(c)}</span>
-            )}
-            <span className="text-[11px] text-muted-foreground ml-auto flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {formatDate(c.data_inicio)}
-            </span>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

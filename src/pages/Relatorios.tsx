@@ -1,6 +1,10 @@
 import { useState } from 'react';
+import { CalendarDays, Check, ChevronDown } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import { DRETable } from '@/components/relatorios/DRETable';
 import { ReceitasDespesasTab } from '@/components/relatorios/ReceitasDespesasTab';
 import { FluxoCaixaTab } from '@/components/relatorios/FluxoCaixaTab';
@@ -13,9 +17,46 @@ import {
 import { useRelatorios, type PeriodFilter, type ComparativoFilter } from '@/hooks/useRelatorios';
 import { useAdvancedReports } from '@/hooks/useAdvancedReports';
 import { SkeletonChart } from '@/components/shared/LoadingSpinner';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
+import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
+import { cn } from '@/lib/utils';
 
 const toDate = (s: string) => (s ? new Date(s + 'T00:00:00') : undefined);
 const toInput = (d?: Date) => (d ? d.toISOString().slice(0, 10) : '');
+
+const PERIODOS: { value: PeriodFilter; label: string }[] = [
+  { value: 'month', label: 'Este mês' },
+  { value: 'quarter', label: 'Este trimestre' },
+  { value: 'year', label: 'Este ano' },
+  { value: 'custom', label: 'Personalizado' },
+];
+
+const COMPARATIVOS: { value: ComparativoFilter; label: string }[] = [
+  { value: 'mes_atual_anterior', label: 'Mês atual vs anterior' },
+  { value: '60dias', label: 'Últimos 60 dias' },
+  { value: '90dias', label: 'Últimos 90 dias' },
+];
+
+const TABS: { value: string; label: string }[] = [
+  { value: 'dre', label: 'DRE' },
+  { value: 'recdep', label: 'Rec vs Desp' },
+  { value: 'fluxo', label: 'Fluxo de Caixa' },
+  { value: 'comp', label: 'Comparativo' },
+  { value: 'mrr', label: 'MRR / ARR' },
+  { value: 'abc', label: 'Top Clientes' },
+  { value: 'rec-cat', label: 'Rec. p/ Categoria' },
+  { value: 'desp-cat', label: 'Desp. p/ Categoria' },
+  { value: 'aging-rec', label: 'Aging Receber' },
+  { value: 'aging-pag', label: 'Aging Pagar' },
+  { value: 'burn', label: 'Burn & Runway' },
+  { value: 'margem', label: 'Margem Cliente' },
+  { value: 'ltv', label: 'LTV / CAC' },
+  { value: 'cards', label: 'Cartões' },
+  { value: 'conc', label: 'Conciliação' },
+  { value: 'kpis', label: 'KPIs Op.' },
+  { value: 'proj', label: 'Projeção 12m' },
+  { value: 'fiscal', label: 'Fiscal' },
+];
 
 export default function Relatorios() {
   const [period, setPeriod] = useState<PeriodFilter>('year');
@@ -30,106 +71,112 @@ export default function Relatorios() {
   const { dreRows, months, recDespResumo, fluxoData, comparativo, isLoading } = useRelatorios(period, cStart, cEnd, compFilter);
   const { reports, isLoading: loadingAdv } = useAdvancedReports(period, cStart, cEnd);
 
+  const periodLabel = PERIODOS.find((p) => p.value === period)?.label ?? 'Período';
+
   return (
-    <main className="container py-3 md:py-6 max-w-full">
-      <div className="mb-4 md:mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs text-foreground-muted mb-0.5 font-medium">Demonstrativos</p>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">Relatórios</h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
-            <SelectTrigger className="w-[150px] md:w-[170px] h-9 text-sm"><SelectValue placeholder="Período" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="month">Este mês</SelectItem>
-              <SelectItem value="quarter">Este trimestre</SelectItem>
-              <SelectItem value="year">Este ano</SelectItem>
-              <SelectItem value="custom">Personalizado</SelectItem>
-            </SelectContent>
-          </Select>
-          {period === 'custom' && (
-            <div className="flex items-center gap-1.5">
-              <input
-                type="date" lang="pt-BR" value={toInput(customStart)}
-                max={toInput(customEnd) || undefined}
-                onChange={(e) => setCustomStart(toDate(e.target.value))}
-                className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
-                aria-label="Data inicial"
-              />
-              <span className="text-xs text-muted-foreground">até</span>
-              <input
-                type="date" lang="pt-BR" value={toInput(customEnd)}
-                min={toInput(customStart) || undefined}
-                onChange={(e) => setCustomEnd(toDate(e.target.value))}
-                className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground"
-                aria-label="Data final"
-              />
-            </div>
+    <main className="container max-w-full py-3 md:py-6">
+      <MobilePageHeader
+        eyebrow="Análise"
+        title="Relatórios"
+        actions={
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                'inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-[13px] font-medium transition-colors',
+                period !== 'year'
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'border-border bg-surface text-foreground hover:border-border-strong',
+              )}
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              <span>Período</span>
+              <span className="opacity-50">·</span>
+              <span className="font-semibold">{periodLabel}</span>
+              <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {PERIODOS.map((p) => (
+                <DropdownMenuItem key={p.value} onSelect={() => setPeriod(p.value)} className="justify-between">
+                  {p.label}
+                  {p.value === period && <Check className="h-4 w-4 text-foreground-muted" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
+      />
+
+      {period === 'custom' && (
+        <div className="-mt-1 mb-5 rounded-[20px] border border-border bg-surface p-3.5 md:mb-6 md:inline-flex md:flex-col md:p-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Intervalo personalizado</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="date" lang="pt-BR" value={toInput(customStart)}
+              max={toInput(customEnd) || undefined}
+              onChange={(e) => setCustomStart(toDate(e.target.value))}
+              className="h-10 w-[150px] flex-1 md:flex-none"
+              aria-label="Data inicial"
+            />
+            <span className="text-[13px] text-foreground-muted">até</span>
+            <Input
+              type="date" lang="pt-BR" value={toInput(customEnd)}
+              min={toInput(customStart) || undefined}
+              onChange={(e) => setCustomEnd(toDate(e.target.value))}
+              className="h-10 w-[150px] flex-1 md:flex-none"
+              aria-label="Data final"
+            />
+          </div>
+          {(!customStart || !customEnd) && (
+            <p className="mt-2 text-xs text-foreground-muted">Selecione a data inicial e final para aplicar o período personalizado.</p>
           )}
         </div>
-      </div>
-      {period === 'custom' && (!customStart || !customEnd) && (
-        <p className="-mt-2 mb-4 text-xs text-muted-foreground">Selecione a data inicial e final para aplicar o período personalizado.</p>
       )}
 
       {isLoading || loadingAdv ? (
-        <div className="space-y-6"><SkeletonChart /><SkeletonChart /></div>
+        <div className="space-y-4 md:space-y-6"><SkeletonChart /><SkeletonChart /></div>
       ) : (
-        <Tabs defaultValue="dre" className="space-y-4 md:space-y-6">
-          <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0 scrollbar-hide">
-            <TabsList className="inline-flex flex-nowrap w-max">
-              <TabsTrigger value="dre">DRE</TabsTrigger>
-              <TabsTrigger value="recdep">Rec vs Desp</TabsTrigger>
-              <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
-              <TabsTrigger value="comp">Comparativo</TabsTrigger>
-              <TabsTrigger value="mrr">MRR / ARR</TabsTrigger>
-              <TabsTrigger value="abc">Top Clientes</TabsTrigger>
-              <TabsTrigger value="rec-cat">Rec. p/ Categoria</TabsTrigger>
-              <TabsTrigger value="desp-cat">Desp. p/ Categoria</TabsTrigger>
-              <TabsTrigger value="aging-rec">Aging Receber</TabsTrigger>
-              <TabsTrigger value="aging-pag">Aging Pagar</TabsTrigger>
-              <TabsTrigger value="burn">Burn & Runway</TabsTrigger>
-              <TabsTrigger value="margem">Margem Cliente</TabsTrigger>
-              <TabsTrigger value="ltv">LTV / CAC</TabsTrigger>
-              <TabsTrigger value="cards">Cartões</TabsTrigger>
-              <TabsTrigger value="conc">Conciliação</TabsTrigger>
-              <TabsTrigger value="kpis">KPIs Op.</TabsTrigger>
-              <TabsTrigger value="proj">Projeção 12m</TabsTrigger>
-              <TabsTrigger value="fiscal">Fiscal</TabsTrigger>
+        <Tabs defaultValue="dre">
+          {/* Abas segmentadas: rolam na horizontal no mobile */}
+          <div className="scrollbar-hide -mx-3 overflow-x-auto px-3 md:mx-0 md:px-0">
+            <TabsList className="inline-flex w-max flex-nowrap">
+              {TABS.map((t) => (
+                <TabsTrigger key={t.value} value={t.value} className="px-3.5 md:px-4">{t.label}</TabsTrigger>
+              ))}
             </TabsList>
           </div>
 
-          <TabsContent value="dre"><DRETable rows={dreRows} months={months} /></TabsContent>
-          <TabsContent value="recdep"><ReceitasDespesasTab data={recDespResumo} /></TabsContent>
-          <TabsContent value="fluxo"><FluxoCaixaTab data={fluxoData} /></TabsContent>
-          <TabsContent value="comp">
-            <div className="space-y-4">
-              <Select value={compFilter} onValueChange={(v) => setCompFilter(v as ComparativoFilter)}>
-                <SelectTrigger className="w-full md:w-[220px] h-9 text-sm"><SelectValue placeholder="Período de comparação" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mes_atual_anterior">Mês atual vs anterior</SelectItem>
-                  <SelectItem value="60dias">Últimos 60 dias</SelectItem>
-                  <SelectItem value="90dias">Últimos 90 dias</SelectItem>
-                </SelectContent>
-              </Select>
-              <ComparativoTab data={comparativo} />
-            </div>
+          <TabsContent value="dre" className="mt-4 md:mt-6"><DRETable rows={dreRows} months={months} /></TabsContent>
+          <TabsContent value="recdep" className="mt-4 md:mt-6"><ReceitasDespesasTab data={recDespResumo} /></TabsContent>
+          <TabsContent value="fluxo" className="mt-4 md:mt-6"><FluxoCaixaTab data={fluxoData} /></TabsContent>
+          <TabsContent value="comp" className="mt-4 md:mt-6">
+            <ComparativoTab
+              data={comparativo}
+              toolbar={
+                <ScrollPills>
+                  {COMPARATIVOS.map((c) => (
+                    <Pill key={c.value} active={compFilter === c.value} onClick={() => setCompFilter(c.value)}>
+                      {c.label}
+                    </Pill>
+                  ))}
+                </ScrollPills>
+              }
+            />
           </TabsContent>
 
-          <TabsContent value="mrr"><MRRTab data={reports.mrr} /></TabsContent>
-          <TabsContent value="abc"><TopClientsTab data={reports.topClients} /></TabsContent>
-          <TabsContent value="rec-cat"><CategoryTab data={reports.receitaPorCategoria} title="Receita por Categoria" /></TabsContent>
-          <TabsContent value="desp-cat"><CategoryTab data={reports.despesaPorCategoria} title="Despesas por Categoria" /></TabsContent>
-          <TabsContent value="aging-rec"><AgingTab data={reports.agingRecebiveis} title="Aging — Contas a Receber" /></TabsContent>
-          <TabsContent value="aging-pag"><AgingTab data={reports.agingPagar} title="Aging — Contas a Pagar" /></TabsContent>
-          <TabsContent value="burn"><BurnRunwayTab data={reports.burnRunway} /></TabsContent>
-          <TabsContent value="margem"><ClientMarginTab data={reports.clientMargins} /></TabsContent>
-          <TabsContent value="ltv"><LTVCACTab data={reports.ltvCac} /></TabsContent>
-          <TabsContent value="cards"><CardsSummaryTab data={reports.cards} /></TabsContent>
-          <TabsContent value="conc"><ReconciliationTab data={reports.reconciliation} /></TabsContent>
-          <TabsContent value="kpis"><OpKPIsTab data={reports.opKPIs} /></TabsContent>
-          <TabsContent value="proj"><ProjectionTab data={reports.projection} /></TabsContent>
-          <TabsContent value="fiscal"><TaxesTab data={reports.taxes} /></TabsContent>
+          <TabsContent value="mrr" className="mt-4 md:mt-6"><MRRTab data={reports.mrr} /></TabsContent>
+          <TabsContent value="abc" className="mt-4 md:mt-6"><TopClientsTab data={reports.topClients} /></TabsContent>
+          <TabsContent value="rec-cat" className="mt-4 md:mt-6"><CategoryTab data={reports.receitaPorCategoria} title="Receita por Categoria" /></TabsContent>
+          <TabsContent value="desp-cat" className="mt-4 md:mt-6"><CategoryTab data={reports.despesaPorCategoria} title="Despesas por Categoria" /></TabsContent>
+          <TabsContent value="aging-rec" className="mt-4 md:mt-6"><AgingTab data={reports.agingRecebiveis} title="Aging — Contas a Receber" /></TabsContent>
+          <TabsContent value="aging-pag" className="mt-4 md:mt-6"><AgingTab data={reports.agingPagar} title="Aging — Contas a Pagar" /></TabsContent>
+          <TabsContent value="burn" className="mt-4 md:mt-6"><BurnRunwayTab data={reports.burnRunway} /></TabsContent>
+          <TabsContent value="margem" className="mt-4 md:mt-6"><ClientMarginTab data={reports.clientMargins} /></TabsContent>
+          <TabsContent value="ltv" className="mt-4 md:mt-6"><LTVCACTab data={reports.ltvCac} /></TabsContent>
+          <TabsContent value="cards" className="mt-4 md:mt-6"><CardsSummaryTab data={reports.cards} /></TabsContent>
+          <TabsContent value="conc" className="mt-4 md:mt-6"><ReconciliationTab data={reports.reconciliation} /></TabsContent>
+          <TabsContent value="kpis" className="mt-4 md:mt-6"><OpKPIsTab data={reports.opKPIs} /></TabsContent>
+          <TabsContent value="proj" className="mt-4 md:mt-6"><ProjectionTab data={reports.projection} /></TabsContent>
+          <TabsContent value="fiscal" className="mt-4 md:mt-6"><TaxesTab data={reports.taxes} /></TabsContent>
         </Tabs>
       )}
     </main>

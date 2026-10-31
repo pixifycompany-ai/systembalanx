@@ -9,6 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
+import { SectionCard } from '@/components/shared/SectionCard';
+import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW, NAVY_TONE } from '@/components/shared/navyTokens';
+import { HexWatermark } from '@/components/shared/NavySurface';
 
 const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 
@@ -73,48 +77,70 @@ export default function Assinatura() {
 
   return (
     <div className="min-h-[100dvh] bg-background">
-      <div className="mx-auto w-full max-w-md px-5 pt-12 pb-16">
-        <button onClick={() => navigate('/')} className="mb-5 inline-flex items-center gap-1.5 text-sm text-foreground-muted">
+      <div className="mx-auto w-full max-w-xl px-4 pb-16 pt-[calc(env(safe-area-inset-top,0px)+1.25rem)] md:pt-12">
+        <button
+          onClick={() => navigate('/')}
+          className="mb-5 inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-surface px-4 text-[13px] font-medium text-foreground-muted transition-colors hover:text-foreground"
+        >
           <ArrowLeftIcon className="h-4 w-4" /> Voltar
         </button>
 
-        <p className="text-xs font-medium text-foreground-muted mb-0.5">Assinatura</p>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground mb-1">Plano {PLAN.nome}</h1>
-        <p className="text-sm text-foreground-muted mb-5">{PLAN.descricao}</p>
+        <MobilePageHeader
+          className="mb-2 md:mb-2"
+          eyebrow="Assinatura"
+          title={<>Plano <span className="font-serif italic font-normal tracking-normal">{PLAN.nome}</span></>}
+        />
+        <p className="mb-5 text-[14px] leading-relaxed text-foreground-muted md:mb-6">{PLAN.descricao}</p>
 
         {cortesia ? (
-          <div className="rounded-2xl border border-[hsl(var(--success))]/40 bg-[hsl(var(--success))]/10 p-4 mb-5">
-            <div className="text-sm font-semibold text-foreground">Acesso liberado (cortesia)</div>
-            <div className="text-xs text-foreground-muted mt-0.5">Tudo liberado. Bom trabalho!</div>
+          <div className="mb-5 flex items-center gap-3 rounded-[20px] border border-border bg-surface p-4">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-success-bg text-success-fg">
+              <CheckIcon className="h-5 w-5" strokeWidth={2.4} />
+            </span>
+            <div className="min-w-0">
+              <div className="text-[14px] font-semibold text-foreground">Acesso liberado (cortesia)</div>
+              <div className="mt-0.5 text-[12.5px] text-foreground-muted">Tudo liberado. Bom trabalho!</div>
+            </div>
           </div>
         ) : assinaturaAtiva ? (
-          <div className="space-y-3 mb-5">
-            <div className="rounded-2xl border border-[hsl(var(--success))]/40 bg-[hsl(var(--success))]/10 p-4">
-              <div className="text-sm font-semibold text-foreground">Assinatura ativa</div>
-              <div className="text-xs text-foreground-muted mt-0.5">
-                Plano {cicloAtual === 'anual' ? 'Anual' : 'Mensal'} · {cicloAtual === 'anual' ? `12× ${fmt(precoAnualParcela)}` : `${fmt(precoMensal)}/mês`}
+          <div className="mb-5 space-y-3">
+            <div className="flex items-center gap-3 rounded-[20px] border border-border bg-surface p-4">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-success-bg text-success-fg">
+                <CheckIcon className="h-5 w-5" strokeWidth={2.4} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[14px] font-semibold text-foreground">Assinatura ativa</div>
+                <div className="mt-0.5 text-[12.5px] text-foreground-muted">
+                  Plano {cicloAtual === 'anual' ? 'Anual' : 'Mensal'} · {cicloAtual === 'anual' ? `12× ${fmt(precoAnualParcela)}` : `${fmt(precoMensal)}/mês`}
+                </div>
               </div>
+              <span className="inline-flex shrink-0 items-center rounded-full bg-success-bg px-2.5 py-0.5 text-[11px] font-semibold text-success-fg">Ativa</span>
             </div>
 
             {podeAssinar && cicloAtual !== 'anual' && descontoPct > 0 && (
-              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-                <div className="text-sm font-semibold text-foreground">Economize {descontoPct}% no plano Anual</div>
-                <div className="text-xs text-foreground-muted mt-0.5 mb-3">
+              <div
+                className="relative isolate overflow-hidden rounded-[20px] p-5 text-white md:rounded-3xl"
+                style={{ background: NAVY_SURFACE_BG, boxShadow: NAVY_SURFACE_SHADOW }}
+              >
+                <HexWatermark />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/75">Recomendado</span>
+                <div className="mt-1 text-[17px] font-semibold tracking-[-0.01em]">Economize {descontoPct}% no plano Anual</div>
+                <div className="mb-4 mt-1 text-[13px] leading-relaxed text-white/75">
                   Pague 12× {fmt(precoAnualParcela)} em vez de {fmt(precoMensal)}/mês. A mudança começa no próximo vencimento — sem cobrança dupla.
                 </div>
-                <Button className="w-full h-11 rounded-2xl font-semibold" onClick={() => mudarPlano('anual')} disabled={loading}>
+                <Button className="h-12 w-full rounded-full font-semibold" onClick={() => mudarPlano('anual')} disabled={loading}>
                   {loading ? 'Alterando…' : 'Mudar para Anual'}
                 </Button>
               </div>
             )}
 
             {podeAssinar && cicloAtual === 'anual' && (
-              <div className="rounded-2xl border border-border/60 bg-surface/70 p-4">
-                <div className="text-sm font-semibold text-foreground">Você está no melhor preço (Anual)</div>
+              <div className="rounded-[20px] border border-border bg-surface p-4">
+                <div className="text-[14px] font-semibold text-foreground">Você está no melhor preço (Anual)</div>
                 <button
                   onClick={() => mudarPlano('mensal')}
                   disabled={loading}
-                  className="mt-1.5 text-xs font-medium text-foreground-muted underline underline-offset-2 disabled:opacity-50"
+                  className="mt-1.5 text-[13px] font-medium text-foreground-muted underline underline-offset-2 disabled:opacity-50"
                 >
                   {loading ? 'Alterando…' : 'Prefiro voltar para o mensal'}
                 </button>
@@ -122,72 +148,122 @@ export default function Assinatura() {
             )}
 
             {!podeAssinar && (
-              <p className="text-xs text-foreground-muted text-center py-1">Só o responsável (owner/admin) pode mudar o plano.</p>
+              <p className="py-1 text-center text-[13px] text-foreground-muted">Só o responsável (owner/admin) pode mudar o plano.</p>
             )}
           </div>
         ) : (
-          <>
+          <div className="space-y-4 md:space-y-6">
             {typeof trialDias === 'number' && (
-              <div className={cn('rounded-xl px-4 py-2.5 mb-5 text-sm font-medium',
-                acessoAtivo ? 'bg-primary/10 text-primary' : 'bg-[hsl(var(--danger))]/10 text-[hsl(var(--danger))]')}>
+              <div className={cn('rounded-[14px] px-4 py-3 text-[13px] font-medium',
+                acessoAtivo ? 'bg-info-bg text-info-fg' : 'bg-danger-bg text-danger-fg')}>
                 {acessoAtivo ? `Você tem ${trialDias} dia(s) de teste restante(s).` : 'Seu período de teste terminou. Assine para continuar.'}
               </div>
             )}
 
-            {/* Toggle ciclo */}
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              <button
-                onClick={() => setCiclo('anual')}
-                className={cn('relative rounded-2xl border p-4 text-left transition-colors',
-                  ciclo === 'anual' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border/60 bg-surface/70')}
-              >
-                {precoMensal > precoAnualParcela && (
-                  <span className="absolute top-2 right-2 text-[9px] font-semibold uppercase bg-[hsl(var(--success))]/20 text-[hsl(var(--success))] px-1.5 py-0.5 rounded-full">
-                    -{Math.round((1 - precoAnualParcela / precoMensal) * 100)}%
-                  </span>
-                )}
-                <div className="text-xs text-foreground-muted">Anual</div>
-                <div className="text-lg font-semibold text-foreground">12× {fmt(precoAnualParcela)}</div>
-                <div className="text-[11px] text-foreground-muted">{fmt(precoAnualTotal)}/ano</div>
-              </button>
-              <button
-                onClick={() => setCiclo('mensal')}
-                className={cn('rounded-2xl border p-4 text-left transition-colors',
-                  ciclo === 'mensal' ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border/60 bg-surface/70')}
-              >
-                <div className="text-xs text-foreground-muted">Mensal</div>
-                <div className="text-lg font-semibold text-foreground">{fmt(precoMensal)}</div>
-                <div className="text-[11px] text-foreground-muted">por mês</div>
-              </button>
-            </div>
+            {/* Escolha do ciclo: Anual (recomendado, navy) e Mensal */}
+            <section className="flex flex-col gap-2">
+              <h2 className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Escolha o ciclo</h2>
+              <div className="grid gap-3 md:grid-cols-2">
+                <button
+                  onClick={() => setCiclo('anual')}
+                  aria-pressed={ciclo === 'anual'}
+                  className={cn(
+                    'relative isolate overflow-hidden rounded-[20px] p-5 text-left text-white transition-shadow md:rounded-3xl',
+                    ciclo === 'anual' && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+                  )}
+                  style={{ background: NAVY_SURFACE_BG, boxShadow: NAVY_SURFACE_SHADOW }}
+                >
+                  <HexWatermark />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/75">Anual · recomendado</span>
+                    <RadioDot checked={ciclo === 'anual'} navy />
+                  </div>
+                  <div className="mt-3 font-heading text-[26px] font-semibold tabular-nums tracking-[-0.02em]">12× {fmt(precoAnualParcela)}</div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-white/75">
+                    {fmt(precoAnualTotal)}/ano
+                    {precoMensal > precoAnualParcela && (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                        style={{ color: NAVY_TONE.success, background: 'rgba(62,207,142,0.16)' }}
+                      >
+                        -{Math.round((1 - precoAnualParcela / precoMensal) * 100)}%
+                      </span>
+                    )}
+                  </div>
+                </button>
+                <button
+                  onClick={() => setCiclo('mensal')}
+                  aria-pressed={ciclo === 'mensal'}
+                  className={cn(
+                    'rounded-[20px] border bg-surface p-5 text-left transition-colors md:rounded-3xl',
+                    ciclo === 'mensal' ? 'border-foreground ring-1 ring-foreground' : 'border-border hover:bg-surface-2',
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Mensal</span>
+                    <RadioDot checked={ciclo === 'mensal'} />
+                  </div>
+                  <div className="mt-3 font-heading text-[26px] font-semibold tabular-nums tracking-[-0.02em] text-foreground">{fmt(precoMensal)}</div>
+                  <div className="mt-0.5 text-[13px] text-foreground-muted">por mês</div>
+                </button>
+              </div>
+            </section>
 
             {/* Features */}
-            <ul className="space-y-2 mb-5">
-              {PLAN.features.map((f) => (
-                <li key={f} className="flex items-start gap-2 text-sm text-foreground">
-                  <CheckIcon className="h-4 w-4 mt-0.5 shrink-0 text-[hsl(var(--success))]" strokeWidth={2.4} />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
+            <SectionCard title="O que está incluso">
+              <ul className="space-y-2.5">
+                {PLAN.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-[14px] text-foreground">
+                    <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-success-bg text-success-fg">
+                      <CheckIcon className="h-3 w-3" strokeWidth={2.6} />
+                    </span>
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </SectionCard>
 
             {podeAssinar ? (
-              <>
-                <div className="space-y-1.5 mb-4">
-                  <Label className="text-xs">CPF ou CNPJ (para a cobrança)</Label>
-                  <Input value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} placeholder="000.000.000-00" inputMode="numeric" />
+              <SectionCard title="Pagamento">
+                <div className="mb-4 space-y-1.5">
+                  <Label htmlFor="cpf-cnpj" className="text-[13px] font-semibold text-foreground">CPF ou CNPJ (para a cobrança)</Label>
+                  <Input
+                    id="cpf-cnpj"
+                    value={cpfCnpj}
+                    onChange={(e) => setCpfCnpj(e.target.value)}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                    className="h-12 rounded-[14px] bg-surface-2"
+                  />
                 </div>
-                <Button className="w-full h-12 rounded-2xl font-semibold" onClick={assinar} disabled={loading}>
+                <Button className="h-12 w-full rounded-full text-[15px] font-semibold" onClick={assinar} disabled={loading}>
                   {loading ? 'Gerando cobrança…' : `Assinar — ${ciclo === 'anual' ? `12× ${fmt(precoAnualParcela)}` : fmt(precoMensal)}`}
                 </Button>
-                <p className="text-[11px] text-foreground-muted text-center mt-3">Pagamento via Pix, boleto ou cartão pelo ASAAS. Cancele quando quiser.</p>
-              </>
+                <p className="mt-3 text-center text-[12px] text-foreground-muted">Pagamento via Pix, boleto ou cartão pelo ASAAS. Cancele quando quiser.</p>
+              </SectionCard>
             ) : (
-              <p className="text-sm text-foreground-muted text-center py-4">Peça ao responsável (owner/admin) da conta para assinar.</p>
+              <p className="py-4 text-center text-[14px] text-foreground-muted">Peça ao responsável (owner/admin) da conta para assinar.</p>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>
+  );
+}
+
+/** Indicador de seleção (rádio) do cartão de plano. */
+function RadioDot({ checked, navy }: { checked: boolean; navy?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'grid h-6 w-6 shrink-0 place-items-center rounded-full border-2',
+        navy
+          ? checked ? 'border-white bg-white text-[#0B1226]' : 'border-white/40'
+          : checked ? 'border-foreground bg-foreground text-background' : 'border-border-strong',
+      )}
+    >
+      {checked && <CheckIcon className="h-3.5 w-3.5" strokeWidth={3} />}
+    </span>
   );
 }

@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/card';
+import { SectionCard } from '@/components/shared/SectionCard';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { formatCurrency } from '@/utils/formatters';
 
@@ -56,9 +56,9 @@ export function ExpensesByCategoryChart({
       const item = payload[0].payload;
       const percentage = ((item.valor / total) * 100).toFixed(1);
       return (
-        <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
-          <p className="font-medium text-foreground">{item.categoria}</p>
-          <p className="text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-border bg-popover px-3.5 py-3 shadow-lg">
+          <p className="text-[13px] font-semibold text-foreground">{item.categoria}</p>
+          <p className="text-[12px] tabular-nums text-foreground-muted">
             {formatCurrency(item.valor)} ({percentage}%)
           </p>
         </div>
@@ -73,14 +73,14 @@ export function ExpensesByCategoryChart({
     if (!payload) return null;
 
     return (
-      <div className="flex flex-wrap gap-2 justify-center mt-4">
+      <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1.5">
         {payload.map((entry, index) => (
-          <div key={index} className="flex items-center gap-1.5 text-xs">
-            <div 
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: entry.color || '#6B7280' }}
+          <div key={index} className="flex items-center gap-1.5 text-[12px]">
+            <div
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: entry.color || 'hsl(var(--foreground-muted))' }}
             />
-            <span className="text-muted-foreground">{entry.value}</span>
+            <span className="text-foreground-muted">{entry.value}</span>
           </div>
         ))}
       </div>
@@ -89,24 +89,25 @@ export function ExpensesByCategoryChart({
 
   if (data.length === 0) {
     return (
-      <Card className="p-6">
-        <h3 className="text-sm font-medium text-muted-foreground mb-4">{title}</h3>
-        <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+      <SectionCard title={title}>
+        <div className="flex h-[200px] items-center justify-center text-sm text-foreground-muted">
           Nenhuma despesa registrada
         </div>
-      </Card>
+      </SectionCard>
     );
   }
 
   return (
-    <Card className="p-4 md:p-6 overflow-hidden">
-      <div className="flex items-center justify-between mb-4 gap-2">
-        <h3 className="text-sm font-medium text-muted-foreground truncate">{title}</h3>
-        <span className="text-sm font-medium text-foreground tabular-nums shrink-0">
-          Total: {formatCurrency(total)}
+    <SectionCard
+      title={title}
+      className="overflow-hidden"
+      action={
+        <span className="text-[13px] text-foreground-muted">
+          Total <span className="font-heading font-semibold tabular-nums text-foreground">{formatCurrency(total)}</span>
         </span>
-      </div>
-      
+      }
+    >
+
       <div className="h-[200px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -130,7 +131,7 @@ export function ExpensesByCategoryChart({
           </PieChart>
         </ResponsiveContainer>
       </div>
-    </Card>
+    </SectionCard>
   );
 }
 

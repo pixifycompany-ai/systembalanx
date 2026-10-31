@@ -5,27 +5,28 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors duration-fast ease-out-expo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition-colors duration-fast ease-out-expo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         primary: "bg-primary text-primary-foreground hover:bg-primary/90",
         // Backwards-compatible alias for shadcn defaults
         default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        secondary: "bg-surface-2 text-foreground hover:bg-surface-3 border border-border",
+        secondary: "bg-surface text-foreground hover:bg-surface-2 border border-border",
         ghost: "text-foreground-muted hover:bg-surface-2 hover:text-foreground",
         outline: "border border-border bg-surface text-foreground hover:bg-surface-2",
-        danger: "bg-danger text-white hover:bg-danger/90",
-        destructive: "bg-danger text-white hover:bg-danger/90",
+        // No escuro o vermelho é claro: texto navy pra manter contraste
+        danger: "bg-danger text-white hover:bg-danger/90 dark:text-[hsl(224_55%_10%)]",
+        destructive: "bg-danger text-white hover:bg-danger/90 dark:text-[hsl(224_55%_10%)]",
         "danger-ghost": "text-danger hover:bg-danger-bg",
         link: "text-foreground underline-offset-4 hover:underline",
       },
       size: {
-        sm: "h-8 px-3 text-xs rounded-sm",
-        md: "h-9 px-3.5",
-        default: "h-9 px-3.5",
-        lg: "h-10 px-4",
-        icon: "h-9 w-9",
+        sm: "h-8 px-3.5 text-xs",
+        md: "h-10 px-4",
+        default: "h-10 px-4",
+        lg: "h-11 px-5",
+        icon: "h-10 w-10",
       },
     },
     defaultVariants: {

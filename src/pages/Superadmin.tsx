@@ -10,6 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { KpiTriple } from '@/components/shared/KpiTriple';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
+import { SectionCard } from '@/components/shared/SectionCard';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Search, Gift } from 'lucide-react';
 import { formatCurrency } from '@/utils/formatters';
@@ -79,73 +83,66 @@ export default function Superadmin() {
 
   return (
     <div className="min-h-[100dvh] bg-background">
-      <div className="mx-auto w-full max-w-5xl px-4 md:px-8 pt-10 pb-16">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3 mb-5">
-          <div>
-            <p className="text-xs font-medium text-foreground-muted mb-0.5">Superadmin · balanx</p>
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
-              {tab === 'visao' ? 'Visão geral' : tab === 'tenants' ? 'Tenants' : 'Pagamentos'}
-            </h1>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1.5">
-            <ArrowLeft className="h-4 w-4" /> App
-          </Button>
-        </div>
+      <div className="mx-auto w-full max-w-6xl px-4 pb-16 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] md:px-10 md:pt-10">
+        <MobilePageHeader
+          eyebrow="Superadmin · balanx"
+          title={tab === 'visao' ? 'Visão geral' : tab === 'tenants' ? 'Tenants' : 'Pagamentos'}
+          actions={
+            <Button variant="outline" onClick={() => navigate('/')} className="h-10 gap-1.5 rounded-full px-4">
+              <ArrowLeft className="h-4 w-4" /> App
+            </Button>
+          }
+        />
 
-        {/* Tabs */}
-        <div className="inline-flex rounded-2xl border border-border bg-surface p-1 mb-6">
-          {(['visao', 'tenants', 'pagamentos'] as Tab[]).map((tb) => (
-            <button
-              key={tb}
-              onClick={() => setTab(tb)}
-              className={cn(
-                'px-4 py-1.5 text-sm font-medium rounded-xl transition-colors',
-                tab === tb ? 'bg-primary text-primary-foreground' : 'text-foreground-muted hover:text-foreground',
-              )}
-            >
-              {tb === 'visao' ? 'Visão geral' : tb === 'tenants' ? 'Tenants' : 'Pagamentos'}
-            </button>
-          ))}
-        </div>
+        {/* Abas */}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="mb-5 md:mb-6">
+          <TabsList>
+            {(['visao', 'tenants', 'pagamentos'] as Tab[]).map((tb) => (
+              <TabsTrigger key={tb} value={tb}>
+                {tb === 'visao' ? 'Visão geral' : tb === 'tenants' ? 'Tenants' : 'Pagamentos'}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
 
         {loading ? (
           <LoadingSpinner />
         ) : tab === 'visao' ? (
-          <div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-6">
-              <StatCard label="Tenants ativos" value={String(ativos)} tone="steel" />
-              <StatCard label="Usuários" value={String(totalUsuarios)} tone="green" />
-              <StatCard label="MRR plataforma" value={formatCurrency(mrrPlataforma)} tone="amber" />
-              <StatCard label="Cortesias" value={String(cortesias)} tone="steel" />
-            </div>
-            <h2 className="text-sm font-semibold text-foreground mb-3">Cadastros recentes</h2>
-            <div className="space-y-2">
-              {tenants.slice(0, 8).map((t) => (
-                <TenantRow key={t.id} t={t} count={memberCount[t.id] || 0} onClick={() => setEditing(t)} />
-              ))}
-            </div>
+          <div className="space-y-4 md:space-y-6">
+            <KpiTriple
+              className="mb-0"
+              items={[
+                { label: 'Tenants ativos', value: ativos, tone: 'steel', format: 'count' },
+                { label: 'Usuários', value: totalUsuarios, tone: 'green', format: 'count' },
+                { label: 'MRR plataforma', value: mrrPlataforma, tone: 'green' },
+                { label: 'Cortesias', value: cortesias, tone: 'amber', format: 'count' },
+              ]}
+            />
+            <SectionCard flush title="Cadastros recentes" description={`${Math.min(tenants.length, 8)} de ${tenants.length}`}>
+              <TenantList tenants={tenants.slice(0, 8)} memberCount={memberCount} onOpen={setEditing} />
+            </SectionCard>
           </div>
         ) : tab === 'tenants' ? (
-          <div>
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-muted" />
+          <SectionCard
+            flush
+            title="Organizações"
+            description={`${filtered.length} ${filtered.length === 1 ? 'tenant' : 'tenants'}`}
+          >
+            <div className="relative px-4 pb-4 md:max-w-sm md:px-6">
+              <Search className="absolute left-7 top-[22px] h-4 w-4 -translate-y-1/2 text-foreground-muted md:left-9" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar organização…"
-                className="pl-9"
+                className="h-11 rounded-full bg-surface-2 pl-10"
               />
             </div>
-            <div className="space-y-2">
-              {filtered.map((t) => (
-                <TenantRow key={t.id} t={t} count={memberCount[t.id] || 0} onClick={() => setEditing(t)} />
-              ))}
-              {filtered.length === 0 && (
-                <p className="text-sm text-foreground-muted py-8 text-center">Nenhum tenant encontrado.</p>
-              )}
-            </div>
-          </div>
+            {filtered.length === 0 ? (
+              <p className="border-t border-border py-10 text-center text-[14px] text-foreground-muted">Nenhum tenant encontrado.</p>
+            ) : (
+              <TenantList tenants={filtered} memberCount={memberCount} onOpen={setEditing} />
+            )}
+          </SectionCard>
         ) : (
           <PagamentosTab />
         )}
@@ -162,45 +159,94 @@ export default function Superadmin() {
   );
 }
 
-function StatCard({ label, value, tone }: { label: string; value: string; tone: 'steel' | 'green' | 'amber' }) {
-  const bar = tone === 'green' ? 'bg-[hsl(var(--success))]' : tone === 'amber' ? 'bg-[hsl(var(--warning))]' : 'bg-primary';
+/** Tabela no desktop, lista agrupada no mobile. Toque/clique abre o editor. */
+function TenantList({ tenants, memberCount, onOpen }: {
+  tenants: Tenant[]; memberCount: Record<string, number>; onOpen: (t: Tenant) => void;
+}) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border bg-surface px-3 py-3.5">
-      <span className={cn('absolute inset-x-0 top-0 h-[3px]', bar)} />
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-foreground-muted">{label}</div>
-      <div className="mt-1.5 text-lg font-semibold tabular-nums text-foreground">{value}</div>
-    </div>
+    <>
+      {/* Desktop */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="pl-6">Organização</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Plano</TableHead>
+              <TableHead className="text-right">Membros</TableHead>
+              <TableHead className="pr-6 text-right">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tenants.map((t) => {
+              const count = memberCount[t.id] || 0;
+              return (
+                <TableRow
+                  key={t.id}
+                  onClick={() => onOpen(t)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') onOpen(t); }}
+                  tabIndex={0}
+                  className="cursor-pointer border-border"
+                >
+                  <TableCell className="pl-6">
+                    <div className="flex items-center gap-3">
+                      <TenantAvatar nome={t.nome} />
+                      <span className="truncate font-semibold text-foreground">{t.nome}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="capitalize text-foreground-muted">{t.tipo}</TableCell>
+                  <TableCell className="capitalize text-foreground-muted">{t.plano}</TableCell>
+                  <TableCell className="text-right font-heading font-semibold tabular-nums text-foreground">{count}</TableCell>
+                  <TableCell className="pr-6 text-right"><StatusBadge status={t.status_assinatura} cortesia={t.cortesia} /></TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile */}
+      <div className="border-t border-border px-3.5 md:hidden">
+        {tenants.map((t) => {
+          const count = memberCount[t.id] || 0;
+          return (
+            <button
+              key={t.id}
+              onClick={() => onOpen(t)}
+              className="flex w-full items-center gap-3 border-b border-border py-3 text-left last:border-b-0"
+            >
+              <TenantAvatar nome={t.nome} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[14px] font-semibold text-foreground">{t.nome}</div>
+                <div className="truncate text-[12px] capitalize text-foreground-muted">
+                  {t.tipo} · {t.plano} · {count} {count === 1 ? 'membro' : 'membros'}
+                </div>
+              </div>
+              <StatusBadge status={t.status_assinatura} cortesia={t.cortesia} />
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
-function TenantRow({ t, count, onClick }: { t: Tenant; count: number; onClick: () => void }) {
+function TenantAvatar({ nome }: { nome: string }) {
   return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 text-left hover:border-primary/40 transition-colors"
-    >
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary text-xs font-semibold">
-        {initials(t.nome)}
-      </span>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-semibold text-foreground truncate">{t.nome}</div>
-        <div className="text-xs text-foreground-muted truncate capitalize">
-          {t.tipo} · {t.plano} · {count} {count === 1 ? 'membro' : 'membros'}
-        </div>
-      </div>
-      <StatusBadge status={t.status_assinatura} cortesia={t.cortesia} />
-    </button>
+    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-surface-2 text-[12px] font-semibold text-foreground">
+      {initials(nome)}
+    </span>
   );
 }
 
 function StatusBadge({ status, cortesia }: { status: string; cortesia: boolean }) {
   const label = cortesia ? 'Cortesia' : status;
   const cls = cortesia || status === 'ativa'
-    ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]'
+    ? 'bg-success-bg text-success-fg'
     : status === 'inadimplente' || status === 'cancelada'
-      ? 'bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]'
-      : 'bg-primary/15 text-primary';
-  return <span className={cn('shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize', cls)}>{label}</span>;
+      ? 'bg-danger-bg text-danger-fg'
+      : 'bg-info-bg text-info-fg';
+  return <span className={cn('inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize', cls)}>{label}</span>;
 }
 
 function TenantEditor({ tenant, onClose, onSaved }: { tenant: Tenant; onClose: () => void; onSaved: () => void }) {
@@ -239,21 +285,23 @@ function TenantEditor({ tenant, onClose, onSaved }: { tenant: Tenant; onClose: (
         <div className="space-y-4">
           <button
             onClick={liberarGratis}
-            className="w-full flex items-center gap-3 rounded-xl border border-[hsl(var(--success))]/40 bg-[hsl(var(--success))]/10 px-4 py-3 text-left hover:bg-[hsl(var(--success))]/15 transition-colors"
+            className="flex w-full items-center gap-3 rounded-[16px] bg-success-bg px-4 py-3 text-left transition-opacity hover:opacity-90"
           >
-            <Gift className="h-5 w-5 text-[hsl(var(--success))]" />
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-surface text-success-fg">
+              <Gift className="h-5 w-5" />
+            </span>
             <div>
               <div className="text-sm font-semibold text-foreground">Liberar grátis (cortesia)</div>
               <div className="text-xs text-foreground-muted">Ativa o plano sem cobrança</div>
             </div>
           </button>
 
-          <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
+          <div className="flex items-center justify-between rounded-[16px] border border-border px-4 py-3">
             <div>
               <div className="text-sm font-medium text-foreground">Plano {PLAN.nome}</div>
               <div className="text-xs text-foreground-muted">{`R$ ${PLAN.precoMensal.toFixed(2).replace('.', ',')}/mês · 12× ${PLAN.precoAnualParcela.toFixed(2).replace('.', ',')}`}</div>
             </div>
-            <span className="text-[10px] font-semibold uppercase text-foreground-muted">Único</span>
+            <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] font-semibold text-foreground-muted">Único</span>
           </div>
 
           <div className="space-y-1.5">
@@ -264,7 +312,7 @@ function TenantEditor({ tenant, onClose, onSaved }: { tenant: Tenant; onClose: (
             </Select>
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
+          <div className="flex items-center justify-between rounded-[16px] border border-border px-4 py-3">
             <div>
               <div className="text-sm font-medium text-foreground">Cortesia</div>
               <div className="text-xs text-foreground-muted">Acesso liberado sem pagar</div>
@@ -279,7 +327,7 @@ function TenantEditor({ tenant, onClose, onSaved }: { tenant: Tenant; onClose: (
           </div>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</Button>
         </DialogFooter>
       </DialogContent>
@@ -326,40 +374,41 @@ function PagamentosTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="grid gap-4 md:grid-cols-2 md:gap-6">
       {/* Preço do plano único */}
-      <div className="rounded-2xl border border-border bg-surface p-5">
-        <div className="text-sm font-semibold text-foreground">Preço do plano {PLAN.nome}</div>
-        <p className="text-xs text-foreground-muted mt-0.5 mb-4">Ao salvar, as assinaturas ativas são atualizadas no ASAAS automaticamente.</p>
+      <SectionCard
+        title={`Preço do plano ${PLAN.nome}`}
+        description="Ao salvar, as assinaturas ativas são atualizadas no ASAAS automaticamente."
+      >
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs">Mensal (R$)</Label>
-            <Input value={mensal} onChange={(e) => setMensal(e.target.value)} inputMode="decimal" disabled={!loaded} />
+            <Input value={mensal} onChange={(e) => setMensal(e.target.value)} inputMode="decimal" disabled={!loaded} className="h-12 rounded-[14px] bg-surface-2" />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Anual — parcela (R$)</Label>
-            <Input value={anual} onChange={(e) => setAnual(e.target.value)} inputMode="decimal" disabled={!loaded} />
-            <p className="text-[10px] text-foreground-muted">12× · total {`R$ ${((parseFloat(anual.replace(',', '.')) || 0) * 12).toFixed(2).replace('.', ',')}`}/ano</p>
+            <Input value={anual} onChange={(e) => setAnual(e.target.value)} inputMode="decimal" disabled={!loaded} className="h-12 rounded-[14px] bg-surface-2" />
+            <p className="text-[12px] text-foreground-muted">12× · total {`R$ ${((parseFloat(anual.replace(',', '.')) || 0) * 12).toFixed(2).replace('.', ',')}`}/ano</p>
           </div>
         </div>
-        <Button className="mt-4 w-full" onClick={salvar} disabled={saving || !loaded}>
+        <Button className="mt-4 h-12 w-full rounded-full font-semibold" onClick={salvar} disabled={saving || !loaded}>
           {saving ? 'Salvando e sincronizando…' : 'Salvar e sincronizar no ASAAS'}
         </Button>
-      </div>
+      </SectionCard>
 
       {/* ASAAS status */}
-      <div className="rounded-2xl border border-border bg-surface p-5">
+      <SectionCard>
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#1f50e2] text-white font-semibold">a</div>
+          <div className="grid h-10 w-10 place-items-center rounded-[13px] bg-info-bg font-semibold text-info-fg">a</div>
           <div>
             <div className="text-sm font-semibold text-foreground">ASAAS</div>
             <div className="text-xs text-foreground-muted">Gateway de cobrança recorrente</div>
           </div>
         </div>
-        <p className="mt-4 pt-4 border-t border-border/60 text-sm text-foreground-muted">
+        <p className="mt-4 border-t border-border pt-4 text-sm text-foreground-muted">
           Ativação automática por evento (<span className="font-mono text-xs">PAYMENT_CONFIRMED</span> / <span className="font-mono text-xs">PAYMENT_RECEIVED</span>) via webhook. Métodos: Pix, boleto e cartão (o cliente escolhe na fatura).
         </p>
-      </div>
+      </SectionCard>
     </div>
   );
 }

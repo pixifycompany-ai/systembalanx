@@ -31,14 +31,13 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
             size="icon"
             aria-label={label}
             className={cn(
-              // Tile de vidro (combina com o tema azul): borda sutil + surface
-              // translúcido + blur; hover suave.
-              'h-9 w-9 shrink-0 rounded-xl transition-colors',
+              // Botão redondo liso (padrão BALANX): borda + surface; hover suave.
+              'h-10 w-10 shrink-0 rounded-full transition-colors',
               emphasis === 'primary'
                 ? 'shadow-[0_8px_22px_-8px_hsl(var(--primary)/0.6)] hover:bg-primary/90'
                 : emphasis === 'destructive'
                   ? 'border border-border bg-surface text-destructive hover:bg-[hsl(var(--danger))]/12 hover:text-destructive'
-                  : 'border border-border bg-surface text-foreground shadow-sm hover:bg-surface-2 hover:text-foreground',
+                  : 'border border-border bg-surface text-foreground hover:bg-surface-2 hover:text-foreground',
               className,
             )}
             {...props}

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useActionParam } from '@/hooks/useActionParam';
 import { IconButton } from '@/components/shared/IconButton';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,10 +15,11 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { useContas, type ContaDB, type ContaFormData } from '@/hooks/useContas';
 import { useFaturas, type FaturaDB } from '@/hooks/useFaturas';
 import { formatCurrency } from '@/utils/formatters';
-import { Plus, Pencil, Trash2, Wallet, Building2, CreditCard } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building2 } from 'lucide-react';
 import { BuildingLibraryIcon, CreditCardIcon, HomeIcon } from '@heroicons/react/24/outline';
 import { HeroStatCard } from '@/components/shared/HeroStatCard';
-import { ListRowCard } from '@/components/shared/ListRowCard';
+import { SectionCard } from '@/components/shared/SectionCard';
+import { StatusBadge } from '@/components/shared/StatusBadge';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { CartaoCard } from '@/components/cartoes/CartaoCard';
 import { CartaoFormDialog } from '@/components/cartoes/CartaoFormDialog';
@@ -163,188 +163,185 @@ export default function Contas() {
     return sum + (f ? Math.max(Number(f.valor_total) - Number(f.valor_pago), 0) : 0);
   }, 0);
 
+  const novoCartao = () => { setEditingCartao(null); setIsCartaoFormOpen(true); };
+
+  // Mobile: contas agrupadas por tipo (corrente / poupança / investimento), com total do grupo.
+  const gruposContas = CONTA_TIPOS
+    .map((t) => {
+      const itens = bankAccounts.filter((c) => c.tipo === t.value);
+      return { key: t.value as string, label: t.label as string, itens, total: itens.reduce((s, c) => s + (c.saldo_atual || 0), 0) };
+    })
+    .concat((() => {
+      const outros = bankAccounts.filter((c) => !CONTA_TIPOS.some((t) => t.value === c.tipo));
+      return [{ key: 'outros', label: 'Outras', itens: outros, total: outros.reduce((s, c) => s + (c.saldo_atual || 0), 0) }];
+    })())
+    .filter((g) => g.itens.length > 0);
+
   return (
     <main className="container py-4 md:py-6">
-      {/* Header desktop */}
-      <div className="hidden md:flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <p className="text-xs text-foreground-muted mb-0.5 font-medium">Suas finanças</p>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
-            {tab === 'contas' ? 'Contas' : 'Cartões'}
-          </h1>
-        </div>
-        {tab === 'contas' ? (
-          <Button onClick={() => handleOpenForm()}><Plus className="h-4 w-4 mr-2" />Nova Conta</Button>
-        ) : (
-          <Button onClick={() => { setEditingCartao(null); setIsCartaoFormOpen(true); }}><Plus className="h-4 w-4 mr-2" />Novo Cartão</Button>
-        )}
-      </div>
+      <MobilePageHeader
+        eyebrow="Sistema"
+        title={tab === 'contas' ? 'Contas' : 'Cartões'}
+        actions={
+          tab === 'contas' ? (
+            <Button onClick={() => handleOpenForm()} aria-label="Nova Conta Bancária">
+              <Plus className="h-4 w-4" />Nova conta
+            </Button>
+          ) : (
+            <Button onClick={novoCartao} aria-label="Novo Cartão de Crédito">
+              <Plus className="h-4 w-4" />Novo cartão
+            </Button>
+          )
+        }
+      />
 
-      {/* Header mobile estilo iOS */}
-      <div className="md:hidden">
-        <MobilePageHeader
-          eyebrow="Suas finanças"
-          title={tab === 'contas' ? 'Contas' : 'Cartões'}
-          actions={
-            tab === 'contas' ? (
-              <IconButton label="Nova Conta Bancária" emphasis="primary" onClick={() => handleOpenForm()}>
-                <Plus className="h-4 w-4" />
-              </IconButton>
-            ) : (
-              <IconButton label="Novo Cartão de Crédito" emphasis="primary" onClick={() => { setEditingCartao(null); setIsCartaoFormOpen(true); }}>
-                <Plus className="h-4 w-4" />
-              </IconButton>
-            )
-          }
-        />
-      </div>
-
-
-      <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList className="grid w-full grid-cols-2 h-auto rounded-[14px] border border-border bg-surface p-1 gap-[3px] mb-3.5">
-          <TabsTrigger value="contas" className="flex items-center justify-center gap-1.5 rounded-[10px] py-[9px] text-[12.5px] font-semibold text-foreground-muted data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as 'contas' | 'cartoes')}>
+        <TabsList className="grid w-full grid-cols-2 md:inline-grid md:w-auto">
+          <TabsTrigger value="contas" className="gap-1.5 md:px-6">
             <BuildingLibraryIcon className="h-[15px] w-[15px]" />Contas
           </TabsTrigger>
-          <TabsTrigger value="cartoes" className="flex items-center justify-center gap-1.5 rounded-[10px] py-[9px] text-[12.5px] font-semibold text-foreground-muted data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none">
+          <TabsTrigger value="cartoes" className="gap-1.5 md:px-6">
             <CreditCardIcon className="h-[15px] w-[15px]" />Cartões
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB CONTAS BANCARIAS */}
-        <TabsContent value="contas">
-          {/* HERO: saldo total — mobile (dark) / desktop (light gradient) */}
-          <div className="md:hidden mb-6">
+        {/* TAB CONTAS BANCÁRIAS */}
+        <TabsContent value="contas" className="mt-4 space-y-4 md:mt-6 md:space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
             <HeroStatCard
-              eyebrow="Saldo Total em Contas"
+              eyebrow="Saldo total em contas"
               value={getTotalBalance()}
               subtitle={`${bankAccounts.length} ${bankAccounts.length === 1 ? 'conta ativa' : 'contas ativas'}`}
+              className="md:col-span-2 xl:col-span-1 [&>div]:h-full"
             />
-          </div>
-          <Card className="hidden md:block mb-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Saldo Total (Contas)</p>
-                  <p className="text-3xl font-semibold text-foreground">{formatCurrency(getTotalBalance())}</p>
+
+            {/* DESKTOP: cartões lisos em grid */}
+            {bankAccounts.map((conta) => (
+              <div
+                key={conta.id}
+                className={cn(
+                  'hidden flex-col rounded-[20px] border border-border bg-surface p-5 transition-colors hover:border-border-strong md:flex md:rounded-3xl',
+                  !conta.ativa && 'opacity-60',
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <span
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px]"
+                    style={{ background: `color-mix(in srgb, ${conta.cor} 16%, transparent)`, color: conta.cor }}
+                  >
+                    <Building2 className="h-[18px] w-[18px]" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[15px] font-semibold text-foreground">{conta.nome}</p>
+                    <p className="truncate text-[12px] text-foreground-muted">
+                      {[conta.banco, CONTA_TIPOS.find(t => t.value === conta.tipo)?.label].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <div className="-mr-1.5 -mt-1 flex shrink-0 gap-0.5">
+                    <IconButton label="Editar conta" tooltipSide="top" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => handleOpenForm(conta)}>
+                      <Pencil className="h-4 w-4" />
+                    </IconButton>
+                    <IconButton label="Excluir conta" tooltipSide="top" variant="danger-ghost" className="h-8 w-8 rounded-full" onClick={() => handleAskDelete(conta)}>
+                      <Trash2 className="h-4 w-4" />
+                    </IconButton>
+                  </div>
                 </div>
-                <Wallet className="h-10 w-10 text-primary/50" />
+
+                <div className="mt-5 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Saldo atual</p>
+                  <p className="mt-1 font-heading text-[28px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-foreground">
+                    {formatCurrency(conta.saldo_atual || 0)}
+                  </p>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between gap-2 border-t border-border pt-3">
+                  <span className="text-[12px] text-foreground-muted">
+                    Saldo inicial <span className="tabular-nums text-foreground">{formatCurrency(conta.saldo_inicial)}</span>
+                  </span>
+                  {!conta.ativa && <StatusBadge status="inativo" />}
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </div>
 
           {bankAccounts.length === 0 ? (
-            <EmptyState
-              title="Nenhuma conta cadastrada"
-              description="Adicione suas contas bancárias para começar."
-              action={<Button onClick={() => handleOpenForm()}><Plus className="h-4 w-4 mr-2" />Nova Conta</Button>}
-            />
+            <SectionCard>
+              <EmptyState
+                title="Nenhuma conta cadastrada"
+                description="Adicione suas contas bancárias para começar."
+                action={<Button onClick={() => handleOpenForm()}><Plus className="h-4 w-4" />Nova Conta</Button>}
+              />
+            </SectionCard>
           ) : (
-            <>
-              {/* MOBILE: lista estilo iOS */}
-              <div className="md:hidden flex flex-col gap-2">
-                {bankAccounts.map((conta) => (
-                  <ListRowCard
-                    key={conta.id}
-                    onClick={() => handleOpenForm(conta)}
-                    leading={
-                      <div
-                        className="grid h-[38px] w-[38px] place-items-center rounded-xl"
-                        style={{ background: `color-mix(in srgb, ${conta.cor} 16%, transparent)`, color: conta.cor }}
+            /* MOBILE: lista agrupada por tipo */
+            <div className="space-y-4 md:hidden">
+              {gruposContas.map((g) => (
+                <section key={g.key}>
+                  <div className="flex items-baseline justify-between px-0.5 pb-1.5 pt-1">
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">{g.label}</span>
+                    <span className="text-[12px] tabular-nums text-foreground-muted">{formatCurrency(g.total)}</span>
+                  </div>
+                  <div className="rounded-[20px] border border-border bg-surface px-3.5">
+                    {g.itens.map((conta) => (
+                      <button
+                        key={conta.id}
+                        type="button"
+                        onClick={() => handleOpenForm(conta)}
+                        className={cn(
+                          'flex w-full items-center gap-3 border-b border-border py-3 text-left last:border-b-0',
+                          !conta.ativa && 'opacity-60',
+                        )}
                       >
-                        <HomeIcon className="h-[18px] w-[18px]" strokeWidth={1.7} />
-                      </div>
-                    }
-                    title={conta.nome}
-                    subtitle={
-                      <>
-                        {conta.banco ? `${conta.banco} · ` : ''}
-                        {CONTA_TIPOS.find(t => t.value === conta.tipo)?.label}
-                      </>
-                    }
-                    value={formatCurrency(conta.saldo_atual || 0)}
-                    meta={!conta.ativa ? 'Inativa' : null}
-                    dimmed={!conta.ativa}
-                  />
-                ))}
-              </div>
-
-              {/* DESKTOP: grid de cards */}
-              <div className="hidden md:grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                {bankAccounts.map((conta) => (
-                  <Card key={conta.id} className={`relative overflow-hidden ${!conta.ativa ? 'opacity-60' : ''}`}>
-                    <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: conta.cor }} />
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <CardTitle className="text-base">{conta.nome}</CardTitle>
-                            {conta.banco && <p className="text-xs text-muted-foreground">{conta.banco}</p>}
-                          </div>
-                        </div>
-                        <div className="flex gap-1">
-                          <IconButton label="Editar conta" tooltipSide="top" variant="ghost" className="h-8 w-8" onClick={() => handleOpenForm(conta)}>
-                            <Pencil className="h-4 w-4" />
-                          </IconButton>
-                          <IconButton label="Excluir conta" tooltipSide="top" emphasis="destructive" className="h-8 w-8" onClick={() => handleAskDelete(conta)}>
-                            <Trash2 className="h-4 w-4" />
-                          </IconButton>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <span className="text-xs text-muted-foreground uppercase">
-                          {CONTA_TIPOS.find(t => t.value === conta.tipo)?.label}
+                        <span
+                          className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px]"
+                          style={{ background: `color-mix(in srgb, ${conta.cor} 16%, transparent)`, color: conta.cor }}
+                        >
+                          <HomeIcon className="h-[18px] w-[18px]" strokeWidth={1.7} />
                         </span>
-                        <p className="text-2xl font-semibold tabular-nums">{formatCurrency(conta.saldo_atual || 0)}</p>
-                        <p className="text-xs text-muted-foreground">Saldo inicial: {formatCurrency(conta.saldo_inicial)}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[14px] font-semibold text-foreground">{conta.nome}</span>
+                          <span className="block truncate text-[12px] text-foreground-muted">
+                            {conta.banco || CONTA_TIPOS.find(t => t.value === conta.tipo)?.label}
+                          </span>
+                        </span>
+                        <span className="flex shrink-0 flex-col items-end gap-0.5">
+                          <span className="whitespace-nowrap font-heading text-[15px] font-semibold tabular-nums tracking-[-0.01em] text-foreground">
+                            {formatCurrency(conta.saldo_atual || 0)}
+                          </span>
+                          {!conta.ativa && <span className="text-[11px] font-semibold text-foreground-muted">Inativa</span>}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
           )}
-
         </TabsContent>
 
-        {/* TAB CARTOES */}
-        <TabsContent value="cartoes">
-          <div className="md:hidden mb-3 auro-card rounded-[20px] border border-border bg-surface px-4 py-[15px]">
-            <div className="text-[11.5px] font-medium text-foreground-muted">Total em Faturas Abertas</div>
-            <div className="mt-[5px] whitespace-nowrap text-[26px] font-semibold tracking-[-0.03em] tabular-nums text-[hsl(var(--danger))]">
-              {formatCurrency(totalCartoes)}
-            </div>
-            <div className="mt-[3px] text-[11.5px] text-foreground-subtle">
-              {creditCards.length} {creditCards.length === 1 ? 'cartão ativo' : 'cartões ativos'}
-            </div>
-          </div>
-          <Card className="hidden md:block mb-6 bg-gradient-to-r from-purple-500/10 to-pink-500/5 border-purple-500/20">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total em Faturas Abertas</p>
-                  <p className="text-3xl font-semibold text-foreground">{formatCurrency(totalCartoes)}</p>
-                </div>
-                <CreditCard className="h-10 w-10 text-purple-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-
+        {/* TAB CARTÕES */}
+        <TabsContent value="cartoes" className="mt-4 space-y-4 md:mt-6 md:space-y-6">
+          <HeroStatCard
+            eyebrow="Total em faturas abertas"
+            value={totalCartoes}
+            subtitle={`${creditCards.length} ${creditCards.length === 1 ? 'cartão ativo' : 'cartões ativos'}`}
+            className="md:max-w-md"
+          />
 
           {creditCards.length === 0 ? (
-            <EmptyState
-              title="Nenhum cartão cadastrado"
-              description="Cadastre seus cartões de crédito para acompanhar faturas."
-              action={
-                <Button onClick={() => { setEditingCartao(null); setIsCartaoFormOpen(true); }}>
-                  <Plus className="h-4 w-4 mr-2" /> Novo Cartão
-                </Button>
-              }
-            />
+            <SectionCard>
+              <EmptyState
+                title="Nenhum cartão cadastrado"
+                description="Cadastre seus cartões de crédito para acompanhar faturas."
+                action={
+                  <Button onClick={novoCartao}>
+                    <Plus className="h-4 w-4" /> Novo Cartão
+                  </Button>
+                }
+              />
+            </SectionCard>
           ) : (
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
               {creditCards.map(cartao => (
                 <CartaoCard
                   key={cartao.id}
@@ -371,65 +368,67 @@ export default function Contas() {
       <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
         <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[480px] sm:mx-auto">
           <div className="pb-1">
-            <div className="text-[11.5px] font-medium text-foreground-muted">Cadastro</div>
-            <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">{editingConta ? 'Editar conta' : 'Nova conta'}</h2>
+            <div className="text-[13px] text-foreground-muted">Cadastro</div>
+            <h2 className="mt-0.5 text-[24px] font-semibold tracking-[-0.03em] text-foreground">{editingConta ? 'Editar conta' : 'Nova conta'}</h2>
           </div>
 
-          <div className="space-y-4 pt-3">
-            <div className="space-y-2">
-              <Label>Nome da conta</Label>
-              <Input value={formData.nome} onChange={(e) => setFormData(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Bradesco PJ" />
-            </div>
-            <div className="space-y-2">
-              <Label>Banco</Label>
-              <Input value={formData.banco || ''} onChange={(e) => setFormData(p => ({ ...p, banco: e.target.value }))} placeholder="Ex: Bradesco" />
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {CONTA_TIPOS.map(t => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => setFormData(p => ({ ...p, tipo: t.value as any }))}
-                    className={cn(
-                      'no-touch-min rounded-xl border py-2.5 text-sm font-semibold transition-colors',
-                      formData.tipo === t.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted',
-                    )}
-                  >
-                    {t.label}
-                  </button>
-                ))}
+          <div className="space-y-5 pt-4">
+            <FormSection title="Identificação">
+              <div className="space-y-2">
+                <Label>Nome da conta</Label>
+                <Input value={formData.nome} onChange={(e) => setFormData(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Bradesco PJ" />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Saldo inicial</Label>
-              <Input type="number" step="0.01" value={formData.saldo_inicial || ''} placeholder="R$ 0,00"
-                onChange={(e) => setFormData(p => ({ ...p, saldo_inicial: parseFloat(e.target.value) || 0 }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Cor</Label>
-              <div className="flex flex-wrap gap-2">
-                {CORES.map(cor => (
-                  <button key={cor} type="button"
-                    className={cn('h-10 w-10 rounded-[12px] transition-all', formData.cor === cor ? 'ring-2 ring-white ring-offset-2 ring-offset-transparent scale-105' : 'hover:scale-105')}
-                    style={{ backgroundColor: cor }} onClick={() => setFormData(p => ({ ...p, cor }))} />
-                ))}
+              <div className="space-y-2">
+                <Label>Banco</Label>
+                <Input value={formData.banco || ''} onChange={(e) => setFormData(p => ({ ...p, banco: e.target.value }))} placeholder="Ex: Bradesco" />
               </div>
-            </div>
-            <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-surface/60 px-4 py-3">
-              <Label>Conta ativa</Label>
-              <Switch checked={formData.ativa} onCheckedChange={(c) => setFormData(p => ({ ...p, ativa: c }))} />
-            </div>
+              <div className="space-y-2">
+                <Label>Tipo</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {CONTA_TIPOS.map(t => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setFormData(p => ({ ...p, tipo: t.value as any }))}
+                      className={cn(CHOICE_BASE, formData.tipo === t.value ? CHOICE_ON : CHOICE_OFF)}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </FormSection>
+
+            <FormSection title="Saldo e aparência">
+              <div className="space-y-2">
+                <Label>Saldo inicial</Label>
+                <Input type="number" step="0.01" value={formData.saldo_inicial || ''} placeholder="R$ 0,00"
+                  onChange={(e) => setFormData(p => ({ ...p, saldo_inicial: parseFloat(e.target.value) || 0 }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Cor</Label>
+                <div className="flex flex-wrap gap-2">
+                  {CORES.map(cor => (
+                    <button key={cor} type="button" aria-label={`Cor ${cor}`}
+                      className={cn('no-touch-min h-9 w-9 rounded-full transition-transform', formData.cor === cor ? 'ring-2 ring-foreground ring-offset-2 ring-offset-surface' : 'hover:scale-105')}
+                      style={{ backgroundColor: cor }} onClick={() => setFormData(p => ({ ...p, cor }))} />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between border-t border-border pt-3.5">
+                <Label>Conta ativa</Label>
+                <Switch checked={formData.ativa} onCheckedChange={(c) => setFormData(p => ({ ...p, ativa: c }))} />
+              </div>
+            </FormSection>
           </div>
 
-          <div className="flex gap-2.5 pt-4">
-            <button onClick={() => setIsFormOpen(false)} className="flex-[0_0_34%] rounded-[14px] bg-surface-2 py-3 text-[13px] font-semibold text-foreground">
+          <div className="flex gap-2.5 pt-5">
+            <Button type="button" variant="outline" size="lg" className="flex-1" onClick={() => setIsFormOpen(false)}>
               Cancelar
-            </button>
-            <button onClick={handleSubmit} disabled={!formData.nome.trim()} className="flex-1 rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] py-3 text-[13px] font-semibold text-primary-foreground disabled:opacity-50">
+            </Button>
+            <Button type="button" size="lg" className="flex-[2]" onClick={handleSubmit} disabled={!formData.nome.trim()}>
               {editingConta ? 'Salvar' : 'Criar'}
-            </button>
+            </Button>
           </div>
         </SheetContent>
       </Sheet>
@@ -514,5 +513,20 @@ export default function Contas() {
       )}
 
     </main>
+  );
+}
+
+
+const CHOICE_BASE = 'no-touch-min h-10 rounded-full border text-[13px] font-semibold transition-colors';
+const CHOICE_ON = 'border-foreground bg-foreground text-background';
+const CHOICE_OFF = 'border-border bg-surface text-foreground hover:border-border-strong';
+
+/** Bloco de campos do formulário: label de seção em caixa alta + campos agrupados. */
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">{title}</h3>
+      <div className="space-y-3.5 rounded-[20px] border border-border p-4">{children}</div>
+    </section>
   );
 }

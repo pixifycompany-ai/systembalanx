@@ -30,18 +30,26 @@ import {
 import { useClientes } from '@/hooks/useClientes';
 import { useContas } from '@/hooks/useContas';
 import { ConciliacaoSheet } from '@/components/cobrancas/ConciliacaoSheet';
+import { ChoiceChip, FormSection, InitialsAvatar, InlineNotice, NATIVE_SELECT_CLS, SECTION_LABEL_CLS, SheetFooter, SheetHeading, iniciais } from '@/components/cobrancas/formParts';
+import { SectionCard } from '@/components/shared/SectionCard';
+import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
   XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Repeat, Receipt, Wallet, CreditCard,
-  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound, Users, Mail, CalendarOff, CalendarCheck,
+  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound, Users, Mail, CalendarOff, CalendarCheck, Search, AlertTriangle, Check,
 } from 'lucide-react';
 
 const toneCls: Record<string, string> = {
-  success: 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]',
-  warning: 'bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))]',
-  danger: 'bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]',
-  muted: 'bg-foreground/[0.06] text-foreground-muted',
+  success: 'bg-success-bg text-success-fg',
+  warning: 'bg-warning-bg text-warning-fg',
+  danger: 'bg-danger-bg text-danger-fg',
+  muted: 'bg-surface-2 text-foreground-muted',
 };
+
+const MENU_ITEM = 'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-surface-2';
+const MENU_ITEM_DANGER = 'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm text-danger-fg transition-colors hover:bg-danger-bg';
 
 const FORMA_LABEL: Record<string, string> = {
   PIX: 'Pix', BOLETO: 'Boleto', CREDIT_CARD: 'Cartão', UNDEFINED: 'Cliente escolhe',
@@ -61,7 +69,7 @@ type SortKey = 'cliente' | 'descricao' | 'tipo' | 'valor' | 'vencimento' | 'stat
 
 function statusPill(status: string) {
   const meta = COBRANCA_STATUS_LABEL[status] ?? { label: status, tone: 'muted' as const };
-  return <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold', toneCls[meta.tone])}>{meta.label}</span>;
+  return <span className={cn('inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold', toneCls[meta.tone])}>{meta.label}</span>;
 }
 
 export default function Cobrancas() {
@@ -451,71 +459,71 @@ export default function Cobrancas() {
     return (
       <Popover>
         <PopoverTrigger asChild>
-          <button className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-surface/60 text-foreground-muted transition-colors hover:bg-surface-2">
+          <button aria-label="Ações da cobrança" className="no-touch-min inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-foreground-muted transition-colors hover:border-border-strong hover:text-foreground">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
           </button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-56 p-1.5 rounded-xl border border-border bg-surface">
+        <PopoverContent align="end" className="w-64 rounded-[20px] border border-border bg-surface p-1.5">
           {cob.invoice_url && (
-            <a href={cob.invoice_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
+            <a href={cob.invoice_url} target="_blank" rel="noopener noreferrer" className={MENU_ITEM}>
               <ExternalLink className="h-4 w-4 text-foreground-muted" /> Abrir link de pagamento
             </a>
           )}
-          <button onClick={() => openWhatsapp(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
-            <MessageCircle className="h-4 w-4 text-[hsl(var(--success))]" /> Enviar por WhatsApp
+          <button onClick={() => openWhatsapp(cob)} className={MENU_ITEM}>
+            <MessageCircle className="h-4 w-4 text-success-fg" /> Enviar por WhatsApp
           </button>
-          <button onClick={() => openEmail(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
+          <button onClick={() => openEmail(cob)} className={MENU_ITEM}>
             <Mail className="h-4 w-4 text-primary" /> Enviar por e-mail
           </button>
           {cob.status !== 'pago' && (
-            <button onClick={() => receberManual(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
-              <HandCoins className="h-4 w-4 text-[hsl(var(--success))]" /> Identificar pagamento manual
+            <button onClick={() => receberManual(cob.id)} className={MENU_ITEM}>
+              <HandCoins className="h-4 w-4 text-success-fg" /> Identificar pagamento manual
             </button>
           )}
           {/* Nota fiscal (PDF) */}
           {cob.nota_fiscal_path ? (
             <>
-              <button onClick={() => abrirNota(cob.nota_fiscal_path!)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
+              <button onClick={() => abrirNota(cob.nota_fiscal_path!)} className={MENU_ITEM}>
                 <FileText className="h-4 w-4 text-primary" /> Ver nota fiscal
               </button>
-              <button onClick={() => pedirUploadNota(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
+              <button onClick={() => pedirUploadNota(cob.id)} className={MENU_ITEM}>
                 <Paperclip className="h-4 w-4 text-foreground-muted" /> Trocar nota fiscal
               </button>
-              <button onClick={() => removerNota(cob.linhas.find((l) => l.nota_fiscal_path)?.id || cob.id, cob.nota_fiscal_path)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-[hsl(var(--danger))] transition-colors hover:bg-[hsl(var(--danger))]/10">
+              <button onClick={() => removerNota(cob.linhas.find((l) => l.nota_fiscal_path)?.id || cob.id, cob.nota_fiscal_path)} className={MENU_ITEM_DANGER}>
                 <Trash2 className="h-4 w-4" /> Remover nota fiscal
               </button>
             </>
           ) : (
-            <button onClick={() => pedirUploadNota(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
+            <button onClick={() => pedirUploadNota(cob.id)} className={MENU_ITEM}>
               <Paperclip className="h-4 w-4 text-foreground-muted" /> Anexar nota fiscal (PDF)
             </button>
           )}
-          <button onClick={() => setExigirNf(cob.linhas.map((l) => l.id), !cob.exigir_nf)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
+          <button onClick={() => setExigirNf(cob.linhas.map((l) => l.id), !cob.exigir_nf)} className={MENU_ITEM}>
             {cob.exigir_nf ? <ShieldOff className="h-4 w-4 text-foreground-muted" /> : <ShieldCheck className="h-4 w-4 text-foreground-muted" />}
             {cob.exigir_nf ? 'Não exigir NF p/ disparar' : 'Exigir NF p/ disparar'}
           </button>
-          <button onClick={() => setEnvioPix(cob.linhas.map((l) => l.id), !cob.envio_pix)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
-            <KeyRound className={cn('h-4 w-4', cob.envio_pix ? 'text-[hsl(var(--success))]' : 'text-foreground-muted')} />
+          <button onClick={() => setEnvioPix(cob.linhas.map((l) => l.id), !cob.envio_pix)} className={MENU_ITEM}>
+            <KeyRound className={cn('h-4 w-4', cob.envio_pix ? 'text-success-fg' : 'text-foreground-muted')} />
             {cob.envio_pix ? 'WhatsApp: voltar ao link Asaas' : 'WhatsApp: enviar chave PIX'}
           </button>
           {cob.status !== 'pago' && cob.status !== 'cancelado' && (
-            <button onClick={() => abrirForma(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
+            <button onClick={() => abrirForma(cob)} className={MENU_ITEM}>
               <CreditCard className="h-4 w-4 text-foreground-muted" /> Alterar forma de recebimento
             </button>
           )}
-          <button onClick={() => abrirConta(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
+          <button onClick={() => abrirConta(cob)} className={MENU_ITEM}>
             <Wallet className="h-4 w-4 text-foreground-muted" /> {cob.conta_id ? 'Alterar conta de recebimento' : 'Definir conta de recebimento'}
           </button>
-          <button onClick={() => abrirCliente(cob)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
+          <button onClick={() => abrirCliente(cob)} className={MENU_ITEM}>
             <Users className="h-4 w-4 text-foreground-muted" /> {cob.cliente_id ? 'Alterar cliente' : 'Vincular a um cliente'}
           </button>
-          <button onClick={() => sincronizar(cob.contrato_id || undefined)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
+          <button onClick={() => sincronizar(cob.contrato_id || undefined)} className={MENU_ITEM}>
             <RefreshCw className="h-4 w-4 text-foreground-muted" /> Sincronizar status
           </button>
-          <button onClick={() => cancelar(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-foreground/[0.04]">
+          <button onClick={() => cancelar(cob.id)} className={MENU_ITEM}>
             <XCircle className="h-4 w-4 text-foreground-muted" /> Cancelar cobrança
           </button>
-          <button onClick={() => excluir(cob.id)} className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm text-[hsl(var(--danger))] transition-colors hover:bg-[hsl(var(--danger))]/10">
+          <button onClick={() => excluir(cob.id)} className={MENU_ITEM_DANGER}>
             <Trash2 className="h-4 w-4" /> Excluir cobrança
           </button>
         </PopoverContent>
@@ -525,14 +533,28 @@ export default function Cobrancas() {
 
   const TipoBadge = ({ tipo }: { tipo: string }) =>
     tipo === 'recorrente' ? (
-      <span className="inline-flex items-center gap-1 rounded-full bg-primary/12 px-2 py-0.5 text-[10px] font-semibold text-primary">
+      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-info-bg px-2 py-0.5 text-[10.5px] font-semibold text-info-fg">
         <Repeat className="h-3 w-3" /> Recorrente
       </span>
     ) : (
-      <span className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[10px] font-semibold text-foreground-muted">
+      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-surface-2 px-2 py-0.5 text-[10.5px] font-semibold text-foreground-muted">
         <Receipt className="h-3 w-3" /> Avulsa
       </span>
     );
+
+  // Mobile: lista agrupada por dia de vencimento (mantém a ordem de `filtradas`).
+  const gruposMobile = useMemo(() => {
+    const out: { key: string; titulo: string; itens: FaturaView[] }[] = [];
+    for (const c of filtradas) {
+      const k = c.vencimento || 'sem';
+      const last = out[out.length - 1];
+      if (last && last.key === k) { last.itens.push(c); continue; }
+      const titulo = c.vencimento ? format(parseISO(c.vencimento), "EEE · d MMM", { locale: ptBR }) : 'Sem vencimento';
+      out.push({ key: k, titulo, itens: [c] });
+    }
+    // chave única por bloco (o mesmo dia pode reaparecer se a ordem não for por vencimento)
+    return out.map((g, i) => ({ ...g, key: `${g.key}-${i}` }));
+  }, [filtradas]);
 
   const STATUS_TABS: { value: string; label: string }[] = [
     { value: 'todos', label: 'Todas' },
@@ -545,16 +567,18 @@ export default function Cobrancas() {
   return (
     <main className="container py-4 md:py-6">
       <MobilePageHeader
-        eyebrow="Financeiro"
+        eyebrow="Gestão · Financeiro"
         title="Cobranças"
         actions={
           <>
-            <IconButton label="Sincronizar com Asaas" onClick={() => sincronizar()} disabled={loading}>
+            <IconButton label="Sincronizar com Asaas" onClick={() => sincronizar()} disabled={loading} className="h-10 w-10 rounded-full">
               <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
             </IconButton>
-            <IconButton label="Nova cobrança avulsa" emphasis="primary" onClick={abrirAvulsa}>
+            <Button onClick={abrirAvulsa} className="gap-1.5" aria-label="Nova cobrança avulsa">
               <Plus className="h-4 w-4" />
-            </IconButton>
+              <span className="sm:hidden">Nova</span>
+              <span className="hidden sm:inline">Nova cobrança</span>
+            </Button>
           </>
         }
       />
@@ -562,43 +586,43 @@ export default function Cobrancas() {
       <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={onFileChosen} />
 
       {/* Seletor de período (por vencimento) */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-lg border border-border/60 bg-surface/60 p-0.5">
-          {([['mes', 'Mês'], ['custom', 'Período'], ['tudo', 'Tudo']] as const).map(([v, l]) => (
-            <button key={v} onClick={() => setPeriodoModo(v)}
-              className={cn('rounded-md px-3 py-1.5 text-xs font-semibold transition-colors', periodoModo === v ? 'bg-primary text-primary-foreground' : 'text-foreground-muted hover:text-foreground')}>
-              {l}
-            </button>
-          ))}
-        </div>
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <Tabs value={periodoModo} onValueChange={(v) => setPeriodoModo(v as 'mes' | 'custom' | 'tudo')}>
+          <TabsList className="grid w-full grid-cols-3 sm:inline-flex sm:w-auto">
+            <TabsTrigger value="mes">Mês</TabsTrigger>
+            <TabsTrigger value="custom">Período</TabsTrigger>
+            <TabsTrigger value="tudo">Tudo</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {periodoModo === 'mes' && (
-          <div className="inline-flex items-center gap-1.5">
+          <div className="flex items-center justify-between gap-1 rounded-full border border-border bg-surface p-1 sm:min-w-[300px]">
             <button aria-label="Mês anterior" onClick={() => setMesRef(format(addMonths(parseISO(`${mesRef}-01`), -1), 'yyyy-MM'))}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-surface/60 text-foreground-muted hover:bg-surface-2"><ChevronLeft className="h-4 w-4" /></button>
-            <span className="min-w-[132px] text-center text-sm font-semibold capitalize text-foreground">
+              className="no-touch-min grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-foreground transition-colors hover:bg-border"><ChevronLeft className="h-4 w-4" /></button>
+            <span className="flex min-w-0 items-center gap-2 text-[14px] font-semibold capitalize text-foreground">
               {format(parseISO(`${mesRef}-01`), 'MMMM yyyy', { locale: ptBR })}
+              <button onClick={() => setMesRef(format(new Date(), 'yyyy-MM'))} className="text-[12px] font-medium normal-case text-primary hover:underline">hoje</button>
             </span>
             <button aria-label="Próximo mês" onClick={() => setMesRef(format(addMonths(parseISO(`${mesRef}-01`), 1), 'yyyy-MM'))}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-surface/60 text-foreground-muted hover:bg-surface-2"><ChevronRight className="h-4 w-4" /></button>
-            <button onClick={() => setMesRef(format(new Date(), 'yyyy-MM'))} className="ml-1 text-[11px] font-medium text-primary hover:underline">hoje</button>
+              className="no-touch-min grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-foreground transition-colors hover:bg-border"><ChevronRight className="h-4 w-4" /></button>
           </div>
         )}
 
         {periodoModo === 'custom' && (
-          <div className="inline-flex items-center gap-1.5">
-            <Input type="date" value={customDe} onChange={(e) => setCustomDe(e.target.value)} className="h-8 w-[140px] text-sm" />
+          <div className="flex items-center gap-2">
+            <Input type="date" value={customDe} onChange={(e) => setCustomDe(e.target.value)} className="min-w-0 flex-1 rounded-full bg-surface sm:w-[160px] sm:flex-none" />
             <span className="text-xs text-foreground-muted">até</span>
-            <Input type="date" value={customAte} onChange={(e) => setCustomAte(e.target.value)} className="h-8 w-[140px] text-sm" />
+            <Input type="date" value={customAte} onChange={(e) => setCustomAte(e.target.value)} className="min-w-0 flex-1 rounded-full bg-surface sm:w-[160px] sm:flex-none" />
           </div>
         )}
 
-        <span className="ml-auto text-[11px] text-foreground-muted">
+        <span className="text-[12px] text-foreground-muted sm:ml-auto">
           {periodoModo === 'tudo' ? 'Todas as cobranças' : 'Valores por vencimento no período'}
         </span>
       </div>
 
       <KpiTriple
+        className="md:mb-6"
         items={[
           { label: 'A receber', value: totais.aReceber, tone: 'amber' },
           { label: 'Vencido', value: totais.vencido, tone: 'red' },
@@ -606,315 +630,341 @@ export default function Cobrancas() {
         ]}
       />
 
-      {/* Fim de semana: padrão global + ação em massa (seleção) */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border/60 bg-surface/50 px-3.5 py-2.5">
-        <div className="flex items-center gap-2">
-          <Switch checked={fimSemanaPadrao} onCheckedChange={setFimSemanaPadrao} />
-          <span className="text-[12.5px] text-foreground">Enviar no <b>fim de semana</b> <span className="text-foreground-muted">(padrão)</span></span>
-          <span className="hidden text-[11px] text-foreground-muted lg:inline">— desligado: segura sáb/dom e dispara na segunda</span>
+      <div className="mb-4 grid gap-3 md:mb-6 md:grid-cols-2">
+        {/* Fim de semana: padrão global + ação em massa (seleção) */}
+        <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2.5 rounded-[20px] border border-border bg-surface px-4 py-3', (semReceita === 0 || selecionadas.size > 0) && 'md:col-span-2')}>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-surface-2 text-foreground"><CalendarCheck className="h-[18px] w-[18px]" /></span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13.5px] font-semibold text-foreground">Enviar no fim de semana <span className="font-normal text-foreground-muted">(padrão)</span></p>
+              <p className="text-[12px] text-foreground-muted">Desligado: segura sáb/dom e dispara na segunda</p>
+            </div>
+            <Switch checked={fimSemanaPadrao} onCheckedChange={setFimSemanaPadrao} aria-label="Enviar no fim de semana (padrão)" />
+          </div>
+          {selecionadas.size > 0 && (
+            <div className="flex w-full flex-wrap items-center gap-2 border-t border-border pt-2.5 md:ml-auto md:w-auto md:border-l md:border-t-0 md:pl-3 md:pt-0">
+              <span className="text-[12.5px] font-semibold text-foreground">{selecionadas.size} selecionada(s):</span>
+              <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => aplicarFimSemana(true)}>
+                <CalendarCheck className="mr-1.5 h-3.5 w-3.5 text-success-fg" /> Enviar no fim de semana
+              </Button>
+              <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => aplicarFimSemana(false)}>
+                <CalendarOff className="mr-1.5 h-3.5 w-3.5 text-warning-fg" /> Não enviar
+              </Button>
+              <button onClick={limparSel} className="text-[12px] font-medium text-foreground-muted hover:text-foreground">limpar</button>
+            </div>
+          )}
         </div>
-        {selecionadas.size > 0 && (
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <span className="text-[12px] font-semibold text-foreground">{selecionadas.size} selecionada(s):</span>
-            <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => aplicarFimSemana(true)}>
-              <CalendarCheck className="mr-1.5 h-3.5 w-3.5 text-[hsl(var(--success))]" /> Enviar no fim de semana
-            </Button>
-            <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => aplicarFimSemana(false)}>
-              <CalendarOff className="mr-1.5 h-3.5 w-3.5 text-[hsl(var(--warning))]" /> Não enviar
-            </Button>
-            <button onClick={limparSel} className="text-[11px] text-foreground-muted hover:text-foreground">limpar</button>
+
+        {/* Aviso: cobranças sem vínculo com o financeiro */}
+        {semReceita > 0 && (
+          <div className={cn('flex items-center gap-3 rounded-[20px] border border-border bg-surface px-4 py-3', selecionadas.size > 0 && 'md:col-span-2')}>
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-warning-bg text-warning-fg"><AlertTriangle className="h-[18px] w-[18px]" /></span>
+            <p className="min-w-0 flex-1 text-[12.5px] leading-snug text-foreground">
+              <b>{semReceita} {semReceita === 1 ? 'cobrança sem' : 'cobranças sem'} vínculo com o financeiro.</b>{' '}
+              <span className="text-foreground-muted">Não aparecem como receita a receber nem dão baixa ao pagar.</span>
+            </p>
+            <Button size="sm" onClick={() => setConciliarOpen(true)} className="shrink-0">Conciliar</Button>
           </div>
         )}
       </div>
 
-      {/* Aviso: cobranças sem vínculo com o financeiro */}
-      {semReceita > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-[hsl(var(--warning))]/35 bg-[hsl(var(--warning))]/10 px-3.5 py-2.5">
-          <p className="min-w-0 flex-1 text-[12.5px] text-foreground">
-            <b>{semReceita} {semReceita === 1 ? 'cobrança sem' : 'cobranças sem'} vínculo com o financeiro.</b>{' '}
-            <span className="text-foreground-muted">Não aparecem como receita a receber nem dão baixa ao pagar.</span>
-          </p>
-          <Button size="sm" onClick={() => setConciliarOpen(true)}>Conciliar</Button>
-        </div>
-      )}
-
-      {/* Filtros */}
-      <div className="mb-4 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {(['todas', 'recorrente', 'avulsa'] as TipoFiltro[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTipoFiltro(t)}
-              className={cn(
-                'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors',
-                tipoFiltro === t ? 'bg-primary text-primary-foreground' : 'border border-border/60 bg-surface/60 text-foreground-muted hover:bg-surface-2',
-              )}
-            >
-              {t === 'todas' ? 'Todas' : t === 'recorrente' ? 'Recorrentes' : 'Avulsas'}
-            </button>
-          ))}
-          <div className="ml-auto w-full sm:w-56">
-            <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente ou descrição…" className="h-9" />
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
+      {/* Filtros: status em pílulas · tipo segmentado · busca */}
+      <div className="mb-4 flex flex-col gap-3 md:mb-5 lg:flex-row lg:items-center lg:justify-between">
+        <ScrollPills aria-label="Filtrar por status">
           {STATUS_TABS.map((s) => (
-            <button
-              key={s.value}
-              onClick={() => setStatusFiltro(s.value)}
-              className={cn(
-                'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                statusFiltro === s.value ? 'bg-surface-2 text-foreground ring-1 ring-border-strong' : 'text-foreground-muted hover:bg-foreground/[0.04]',
-              )}
-            >
+            <Pill key={s.value} active={statusFiltro === s.value} onClick={() => setStatusFiltro(s.value)}>
               {s.label}
-            </button>
+            </Pill>
           ))}
+        </ScrollPills>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Tabs value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as TipoFiltro)}>
+            <TabsList className="grid w-full grid-cols-3 sm:inline-flex sm:w-auto">
+              <TabsTrigger value="todas">Todas</TabsTrigger>
+              <TabsTrigger value="recorrente">Recorrentes</TabsTrigger>
+              <TabsTrigger value="avulsa">Avulsas</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <div className="relative sm:w-64">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
+            <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente ou descrição…" className="rounded-full bg-surface pl-10" />
+          </div>
         </div>
       </div>
 
       {filtradas.length === 0 ? (
-        <EmptyState
-          icon={<Receipt className="h-6 w-6" strokeWidth={1.6} />}
-          title="Nenhuma cobrança"
-          description={cobrancas.length === 0 ? 'Crie uma cobrança avulsa ou gere pelo contrato.' : 'Nenhuma cobrança bate com os filtros.'}
-        />
+        <SectionCard>
+          <EmptyState
+            icon={<Receipt className="h-6 w-6" strokeWidth={1.6} />}
+            title="Nenhuma cobrança"
+            description={cobrancas.length === 0 ? 'Crie uma cobrança avulsa ou gere pelo contrato.' : 'Nenhuma cobrança bate com os filtros.'}
+          />
+        </SectionCard>
       ) : isMobile ? (
-        <div className="space-y-2.5">
-          {filtradas.map((cob) => {
-            const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
-            return (
-              <div key={cob.id} className={cn('rounded-2xl border border-border bg-surface p-3.5', selecionadas.has(cob.id) && 'ring-1 ring-primary/40')}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 items-start gap-2.5">
-                    <Checkbox className="mt-0.5" checked={selecionadas.has(cob.id)} onCheckedChange={() => toggleSel(cob.id)} aria-label="Selecionar cobrança" />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      {cli?.nome ? (
-                        <span className="truncate text-sm font-semibold text-foreground">{cli.nome}</span>
-                      ) : cob.asaas_customer_nome ? (
-                        <button onClick={() => abrirCliente(cob)} className="flex items-center gap-1.5 truncate text-sm font-semibold text-foreground-muted">
-                          <span className="truncate">{cob.asaas_customer_nome}</span>
-                          <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-primary">Asaas</span>
-                        </button>
-                      ) : (
-                        <button onClick={() => abrirCliente(cob)} className="truncate text-sm font-semibold text-primary">Vincular cliente</button>
-                      )}
-                      {cob.linhas.length > 1 && <GrupoChip qtd={cob.linhas.length} />}
-                    </div>
-                    <div className="truncate text-xs text-foreground-muted">{cob.descricao || 'Sem descrição'}</div>
-                  </div>
-                  </div>
-                  <AcoesMenu cob={cob} />
-                </div>
-                <div className="mt-2.5 flex items-center justify-between gap-2">
-                  <span className="text-lg font-semibold tabular-nums text-foreground">{formatCurrency(Number(cob.valor))}</span>
-                  {statusPill(cob.status)}
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-foreground-muted">
-                  <TipoBadge tipo={cob.tipo} />
-                  <span>Vence {formatDate(cob.vencimento)}</span>
-                  {cob.enviar_fim_semana === false && <span className="inline-flex items-center gap-1"><CalendarOff className="h-3 w-3" />sem fim de semana</span>}
-                  <span>{FORMA_LABEL[cob.forma_pagamento] || cob.forma_pagamento}</span>
-                  {cob.conta_id && contaById.get(cob.conta_id) && <span>· {contaById.get(cob.conta_id)!.nome}</span>}
-                </div>
+        <div className="flex flex-col gap-1">
+          {gruposMobile.map((g) => (
+            <div key={g.key} className="flex flex-col">
+              <div className="flex items-baseline justify-between px-0.5 pb-1.5 pt-2.5">
+                <span className={SECTION_LABEL_CLS}>{g.titulo}</span>
+                <span className="text-[12px] text-foreground-muted">{g.itens.length} {g.itens.length === 1 ? 'cobrança' : 'cobranças'}</span>
               </div>
-            );
-          })}
+              <div className="rounded-[20px] border border-border bg-surface px-3.5">
+                {g.itens.map((cob) => {
+                  const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
+                  const sel = selecionadas.has(cob.id);
+                  const nomeAvatar = cli?.nome || cob.asaas_customer_nome || '';
+                  return (
+                    <div key={cob.id} className="border-b border-border py-3 last:border-b-0">
+                      <div className="flex items-center gap-3">
+                        {/* Avatar = seleção (toque para marcar) */}
+                        <button
+                          type="button"
+                          role="checkbox"
+                          aria-checked={sel}
+                          aria-label="Selecionar cobrança"
+                          onClick={() => toggleSel(cob.id)}
+                          className={cn(
+                            'no-touch-min grid h-10 w-10 shrink-0 place-items-center rounded-[13px] font-heading text-[13px] font-semibold transition-colors',
+                            sel ? 'bg-foreground text-background' : 'bg-surface-2 text-foreground',
+                          )}
+                        >
+                          {sel ? <Check className="h-4 w-4" strokeWidth={2.6} /> : iniciais(nomeAvatar)}
+                        </button>
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            {cli?.nome ? (
+                              <span className="truncate text-[14px] font-semibold text-foreground">{cli.nome}</span>
+                            ) : cob.asaas_customer_nome ? (
+                              <button onClick={() => abrirCliente(cob)} className="flex min-w-0 items-center gap-1.5 text-[14px] font-semibold text-foreground-muted">
+                                <span className="truncate">{cob.asaas_customer_nome}</span>
+                                <span className="shrink-0 rounded-full bg-info-bg px-1.5 py-0.5 text-[9.5px] font-semibold uppercase text-info-fg">Asaas</span>
+                              </button>
+                            ) : (
+                              <button onClick={() => abrirCliente(cob)} className="truncate text-[14px] font-semibold text-primary">Vincular cliente</button>
+                            )}
+                            {cob.linhas.length > 1 && <GrupoChip qtd={cob.linhas.length} />}
+                          </div>
+                          <span className="truncate text-[12px] text-foreground-muted">{cob.descricao || 'Sem descrição'}</span>
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1">
+                          <span className="font-heading text-[15px] font-semibold tabular-nums tracking-[-0.02em] text-foreground">{formatCurrency(Number(cob.valor))}</span>
+                          {statusPill(cob.status)}
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 pl-[52px]">
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-foreground-muted">
+                          <TipoBadge tipo={cob.tipo} />
+                          <span>{FORMA_LABEL[cob.forma_pagamento] || cob.forma_pagamento}</span>
+                          {cob.conta_id && contaById.get(cob.conta_id) && <span>· {contaById.get(cob.conta_id)!.nome}</span>}
+                          {cob.enviar_fim_semana === false && <span className="inline-flex items-center gap-1"><CalendarOff className="h-3 w-3" />sem fim de semana</span>}
+                        </div>
+                        <AcoesMenu cob={cob} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-surface">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/60 text-left text-[11px] uppercase tracking-wide text-foreground-muted">
-                <th className="px-3 py-2.5 w-9">
+        <SectionCard flush className="overflow-hidden">
+          <Table className="min-w-[1080px]">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12 pl-5 md:pl-6">
                   <Checkbox checked={todasSelecionadas} onCheckedChange={toggleTodas} aria-label="Selecionar todas" />
-                </th>
+                </TableHead>
                 <Th label="Cliente" onClick={() => toggleSort('cliente')} icon={sortIcon('cliente')} />
                 <Th label="Descrição" onClick={() => toggleSort('descricao')} icon={sortIcon('descricao')} />
                 <Th label="Tipo" onClick={() => toggleSort('tipo')} icon={sortIcon('tipo')} />
                 <Th label="Valor" onClick={() => toggleSort('valor')} icon={sortIcon('valor')} align="right" />
                 <Th label="Vencimento" onClick={() => toggleSort('vencimento')} icon={sortIcon('vencimento')} />
-                <th className="px-3 py-2.5 font-semibold">Forma</th>
-                <th className="px-3 py-2.5 font-semibold">Conta</th>
+                <TableHead className="px-3">Forma</TableHead>
+                <TableHead className="px-3">Conta</TableHead>
                 <Th label="Status" onClick={() => toggleSort('status')} icon={sortIcon('status')} />
-                <th className="px-3 py-2.5" />
-              </tr>
-            </thead>
-            <tbody>
+                <TableHead className="pr-5 md:pr-6" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filtradas.map((cob) => {
                 const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
                 const conta = cob.conta_id ? contaById.get(cob.conta_id) : undefined;
                 return (
-                  <tr key={cob.id} className={cn('border-b border-border/40 last:border-0 transition-colors hover:bg-foreground/[0.04]', selecionadas.has(cob.id) && 'bg-primary/[0.04]')}>
-                    <td className="px-3 py-3">
+                  <TableRow key={cob.id} data-state={selecionadas.has(cob.id) ? 'selected' : undefined} className="border-b border-border">
+                    <TableCell className="pl-5 md:pl-6">
                       <Checkbox checked={selecionadas.has(cob.id)} onCheckedChange={() => toggleSel(cob.id)} aria-label="Selecionar cobrança" />
-                    </td>
-                    <td className="px-3 py-3 font-medium text-foreground">
-                      <div className="flex items-center gap-1.5">
-                        {cli?.nome ? (
-                          <span className="truncate">{cli.nome}</span>
-                        ) : cob.asaas_customer_nome ? (
-                          <button onClick={() => abrirCliente(cob)} className="group flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-foreground/[0.04]" title="Vir do Asaas — clique para vincular a um cliente">
-                            <span className="truncate text-foreground-muted">{cob.asaas_customer_nome}</span>
-                            <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">Asaas · vincular</span>
-                          </button>
-                        ) : (
-                          <button onClick={() => abrirCliente(cob)} className="rounded-md px-1.5 py-0.5 text-left font-semibold text-primary transition-colors hover:bg-foreground/[0.04]">
-                            Vincular cliente
-                          </button>
-                        )}
-                        {cob.linhas.length > 1 && <GrupoChip qtd={cob.linhas.length} />}
-                        {cob.nota_fiscal_path && <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Nota fiscal anexada" />}
-                        {!cob.nota_fiscal_path && cob.nota_fiscal_enviada && <FileText className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--success))]" aria-label="Nota fiscal enviada" />}
-                        {cob.exigir_nf && !cob.nota_fiscal_path && !cob.nota_fiscal_enviada && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--warning))]" aria-label="Exige nota fiscal" />}
-                        {cob.enviar_fim_semana === false && <CalendarOff className="h-3.5 w-3.5 shrink-0 text-foreground-subtle" aria-label="Não dispara no fim de semana" />}
+                    </TableCell>
+                    <TableCell className="px-3 font-medium text-foreground">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <InitialsAvatar nome={cli?.nome || cob.asaas_customer_nome} className="h-9 w-9 rounded-[12px] text-[12px]" />
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          {cli?.nome ? (
+                            <span className="truncate font-semibold">{cli.nome}</span>
+                          ) : cob.asaas_customer_nome ? (
+                            <button onClick={() => abrirCliente(cob)} className="group flex min-w-0 items-center gap-1.5 rounded-full px-1.5 py-0.5 text-left transition-colors hover:bg-surface-2" title="Vir do Asaas — clique para vincular a um cliente">
+                              <span className="truncate text-foreground-muted">{cob.asaas_customer_nome}</span>
+                              <span className="shrink-0 rounded-full bg-info-bg px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-info-fg">Asaas · vincular</span>
+                            </button>
+                          ) : (
+                            <button onClick={() => abrirCliente(cob)} className="rounded-full px-1.5 py-0.5 text-left font-semibold text-primary transition-colors hover:bg-surface-2">
+                              Vincular cliente
+                            </button>
+                          )}
+                          {cob.linhas.length > 1 && <GrupoChip qtd={cob.linhas.length} />}
+                          {cob.nota_fiscal_path && <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Nota fiscal anexada" />}
+                          {!cob.nota_fiscal_path && cob.nota_fiscal_enviada && <FileText className="h-3.5 w-3.5 shrink-0 text-success-fg" aria-label="Nota fiscal enviada" />}
+                          {cob.exigir_nf && !cob.nota_fiscal_path && !cob.nota_fiscal_enviada && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-warning-fg" aria-label="Exige nota fiscal" />}
+                          {cob.enviar_fim_semana === false && <CalendarOff className="h-3.5 w-3.5 shrink-0 text-foreground-subtle" aria-label="Não dispara no fim de semana" />}
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-3 py-3 max-w-[220px] truncate text-foreground-muted">{cob.descricao || '—'}</td>
-                    <td className="px-3 py-3"><TipoBadge tipo={cob.tipo} /></td>
-                    <td className="px-3 py-3 text-right font-semibold tabular-nums text-foreground">{formatCurrency(Number(cob.valor))}</td>
-                    <td className="px-3 py-3 text-foreground-muted">{formatDate(cob.vencimento)}</td>
-                    <td className="px-3 py-3">
+                    </TableCell>
+                    <TableCell className="max-w-[220px] truncate px-3 text-foreground-muted">{cob.descricao || '—'}</TableCell>
+                    <TableCell className="px-3"><TipoBadge tipo={cob.tipo} /></TableCell>
+                    <TableCell className="whitespace-nowrap px-3 text-right font-heading font-semibold tabular-nums tracking-[-0.02em] text-foreground">{formatCurrency(Number(cob.valor))}</TableCell>
+                    <TableCell className="whitespace-nowrap px-3 text-foreground-muted">{formatDate(cob.vencimento)}</TableCell>
+                    <TableCell className="px-3">
                       {cob.status !== 'pago' && cob.status !== 'cancelado' ? (
-                        <button onClick={() => abrirForma(cob)} className="rounded-md px-1.5 py-0.5 text-left text-foreground-muted transition-colors hover:bg-foreground/[0.04] hover:text-foreground">
+                        <button onClick={() => abrirForma(cob)} className="whitespace-nowrap rounded-full px-2 py-0.5 text-left text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground">
                           {FORMA_LABEL[cob.forma_pagamento] || cob.forma_pagamento}
                         </button>
                       ) : (
-                        <span className="px-1.5 text-foreground-muted">{FORMA_LABEL[cob.forma_pagamento] || cob.forma_pagamento}</span>
+                        <span className="whitespace-nowrap px-2 text-foreground-muted">{FORMA_LABEL[cob.forma_pagamento] || cob.forma_pagamento}</span>
                       )}
-                    </td>
-                    <td className="px-3 py-3">
-                      <button onClick={() => abrirConta(cob)} className={cn('rounded-md px-1.5 py-0.5 text-left transition-colors hover:bg-foreground/[0.04]', conta ? 'text-foreground-muted' : 'text-primary')}>
+                    </TableCell>
+                    <TableCell className="px-3">
+                      <button onClick={() => abrirConta(cob)} className={cn('whitespace-nowrap rounded-full px-2 py-0.5 text-left transition-colors hover:bg-surface-2', conta ? 'text-foreground-muted' : 'font-medium text-primary')}>
                         {conta?.nome || 'Definir'}
                       </button>
-                    </td>
-                    <td className="px-3 py-3">
+                    </TableCell>
+                    <TableCell className="px-3">
                       <div className="flex flex-col items-start gap-1">
                         {statusPill(cob.status)}
                         {!cob.receita_id && cob.status !== 'cancelado' && cob.status !== 'estornado' && (
-                          <button onClick={() => setConciliarOpen(true)} className="text-[10px] font-semibold text-[hsl(var(--warning))] hover:underline">sem receita</button>
+                          <button onClick={() => setConciliarOpen(true)} className="text-[10.5px] font-semibold text-warning-fg hover:underline">sem receita</button>
                         )}
                       </div>
-                    </td>
-                    <td className="px-3 py-3 text-right"><AcoesMenu cob={cob} /></td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="pr-5 text-right md:pr-6"><AcoesMenu cob={cob} /></TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </SectionCard>
       )}
+
 
       {/* Sheet: Nova cobrança avulsa */}
       <Sheet open={avulsaOpen} onOpenChange={setAvulsaOpen}>
         <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
-          <div className="mx-auto w-full max-w-[480px] pb-6 pt-1">
-            <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
-            <h2 className="mt-0.5 mb-4 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Nova cobrança avulsa</h2>
+          <div className="mx-auto w-full max-w-[480px] space-y-6 pb-6 pt-1">
+            <SheetHeading eyebrow="Cobrança" title="Nova cobrança avulsa" />
 
-            <div className="space-y-3.5">
-              <div>
-                <Label className="text-xs">Cliente</Label>
+            <FormSection label="Cliente">
+              <div className="space-y-1.5">
+                <Label className="sr-only">Cliente</Label>
                 <select
                   value={avulsa.cliente_id}
                   onChange={(e) => setAvulsa((p) => ({ ...p, cliente_id: e.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-border/60 bg-surface/60 px-3 py-2.5 text-sm text-foreground outline-none focus:border-border-strong"
+                  className={NATIVE_SELECT_CLS}
                 >
                   <option value="">Selecione…</option>
                   {clientesAtivos.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
                 </select>
               </div>
+            </FormSection>
 
+            <FormSection label="Valor e vencimento">
               {/* Parcelar com datas/valores personalizados */}
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-surface-2/40 px-3 py-2.5">
-                <div>
-                  <Label className="text-[12.5px]">Parcelar</Label>
-                  <p className="text-[10.5px] text-foreground-muted">Cada parcela vira uma cobrança no Asaas, com data e valor que você define.</p>
+              <div className="flex items-center justify-between gap-3 rounded-[20px] border border-border px-3.5 py-3">
+                <div className="min-w-0">
+                  <Label className="text-[13.5px] font-semibold">Parcelar</Label>
+                  <p className="text-[11.5px] text-foreground-muted">Cada parcela vira uma cobrança no Asaas, com data e valor que você define.</p>
                 </div>
                 <Switch checked={parcelar} onCheckedChange={(v) => setParcelar(v)} />
               </div>
 
               {!parcelar ? (
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Valor (R$)</Label>
-                    <Input type="number" step="0.01" min="0" value={avulsa.valor} onChange={(e) => setAvulsa((p) => ({ ...p, valor: e.target.value }))} placeholder="0,00" className="mt-1" />
+                  <div className="space-y-1.5">
+                    <Label className="text-[12px] text-foreground-muted">Valor (R$)</Label>
+                    <Input type="number" step="0.01" min="0" value={avulsa.valor} onChange={(e) => setAvulsa((p) => ({ ...p, valor: e.target.value }))} placeholder="0,00" />
                   </div>
                   <DatePickerField label="Vencimento" value={avulsa.vencimento || undefined} onChange={(d) => setAvulsa((p) => ({ ...p, vencimento: d }))} required />
                 </div>
               ) : (
-                <div className="space-y-3 rounded-xl border border-border/60 bg-surface/40 p-3">
+                <div className="space-y-3.5 rounded-[20px] border border-border p-3.5">
                   {/* Gerador */}
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <Label className="text-[11px]">Valor total (R$)</Label>
-                      <Input type="number" step="0.01" min="0" value={pc.total} onChange={(e) => setPc((p) => ({ ...p, total: e.target.value }))} placeholder="1.200,00" className="mt-1 h-9 text-sm" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[12px] text-foreground-muted">Valor total (R$)</Label>
+                      <Input type="number" step="0.01" min="0" value={pc.total} onChange={(e) => setPc((p) => ({ ...p, total: e.target.value }))} placeholder="1.200,00" />
                     </div>
-                    <div>
-                      <Label className="text-[11px]">Nº de parcelas</Label>
-                      <Input type="number" min="2" max="60" step="1" value={pc.count} onChange={(e) => setPc((p) => ({ ...p, count: parseInt(e.target.value) || 2 }))} className="mt-1 h-9 text-sm" />
+                    <div className="space-y-1.5">
+                      <Label className="text-[12px] text-foreground-muted">Nº de parcelas</Label>
+                      <Input type="number" min="2" max="60" step="1" value={pc.count} onChange={(e) => setPc((p) => ({ ...p, count: parseInt(e.target.value) || 2 }))} />
                     </div>
-                    <div>
-                      <Label className="text-[11px]">1ª parcela</Label>
-                      <Input type="date" value={pc.first} onChange={(e) => setPc((p) => ({ ...p, first: e.target.value }))} className="mt-1 h-9 text-sm" />
+                    <div className="space-y-1.5">
+                      <Label className="text-[12px] text-foreground-muted">1ª parcela</Label>
+                      <Input type="date" value={pc.first} onChange={(e) => setPc((p) => ({ ...p, first: e.target.value }))} />
                     </div>
-                    <div>
-                      <Label className="text-[11px]">A cada (dias)</Label>
-                      <Input type="number" min="1" step="1" value={pc.intervalo} onChange={(e) => setPc((p) => ({ ...p, intervalo: parseInt(e.target.value) || 30 }))} placeholder="30" className="mt-1 h-9 text-sm" />
+                    <div className="space-y-1.5">
+                      <Label className="text-[12px] text-foreground-muted">A cada (dias)</Label>
+                      <Input type="number" min="1" step="1" value={pc.intervalo} onChange={(e) => setPc((p) => ({ ...p, intervalo: parseInt(e.target.value) || 30 }))} placeholder="30" />
                     </div>
                   </div>
-                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={gerarParcelas}>Gerar parcelas</Button>
+                  <Button type="button" variant="outline" className="w-full" onClick={gerarParcelas}>Gerar parcelas</Button>
 
                   {pcRows.length > 0 && (
                     <>
-                      <div className="max-h-56 space-y-1.5 overflow-y-auto pr-0.5">
+                      <div className="max-h-64 overflow-y-auto border-t border-border pr-0.5">
                         {pcRows.map((r, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <span className="w-6 shrink-0 text-[11px] font-semibold text-foreground-muted">{i + 1}ª</span>
-                            <Input type="date" value={r.vencimento} onChange={(e) => setPcRows((prev) => prev.map((x, j) => j === i ? { ...x, vencimento: e.target.value } : x))} className="h-9 flex-1 text-sm" />
-                            <Input type="number" step="0.01" min="0" value={r.valor} onChange={(e) => setPcRows((prev) => prev.map((x, j) => j === i ? { ...x, valor: e.target.value } : x))} className="h-9 w-28 text-sm tabular-nums" />
-                            <button type="button" aria-label="Remover parcela" onClick={() => setPcRows((prev) => prev.filter((_, j) => j !== i))} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-[hsl(var(--danger))] hover:bg-[hsl(var(--danger))]/10">
+                          <div key={i} className="flex items-center gap-2 border-b border-border py-2 last:border-b-0">
+                            <span className="w-6 shrink-0 text-[12px] font-semibold text-foreground-muted">{i + 1}ª</span>
+                            <Input type="date" value={r.vencimento} onChange={(e) => setPcRows((prev) => prev.map((x, j) => j === i ? { ...x, vencimento: e.target.value } : x))} className="min-w-0 flex-1" />
+                            <Input type="number" step="0.01" min="0" value={r.valor} onChange={(e) => setPcRows((prev) => prev.map((x, j) => j === i ? { ...x, valor: e.target.value } : x))} className="w-28 tabular-nums" />
+                            <button type="button" aria-label="Remover parcela" onClick={() => setPcRows((prev) => prev.filter((_, j) => j !== i))} className="no-touch-min grid h-9 w-9 shrink-0 place-items-center rounded-full text-danger-fg hover:bg-danger-bg">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         ))}
                       </div>
-                      <div className="flex items-center justify-between text-[12px]">
+                      <div className="flex items-center justify-between text-[12.5px]">
                         <button type="button" onClick={() => setPcRows((prev) => [...prev, { valor: '0', vencimento: format(addDays(parseISO(prev[prev.length - 1]?.vencimento || format(new Date(), 'yyyy-MM-dd')), Math.max(1, Number(pc.intervalo) || 30)), 'yyyy-MM-dd') }])} className="font-semibold text-primary hover:underline">+ Adicionar parcela</button>
-                        <span className="text-foreground-muted">Soma: <b className="text-foreground tabular-nums">{formatCurrency(somaParcelas)}</b> ({pcRows.length}x)</span>
+                        <span className="text-foreground-muted">Soma: <b className="font-heading tabular-nums text-foreground">{formatCurrency(somaParcelas)}</b> ({pcRows.length}x)</span>
                       </div>
                     </>
                   )}
                 </div>
               )}
+            </FormSection>
 
-              <div>
-                <Label className="text-xs">Descrição</Label>
-                <Input value={avulsa.descricao} onChange={(e) => setAvulsa((p) => ({ ...p, descricao: e.target.value }))} placeholder="Ex.: Serviço avulso setembro" className="mt-1" />
+            <FormSection label="Detalhes">
+              <div className="space-y-1.5">
+                <Label className="text-[12px] text-foreground-muted">Descrição</Label>
+                <Input value={avulsa.descricao} onChange={(e) => setAvulsa((p) => ({ ...p, descricao: e.target.value }))} placeholder="Ex.: Serviço avulso setembro" />
               </div>
+            </FormSection>
 
-              <div>
-                <Label className="text-xs">Forma de pagamento</Label>
-                <div className="mt-1 grid grid-cols-4 gap-1.5">
+            <FormSection label="Pagamento">
+              <div className="space-y-1.5">
+                <Label className="text-[12px] text-foreground-muted">Forma de pagamento</Label>
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                   {FORMAS.map((f) => (
-                    <button
-                      key={f.value}
-                      onClick={() => setAvulsa((p) => ({ ...p, forma: f.value }))}
-                      className={cn('rounded-lg border py-1.5 text-[11px] font-semibold transition-colors', avulsa.forma === f.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted')}
-                    >
+                    <ChoiceChip key={f.value} active={avulsa.forma === f.value} onClick={() => setAvulsa((p) => ({ ...p, forma: f.value }))}>
                       {f.label}
-                    </button>
+                    </ChoiceChip>
                   ))}
                 </div>
               </div>
 
-              <div>
-                <Label className="text-xs">Conta (recebimento)</Label>
+              <div className="space-y-1.5">
+                <Label className="text-[12px] text-foreground-muted">Conta (recebimento)</Label>
                 <select
                   value={avulsa.conta_id}
                   onChange={(e) => setAvulsa((p) => ({ ...p, conta_id: e.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-border/60 bg-surface/60 px-3 py-2.5 text-sm text-foreground outline-none focus:border-border-strong"
+                  className={NATIVE_SELECT_CLS}
                 >
                   <option value="">Sem conta (defino depois)</option>
                   {contasRecebimento.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
@@ -922,18 +972,21 @@ export default function Cobrancas() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">Multa atraso %</Label>
-                  <Input type="number" step="0.01" min="0" value={avulsa.multa} onChange={(e) => setAvulsa((p) => ({ ...p, multa: e.target.value }))} placeholder="0" className="mt-1" />
+                <div className="space-y-1.5">
+                  <Label className="text-[12px] text-foreground-muted">Multa atraso %</Label>
+                  <Input type="number" step="0.01" min="0" value={avulsa.multa} onChange={(e) => setAvulsa((p) => ({ ...p, multa: e.target.value }))} placeholder="0" />
                 </div>
-                <div>
-                  <Label className="text-xs">Juros ao mês %</Label>
-                  <Input type="number" step="0.01" min="0" value={avulsa.juros} onChange={(e) => setAvulsa((p) => ({ ...p, juros: e.target.value }))} placeholder="0" className="mt-1" />
+                <div className="space-y-1.5">
+                  <Label className="text-[12px] text-foreground-muted">Juros ao mês %</Label>
+                  <Input type="number" step="0.01" min="0" value={avulsa.juros} onChange={(e) => setAvulsa((p) => ({ ...p, juros: e.target.value }))} placeholder="0" />
                 </div>
               </div>
-              <p className="-mt-1 text-[11px] leading-snug text-foreground-muted">Multa/juros só incidem se atrasar. Juros é <b>ao mês</b> (proporcional aos dias de atraso). O valor recebido de juros/multa entra como receita extra na baixa.</p>
+              <p className="text-[11.5px] leading-snug text-foreground-muted">Multa/juros só incidem se atrasar. Juros é <b>ao mês</b> (proporcional aos dias de atraso). O valor recebido de juros/multa entra como receita extra na baixa.</p>
+            </FormSection>
 
+            <div className="border-t border-border pt-4">
               <Button
+                size="lg"
                 className="w-full"
                 onClick={handleCriarAvulsa}
                 disabled={avulsaSaving || !avulsa.cliente_id || (parcelar ? pcRows.length < 2 : (!avulsa.valor || !avulsa.vencimento))}
@@ -957,34 +1010,30 @@ export default function Cobrancas() {
       {/* Sheet: alterar forma de recebimento */}
       <Sheet open={formaOpen} onOpenChange={setFormaOpen}>
         <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[460px] sm:mx-auto">
-          <div className="mx-auto w-full max-w-[420px] pb-6 pt-1">
-            <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
-            <h2 className="mt-0.5 mb-1 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Forma de recebimento</h2>
-            {formaCob && (
-              <p className="mb-4 text-sm text-foreground-muted">
-                {(formaCob.cliente_id && clienteById.get(formaCob.cliente_id)?.nome) || '—'} · {formatCurrency(Number(formaCob.valor))}
+          <div className="mx-auto w-full max-w-[420px] space-y-5 pb-6 pt-1">
+            <SheetHeading
+              eyebrow="Cobrança"
+              title="Forma de recebimento"
+              subtitle={formaCob ? <>{(formaCob.cliente_id && clienteById.get(formaCob.cliente_id)?.nome) || '—'} · {formatCurrency(Number(formaCob.valor))}</> : undefined}
+            />
+            <FormSection label="Forma">
+              <div className="grid grid-cols-2 gap-2">
+                {FORMAS.map((f) => (
+                  <ChoiceChip key={f.value} active={formaSel === f.value} onClick={() => setFormaSel(f.value)} className="h-11 text-sm">
+                    {f.label}
+                  </ChoiceChip>
+                ))}
+              </div>
+              <p className="text-[11.5px] text-foreground-muted">
+                {formaCob?.tipo === 'recorrente' ? 'Atualiza a assinatura e as faturas pendentes no Asaas.' : 'Atualiza a fatura no Asaas.'} O link de pagamento continua o mesmo.
               </p>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              {FORMAS.map((f) => (
-                <button
-                  key={f.value}
-                  onClick={() => setFormaSel(f.value)}
-                  className={cn('rounded-lg border py-2.5 text-sm font-semibold transition-colors', formaSel === f.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted hover:bg-surface-2')}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-            <p className="mt-2 text-[11px] text-foreground-muted">
-              {formaCob?.tipo === 'recorrente' ? 'Atualiza a assinatura e as faturas pendentes no Asaas.' : 'Atualiza a fatura no Asaas.'} O link de pagamento continua o mesmo.
-            </p>
-            <div className="mt-4 flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setFormaOpen(false)}>Cancelar</Button>
-              <Button className="flex-1" onClick={handleSalvarForma} disabled={formaSaving}>
+            </FormSection>
+            <SheetFooter>
+              <Button variant="outline" size="lg" onClick={() => setFormaOpen(false)}>Cancelar</Button>
+              <Button size="lg" onClick={handleSalvarForma} disabled={formaSaving}>
                 {formaSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Salvar
               </Button>
-            </div>
+            </SheetFooter>
           </div>
         </SheetContent>
       </Sheet>
@@ -992,30 +1041,32 @@ export default function Cobrancas() {
       {/* Sheet: definir/alterar conta de recebimento */}
       <Sheet open={contaOpen} onOpenChange={setContaOpen}>
         <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[460px] sm:mx-auto">
-          <div className="mx-auto w-full max-w-[420px] pb-6 pt-1">
-            <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
-            <h2 className="mt-0.5 mb-1 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Conta de recebimento</h2>
-            {contaCob && (
-              <p className="mb-4 text-sm text-foreground-muted">
-                {(contaCob.cliente_id && clienteById.get(contaCob.cliente_id)?.nome) || '—'} · {formatCurrency(Number(contaCob.valor))}
-              </p>
-            )}
-            <Label className="text-xs">Conta</Label>
-            <select
-              value={contaSel}
-              onChange={(e) => setContaSel(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border/60 bg-surface/60 px-3 py-2.5 text-sm text-foreground outline-none focus:border-border-strong"
-            >
-              <option value="">Sem conta</option>
-              {contasRecebimento.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-            <p className="mt-2 text-[11px] text-foreground-muted">Atualiza também a receita "a receber" vinculada.</p>
-            <div className="mt-4 flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setContaOpen(false)}>Cancelar</Button>
-              <Button className="flex-1" onClick={handleSalvarConta} disabled={contaSaving}>
+          <div className="mx-auto w-full max-w-[420px] space-y-5 pb-6 pt-1">
+            <SheetHeading
+              eyebrow="Cobrança"
+              title="Conta de recebimento"
+              subtitle={contaCob ? <>{(contaCob.cliente_id && clienteById.get(contaCob.cliente_id)?.nome) || '—'} · {formatCurrency(Number(contaCob.valor))}</> : undefined}
+            />
+            <FormSection label="Conta">
+              <div className="space-y-1.5">
+                <Label className="sr-only">Conta</Label>
+                <select
+                  value={contaSel}
+                  onChange={(e) => setContaSel(e.target.value)}
+                  className={NATIVE_SELECT_CLS}
+                >
+                  <option value="">Sem conta</option>
+                  {contasRecebimento.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+                <p className="text-[11.5px] text-foreground-muted">Atualiza também a receita "a receber" vinculada.</p>
+              </div>
+            </FormSection>
+            <SheetFooter>
+              <Button variant="outline" size="lg" onClick={() => setContaOpen(false)}>Cancelar</Button>
+              <Button size="lg" onClick={handleSalvarConta} disabled={contaSaving}>
                 {contaSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Salvar
               </Button>
-            </div>
+            </SheetFooter>
           </div>
         </SheetContent>
       </Sheet>
@@ -1023,36 +1074,37 @@ export default function Cobrancas() {
       {/* Sheet: vincular cliente (cobrança veio do Asaas sem cliente) */}
       <Sheet open={clienteOpen} onOpenChange={setClienteOpen}>
         <SheetContent side="bottom" showHandle className="max-h-[80dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[460px] sm:mx-auto">
-          <div className="mx-auto w-full max-w-[420px] pb-6 pt-1">
-            <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
-            <h2 className="mt-0.5 mb-1 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Vincular a um cliente</h2>
-            {clienteCob && (
-              <p className="mb-2 text-sm text-foreground-muted">
-                {clienteCob.descricao || '—'} · {formatCurrency(Number(clienteCob.valor))} · vence {formatDate(clienteCob.vencimento)}
-              </p>
-            )}
+          <div className="mx-auto w-full max-w-[420px] space-y-5 pb-6 pt-1">
+            <SheetHeading
+              eyebrow="Cobrança"
+              title="Vincular a um cliente"
+              subtitle={clienteCob ? <>{clienteCob.descricao || '—'} · {formatCurrency(Number(clienteCob.valor))} · vence {formatDate(clienteCob.vencimento)}</> : undefined}
+            />
             {clienteCob?.asaas_customer_nome && !clienteCob?.cliente_id && (
-              <div className="mb-3 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
-                <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                <span className="text-foreground">No Asaas está como <b>{clienteCob.asaas_customer_nome}</b>. Confirme o cliente do BALANX abaixo (já sugeri um se o nome bateu).</span>
-              </div>
+              <InlineNotice tone="info" icon={<Users />}>
+                No Asaas está como <b>{clienteCob.asaas_customer_nome}</b>. Confirme o cliente do BALANX abaixo (já sugeri um se o nome bateu).
+              </InlineNotice>
             )}
-            <Label className="text-xs">Cliente</Label>
-            <select
-              value={clienteSel}
-              onChange={(e) => setClienteSel(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-border/60 bg-surface/60 px-3 py-2.5 text-sm text-foreground outline-none focus:border-border-strong"
-            >
-              <option value="">Sem cliente</option>
-              {clientesOrdenados.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-            <p className="mt-2 text-[11px] text-foreground-muted">Liga também a receita "a receber" a esse cliente. Ideal para cobranças criadas direto no Asaas.</p>
-            <div className="mt-4 flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setClienteOpen(false)}>Cancelar</Button>
-              <Button className="flex-1" onClick={handleSalvarCliente} disabled={clienteSaving}>
+            <FormSection label="Cliente">
+              <div className="space-y-1.5">
+                <Label className="sr-only">Cliente</Label>
+                <select
+                  value={clienteSel}
+                  onChange={(e) => setClienteSel(e.target.value)}
+                  className={NATIVE_SELECT_CLS}
+                >
+                  <option value="">Sem cliente</option>
+                  {clientesOrdenados.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+                <p className="text-[11.5px] text-foreground-muted">Liga também a receita "a receber" a esse cliente. Ideal para cobranças criadas direto no Asaas.</p>
+              </div>
+            </FormSection>
+            <SheetFooter>
+              <Button variant="outline" size="lg" onClick={() => setClienteOpen(false)}>Cancelar</Button>
+              <Button size="lg" onClick={handleSalvarCliente} disabled={clienteSaving}>
                 {clienteSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Salvar
               </Button>
-            </div>
+            </SheetFooter>
           </div>
         </SheetContent>
       </Sheet>
@@ -1060,44 +1112,46 @@ export default function Cobrancas() {
       {/* Sheet: E-mail */}
       <Sheet open={emOpen} onOpenChange={setEmOpen}>
         <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
-          <div className="mx-auto w-full max-w-[480px] pb-6 pt-1">
-            <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
-            <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Enviar por e-mail</h2>
-            {emCob && (
-              <p className="mt-0.5 mb-3 text-sm text-foreground-muted">
-                {emCob.descricao || '—'} · {formatCurrency(Number(emCob.valor))} · vence {formatDate(emCob.vencimento)}
-              </p>
-            )}
-            <div className="mt-1 space-y-3">
-              <div>
-                <Label className="text-xs">Para (e-mail do cliente)</Label>
-                <Input type="email" value={emPara} onChange={(e) => setEmPara(e.target.value)} placeholder="contato@cliente.com" className="mt-1" />
+          <div className="mx-auto w-full max-w-[480px] space-y-6 pb-6 pt-1">
+            <SheetHeading
+              eyebrow="Cobrança"
+              title="Enviar por e-mail"
+              subtitle={emCob ? <>{emCob.descricao || '—'} · {formatCurrency(Number(emCob.valor))} · vence {formatDate(emCob.vencimento)}</> : undefined}
+            />
+            <FormSection label="Destinatário">
+              <div className="space-y-1.5">
+                <Label className="text-[12px] text-foreground-muted">Para (e-mail do cliente)</Label>
+                <Input type="email" value={emPara} onChange={(e) => setEmPara(e.target.value)} placeholder="contato@cliente.com" />
               </div>
-              <div>
-                <Label className="text-xs">Mensagem de abertura</Label>
-                <Textarea value={emIntro} onChange={(e) => setEmIntro(e.target.value)} rows={3} className="mt-1 text-[13px] leading-relaxed" />
-                <p className="mt-1 text-[11px] text-foreground-muted">O e-mail já inclui valor, vencimento, botão de pagamento{emCob?.envio_pix ? ' e chave PIX' : ''}.</p>
+            </FormSection>
+            <FormSection label="Mensagem">
+              <div className="space-y-1.5">
+                <Label className="text-[12px] text-foreground-muted">Mensagem de abertura</Label>
+                <Textarea value={emIntro} onChange={(e) => setEmIntro(e.target.value)} rows={3} className="text-[13px] leading-relaxed" />
+                <p className="text-[11.5px] text-foreground-muted">O e-mail já inclui valor, vencimento, botão de pagamento{emCob?.envio_pix ? ' e chave PIX' : ''}.</p>
               </div>
               {emCob?.nota_fiscal_path ? (
-                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-surface/60 px-3 py-2 text-xs text-foreground">
-                  <FileText className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="truncate">Vai anexar: {emCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
-                  <button onClick={() => abrirNota(emCob.nota_fiscal_path!)} className="ml-auto shrink-0 text-primary hover:underline">ver</button>
-                </div>
+                <InlineNotice tone="neutral" icon={<FileText className="text-primary" />}>
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate">Vai anexar: {emCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
+                    <button onClick={() => abrirNota(emCob.nota_fiscal_path!)} className="shrink-0 font-medium text-primary hover:underline">ver</button>
+                  </div>
+                </InlineNotice>
               ) : emBloqueado ? (
-                <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning))]">
-                  <ShieldCheck className="h-4 w-4 shrink-0" />
-                  <span>Esta cobrança exige nota fiscal.</span>
-                  <button onClick={() => { setEmOpen(false); pedirUploadNota(emCob!.id); }} className="ml-auto shrink-0 font-semibold hover:underline">Anexar</button>
-                </div>
+                <InlineNotice tone="warning" icon={<ShieldCheck />}>
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1">Esta cobrança exige nota fiscal.</span>
+                    <button onClick={() => { setEmOpen(false); pedirUploadNota(emCob!.id); }} className="shrink-0 font-semibold hover:underline">Anexar</button>
+                  </div>
+                </InlineNotice>
               ) : null}
-              <div className="flex gap-2 pt-1">
-                <Button variant="outline" className="flex-1" onClick={() => setEmOpen(false)}>Cancelar</Button>
-                <Button className="flex-1" onClick={handleEnviarEmail} disabled={emSending || emBloqueado || !emPara.trim()}>
-                  {emSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />} Enviar e-mail
-                </Button>
-              </div>
-            </div>
+            </FormSection>
+            <SheetFooter>
+              <Button variant="outline" size="lg" onClick={() => setEmOpen(false)}>Cancelar</Button>
+              <Button size="lg" onClick={handleEnviarEmail} disabled={emSending || emBloqueado || !emPara.trim()}>
+                {emSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />} Enviar e-mail
+              </Button>
+            </SheetFooter>
           </div>
         </SheetContent>
       </Sheet>
@@ -1105,40 +1159,43 @@ export default function Cobrancas() {
       {/* Sheet: WhatsApp */}
       <Sheet open={waOpen} onOpenChange={setWaOpen}>
         <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
-          <div className="mx-auto w-full max-w-[480px] pb-6 pt-1">
-            <p className="text-xs font-medium text-foreground-muted">Cobrança</p>
-            <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">Enviar por WhatsApp</h2>
-            <div className="mt-4 space-y-3">
-              <div>
-                <Label className="text-xs">Telefone (com DDD)</Label>
-                <Input value={waTel} onChange={(e) => setWaTel(e.target.value)} placeholder="(11) 99999-9999" className="mt-1" />
+          <div className="mx-auto w-full max-w-[480px] space-y-6 pb-6 pt-1">
+            <SheetHeading eyebrow="Cobrança" title="Enviar por WhatsApp" />
+            <FormSection label="Destinatário">
+              <div className="space-y-1.5">
+                <Label className="text-[12px] text-foreground-muted">Telefone (com DDD)</Label>
+                <Input value={waTel} onChange={(e) => setWaTel(e.target.value)} placeholder="(11) 99999-9999" />
               </div>
-              <div>
-                <Label className="text-xs">Mensagem</Label>
-                <Textarea value={waText} onChange={(e) => setWaText(e.target.value)} rows={10} className="mt-1 font-mono text-[13px] leading-relaxed" />
+            </FormSection>
+            <FormSection label="Mensagem">
+              <div className="space-y-1.5">
+                <Label className="sr-only">Mensagem</Label>
+                <Textarea value={waText} onChange={(e) => setWaText(e.target.value)} rows={10} className="font-mono text-[13px] leading-relaxed" />
               </div>
               {/* Status da nota fiscal */}
               {waCob?.nota_fiscal_path ? (
-                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-surface/60 px-3 py-2 text-xs text-foreground">
-                  <FileText className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="truncate">Vai anexar: {waCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
-                  <button onClick={() => abrirNota(waCob.nota_fiscal_path!)} className="ml-auto shrink-0 text-primary hover:underline">ver</button>
-                </div>
+                <InlineNotice tone="neutral" icon={<FileText className="text-primary" />}>
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate">Vai anexar: {waCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
+                    <button onClick={() => abrirNota(waCob.nota_fiscal_path!)} className="shrink-0 font-medium text-primary hover:underline">ver</button>
+                  </div>
+                </InlineNotice>
               ) : waCob?.exigir_nf && !waCob?.nota_fiscal_enviada ? (
-                <div className="flex items-center gap-2 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning))]">
-                  <ShieldCheck className="h-4 w-4 shrink-0" />
-                  <span>Esta cobrança exige nota fiscal.</span>
-                  <button onClick={() => { setWaOpen(false); pedirUploadNota(waCob.id); }} className="ml-auto shrink-0 font-semibold hover:underline">Anexar</button>
-                </div>
+                <InlineNotice tone="warning" icon={<ShieldCheck />}>
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1">Esta cobrança exige nota fiscal.</span>
+                    <button onClick={() => { setWaOpen(false); pedirUploadNota(waCob.id); }} className="shrink-0 font-semibold hover:underline">Anexar</button>
+                  </div>
+                </InlineNotice>
               ) : null}
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => setWaOpen(false)}>Cancelar</Button>
-                <Button className="flex-1" onClick={handleEnviarWa} disabled={waSending || waBloqueado || !waTel.trim() || !waText.trim()}>
-                  {waSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
-                  Enviar
-                </Button>
-              </div>
-            </div>
+            </FormSection>
+            <SheetFooter>
+              <Button variant="outline" size="lg" onClick={() => setWaOpen(false)}>Cancelar</Button>
+              <Button size="lg" onClick={handleEnviarWa} disabled={waSending || waBloqueado || !waTel.trim() || !waText.trim()}>
+                {waSending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
+                Enviar
+              </Button>
+            </SheetFooter>
           </div>
         </SheetContent>
       </Sheet>
@@ -1149,18 +1206,19 @@ export default function Cobrancas() {
 // Fatura que cobra vários contratos num boleto só
 function GrupoChip({ qtd }: { qtd: number }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/12 px-1.5 py-px text-[10px] font-semibold text-primary" title="Boleto único de vários contratos">
+    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-info-bg px-2 py-px text-[10.5px] font-semibold text-info-fg" title="Boleto único de vários contratos">
       <Layers className="h-3 w-3" /> {qtd} contratos
     </span>
   );
 }
 
-function Th({ label, onClick, icon, align = 'left' }: { label: string; onClick: () => void; icon: React.ReactNode; align?: 'left' | 'right' }) {
+function Th({ label, onClick, icon, align = 'left', className }: { label: string; onClick: () => void; icon: React.ReactNode; align?: 'left' | 'right'; className?: string }) {
   return (
-    <th className={cn('px-3 py-2.5 font-semibold', align === 'right' && 'text-right')}>
+    <TableHead className={cn('px-3', align === 'right' && 'text-right', className)}>
       <button onClick={onClick} className={cn('inline-flex items-center gap-1 hover:text-foreground', align === 'right' && 'flex-row-reverse')}>
         {label} {icon}
       </button>
-    </th>
+    </TableHead>
   );
 }
+

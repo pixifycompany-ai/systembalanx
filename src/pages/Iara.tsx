@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialAdvisor, type PeriodOption } from '@/hooks/useFinancialAdvisor';
 import { PropostaLancamentos } from '@/components/iara/PropostaLancamentos';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import {
   Select,
   SelectContent,
@@ -125,149 +126,156 @@ export default function Iara() {
   const lastIsUser = messages[messages.length - 1]?.role === 'user';
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] md:h-[calc(100dvh-3.5rem)] md:-my-8 max-w-2xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-3 md:px-4 py-3 border-b border-border/60">
+    <div className="mx-auto flex h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] max-w-3xl flex-col pb-[4.5rem] md:-mb-8 md:-mt-4 md:h-[calc(100dvh-3.5rem)] md:py-4">
+      {/* Cabeçalho */}
+      <div className="mb-3 flex items-end gap-3 md:mb-4">
         <button
           onClick={() => navigate(-1)}
           aria-label="Voltar"
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface border border-border/60 text-foreground-muted hover:text-foreground md:hidden"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-foreground-muted transition-colors hover:text-foreground md:hidden"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <div className="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground shrink-0">
-          <Sparkle className="h-4 w-4" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[15.5px] font-semibold leading-tight tracking-[-0.02em]">IARA</div>
-          <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-[hsl(var(--success))] whitespace-nowrap">
-            <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />online
-          </div>
-        </div>
-        <Select value={period} onValueChange={(v) => setPeriod(v as PeriodOption)}>
-          <SelectTrigger className="w-auto h-9 text-xs gap-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(PERIOD_LABELS).map(([v, l]) => (
-              <SelectItem key={v} value={v}>{l}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <button
-          onClick={clearChat}
-          aria-label="Limpar conversa"
-          className="flex h-9 w-9 items-center justify-center rounded-xl text-foreground-muted hover:text-foreground"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* Privacidade */}
-      <div className="mx-3 md:mx-4 mt-3 flex items-center gap-2 text-[11px] text-foreground-subtle bg-surface/60 border border-border/50 rounded-xl px-3 py-2">
-        <ShieldCheck className="h-3.5 w-3.5 text-[hsl(var(--warning))] shrink-0" />
-        Lê seus lançamentos, contas e clientes — nada sai do BALANX.
-      </div>
-
-      {/* Mensagens */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 md:px-4 py-4 space-y-4">
-        {messages.map((m) => (
-          <div key={m.id} className={cn('flex flex-col gap-1', m.role === 'user' ? 'items-end' : 'items-start')}>
-            <div className={cn('flex gap-2.5 items-end w-full', m.role === 'user' && 'flex-row-reverse')}>
-              <div
-                className={cn(
-                  'flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full',
-                  m.role === 'assistant'
-                    ? 'bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground'
-                    : 'bg-surface-3 text-foreground-muted',
-                )}
+        <MobilePageHeader
+          className="mb-0 min-w-0 flex-1 md:mb-0"
+          eyebrow="Assistente financeira · online"
+          title="IARA"
+          actions={
+            <>
+              <Select value={period} onValueChange={(v) => setPeriod(v as PeriodOption)}>
+                <SelectTrigger className="h-10 w-auto gap-1 rounded-full px-4 text-[13px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PERIOD_LABELS).map(([v, l]) => (
+                    <SelectItem key={v} value={v}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <button
+                onClick={clearChat}
+                aria-label="Limpar conversa"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface text-foreground-muted transition-colors hover:text-foreground"
               >
-                {m.role === 'assistant' ? <Sparkle className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
-              </div>
-              <div
-                className={cn(
-                  'max-w-[80%] px-3.5 py-2.5 text-[13px] leading-[1.55]',
-                  m.role === 'assistant'
-                    ? 'auro-card rounded-[18px_18px_18px_6px] bg-surface border border-border text-foreground'
-                    : 'rounded-[18px_18px_6px_18px] bg-[linear-gradient(160deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground',
-                )}
-              >
-                {m.role === 'assistant' ? (
-                  <IaraMarkdown content={m.content || '…'} />
-                ) : (
-                  <p className="whitespace-pre-wrap">{m.content}</p>
-                )}
-              </div>
-            </div>
-            {m.role === 'assistant' && m.lancamentos && m.lancamentos.length > 0 && (
-              <div className="w-full pl-[38px]">
-                <PropostaLancamentos lancamentos={m.lancamentos} onResolved={() => clearLancamentos(m.id)} />
-              </div>
-            )}
-          </div>
-        ))}
-        {isLoading && lastIsUser && (
-          <div className="flex gap-2.5 items-end">
-            <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-[linear-gradient(150deg,hsl(var(--primary)/0.9),hsl(var(--primary)))] text-primary-foreground">
-              <Sparkle className="h-4 w-4" />
-            </div>
-            <div className="auro-card rounded-[18px_18px_18px_6px] bg-surface border border-border px-3.5 py-3">
-              <div className="iara-typing"><i /><i /><i /></div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Sugestões */}
-      <div className="flex gap-2 overflow-x-auto px-3 md:px-4 py-2 scrollbar-hide">
-        {SUGESTOES.map((s, i) => (
-          <button
-            key={s}
-            onClick={() => submit(s)}
-            disabled={isLoading}
-            className="shrink-0 text-[11.5px] font-semibold text-foreground bg-surface border border-border rounded-full px-3.5 py-2 hover:border-border-strong transition-colors disabled:opacity-50"
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
-      {/* Composer */}
-      <form
-        onSubmit={(e) => { e.preventDefault(); submit(input); }}
-        className="flex items-center gap-2 px-3 md:px-4 pt-1 pb-[calc(1rem+4.5rem)] md:pb-4"
-      >
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Pergunte sobre seu caixa, metas, clientes…"
-          disabled={isLoading}
-          className="flex-1 h-11 rounded-2xl bg-surface border border-border px-4 text-sm text-foreground placeholder:text-foreground-subtle outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </>
+          }
         />
-        <button
-          type="button"
-          onClick={toggleMic}
-          disabled={transcribing}
-          aria-label={listening ? 'Parar e transcrever' : 'Falar'}
-          className={cn(
-            'flex h-11 w-11 items-center justify-center rounded-2xl border transition-colors active:scale-95',
-            listening
-              ? 'bg-[hsl(var(--danger))]/15 border-[hsl(var(--danger))] text-[hsl(var(--danger))] animate-pulse'
-              : 'bg-surface border-border text-foreground-muted',
-            transcribing && 'opacity-60',
+      </div>
+
+      {/* Área do chat */}
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border bg-surface md:rounded-3xl">
+        {/* Privacidade */}
+        <div className="flex items-center gap-2 border-b border-border px-4 py-2.5 text-[12px] text-foreground-muted md:px-6">
+          <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--success-fg))]" />
+          Lê seus lançamentos, contas e clientes — nada sai do BALANX.
+        </div>
+
+        {/* Mensagens */}
+        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-3.5 py-4 md:px-6 md:py-5">
+          {messages.map((m) => (
+            <div key={m.id} className={cn('flex flex-col gap-1', m.role === 'user' ? 'items-end' : 'items-start')}>
+              <div className={cn('flex w-full items-end gap-2.5', m.role === 'user' && 'flex-row-reverse')}>
+                <div
+                  className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                    m.role === 'assistant'
+                      ? 'bg-info-bg text-info-fg'
+                      : 'bg-surface-2 text-foreground-muted',
+                  )}
+                >
+                  {m.role === 'assistant' ? <Sparkle className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
+                </div>
+                <div
+                  className={cn(
+                    'px-3.5 py-2.5 text-[14px] leading-[1.55]',
+                    m.role === 'assistant'
+                      ? 'max-w-[88%] rounded-[16px_16px_16px_4px] bg-surface-2 text-foreground'
+                      : 'max-w-[80%] rounded-[16px_16px_4px_16px] bg-primary text-primary-foreground',
+                  )}
+                >
+                  {m.role === 'assistant' ? (
+                    <IaraMarkdown content={m.content || '…'} />
+                  ) : (
+                    <p className="whitespace-pre-wrap">{m.content}</p>
+                  )}
+                </div>
+              </div>
+              {m.role === 'assistant' && m.lancamentos && m.lancamentos.length > 0 && (
+                <div className="w-full pl-[42px]">
+                  <PropostaLancamentos lancamentos={m.lancamentos} onResolved={() => clearLancamentos(m.id)} />
+                </div>
+              )}
+            </div>
+          ))}
+          {isLoading && lastIsUser && (
+            <div className="flex items-end gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-info-bg text-info-fg">
+                <Sparkle className="h-4 w-4" />
+              </div>
+              <div className="rounded-[16px_16px_16px_4px] bg-surface-2 px-3.5 py-3">
+                <div className="iara-typing"><i /><i /><i /></div>
+              </div>
+            </div>
           )}
+        </div>
+
+        {/* Sugestões */}
+        <div className="flex gap-2 overflow-x-auto px-3.5 pb-2 pt-1 scrollbar-hide md:px-6">
+          {SUGESTOES.map((s) => (
+            <button
+              key={s}
+              onClick={() => submit(s)}
+              disabled={isLoading}
+              className="h-9 shrink-0 rounded-full border border-border bg-surface px-4 text-[13px] font-medium text-foreground transition-colors hover:bg-surface-2 disabled:opacity-50"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
+        {/* Composer */}
+        <form
+          onSubmit={(e) => { e.preventDefault(); submit(input); }}
+          className="px-3.5 pb-3.5 pt-1 md:px-6 md:pb-5"
         >
-          {transcribing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Mic className="h-5 w-5" />}
-        </button>
-        <button
-          type="submit"
-          disabled={isLoading || !input.trim()}
-          aria-label="Enviar"
-          className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[linear-gradient(180deg,hsl(var(--primary)/0.92),hsl(var(--primary)))] text-primary-foreground shadow-[0_10px_24px_-6px_hsl(var(--primary)/0.5)] active:scale-95 transition-transform disabled:opacity-50"
-        >
-          {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-        </button>
-      </form>
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1.5 pl-4 pr-1.5 focus-within:ring-2 focus-within:ring-ring">
+            <label htmlFor="iara-input" className="sr-only">Pergunte à IARA</label>
+            <input
+              id="iara-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Pergunte sobre seu caixa, metas, clientes…"
+              disabled={isLoading}
+              className="h-10 min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-foreground-muted"
+            />
+            <button
+              type="button"
+              onClick={toggleMic}
+              disabled={transcribing}
+              aria-label={listening ? 'Parar e transcrever' : 'Falar'}
+              className={cn(
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors active:scale-95',
+                listening
+                  ? 'animate-pulse bg-danger-bg text-danger-fg'
+                  : 'text-foreground-muted hover:bg-surface hover:text-foreground',
+                transcribing && 'opacity-60',
+              )}
+            >
+              {transcribing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Mic className="h-5 w-5" />}
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              aria-label="Enviar"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-50"
+            >
+              {isLoading ? <Loader2 className="h-[18px] w-[18px] animate-spin" /> : <Send className="h-[18px] w-[18px]" />}
+            </button>
+          </div>
+        </form>
+      </section>
     </div>
   );
 }

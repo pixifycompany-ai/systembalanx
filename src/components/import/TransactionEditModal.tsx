@@ -196,7 +196,7 @@ export function TransactionEditModal({
                   step="0.01"
                   value={form.valor}
                   onChange={(e) => set('valor', parseFloat(e.target.value) || 0)}
-                  className={isReceita ? 'text-emerald-600' : 'text-red-600'}
+                  className={isReceita ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]'}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -207,10 +207,10 @@ export function TransactionEditModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="receita">
-                      <span className="text-emerald-600 font-medium">Receita</span>
+                      <span className="text-[hsl(var(--success-fg))] font-medium">Receita</span>
                     </SelectItem>
                     <SelectItem value="despesa">
-                      <span className="text-red-600 font-medium">Despesa</span>
+                      <span className="text-[hsl(var(--danger-fg))] font-medium">Despesa</span>
                     </SelectItem>
                   </SelectContent>
                 </Select>

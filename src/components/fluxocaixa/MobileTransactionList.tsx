@@ -34,9 +34,18 @@ interface MobileTransactionListProps {
 function formatDateHeader(dateStr: string): string {
   const date = parseISO(dateStr);
   if (isToday(date)) {
-    return `Hoje, ${format(date, "d 'de' MMMM", { locale: ptBR })}`;
+    return `Hoje · ${format(date, 'd MMM', { locale: ptBR })}`;
   }
-  return format(date, "EEE., d 'de' MMMM", { locale: ptBR });
+  return format(date, 'EEE · d MMM', { locale: ptBR });
+}
+
+/** Total líquido do dia (transferências são neutras), com sinal explícito. */
+function formatDayTotal(items: TransacaoUnificada[]): string {
+  const net = items.reduce((s, t) => {
+    if (t.tabela_origem === 'transferencia') return s;
+    return s + (t.tipo === 'entrada' ? Number(t.valor || 0) : -Number(t.valor || 0));
+  }, 0);
+  return `${net >= 0 ? '+' : '−'}${formatCurrency(Math.abs(net))}`;
 }
 
 export function MobileTransactionList({
@@ -83,12 +92,12 @@ export function MobileTransactionList({
   }, [transactions, saldoAtual]);
 
   if (isLoading) {
-    return <div className="px-4"><SkeletonTable rows={5} /></div>;
+    return <div className="overflow-hidden rounded-[20px] border border-border bg-surface"><SkeletonTable rows={5} /></div>;
   }
 
   return (
-    <div className="space-y-4">
-      {/* Transaction list */}
+    <div>
+      {/* Lista agrupada por dia */}
       {transactions.length === 0 ? (
         <EmptyState
           title="Nenhuma transação encontrada"
@@ -101,15 +110,16 @@ export function MobileTransactionList({
           }
         />
       ) : (
-        <div className="space-y-1">
+        <div className="flex flex-col gap-1">
           {grouped.map(([date, items]) => (
-            <div key={date}>
-              <div className="px-1 py-2">
-                <span className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">
+            <section key={date} className="flex flex-col">
+              <div className="flex items-baseline justify-between gap-3 px-0.5 pb-1.5 pt-2.5">
+                <span className="truncate text-[12px] font-semibold uppercase tracking-[0.04em] text-foreground-muted">
                   {formatDateHeader(date)}
                 </span>
+                <span className="shrink-0 text-[12px] tabular-nums text-foreground-muted">{formatDayTotal(items)}</span>
               </div>
-              <div className="space-y-1.5">
+              <div className="overflow-hidden rounded-[20px] border border-border bg-surface">
                 {items.map((t) => {
                   const conta = t.conta_id ? contaMap.get(t.conta_id) : undefined;
                   return (
@@ -127,7 +137,7 @@ export function MobileTransactionList({
                   );
                 })}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       )}

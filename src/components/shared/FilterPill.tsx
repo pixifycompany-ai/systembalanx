@@ -1,8 +1,8 @@
-import { forwardRef, type ReactNode } from 'react';
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface FilterPillProps {
+interface FilterPillProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'value'> {
   /** Icon (lucide) shown on the left */
   icon?: ReactNode;
   /** Short legend ("Mês", "Status", "Categoria") */
@@ -23,18 +23,19 @@ interface FilterPillProps {
  * Renders: [icon] Label · Value [×]
  */
 export const FilterPill = forwardRef<HTMLButtonElement, FilterPillProps>(
-  ({ icon, label, value, active, onClear, onClick, className, children }, ref) => {
+  ({ icon, label, value, active, onClear, onClick, className, children, ...rest }, ref) => {
     const isActive = active ?? Boolean(value);
     return (
       <button
         ref={ref}
         type="button"
+        {...rest}
         onClick={onClick}
         className={cn(
-          'group inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors shrink-0',
+          'group inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors shrink-0',
           isActive
             ? 'border-foreground bg-foreground text-background hover:bg-foreground/90'
-            : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground',
+            : 'border-border bg-surface text-foreground hover:border-border-strong',
           className,
         )}
       >

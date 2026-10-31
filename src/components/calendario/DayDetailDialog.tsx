@@ -9,6 +9,7 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface DayDetailDialogProps {
   open: boolean;
@@ -65,9 +66,10 @@ export function DayDetailDialog({ open, onOpenChange, day }: DayDetailDialogProp
     const loading = processando.has(item.id);
     return (
       <button
+        type="button"
         onClick={() => darBaixa(item)}
         disabled={loading}
-        className="mt-1.5 inline-flex items-center gap-1 rounded-lg border border-[hsl(var(--success))]/40 bg-[hsl(var(--success))]/12 px-2 py-1 text-[11px] font-semibold text-[hsl(var(--success))] transition-colors hover:bg-[hsl(var(--success))]/20 disabled:opacity-60"
+        className="no-touch-min mt-2 inline-flex h-7 items-center gap-1 rounded-full bg-success-bg px-3 text-[11px] font-semibold text-success-fg transition-opacity hover:opacity-90 disabled:opacity-60"
       >
         {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
         {item.tipo === 'receita' ? 'Dar baixa (receber)' : 'Dar baixa (pagar)'}
@@ -77,76 +79,90 @@ export function DayDetailDialog({ open, onOpenChange, day }: DayDetailDialogProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-h-[80vh] max-w-md overflow-y-auto">
         <DialogHeader>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Lançamentos do dia</p>
           <DialogTitle className="capitalize">{dateFormatted}</DialogTitle>
-          <p className={`text-sm font-medium ${saldo >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-            Saldo do dia: {formatCurrency(saldo)}
-          </p>
+          <div className="pt-1">
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full px-3 py-1 text-[13px] font-semibold tabular-nums',
+                saldo >= 0 ? 'bg-success-bg text-success-fg' : 'bg-danger-bg text-danger-fg',
+              )}
+            >
+              Saldo do dia: {formatCurrency(saldo)}
+            </span>
+          </div>
         </DialogHeader>
 
         {receitaItems.length > 0 && (
-          <div>
-            <h4 className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <ArrowUpRight className="h-3.5 w-3.5" />
-              Receitas ({receitaItems.length})
+          <section>
+            <h4 className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">
+              <span className="inline-flex items-center gap-1">
+                <ArrowUpRight className="h-3.5 w-3.5 text-[hsl(var(--success-fg))]" />
+                Receitas ({receitaItems.length})
+              </span>
+              <span className="font-heading text-[13px] normal-case tracking-normal text-[hsl(var(--success-fg))]">{formatCurrency(day.receitas)}</span>
             </h4>
-            <div className="space-y-2">
+            <div className="rounded-[20px] border border-border bg-surface px-3.5">
               {receitaItems.map((item) => (
-                <div key={item.id} className="flex items-start justify-between gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-2.5">
+                <div key={item.id} className="flex items-start justify-between gap-3 border-b border-border py-3 last:border-b-0">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground truncate">{item.descricao}</p>
+                    <p className="truncate text-sm font-semibold text-foreground">{item.descricao}</p>
                     {item.clienteOuFornecedor && (
-                      <p className="text-xs text-muted-foreground truncate">{item.clienteOuFornecedor}</p>
+                      <p className="truncate text-xs text-foreground-muted">{item.clienteOuFornecedor}</p>
                     )}
                     <BaixaButton item={item} />
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{formatCurrency(item.valor)}</p>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <p className="font-heading text-sm font-semibold tabular-nums text-[hsl(var(--success-fg))]">{formatCurrency(item.valor)}</p>
                     <StatusBadge status={item.status} />
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         {despesaItems.length > 0 && (
-          <div>
-            <h4 className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <ArrowDownRight className="h-3.5 w-3.5" />
-              Despesas ({despesaItems.length})
+          <section>
+            <h4 className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">
+              <span className="inline-flex items-center gap-1">
+                <ArrowDownRight className="h-3.5 w-3.5 text-[hsl(var(--danger-fg))]" />
+                Despesas ({despesaItems.length})
+              </span>
+              <span className="font-heading text-[13px] normal-case tracking-normal text-[hsl(var(--danger-fg))]">{formatCurrency(day.despesas)}</span>
             </h4>
-            <div className="space-y-2">
+            <div className="rounded-[20px] border border-border bg-surface px-3.5">
               {despesaItems.map((item) => (
-                <div key={item.id} className="flex items-start justify-between gap-2 rounded-lg bg-red-50 dark:bg-red-900/20 p-2.5">
+                <div key={item.id} className="flex items-start justify-between gap-3 border-b border-border py-3 last:border-b-0">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground truncate">{item.descricao}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="truncate text-sm font-semibold text-foreground">{item.descricao}</p>
+                    <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
                       {item.categoria && (
-                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: item.categoriaCor || '#6B7280' }} />
-                          {item.categoria}
+                        <span className="inline-flex min-w-0 items-center gap-1 text-xs text-foreground-muted">
+                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: item.categoriaCor || 'hsl(var(--foreground-muted))' }} />
+                          <span className="truncate">{item.categoria}</span>
                         </span>
                       )}
                       {item.clienteOuFornecedor && (
-                        <span className="text-xs text-muted-foreground">· {item.clienteOuFornecedor}</span>
+                        <span className="truncate text-xs text-foreground-muted">· {item.clienteOuFornecedor}</span>
                       )}
                     </div>
                     <BaixaButton item={item} />
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-semibold text-red-700 dark:text-red-300">{formatCurrency(item.valor)}</p>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <p className="font-heading text-sm font-semibold tabular-nums text-[hsl(var(--danger-fg))]">{formatCurrency(item.valor)}</p>
                     <StatusBadge status={item.status} />
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         {day.items.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">Nenhum lançamento neste dia.</p>
+          <p className="py-4 text-center text-sm text-foreground-muted">Nenhum lançamento neste dia.</p>
         )}
       </DialogContent>
     </Dialog>

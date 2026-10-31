@@ -31,10 +31,10 @@ export const Pill = forwardRef<HTMLButtonElement, PillProps>(
       ref={ref}
       type="button"
       className={cn(
-        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-all no-touch-min',
+        'inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-[13px] font-medium transition-all no-touch-min',
         active
-          ? 'border-primary bg-primary text-primary-foreground shadow-xs'
-          : 'border-border bg-surface text-foreground-muted hover:border-border-strong hover:text-foreground',
+          ? 'border-foreground bg-foreground font-semibold text-background'
+          : 'border-border bg-surface text-foreground hover:border-border-strong',
         className,
       )}
       {...props}

@@ -74,9 +74,9 @@ function SwipeCard({ item, onConfirm, onDelete, onClick }: { item: Receita; onCo
   const handleClick = useCallback(() => { if (!isDragging.current) onClick(item); }, [onClick, item]);
 
   const badge = (() => {
-    if (item.status === 'recebido') return { label: 'Recebido', cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' };
-    if (item.status === 'atrasado') return { label: 'Atrasado', cls: 'bg-red-500/15 text-red-600 dark:text-red-400' };
-    return { label: 'Não recebido', cls: 'bg-red-500/15 text-red-600 dark:text-red-400' };
+    if (item.status === 'recebido') return { label: 'Recebido', cls: 'bg-success-bg text-success-fg' };
+    if (item.status === 'atrasado') return { label: 'Atrasado', cls: 'bg-danger-bg text-danger-fg' };
+    return { label: 'Não recebido', cls: 'bg-danger-bg text-danger-fg' };
   })();
 
   const catColor = item.categoria?.cor || 'hsl(var(--muted-foreground))';
@@ -84,11 +84,11 @@ function SwipeCard({ item, onConfirm, onDelete, onClick }: { item: Receita; onCo
   return (
     <div className="relative overflow-hidden rounded-lg">
       <div className="absolute inset-0 flex">
-        <div className={cn("flex items-center justify-start pl-5 w-1/2 transition-colors", offsetX > THRESHOLD / 2 ? "bg-emerald-500" : "bg-emerald-500/60")}>
-          <Check className="h-6 w-6 text-white" />
+        <div className={cn("flex items-center justify-start pl-5 w-1/2 transition-colors", offsetX > THRESHOLD / 2 ? "bg-success text-background" : "bg-success-bg text-success-fg")}>
+          <Check className="h-6 w-6" />
         </div>
-        <div className={cn("flex items-center justify-end pr-5 w-1/2 transition-colors", offsetX < -THRESHOLD / 2 ? "bg-red-500" : "bg-red-500/60")}>
-          <Trash2 className="h-6 w-6 text-white" />
+        <div className={cn("flex items-center justify-end pr-5 w-1/2 transition-colors", offsetX < -THRESHOLD / 2 ? "bg-danger text-background" : "bg-danger-bg text-danger-fg")}>
+          <Trash2 className="h-6 w-6" />
         </div>
       </div>
       <div
@@ -110,7 +110,7 @@ function SwipeCard({ item, onConfirm, onDelete, onClick }: { item: Receita; onCo
             <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded-full", badge.cls)}>{badge.label}</span>
           </div>
         </div>
-        <span className="text-[15px] font-semibold shrink-0 tabular-nums text-emerald-600 dark:text-emerald-400">
+        <span className="text-[15px] font-semibold shrink-0 tabular-nums text-[hsl(var(--success-fg))]">
           {formatCurrency(Number(item.valor))}
         </span>
       </div>

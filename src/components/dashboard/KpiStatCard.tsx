@@ -3,7 +3,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
 import { HexWatermark } from '@/components/shared/NavySurface';
-import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW } from '@/components/shared/navyTokens';
+import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW, NAVY_TONE } from '@/components/shared/navyTokens';
 
 /** Variação % entre atual e anterior; null quando não há base de comparação. */
 export function variacaoPct(atual: number, anterior: number | undefined | null): number | null {
@@ -11,16 +11,23 @@ export function variacaoPct(atual: number, anterior: number | undefined | null):
   return ((atual - anterior) / Math.abs(anterior)) * 100;
 }
 
+/** "+23,4%" / "-9,9%" */
+export function formatDelta(delta: number): string {
+  return `${delta >= 0 ? '+' : ''}${delta.toFixed(1).replace('.', ',')}%`;
+}
+
 interface KpiStatCardProps {
   label: string;
   value: number;
-  icon: LucideIcon;
+  /** Ícone opcional ao lado do rótulo. */
+  icon?: LucideIcon;
   /** Variação % vs período anterior (null = sem comparação). */
   delta?: number | null;
   /** true quando subir é ruim (ex.: despesas) — inverte verde/vermelho. */
   invertDelta?: boolean;
   /** Texto de apoio abaixo do valor (ex.: "vs mesmo período de set"). */
   hint?: string;
+  /** Célula navy de destaque (ex.: saldo). Só uma por tela. */
   highlight?: boolean;
   onClick?: () => void;
 }
@@ -35,57 +42,59 @@ export function KpiStatCard({ label, value, icon: Icon, delta, invertDelta, hint
       type={onClick ? 'button' : undefined}
       onClick={onClick}
       className={cn(
-        'group relative isolate w-full overflow-hidden rounded-2xl p-5 text-left transition-all animate-fade-in',
-        highlight
-          ? 'border-0 text-white'
-          : 'auro-card border border-border bg-surface text-foreground',
-        onClick && 'cursor-pointer hover:-translate-y-0.5',
-        onClick && !highlight && 'hover:border-primary/40',
+        'group relative isolate flex w-full min-w-0 flex-col gap-3.5 overflow-hidden rounded-[20px] p-5 text-left transition-colors md:rounded-3xl md:p-[22px]',
+        highlight ? 'border-0 text-white' : 'border border-border bg-surface text-foreground',
+        onClick && 'cursor-pointer',
+        onClick && !highlight && 'hover:border-border-strong',
       )}
       style={highlight ? { background: NAVY_SURFACE_BG, boxShadow: NAVY_SURFACE_SHADOW } : undefined}
     >
-      {highlight && <HexWatermark className="h-36 -right-6 -bottom-8" />}
-      <div className="flex items-start justify-between">
+      {highlight && <HexWatermark className="-right-10 -top-8 bottom-auto h-48" />}
+
+      <div className="flex items-center justify-between gap-2">
         <span
           className={cn(
-            'grid h-10 w-10 place-items-center rounded-full border',
-            highlight ? 'border-white/20 bg-white/10' : 'border-border bg-surface-2',
+            'inline-flex min-w-0 items-center gap-1.5 text-[13px] font-medium',
+            highlight ? 'text-white/70' : 'text-foreground-muted',
           )}
         >
-          <Icon className={cn('h-[18px] w-[18px]', highlight ? 'text-white' : 'text-foreground/80')} />
+          {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden />}
+          <span className="truncate">{label}</span>
         </span>
         {onClick && (
           <ArrowUpRight
+            aria-hidden
             className={cn(
-              'h-4 w-4 transition-opacity',
+              'h-4 w-4 shrink-0 opacity-0 transition-opacity group-hover:opacity-100',
               highlight ? 'text-white/70' : 'text-foreground-muted',
-              'opacity-60 group-hover:opacity-100',
             )}
           />
         )}
       </div>
 
-      <p className={cn('mt-5 text-[13px] font-medium', highlight ? 'text-white/80' : 'text-foreground-muted')}>{label}</p>
-      <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-        <span className="text-[26px] font-semibold leading-tight tracking-[-0.02em] tabular-nums">{formatCurrency(value)}</span>
-        {temDelta && (
-          <span
-            className={cn(
-              'inline-flex h-[22px] items-center rounded-md border px-1.5 text-[11px] font-semibold tabular-nums',
-              highlight
-                ? 'border-white/25 bg-white/10 text-white'
-                : bom
-                  ? 'border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/10 text-[hsl(var(--success))]'
-                  : 'border-[hsl(var(--danger))]/30 bg-[hsl(var(--danger))]/10 text-[hsl(var(--danger))]',
-            )}
-            title={hint}
-          >
-            {delta! >= 0 ? '+' : ''}
-            {delta!.toFixed(1).replace('.', ',')}%
-          </span>
-        )}
-      </div>
-      {hint && <p className={cn('mt-1.5 text-[11.5px]', highlight ? 'text-white/70' : 'text-foreground-muted')}>{hint}</p>}
+      <span className="whitespace-nowrap font-heading text-[24px] font-semibold leading-none tracking-[-0.03em] tabular-nums xl:text-[26px] 2xl:text-[28px]">
+        {formatCurrency(value)}
+      </span>
+
+      {(temDelta || hint) && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          {temDelta && (
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-semibold leading-none tabular-nums',
+                highlight ? 'bg-white/[0.12]' : bom ? 'bg-success-bg text-success-fg' : 'bg-danger-bg text-danger-fg',
+              )}
+              style={highlight ? { color: bom ? NAVY_TONE.success : NAVY_TONE.danger } : undefined}
+              title={hint}
+            >
+              {formatDelta(delta!)}
+            </span>
+          )}
+          {hint && (
+            <span className={cn('text-[12px]', highlight ? 'text-white/70' : 'text-foreground-muted')}>{hint}</span>
+          )}
+        </div>
+      )}
     </Wrapper>
   );
 }

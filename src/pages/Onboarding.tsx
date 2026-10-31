@@ -9,7 +9,10 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import iso from '@/assets/brand/logo_isotipo.svg';
-import { AURO_ICON_BG } from '@/components/shared/PixifyLogo';
+import { AURO_ICON_BG, PixifyLogo } from '@/components/shared/PixifyLogo';
+import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
+import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW } from '@/components/shared/navyTokens';
+import { HexWatermark } from '@/components/shared/NavySurface';
 
 type TenantType = 'pessoal' | 'agencia';
 type Step = 'tipo' | 'passos' | 'time' | 'pronto';
@@ -54,16 +57,19 @@ export default function Onboarding() {
 
   return (
     <div className="min-h-[100dvh] w-full bg-background">
-      <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-5 pb-8 pt-14">
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col px-4 pb-8 pt-[calc(env(safe-area-inset-top,0px)+1.5rem)] md:pt-14">
+        <PixifyLogo size="sm" className="mb-8 md:mb-10" />
 
         {/* ===== TIPO DE CONTA ===== */}
         {step === 'tipo' && (
           <>
-            <div className="mb-1.5">
-              <p className="text-xs font-medium text-foreground-muted mb-0.5">Sua conta</p>
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground">Como vai usar?</h1>
-            </div>
-            <p className="text-[12.5px] text-foreground-muted leading-relaxed mb-5">
+            <StepProgress atual={1} />
+            <MobilePageHeader
+              className="mb-2 md:mb-2"
+              eyebrow="Sua conta"
+              title={<>Como vai <span className="font-serif italic font-normal tracking-normal">usar?</span></>}
+            />
+            <p className="mb-5 text-[14px] leading-relaxed text-foreground-muted">
               Isso define a linguagem e os relatórios. Dá pra ter as duas e trocar quando quiser.
             </p>
 
@@ -71,7 +77,7 @@ export default function Onboarding() {
               selected={tipo === 'pessoal'}
               onClick={() => persistTipo('pessoal')}
               icon={<UserIcon className="h-5 w-5" />}
-              iconClass="bg-primary/15 text-primary"
+              iconClass="bg-info-bg text-info-fg"
               title="Pessoal"
               desc="Organize contas, cartões, orçamento e metas de economia."
             />
@@ -79,14 +85,14 @@ export default function Onboarding() {
               selected={tipo === 'agencia'}
               onClick={() => persistTipo('agencia')}
               icon={<BuildingOffice2Icon className="h-5 w-5" />}
-              iconClass="bg-[hsl(var(--warning))]/16 text-[hsl(var(--warning))]"
+              iconClass="bg-warning-bg text-warning-fg"
               title="Agência"
               desc="Gestão financeira, clientes, contratos e MRR da sua agência."
             />
 
             <div className="flex-1" />
             <Button
-              className="w-full h-12 rounded-2xl font-semibold text-[15px]"
+              className="h-12 w-full rounded-full text-[15px] font-semibold"
               onClick={async () => { await ensureTenant(); setStep('passos'); }}
             >
               Continuar
@@ -97,19 +103,15 @@ export default function Onboarding() {
         {/* ===== PRÓXIMOS PASSOS ===== */}
         {step === 'passos' && (
           <>
-            <div className="mb-3.5">
-              <p className="text-xs font-medium text-foreground-muted mb-0.5">Quase lá</p>
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground">Próximos passos</h1>
-            </div>
+            <StepProgress atual={2} />
+            <MobilePageHeader
+              className="mb-4 md:mb-5"
+              eyebrow="Quase lá"
+              title={<>Próximos <span className="font-serif italic font-normal tracking-normal">passos</span></>}
+            />
 
-            <div className="flex items-center gap-2.5 mb-4">
-              <span className="text-xs font-semibold text-foreground-muted whitespace-nowrap">2 de 4</span>
-              <div className="flex-1 h-1.5 rounded-full bg-surface-3 overflow-hidden">
-                <div className="h-full rounded-full bg-gradient-to-r from-primary/70 to-primary" style={{ width: '50%' }} />
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-surface px-4">
+            <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Checklist</h2>
+            <div className="rounded-[20px] border border-border bg-surface px-3.5">
               <StepRow state="done" title="Conta criada" desc={`Perfil ${tipo === 'agencia' ? 'Agência' : 'Pessoal'} ativo`} />
               <StepRow state="done" title="E-mail confirmado" desc="Verifique sua caixa de entrada" />
               <StepRow state="now" n={3} title="Adicione uma conta" desc="Banco, carteira ou cartão" chevron />
@@ -119,14 +121,14 @@ export default function Onboarding() {
 
             <div className="flex-1" />
             <Button
-              className="w-full h-12 rounded-2xl font-semibold text-[15px]"
+              className="h-12 w-full rounded-full text-[15px] font-semibold"
               onClick={() => (tipo === 'agencia' ? setStep('time') : setStep('pronto'))}
             >
               Adicionar conta
             </Button>
             <button
               onClick={() => (tipo === 'agencia' ? setStep('time') : setStep('pronto'))}
-              className="text-[12.5px] text-foreground-muted text-center mt-3 no-touch-min"
+              className="mt-3 text-center text-[13px] font-medium text-foreground-muted no-touch-min"
             >
               Fazer depois
             </button>
@@ -136,11 +138,13 @@ export default function Onboarding() {
         {/* ===== CONVIDE SEU TIME (agência) ===== */}
         {step === 'time' && (
           <>
-            <div className="mb-1.5">
-              <p className="text-xs font-medium text-foreground-muted mb-0.5">Agência · Equipe</p>
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground">Convide seu time</h1>
-            </div>
-            <p className="text-[12.5px] text-foreground-muted leading-relaxed mb-4">
+            <StepProgress atual={3} />
+            <MobilePageHeader
+              className="mb-2 md:mb-2"
+              eyebrow="Agência · Equipe"
+              title={<>Convide seu <span className="font-serif italic font-normal tracking-normal">time</span></>}
+            />
+            <p className="mb-5 text-[14px] leading-relaxed text-foreground-muted">
               Todo mundo na mesma conta da agência, com as permissões certas.
             </p>
 
@@ -152,9 +156,9 @@ export default function Onboarding() {
                     onChange={(e) => setInvites((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))}
                     placeholder="Adicionar e-mail…"
                     type="email"
-                    className="h-11 flex-1"
+                    className="h-12 flex-1 rounded-[14px] bg-surface"
                   />
-                  <span className="text-[11px] font-semibold text-foreground-muted bg-surface-2 px-3 py-2.5 rounded-lg whitespace-nowrap">
+                  <span className="inline-flex h-9 items-center whitespace-nowrap rounded-full bg-surface-2 px-3.5 text-[12px] font-semibold text-foreground-muted">
                     {i === 0 ? 'Admin' : 'Membro'}
                   </span>
                 </div>
@@ -162,25 +166,25 @@ export default function Onboarding() {
             </div>
             <button
               onClick={() => setInvites((prev) => [...prev, ''])}
-              className="flex items-center gap-1.5 text-primary text-[12.5px] font-semibold mt-3 no-touch-min"
+              className="mt-3 flex items-center gap-1.5 text-[13px] font-semibold text-primary no-touch-min"
             >
               <PlusIcon className="h-4 w-4" /> Adicionar outro
             </button>
 
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-5 mb-2">Já na conta</p>
-            <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3">
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-primary/15 text-primary text-xs font-semibold">
+            <h2 className="mb-2 mt-6 px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Já na conta</h2>
+            <div className="flex items-center gap-3 rounded-[20px] border border-border bg-surface px-3.5 py-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-info-bg text-[13px] font-semibold text-info-fg">
                 {(primeiroNome[0] || 'V').toUpperCase()}
               </span>
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-foreground">{nome || 'Você'} (você)</div>
-                <div className="text-xs text-foreground-muted">Owner</div>
+                <div className="truncate text-[14px] font-semibold text-foreground">{nome || 'Você'} (você)</div>
+                <div className="text-[12px] text-foreground-muted">Owner</div>
               </div>
             </div>
 
             <div className="flex-1" />
             <Button
-              className="w-full h-12 rounded-2xl font-semibold text-[15px]"
+              className="h-12 w-full rounded-full text-[15px] font-semibold"
               onClick={async () => {
                 const validos = invites.map((e) => e.trim()).filter(Boolean);
                 if (validos.length > 0) {
@@ -197,7 +201,7 @@ export default function Onboarding() {
             >
               Enviar convites
             </Button>
-            <button onClick={() => setStep('pronto')} className="text-[12.5px] text-foreground-muted text-center mt-3 no-touch-min">
+            <button onClick={() => setStep('pronto')} className="mt-3 text-center text-[13px] font-medium text-foreground-muted no-touch-min">
               Pular por agora
             </button>
           </>
@@ -205,28 +209,34 @@ export default function Onboarding() {
 
         {/* ===== TUDO PRONTO ===== */}
         {step === 'pronto' && (
-          <div className="flex flex-1 flex-col items-center text-center">
+          <div className="flex flex-1 flex-col">
             <div className="flex-1" />
-            <span
-              className="grid h-[88px] w-[88px] place-items-center rounded-[24px]"
-              style={{
-                background: AURO_ICON_BG,
-                boxShadow: '0 10px 24px -10px rgba(11,18,38,0.45), inset 0 0 0 1px rgba(255,255,255,0.10)',
-              }}
+            <div
+              className="relative isolate flex flex-col items-center overflow-hidden rounded-[20px] px-6 py-10 text-center text-white md:rounded-3xl"
+              style={{ background: NAVY_SURFACE_BG, boxShadow: NAVY_SURFACE_SHADOW }}
             >
-              <img src={iso} alt="balanx" className="h-[54px] w-auto" />
-            </span>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground mt-6">
-              Tudo pronto{primeiroNome ? `, ${primeiroNome}` : ''}!
-            </h1>
-            <p className="text-[13px] text-foreground-muted mt-2 max-w-[28ch] leading-relaxed">
+              <HexWatermark />
+              <span
+                className="grid h-[88px] w-[88px] place-items-center rounded-[24px]"
+                style={{
+                  background: AURO_ICON_BG,
+                  boxShadow: '0 10px 24px -10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.14)',
+                }}
+              >
+                <img src={iso} alt="balanx" className="h-[54px] w-auto" />
+              </span>
+              <h1 className="mt-6 text-[28px] font-semibold leading-[1.1] tracking-[-0.03em] text-white">
+                Tudo <span className="font-serif italic font-normal tracking-normal">pronto</span>{primeiroNome ? `, ${primeiroNome}` : ''}!
+              </h1>
+              <p className="mt-2 max-w-[30ch] text-[14px] leading-relaxed text-white/75">
               {tipo === 'agencia'
                 ? 'Sua conta de agência está configurada. Gestão financeira, do primeiro dia.'
                 : 'Sua conta Pessoal está configurada. Seu dinheiro, organizado desde o primeiro dia.'}
-            </p>
+              </p>
+            </div>
 
             <div className="flex-1" />
-            <Button className="w-full h-12 rounded-2xl font-semibold text-[15px]" onClick={finish}>
+            <Button className="mt-6 h-12 w-full rounded-full text-[15px] font-semibold" onClick={finish}>
               Ir para o início
             </Button>
           </div>
@@ -245,17 +255,17 @@ function ChoiceCard({
     <button
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-3 rounded-[18px] border p-4 text-left mb-2.5 transition-colors',
-        selected ? 'border-primary bg-primary/10 ring-1 ring-primary' : 'border-border bg-surface hover:border-border',
+        'mb-2.5 flex w-full items-center gap-3 rounded-[20px] border bg-surface p-4 text-left transition-colors',
+        selected ? 'border-foreground ring-1 ring-foreground' : 'border-border hover:bg-surface-2',
       )}
     >
-      <span className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-[14px]', iconClass)}>{icon}</span>
+      <span className={cn('grid h-11 w-11 shrink-0 place-items-center rounded-[13px]', iconClass)}>{icon}</span>
       <span className="flex-1 min-w-0">
         <span className="block text-[15px] font-semibold text-foreground">{title}</span>
-        <span className="block text-[11.5px] text-foreground-muted mt-0.5 leading-snug">{desc}</span>
+        <span className="mt-0.5 block text-[13px] leading-snug text-foreground-muted">{desc}</span>
       </span>
       {selected && (
-        <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-foreground text-background">
           <CheckIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
         </span>
       )}
@@ -269,11 +279,11 @@ function StepRow({
   state: 'done' | 'now' | 'next'; n?: number; title: string; desc: string; chevron?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3 py-3.5 border-b border-border/50 last:border-b-0">
+    <div className="flex items-start gap-3 border-b border-border py-3.5 last:border-b-0">
       <span
         className={cn(
-          'grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full text-[11.5px] font-semibold',
-          state === 'done' && 'bg-[hsl(var(--success))] text-[#04120b]',
+          'grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-semibold',
+          state === 'done' && 'bg-success-bg text-success-fg',
           state === 'now' && 'bg-primary text-primary-foreground',
           state === 'next' && 'bg-surface-2 text-foreground-muted',
         )}
@@ -281,10 +291,24 @@ function StepRow({
         {state === 'done' ? <CheckIcon className="h-3.5 w-3.5" strokeWidth={2.5} /> : n}
       </span>
       <div className="flex-1 min-w-0">
-        <div className={cn('text-sm font-semibold', state === 'now' ? 'text-primary' : 'text-foreground')}>{title}</div>
-        <div className="text-[11.5px] text-foreground-muted mt-0.5">{desc}</div>
+        <div className={cn('text-[14px] font-semibold', state === 'now' ? 'text-primary' : 'text-foreground')}>{title}</div>
+        <div className="mt-0.5 text-[12px] text-foreground-muted">{desc}</div>
       </div>
-      {chevron && <ChevronRightIcon className="h-4 w-4 text-foreground-subtle shrink-0 mt-1" />}
+      {chevron && <ChevronRightIcon className="mt-1.5 h-4 w-4 shrink-0 text-foreground-muted" />}
+    </div>
+  );
+}
+
+/** Barra de progresso do onboarding (segmentos em pílula). */
+function StepProgress({ atual, total = 4 }: { atual: number; total?: number }) {
+  return (
+    <div className="mb-5 flex items-center gap-3" aria-label={`Passo ${atual} de ${total}`}>
+      <div className="flex flex-1 gap-1.5">
+        {Array.from({ length: total }, (_, i) => (
+          <span key={i} className={cn('h-1.5 flex-1 rounded-full', i < atual ? 'bg-primary' : 'bg-surface-3')} />
+        ))}
+      </div>
+      <span className="whitespace-nowrap text-[12px] font-semibold text-foreground-muted">{atual} de {total}</span>
     </div>
   );
 }

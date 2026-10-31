@@ -85,9 +85,9 @@ export function LinkedAuxiliaryList({ origemId, origemTipo, refreshKey = 0, onCh
         {rows.map(row => (
           <div key={`${row.table}-${row.id}`} className="flex items-center gap-2 rounded bg-card px-2.5 py-1.5 text-sm">
             {row.tipo === 'entrada' ? (
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+              <TrendingUp className="h-3.5 w-3.5 text-[hsl(var(--success-fg))] shrink-0" />
             ) : (
-              <TrendingDown className="h-3.5 w-3.5 text-red-500 shrink-0" />
+              <TrendingDown className="h-3.5 w-3.5 text-[hsl(var(--danger-fg))] shrink-0" />
             )}
             <span className="flex-1 truncate">{row.descricao}</span>
             <span className="text-xs text-muted-foreground tabular-nums">
@@ -95,7 +95,7 @@ export function LinkedAuxiliaryList({ origemId, origemTipo, refreshKey = 0, onCh
             </span>
             <span className={cn(
               'text-sm font-medium tabular-nums shrink-0',
-              row.tipo === 'entrada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+              row.tipo === 'entrada' ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]'
             )}>
               {row.tipo === 'entrada' ? '+' : '-'}{formatCurrency(row.valor)}
             </span>

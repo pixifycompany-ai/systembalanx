@@ -155,34 +155,51 @@ export function SwipeableTransactionCard({
   const leftReady = leftPillWidth >= THRESHOLD;
   const rightReady = rightPillWidth >= THRESHOLD;
 
+  const isEntrada = t.tipo === 'entrada';
+  const iconTint = isTransfer
+    ? 'bg-info-bg text-info-fg'
+    : isEntrada ? 'bg-success-bg text-success-fg' : 'bg-danger-bg text-danger-fg';
+  const valueTint = isTransfer
+    ? 'text-foreground-muted'
+    : isEntrada ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]';
+  const TipoIcon = isTransfer ? ArrowLeftRight : isEntrada ? ArrowUp : ArrowDown;
+  const valorLabel = `${isTransfer ? '' : (isEntrada ? '+' : '−')}${formatCurrency(t.valor)}`;
+  const parte = !isTransfer ? (t.cliente?.nome || t.fornecedor) : undefined;
+  const metaTexto = [t.categoria?.nome, contaNome].filter(Boolean).join(' · ');
+  // Linha pequena sob o valor: em aberto mostra o vencimento (tinta de alerta); quitado mostra o status.
+  const statusTexto = isSettled ? statusLabel(t) : (metaVencimento(t.data_vencimento) || statusLabel(t));
+  const statusTint = isSettled
+    ? 'text-foreground-muted'
+    : t.status === 'atrasado' ? 'text-[hsl(var(--danger-fg))]' : 'text-[hsl(var(--warning-fg))]';
+
   return (
-    <div className="relative overflow-hidden rounded-2xl">
-      {/* Left action pill - confirm */}
+    <div className="group relative overflow-hidden">
+      {/* Ação à esquerda — dar baixa */}
       <div
         className={cn(
-          "absolute left-0 top-0 bottom-0 flex items-center justify-center rounded-lg transition-colors overflow-hidden",
-          leftReady ? "bg-emerald-500" : "bg-emerald-500/70"
+          'absolute inset-y-0 left-0 flex items-center justify-center overflow-hidden transition-colors',
+          leftReady ? 'bg-success text-background' : 'bg-success-bg text-success-fg',
         )}
         style={{ width: leftPillWidth }}
       >
-        {leftPillWidth > 24 && <Check className="h-5 w-5 text-white shrink-0" />}
+        {leftPillWidth > 24 && <Check className="h-5 w-5 shrink-0" strokeWidth={2.4} />}
       </div>
 
-      {/* Right action pill - delete */}
+      {/* Ação à direita — excluir */}
       <div
         className={cn(
-          "absolute right-0 top-0 bottom-0 flex items-center justify-center rounded-lg transition-colors overflow-hidden",
-          rightReady ? "bg-red-500" : "bg-red-500/70"
+          'absolute inset-y-0 right-0 flex items-center justify-center overflow-hidden transition-colors',
+          rightReady ? 'bg-danger text-background' : 'bg-danger-bg text-danger-fg',
         )}
         style={{ width: rightPillWidth }}
       >
-        {rightPillWidth > 24 && <Trash2 className="h-5 w-5 text-white shrink-0" />}
+        {rightPillWidth > 24 && <Trash2 className="h-5 w-5 shrink-0" />}
       </div>
 
-      {/* Card content */}
+      {/* Linha do lançamento (desliza) */}
       <div
         ref={cardRef}
-        className="auro-card relative flex items-center gap-3 p-3.5 bg-surface border border-border rounded-2xl transition-transform duration-150 ease-out active:bg-accent/30"
+        className="relative bg-surface px-3.5 transition-transform duration-150 ease-out active:bg-surface-2"
         style={{ transform: `translateX(${offsetX}px)` }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -190,43 +207,31 @@ export function SwipeableTransactionCard({
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       >
-        {/* Avatar quadrado (igual HTML: seta verde/vermelha) */}
-        <div className={cn(
-          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl",
-          isTransfer ? "bg-primary/15 text-primary"
-            : t.tipo === 'entrada' ? "bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]"
-              : "bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]",
-        )}>
-          {isTransfer ? <ArrowLeftRight className="h-[18px] w-[18px]" strokeWidth={2.2} /> : t.tipo === 'entrada' ? <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.4} /> : <ArrowDown className="h-[18px] w-[18px]" strokeWidth={2.4} />}
-        </div>
+        <div className="flex items-center gap-3 border-b border-border py-3 group-last:border-b-0">
+          <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-[13px]', iconTint)}>
+            <TipoIcon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+          </span>
 
-        {/* Descrição + conta · status */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate text-foreground uppercase">{t.descricao}</p>
-          {!isTransfer && (t.cliente?.nome || t.fornecedor) && (
-            <span className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-border/60 bg-muted/50 px-2 py-[1px] text-[10.5px] font-medium text-foreground-muted">
-              {t.cliente?.nome ? <User className="h-2.5 w-2.5 shrink-0" /> : <Store className="h-2.5 w-2.5 shrink-0" />}
-              <span className="truncate">{t.cliente?.nome || t.fornecedor}</span>
-            </span>
-          )}
-          <p className="text-[11px] text-foreground-muted truncate mt-0.5 uppercase">
-            {[contaNome, statusLabel(t)].filter(Boolean).join(' · ')}
-          </p>
-        </div>
-
-        {/* Valor + meta */}
-        <div className="text-right shrink-0">
-          <div className={cn(
-            "text-[15px] font-semibold tabular-nums",
-            isTransfer ? 'text-foreground-muted'
-              : t.tipo === 'entrada' ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]',
-          )}>
-            {isTransfer ? '' : (t.tipo === 'entrada' ? '+' : '−')}{formatCurrency(t.valor)}
+          <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
+            <p className="truncate text-[14px] font-semibold leading-tight text-foreground">{t.descricao}</p>
+            <div className="flex min-w-0 items-center gap-1.5">
+              {parte && (
+                <span className="inline-flex min-w-0 max-w-[60%] shrink-0 items-center gap-1 rounded-full bg-surface-2 px-2 py-[1px] text-[10.5px] font-medium text-foreground-muted">
+                  {t.cliente?.nome ? <User className="h-2.5 w-2.5 shrink-0" /> : <Store className="h-2.5 w-2.5 shrink-0" />}
+                  <span className="truncate">{parte}</span>
+                </span>
+              )}
+              {metaTexto && (
+                <span className="min-w-0 truncate text-[12px] text-foreground-muted">{metaTexto}</span>
+              )}
+            </div>
           </div>
-          <div className="text-[11px] text-foreground-muted mt-0.5 tabular-nums">
-            {isSettled
-              ? (typeof saldoCorrente === 'number' ? `saldo ${formatCurrency(saldoCorrente)}` : '')
-              : metaVencimento(t.data_vencimento)}
+
+          <div className="flex shrink-0 flex-col items-end gap-[3px]">
+            <span className={cn('whitespace-nowrap font-heading text-[15px] font-semibold tabular-nums tracking-[-0.02em]', valueTint)}>
+              {valorLabel}
+            </span>
+            <span className={cn('whitespace-nowrap text-[11px] font-semibold', statusTint)}>{statusTexto}</span>
           </div>
         </div>
       </div>
@@ -234,32 +239,25 @@ export function SwipeableTransactionCard({
       {/* Menu de contexto (long-press / right-click) — portal p/ escapar do overflow/transform */}
       {menuOpen && createPortal(
         <div className="fixed inset-0 z-[70]" onClick={() => setMenuOpen(false)}>
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-black/50" />
           <div
-            className="absolute inset-x-3 bottom-4 overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl"
+            className="absolute inset-x-3 bottom-4 overflow-hidden rounded-[20px] border border-border bg-surface shadow-2xl"
             onClick={(e) => e.stopPropagation()}
             style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
           >
             {/* Preview do lançamento */}
-            <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3">
-              <div className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                isTransfer ? 'bg-primary/15 text-primary'
-                  : t.tipo === 'entrada' ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]'
-                    : 'bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]',
-              )}>
-                {isTransfer ? <ArrowLeftRight className="h-[18px] w-[18px]" strokeWidth={2.2} /> : t.tipo === 'entrada' ? <ArrowUp className="h-[18px] w-[18px]" strokeWidth={2.4} /> : <ArrowDown className="h-[18px] w-[18px]" strokeWidth={2.4} />}
-              </div>
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+              <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-[13px]', iconTint)}>
+                <TipoIcon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+              </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-foreground uppercase">{t.descricao}</p>
-                <p className="truncate text-[11px] text-foreground-muted uppercase">{[contaNome, statusLabel(t)].filter(Boolean).join(' · ')}</p>
+                <p className="truncate text-sm font-semibold text-foreground">{t.descricao}</p>
+                <p className="truncate text-[12px] text-foreground-muted">
+                  {[contaNome, statusLabel(t), typeof saldoCorrente === 'number' && isSettled ? `saldo ${formatCurrency(saldoCorrente)}` : null].filter(Boolean).join(' · ')}
+                </p>
               </div>
-              <span className={cn(
-                'text-sm font-semibold tabular-nums',
-                isTransfer ? 'text-foreground-muted'
-                  : t.tipo === 'entrada' ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--danger))]',
-              )}>
-                {isTransfer ? '' : (t.tipo === 'entrada' ? '+' : '−')}{formatCurrency(t.valor)}
+              <span className={cn('whitespace-nowrap font-heading text-[15px] font-semibold tabular-nums tracking-[-0.02em]', valueTint)}>
+                {valorLabel}
               </span>
             </div>
             {/* Ações */}
@@ -267,11 +265,11 @@ export function SwipeableTransactionCard({
               <EyeIcon className="h-5 w-5 text-foreground-muted" /> Ver detalhe
             </button>
             {onDuplicate && !isTransfer && (
-              <button onClick={() => { setMenuOpen(false); onDuplicate(t); }} className="flex w-full items-center gap-3 border-t border-border/60 px-4 py-3.5 text-left text-sm font-medium text-foreground active:bg-foreground/[0.04]">
+              <button onClick={() => { setMenuOpen(false); onDuplicate(t); }} className="flex w-full items-center gap-3 border-t border-border px-4 py-3.5 text-left text-sm font-medium text-foreground active:bg-foreground/[0.04]">
                 <DocumentDuplicateIcon className="h-5 w-5 text-foreground-muted" /> Duplicar
               </button>
             )}
-            <button onClick={() => { setMenuOpen(false); onDelete(t); }} className="flex w-full items-center gap-3 border-t border-border/60 px-4 py-3.5 text-left text-sm font-semibold text-[hsl(var(--danger))] active:bg-foreground/[0.04]">
+            <button onClick={() => { setMenuOpen(false); onDelete(t); }} className="flex w-full items-center gap-3 border-t border-border px-4 py-3.5 text-left text-sm font-semibold text-[hsl(var(--danger-fg))] active:bg-foreground/[0.04]">
               <TrashIcon className="h-5 w-5" /> Excluir
             </button>
           </div>
