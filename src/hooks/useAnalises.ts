@@ -297,7 +297,7 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
   const clientProfitability: ClientProfitability[] = [];
   
   // Separate direct (linked) expenses from unlinked expenses
-  const despesasPagas = despesas.filter(d => d.status === 'pago');
+  const despesasPagas = despesas.filter(d => d.status === 'pago' && !d.fatura_id);
   const despesasDiretas: Record<string, number> = {}; // cliente_id -> total
   let despesasNaoVinculadas = 0;
 
@@ -400,7 +400,7 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
   let despesaMesAtual = despesas
     .filter(d => {
       const data = d.data_pagamento ? parseISO(d.data_pagamento) : null;
-      return d.status === 'pago' && data && data >= currentMonthStart && data <= currentMonthEnd;
+      return d.status === 'pago' && !d.fatura_id && data && data >= currentMonthStart && data <= currentMonthEnd;
     })
     .reduce((sum, d) => sum + Number(d.valor), 0);
 
@@ -416,7 +416,7 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
     despesaMesAtual = despesas
       .filter(d => {
         const data = d.data_pagamento ? parseISO(d.data_pagamento) : null;
-        return d.status === 'pago' && data && data >= prevMonthStart && data <= prevMonthEnd;
+        return d.status === 'pago' && !d.fatura_id && data && data >= prevMonthStart && data <= prevMonthEnd;
       })
       .reduce((sum, d) => sum + Number(d.valor), 0);
   }
@@ -461,7 +461,7 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
   // 5. Liquidity - days of cash (20%)
   const caixaTotal = contas.reduce((sum, c) => sum + Number(c.saldo_inicial || 0), 0) +
     receitas.filter(r => r.status === 'recebido').reduce((sum, r) => sum + Number(r.valor), 0) -
-    despesas.filter(d => d.status === 'pago').reduce((sum, d) => sum + Number(d.valor), 0);
+    despesas.filter(d => d.status === 'pago' && !d.fatura_id).reduce((sum, d) => sum + Number(d.valor), 0);
   
   const despesaMediaDiaria = despesaMesAtual / 30;
   const diasDeCaixa = despesaMediaDiaria > 0 ? caixaTotal / despesaMediaDiaria : 90;

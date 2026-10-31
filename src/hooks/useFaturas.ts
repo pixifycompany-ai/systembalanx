@@ -43,6 +43,37 @@ export interface FaturaPagamentoDB {
 const INVALIDATE = ['contas', 'cartao-faturas', 'fluxo-caixa', 'dashboard', 'calendario'];
 
 /**
+ * Os itens do cartão (despesas com fatura_id) espelham o status da fatura:
+ * fatura paga => itens "pago" (data = último pagamento); senão => "pendente".
+ * Não mexe em saldo: saldos/caixa ignoram itens de cartão (o que sai do banco
+ * é o '[pagamento-fatura]').
+ */
+async function syncItensFatura(fatura: FaturaDB): Promise<void> {
+  if (fatura.status === 'paga') {
+    const { data: pg } = await supabase
+      .from('cartao_fatura_pagamentos' as any)
+      .select('data_pagamento')
+      .eq('fatura_id', fatura.id)
+      .order('data_pagamento', { ascending: false })
+      .limit(1);
+    const dataPg = (pg as unknown as { data_pagamento: string }[] | null)?.[0]?.data_pagamento || fatura.data_vencimento;
+    const { error } = await supabase
+      .from('despesas')
+      .update({ status: 'pago', data_pagamento: dataPg })
+      .eq('fatura_id', fatura.id)
+      .neq('status', 'pago');
+    if (error) console.error('syncItensFatura(pago)', error);
+  } else {
+    const { error } = await supabase
+      .from('despesas')
+      .update({ status: 'pendente', data_pagamento: null })
+      .eq('fatura_id', fatura.id)
+      .neq('status', 'pendente');
+    if (error) console.error('syncItensFatura(pendente)', error);
+  }
+}
+
+/**
  * Garante que a despesa-fatura (despesa "a pagar" do mês) exista e esteja
  * com o valor/data corretos. Retorna o id da despesa.
  */
@@ -51,6 +82,7 @@ async function syncDespesaFatura(
   cartao: ContaDB,
   userId: string
 ): Promise<string | null> {
+  await syncItensFatura(fatura);
   const restante = Number(fatura.valor_total) - Number(fatura.valor_pago);
   const descricao = `Fatura ${cartao.nome} – ${rotuloCompetencia(fatura.competencia)}`;
   const status: 'pendente' | 'pago' = restante <= 0 ? 'pago' : 'pendente';

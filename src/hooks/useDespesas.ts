@@ -80,6 +80,8 @@ export function useDespesas() {
       .filter(item => {
         if (item.status !== 'pendente') return false;
         if (!item.data_vencimento) return false;
+        // Itens de cartão seguem o status da fatura (quem atrasa é a fatura).
+        if ((item as { fatura_id?: string | null }).fatura_id) return false;
         const vencimento = startOfDay(parseISO(item.data_vencimento));
         return isBefore(vencimento, today);
       })

@@ -99,7 +99,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
       .reduce((sum, r) => sum + Number(r.valor), 0);
     
     const despesasConta = despesas
-      .filter(d => d.conta_id === conta.id && d.status === 'pago')
+      .filter(d => d.conta_id === conta.id && d.status === 'pago' && d.fatura_id == null)
       .reduce((sum, d) => sum + Number(d.valor), 0);
     
     const transferenciasEnviadas = transferencias
@@ -247,7 +247,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
         .filter(r => r.conta_id === conta.id && r.status === 'recebido')
         .reduce((sum, r) => sum + Number(r.valor), 0);
       const despesasConta = despesas
-        .filter(d => d.conta_id === conta.id && d.status === 'pago')
+        .filter(d => d.conta_id === conta.id && d.status === 'pago' && d.fatura_id == null)
         .reduce((sum, d) => sum + Number(d.valor), 0);
       const transferenciasEnviadas = transferencias
         .filter(t => t.conta_origem_id === conta.id)
@@ -285,7 +285,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
         .filter(r => r.conta_id === conta.id && r.status === 'recebido' && r.data_recebimento && parseISO(r.data_recebimento) <= monthEnd)
         .reduce((s, r) => s + Number(r.valor), 0);
       const despConta = despesas
-        .filter(d => d.conta_id === conta.id && d.status === 'pago' && d.data_pagamento && parseISO(d.data_pagamento) <= monthEnd)
+        .filter(d => d.conta_id === conta.id && d.status === 'pago' && d.fatura_id == null && d.data_pagamento && parseISO(d.data_pagamento) <= monthEnd)
         .reduce((s, d) => s + Number(d.valor), 0);
       return total + Number(conta.saldo_inicial) + recConta - despConta;
     }, 0);
@@ -311,7 +311,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
       const despesaMes = despesas
         .filter(d => {
           const dp = d.data_pagamento ? parseISO(d.data_pagamento) : null;
-          return d.status === 'pago' && dp && dp >= monthStart && dp <= monthEnd;
+          return d.status === 'pago' && d.fatura_id == null && dp && dp >= monthStart && dp <= monthEnd;
         })
         .reduce((sum, d) => sum + Number(d.valor), 0);
 

@@ -164,8 +164,8 @@ serve(async (req) => {
     const receitasPendentes = receitas.filter(r => r.status === "pendente");
     const receitasAtrasadas = receitas.filter(r => r.status === "atrasado");
     // Status (caixa / contas a pagar): itens do cartão ficam de fora — quem
-    // representa a fatura é a despesa-sombra '[fatura]' (saldo em aberto). Os
-    // itens nunca viram "pago", então contá-los aqui dobraria o "a pagar/atrasado".
+    // representa a fatura é a despesa-sombra '[fatura]' (saldo em aberto) e o
+    // pagamento '[pagamento-fatura]'. Contar os itens aqui dobraria os valores.
     const despesasCaixa = despesas.filter(d => !d.fatura_id);
     const despesasPagas = despesasCaixa.filter(d => d.status === "pago");
     const despesasPendentes = despesasCaixa.filter(d => d.status === "pendente");
@@ -744,7 +744,7 @@ ${contexto}`;
       const end = addDaysISO(hojeISO, Math.max(1, Math.floor(dias || 30)));
       const [rec, desp] = await Promise.all([
         safe<any>(supabase.from("receitas").select("valor,status,data_vencimento").gte("data_vencimento", start).lte("data_vencimento", end).neq("status", "recebido")),
-        safe<any>(supabase.from("despesas").select("valor,status,data_vencimento").gte("data_vencimento", start).lte("data_vencimento", end).neq("status", "pago")),
+        safe<any>(supabase.from("despesas").select("valor,status,data_vencimento").gte("data_vencimento", start).lte("data_vencimento", end).neq("status", "pago").is("fatura_id", null)), // fatura do cartão = sombra (sem itens, senão dobra)
       ]);
       const aReceber = rec.reduce((s, r) => s + Number(r.valor || 0), 0);
       const aPagar = desp.reduce((s, d) => s + Number(d.valor || 0), 0);
@@ -760,7 +760,7 @@ ${contexto}`;
       const wantDesp = tipo !== "receita";
       const [rec, desp] = await Promise.all([
         wantRec ? safe<any>(supabase.from("receitas").select("descricao,valor,status,data_vencimento,cliente:clientes(nome)").gte("data_vencimento", inicio).lte("data_vencimento", fim)) : Promise.resolve([]),
-        wantDesp ? safe<any>(supabase.from("despesas").select("descricao,valor,status,data_vencimento,categoria:categorias(nome)").gte("data_vencimento", inicio).lte("data_vencimento", fim)) : Promise.resolve([]),
+        wantDesp ? safe<any>(supabase.from("despesas").select("descricao,valor,status,data_vencimento,categoria:categorias(nome)").gte("data_vencimento", inicio).lte("data_vencimento", fim).is("fatura_id", null)) : Promise.resolve([]), // cartão aparece como a fatura (sombra), não item a item
       ]);
       let itens = [
         ...rec.map(r => ({ data: r.data_vencimento, tipo: "receita", descricao: r.descricao || r.cliente?.nome || "Receita", valor: Number(r.valor || 0), status: r.status, quem: r.cliente?.nome || null })),
