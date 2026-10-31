@@ -1,15 +1,14 @@
 import { useState, useMemo, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarIcon, Printer, X } from 'lucide-react';
+import { CalendarIcon, Printer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TransacaoUnificada } from '@/types/fluxoCaixa';
 
@@ -133,22 +132,13 @@ export function FluxoCaixaReport({ open, onOpenChange, transacoes, contas }: Flu
                 }
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-4" align="start">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs">De</Label>
-                  <Calendar mode="single" selected={dateStart} onSelect={setDateStart} className="pointer-events-auto rounded border" />
-                </div>
-                <div>
-                  <Label className="text-xs">Até</Label>
-                  <Calendar mode="single" selected={dateEnd} onSelect={setDateEnd} className="pointer-events-auto rounded border" />
-                </div>
-              </div>
-              {(dateStart || dateEnd) && (
-                <Button variant="ghost" size="sm" className="mt-2" onClick={() => { setDateStart(undefined); setDateEnd(undefined); }}>
-                  <X className="h-3 w-3 mr-1" /> Limpar
-                </Button>
-              )}
+            <PopoverContent className="w-[820px] max-w-[calc(100vw-2rem)] p-5" align="start">
+              <DateRangePicker
+                from={dateStart}
+                to={dateEnd}
+                onApply={(de, ate) => { setDateStart(de); setDateEnd(ate); }}
+                onClear={() => { setDateStart(undefined); setDateEnd(undefined); }}
+              />
             </PopoverContent>
           </Popover>
         </div>

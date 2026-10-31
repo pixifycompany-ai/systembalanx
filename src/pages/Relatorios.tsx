@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
+import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import { DRETable } from '@/components/relatorios/DRETable';
 import { ReceitasDespesasTab } from '@/components/relatorios/ReceitasDespesasTab';
 import { FluxoCaixaTab } from '@/components/relatorios/FluxoCaixaTab';
@@ -21,8 +21,6 @@ import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
 import { cn } from '@/lib/utils';
 
-const toDate = (s: string) => (s ? new Date(s + 'T00:00:00') : undefined);
-const toInput = (d?: Date) => (d ? d.toISOString().slice(0, 10) : '');
 
 const PERIODOS: { value: PeriodFilter; label: string }[] = [
   { value: 'month', label: 'Este mês' },
@@ -107,28 +105,13 @@ export default function Relatorios() {
       />
 
       {period === 'custom' && (
-        <div className="-mt-1 mb-5 rounded-[20px] border border-border bg-surface p-3.5 md:mb-6 md:inline-flex md:flex-col md:p-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Intervalo personalizado</p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              type="date" lang="pt-BR" value={toInput(customStart)}
-              max={toInput(customEnd) || undefined}
-              onChange={(e) => setCustomStart(toDate(e.target.value))}
-              className="h-10 w-[150px] flex-1 md:flex-none"
-              aria-label="Data inicial"
-            />
-            <span className="text-[13px] text-foreground-muted">até</span>
-            <Input
-              type="date" lang="pt-BR" value={toInput(customEnd)}
-              min={toInput(customStart) || undefined}
-              onChange={(e) => setCustomEnd(toDate(e.target.value))}
-              className="h-10 w-[150px] flex-1 md:flex-none"
-              aria-label="Data final"
-            />
-          </div>
-          {(!customStart || !customEnd) && (
-            <p className="mt-2 text-xs text-foreground-muted">Selecione a data inicial e final para aplicar o período personalizado.</p>
-          )}
+        <div className="-mt-1 mb-5 rounded-[20px] border border-border bg-surface p-3.5 md:mb-6 md:inline-block md:p-5">
+          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Intervalo personalizado</p>
+          <DateRangePicker
+            from={customStart}
+            to={customEnd}
+            onApply={(de, ate) => { setCustomStart(de); setCustomEnd(ate); }}
+          />
         </div>
       )}
 

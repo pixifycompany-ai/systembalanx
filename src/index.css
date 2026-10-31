@@ -546,6 +546,10 @@
   .metric-card-info { border-color: hsl(var(--primary) / 0.3); background: hsl(var(--primary) / 0.07); }
 }
 
+/* Itálico serifado (Instrument Serif) inclina além da caixa da letra: folga à
+   direita pra não cortar a última letra quando o pai tem overflow (truncate). */
+.font-serif.italic { padding-right: 0.14em; }
+
 /* ===== Sidebar desktop — item de navegação (estado ativo AURO) ===== */
 .sb-nav-item[data-active="true"] {
   /* Item ativo = pílula navy (claro) / pílula clara com texto navy (escuro) */

@@ -4,9 +4,16 @@ import { DayPicker } from "react-day-picker";
 import { ptBR } from "date-fns/locale";
 
 import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
+
+// Faixa do intervalo (usada pelo DateRangePicker via modifiers rp-*): a célula
+// pinta o fundo; meia faixa nas pontas pra emendar no círculo navy.
+const RANGE_CELL =
+  "[&:has(.rp-mid)]:bg-surface-2 " +
+  "[&:has(.rp-band-start)]:bg-[linear-gradient(to_right,transparent_50%,hsl(var(--surface-2))_50%)] " +
+  "[&:has(.rp-band-end)]:bg-[linear-gradient(to_left,transparent_50%,hsl(var(--surface-2))_50%)] " +
+  "first:[&:has(.rp-mid)]:rounded-l-full last:[&:has(.rp-mid)]:rounded-r-full";
 
 function Calendar({ className, classNames, showOutsideDays = true, locale = ptBR, ...props }: CalendarProps) {
   return (
@@ -15,31 +22,31 @@ function Calendar({ className, classNames, showOutsideDays = true, locale = ptBR
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
       classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
-        nav: "space-x-1 flex items-center",
-        nav_button: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
-        ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
+        months: "flex flex-col gap-6 sm:flex-row",
+        month: "space-y-3",
+        caption: "relative flex h-9 items-center justify-center",
+        caption_label: "text-[15px] font-semibold capitalize text-foreground",
+        nav: "flex items-center",
+        nav_button:
+          "inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-surface-2 disabled:opacity-40",
+        nav_button_previous: "absolute left-0",
+        nav_button_next: "absolute right-0",
+        table: "w-full border-collapse",
         head_row: "flex",
-        head_cell: "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-        row: "flex w-full mt-2",
-        cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-        day: cn(buttonVariants({ variant: "ghost" }), "h-9 w-9 p-0 font-normal aria-selected:opacity-100"),
+        head_cell: "w-10 text-[12px] font-medium capitalize text-foreground-muted",
+        row: "mt-1 flex w-full",
+        cell: cn("relative h-10 w-10 p-0 text-center text-sm focus-within:z-20", RANGE_CELL),
+        day: "relative inline-flex h-10 w-10 items-center justify-center rounded-full p-0 text-sm font-medium text-foreground transition-colors hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-selected:opacity-100",
+        day_range_start: "day-range-start",
         day_range_end: "day-range-end",
-        day_selected:
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        day_today: "bg-accent text-accent-foreground",
-        day_outside:
-          "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-        day_disabled: "text-muted-foreground opacity-50",
-        day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+        // Selecionado = navy (claro) / claro com texto navy (escuro), igual aos chips
+        day_selected: "bg-foreground text-background hover:bg-foreground hover:text-background focus:bg-foreground focus:text-background",
+        // Hoje: pontinho azul embaixo do número
+        day_today:
+          "font-semibold after:absolute after:bottom-1.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-primary",
+        day_outside: "day-outside text-foreground-subtle opacity-60",
+        day_disabled: "text-foreground-subtle opacity-40",
+        day_range_middle: "aria-selected:bg-surface-2 aria-selected:text-foreground",
         day_hidden: "invisible",
         ...classNames,
       }}

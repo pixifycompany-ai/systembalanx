@@ -20,7 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { exportFluxoCaixa } from '@/utils/exportCSV';
 import { useFluxoCaixa, type ReceitaFormData, type DespesaFormData } from '@/hooks/useFluxoCaixa';
@@ -1219,17 +1219,11 @@ export default function FluxoCaixa() {
                       className="grid h-9 w-9 place-items-center rounded-full bg-background text-foreground"><ChevronRight className="h-4 w-4" /></button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <input type="date" aria-label="Data inicial"
-                      value={dateRangeStart ? format(dateRangeStart, 'yyyy-MM-dd') : ''}
-                      onChange={(e) => setDateRangeStart(e.target.value ? parseISO(e.target.value) : undefined)}
-                      className="h-10 flex-1 rounded-full border border-border bg-surface px-3.5 text-sm text-foreground dark:[color-scheme:dark]" />
-                    <span className="text-xs text-foreground-muted">até</span>
-                    <input type="date" aria-label="Data final"
-                      value={dateRangeEnd ? format(dateRangeEnd, 'yyyy-MM-dd') : ''}
-                      onChange={(e) => setDateRangeEnd(e.target.value ? parseISO(e.target.value) : undefined)}
-                      className="h-10 flex-1 rounded-full border border-border bg-surface px-3.5 text-sm text-foreground dark:[color-scheme:dark]" />
-                  </div>
+                  <DateRangePicker
+                    from={dateRangeStart}
+                    to={dateRangeEnd}
+                    onApply={(de, ate) => { setDateRangeStart(de); setDateRangeEnd(ate); }}
+                  />
                 )}
               </div>
               <div>
@@ -1326,7 +1320,7 @@ export default function FluxoCaixa() {
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[640px] max-w-[calc(100vw-2rem)] space-y-5 p-5">
+            <PopoverContent align="end" className="w-[820px] max-w-[calc(100vw-2rem)] space-y-5 p-5">
               <div className="space-y-2">
                 <p className={SECTION_LABEL}>Status</p>
                 <div className="flex flex-wrap gap-1.5">
@@ -1386,20 +1380,12 @@ export default function FluxoCaixa() {
               </div>
               <div className="space-y-2">
                 <p className={SECTION_LABEL}>Período personalizado</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-foreground-muted">De</Label>
-                    <Calendar mode="single" selected={dateRangeStart} onSelect={setDateRangeStart} className="pointer-events-auto rounded-2xl border border-border" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-foreground-muted">Até</Label>
-                    <Calendar mode="single" selected={dateRangeEnd} onSelect={setDateRangeEnd} className="pointer-events-auto rounded-2xl border border-border" />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-1">
-                  <Button variant="ghost" size="sm" onClick={() => { setDateRangeStart(undefined); setDateRangeEnd(undefined); setDateFilterMode('month'); }}>Limpar período</Button>
-                  <Button size="sm" disabled={!dateRangeStart || !dateRangeEnd} onClick={() => { if (dateRangeStart && dateRangeEnd) setDateFilterMode('range'); }}>Aplicar período</Button>
-                </div>
+                <DateRangePicker
+                  from={dateRangeStart}
+                  to={dateRangeEnd}
+                  onApply={(de, ate) => { setDateRangeStart(de); setDateRangeEnd(ate); setDateFilterMode('range'); }}
+                  onClear={() => { setDateRangeStart(undefined); setDateRangeEnd(undefined); setDateFilterMode('month'); }}
+                />
               </div>
             </PopoverContent>
           </Popover>
