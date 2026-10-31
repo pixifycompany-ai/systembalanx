@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useEffect as useEffectForAction } from 'react';
 
@@ -28,7 +28,7 @@ import { useClientes } from '@/hooks/useClientes';
 import { useContas, useAccountRunningBalance } from '@/hooks/useContas';
 import { useTransferencias, type TransferenciaFormData } from '@/hooks/useTransferencias';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
-import { TrendingUp, TrendingDown, ArrowLeftRight, ArrowRightLeft, Filter, Plus, Pencil, Trash2, Upload, CalendarIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarRange, X, FileText, BarChart3, Repeat, SlidersHorizontal, CheckCircle2, CreditCard } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowLeftRight, ArrowRightLeft, Filter, Plus, Pencil, Trash2, Upload, CalendarIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarRange, X, FileText, BarChart3, Repeat, SlidersHorizontal, CheckCircle2, CreditCard, User, Store } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FluxoCaixaKPIRow } from '@/components/fluxocaixa/FluxoCaixaKPIRow';
 import { ReceiptGenerator, type ReceiptData } from '@/components/shared/ReceiptGenerator';
@@ -50,6 +50,8 @@ import { TransactionDetailSheet } from '@/components/fluxocaixa/TransactionDetai
 import { toast } from 'sonner';
 
 // Sorting types
+const SEM_CATEGORIA = '__sem_categoria__';
+
 type SortColumn = 'data_vencimento' | 'tipo' | 'descricao' | 'origem' | 'valor' | 'status' | 'categoria' | 'conta';
 type SortDirection = 'asc' | 'desc';
 
@@ -134,6 +136,8 @@ export default function FluxoCaixa() {
   const [monthFilter, setMonthFilter] = useState<string>(currentMonth);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [contaFilter, setContaFilter] = useState<string>('all');
+  // Categorias selecionadas (ids). SEM_CATEGORIA = lançamentos sem categoria.
+  const [categoriaFilter, setCategoriaFilter] = useState<string[]>([]);
   const singleAccountId = contaFilter !== 'all' ? contaFilter : null;
   const { data: runningBalance } = useAccountRunningBalance(singleAccountId);
 
@@ -249,6 +253,29 @@ export default function FluxoCaixa() {
     ];
   }, [tipoFilter]);
 
+  // Categorias do filtro: só as do tipo da aba (Receitas/Despesas); em "Tudo", os dois grupos.
+  const categoriaGrupos = useMemo(() => {
+    const grupos: { titulo: string | null; itens: { id: string; nome: string; cor: string }[] }[] = [];
+    if (tipoFilter !== 'saida') grupos.push({ titulo: tipoFilter === 'todas' ? 'Receitas' : null, itens: categoriasReceita });
+    if (tipoFilter !== 'entrada') grupos.push({ titulo: tipoFilter === 'todas' ? 'Despesas' : null, itens: categoriasDespesa });
+    return grupos;
+  }, [tipoFilter, categoriasReceita, categoriasDespesa]);
+  const categoriaNomePorId = useMemo(() => {
+    const m = new Map<string, { nome: string; cor: string }>();
+    [...categoriasReceita, ...categoriasDespesa].forEach(c => m.set(c.id, { nome: c.nome, cor: c.cor }));
+    return m;
+  }, [categoriasReceita, categoriasDespesa]);
+  // Ao trocar de aba, descarta categorias que não pertencem a ela.
+  useEffect(() => {
+    const validas = new Set(categoriaGrupos.flatMap(g => g.itens.map(c => c.id)));
+    setCategoriaFilter(prev => {
+      const next = prev.filter(id => id === SEM_CATEGORIA || validas.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [categoriaGrupos]);
+  const toggleCategoria = (id: string) =>
+    setCategoriaFilter(prev => (prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]));
+
   // Filter transactions
   const filteredTransacoes = useMemo(() => {
     const filtered = transacoes.filter(t => {
@@ -264,6 +291,8 @@ export default function FluxoCaixa() {
         t.fornecedor?.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesConta = contaFilter === 'all' || t.conta_id === contaFilter;
+      const matchesCategoria =
+        categoriaFilter.length === 0 || categoriaFilter.includes(t.categoria_id || SEM_CATEGORIA);
       
       let matchesDate = true;
       if (dateFilterMode === 'month' && monthFilter !== 'all' && t.data_vencimento) {
@@ -276,7 +305,7 @@ export default function FluxoCaixa() {
         matchesDate = isWithinInterval(vencimento, { start: dateRangeStart, end: dateRangeEnd });
       }
       
-      return matchesTipo && matchesStatus && matchesSearch && matchesConta && matchesDate;
+      return matchesTipo && matchesStatus && matchesSearch && matchesConta && matchesCategoria && matchesDate;
     });
     
     return filtered.sort((a, b) => {
@@ -316,7 +345,7 @@ export default function FluxoCaixa() {
       
       return sortConfig.direction === 'asc' ? comparison : -comparison;
     });
-  }, [transacoes, tipoFilter, statusFilter, monthFilter, searchTerm, contaFilter, dateFilterMode, dateRangeStart, dateRangeEnd, sortConfig, contas]);
+  }, [transacoes, tipoFilter, statusFilter, monthFilter, searchTerm, contaFilter, categoriaFilter, dateFilterMode, dateRangeStart, dateRangeEnd, sortConfig, contas]);
 
   // Handle sort toggle
   const handleSort = (column: SortColumn) => {
@@ -354,7 +383,7 @@ export default function FluxoCaixa() {
     return { entradas, saidas, saldo: entradas - saidas };
   }, [filteredTransacoes]);
 
-  const hasFilters = statusFilter.length > 0 || monthFilter !== 'all' || searchTerm !== '' || contaFilter !== 'all' || (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd);
+  const hasFilters = statusFilter.length > 0 || categoriaFilter.length > 0 || monthFilter !== 'all' || searchTerm !== '' || contaFilter !== 'all' || (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd);
 
   // Multi-select
   const {
@@ -924,7 +953,7 @@ export default function FluxoCaixa() {
                   className="relative grid h-10 w-10 place-items-center rounded-xl border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground"
                 >
                   <SlidersHorizontal className="h-[18px] w-[18px]" />
-                  {(contaFilter !== 'all' || statusFilter.length > 0) && (
+                  {(contaFilter !== 'all' || statusFilter.length > 0 || categoriaFilter.length > 0) && (
                     <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[hsl(var(--warning))]" />
                   )}
                 </button>
@@ -1107,7 +1136,29 @@ export default function FluxoCaixa() {
                   })}
                 </div>
               </div>
-              <Button variant="ghost" className="w-full" onClick={() => { setContaFilter('all'); setStatusFilter([]); }}>Limpar filtros</Button>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-foreground-muted mb-2">Categoria</p>
+                <div className="max-h-[30vh] overflow-y-auto space-y-2">
+                  {categoriaGrupos.map((g) => (
+                    <div key={g.titulo ?? 'cats'}>
+                      {g.titulo && <p className="text-[10.5px] text-foreground-muted mb-1.5">{g.titulo}</p>}
+                      <div className="flex flex-wrap gap-2">
+                        {g.itens.map((c) => (
+                          <button key={c.id} onClick={() => toggleCategoria(c.id)}
+                            className={cn('h-8 px-3 rounded-full text-xs font-medium border inline-flex items-center gap-1.5', categoriaFilter.includes(c.id) ? 'bg-primary text-primary-foreground border-primary' : 'border-border/60')}>
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.cor }} />{c.nome}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={() => toggleCategoria(SEM_CATEGORIA)}
+                    className={cn('h-8 px-3 rounded-full text-xs font-medium border border-dashed', categoriaFilter.includes(SEM_CATEGORIA) ? 'bg-primary text-primary-foreground border-primary' : 'border-border/60')}>
+                    Sem categoria
+                  </button>
+                </div>
+              </div>
+              <Button variant="ghost" className="w-full" onClick={() => { setContaFilter('all'); setStatusFilter([]); setCategoriaFilter([]); }}>Limpar filtros</Button>
             </div>
           </SheetContent>
         </Sheet>
@@ -1179,9 +1230,9 @@ export default function FluxoCaixa() {
               <Button variant="outline" size="sm" className="h-9 gap-2 shrink-0">
                 <SlidersHorizontal className="h-4 w-4" />
                 Mais filtros
-                {(statusFilter.length > 0 || dateFilterMode === 'range') && (
+                {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range') && (
                   <span className="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-semibold text-background">
-                    {statusFilter.length + (dateFilterMode === 'range' ? 1 : 0)}
+                    {statusFilter.length + categoriaFilter.length + (dateFilterMode === 'range' ? 1 : 0)}
                   </span>
                 )}
               </Button>
@@ -1211,6 +1262,58 @@ export default function FluxoCaixa() {
                 </div>
               </div>
               <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Categoria</Label>
+                  {categoriaFilter.length > 0 && (
+                    <button type="button" onClick={() => setCategoriaFilter([])} className="text-[11px] text-muted-foreground hover:text-foreground">
+                      Limpar ({categoriaFilter.length})
+                    </button>
+                  )}
+                </div>
+                <div className="max-h-[168px] overflow-y-auto pr-1 space-y-2">
+                  {categoriaGrupos.map((g) => (
+                    <div key={g.titulo ?? 'cats'} className="space-y-1.5">
+                      {g.titulo && <div className="text-[10.5px] font-medium text-muted-foreground/80">{g.titulo}</div>}
+                      <div className="flex flex-wrap gap-1.5">
+                        {g.itens.map((c) => {
+                          const checked = categoriaFilter.includes(c.id);
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => toggleCategoria(c.id)}
+                              className={cn(
+                                'inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors',
+                                checked
+                                  ? 'border-foreground bg-foreground text-background'
+                                  : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground',
+                              )}
+                            >
+                              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.cor }} />
+                              {c.nome}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleCategoria(SEM_CATEGORIA)}
+                      className={cn(
+                        'inline-flex h-7 items-center rounded-full border border-dashed px-2.5 text-xs font-medium transition-colors',
+                        categoriaFilter.includes(SEM_CATEGORIA)
+                          ? 'border-foreground bg-foreground text-background'
+                          : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground',
+                      )}
+                    >
+                      Sem categoria
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-2">
                 <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Período personalizado</Label>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -1230,16 +1333,29 @@ export default function FluxoCaixa() {
             </PopoverContent>
           </Popover>
 
-          {(statusFilter.length > 0 || dateFilterMode === 'range') && (
-            <Button variant="ghost" size="sm" className="h-9 text-xs text-muted-foreground" onClick={() => { setStatusFilter([]); setDateFilterMode('month'); setDateRangeStart(undefined); setDateRangeEnd(undefined); }}>
+          {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range') && (
+            <Button variant="ghost" size="sm" className="h-9 text-xs text-muted-foreground" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDateFilterMode('month'); setDateRangeStart(undefined); setDateRangeEnd(undefined); }}>
               <X className="h-3.5 w-3.5 mr-1" /> Limpar filtros
             </Button>
           )}
         </div>
 
         {/* Chips de filtros aplicados (mais filtros) */}
-        {(statusFilter.length > 0 || dateFilterMode === 'range') && (
+        {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range') && (
           <div className="hidden md:flex flex-wrap items-center gap-2 mb-4">
+            {categoriaFilter.map(id => {
+              const cat = id === SEM_CATEGORIA ? null : categoriaNomePorId.get(id);
+              const label = cat?.nome ?? 'Sem categoria';
+              return (
+                <span key={id} className="inline-flex items-center gap-1.5 h-7 rounded-full border border-foreground bg-foreground text-background px-3 text-xs font-medium">
+                  {cat && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.cor }} />}
+                  Categoria: {label}
+                  <button type="button" onClick={() => toggleCategoria(id)} className="inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-background/20" aria-label={`Remover ${label}`}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              );
+            })}
             {statusFilter.map(s => {
               const label = statusOptions.find(o => o.value === s)?.label || s;
               return (
@@ -1307,10 +1423,11 @@ export default function FluxoCaixa() {
             />
           ) : (
             <div className="overflow-x-auto rounded-lg border border-border/60 bg-card">
-              <table className="w-full">
+              {/* table-fixed + larguras fixas: colunas sempre alinhadas; "Lançamento" ocupa o resto */}
+              <table className="w-full min-w-[1040px] table-fixed">
                 <thead>
                   <tr className="border-b border-border/60 bg-muted/40 sticky top-0 z-10">
-                    <th className="p-3 w-10">
+                    <th className="p-3 pl-6 w-[52px]">
                       <Checkbox
                         checked={isAllSelected}
                         onCheckedChange={toggleSelectAll}
@@ -1318,21 +1435,20 @@ export default function FluxoCaixa() {
                         className={isSomeSelected && !isAllSelected ? "opacity-50" : ""}
                       />
                     </th>
-                    <SortableHeader column="tipo">Tipo</SortableHeader>
-                    <SortableHeader column="descricao">Descrição</SortableHeader>
-                    <SortableHeader column="origem">Origem</SortableHeader>
-                    <SortableHeader column="categoria">Categoria</SortableHeader>
-                    <SortableHeader column="conta">Conta</SortableHeader>
-                    <SortableHeader column="valor" className="text-right">Valor</SortableHeader>
-                    <SortableHeader column="status" className="text-center">Status</SortableHeader>
-                    <th className="text-center p-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ações</th>
+                    <SortableHeader column="tipo" className="w-[56px]">Tipo</SortableHeader>
+                    <SortableHeader column="descricao">Lançamento</SortableHeader>
+                    <SortableHeader column="categoria" className="w-[170px]">Categoria</SortableHeader>
+                    <SortableHeader column="conta" className="w-[150px]">Conta</SortableHeader>
+                    <SortableHeader column="valor" className="w-[130px] [&>div]:justify-end">Valor</SortableHeader>
+                    <SortableHeader column="status" className="w-[112px] [&>div]:justify-center">Status</SortableHeader>
+                    <th className="w-[112px] text-center p-3 text-xs font-medium text-muted-foreground">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(() => {
                     const rows: JSX.Element[] = [];
                     let lastDate: string | null = null;
-                    const COLSPAN = 9;
+                    const COLSPAN = 8;
                     // Pre-compute daily totals
                     const dailyTotals = new Map<string, { entradas: number; saidas: number }>();
                     for (const t of filteredTransacoes) {
@@ -1460,27 +1576,41 @@ export default function FluxoCaixa() {
                               </span>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 text-[12.5px] leading-snug max-w-[300px] font-medium text-foreground uppercase line-clamp-2 [overflow-wrap:anywhere]" title={t.descricao}>{t.descricao}</td>
-                          <td className="px-3 py-2.5 text-[12.5px] leading-snug text-muted-foreground max-w-[200px] uppercase line-clamp-2 [overflow-wrap:anywhere]" title={isTransfer ? '' : (t.cliente?.nome || t.fornecedor || '')}>
-                            {isTransfer ? '—' : (t.cliente?.nome || t.fornecedor || '-')}
+                          {/* Lançamento: descrição + cliente/fornecedor como badge discreta.
+                              O clamp fica num <div> interno — no <td> ele quebra a coluna. */}
+                          <td className="px-3 py-2.5">
+                            <div className="min-w-0">
+                              <div className="text-[13px] font-medium leading-snug text-foreground line-clamp-2 [overflow-wrap:anywhere]" title={t.descricao}>
+                                {t.descricao}
+                              </div>
+                              {!isTransfer && (t.cliente?.nome || t.fornecedor) && (
+                                <span
+                                  className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-border/60 bg-muted/50 px-2 py-[1px] text-[10.5px] font-medium text-muted-foreground"
+                                  title={t.cliente?.nome ? `Cliente: ${t.cliente.nome}` : `Fornecedor: ${t.fornecedor}`}
+                                >
+                                  {t.cliente?.nome ? <User className="h-2.5 w-2.5 shrink-0" /> : <Store className="h-2.5 w-2.5 shrink-0" />}
+                                  <span className="truncate">{t.cliente?.nome || t.fornecedor}</span>
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-3 py-2.5">
                             {t.categoria ? (
-                              <span className="inline-flex items-center gap-1.5 text-[11.5px] text-foreground">
+                              <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-foreground" title={t.categoria.nome}>
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: t.categoria.cor }} />
-                                {t.categoria.nome}
+                                <span className="truncate">{t.categoria.nome}</span>
                               </span>
                             ) : (
-                              <span className="text-[11.5px] text-muted-foreground">-</span>
+                              <span className="text-[12px] text-muted-foreground">—</span>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 text-[11.5px] text-muted-foreground">
+                          <td className="px-3 py-2.5 text-[12px] text-muted-foreground">
                             {contaNome ? (
-                              <span className="inline-flex items-center gap-1.5">
+                              <span className="flex min-w-0 items-center gap-1.5" title={contaNome.nome}>
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: contaNome.cor }} />
-                                {contaNome.nome}
+                                <span className="truncate">{contaNome.nome}</span>
                               </span>
-                            ) : '-'}
+                            ) : '—'}
                           </td>
                           <td className={cn(
                             "px-3 py-2.5 text-[13px] text-right font-semibold tabular-nums whitespace-nowrap",
