@@ -10,8 +10,12 @@ export function variacaoPct(atual: number, anterior: number | undefined | null):
 }
 
 // Destaque (1º card): mesmo navy + glows azuis do ícone BALANX.
+// O brilho de baixo fica fora da quina (não "acende" a borda).
 const HIGHLIGHT_BG =
-  'radial-gradient(120% 110% at 0% 0%, rgba(74,138,224,0.95), transparent 55%), radial-gradient(90% 90% at 100% 100%, rgba(37,99,235,0.55), transparent 60%), #0B1226';
+  'radial-gradient(120% 110% at 0% 0%, rgba(74,138,224,0.95), transparent 55%), radial-gradient(75% 80% at 88% 118%, rgba(37,99,235,0.42), transparent 62%), #0B1226';
+// Sem borda: contorno interno uniforme + luz no topo + sombra suave.
+const HIGHLIGHT_SHADOW =
+  'inset 0 0 0 1px rgba(255,255,255,0.07), inset 0 1px 0 rgba(255,255,255,0.14), 0 20px 40px -26px rgba(37,99,235,0.5)';
 
 interface KpiStatCardProps {
   label: string;
@@ -37,13 +41,14 @@ export function KpiStatCard({ label, value, icon: Icon, delta, invertDelta, hint
       type={onClick ? 'button' : undefined}
       onClick={onClick}
       className={cn(
-        'group relative w-full overflow-hidden rounded-2xl border p-5 text-left transition-all animate-fade-in',
+        'group relative w-full overflow-hidden rounded-2xl p-5 text-left transition-all animate-fade-in',
         highlight
-          ? 'border-white/10 text-white shadow-[0_18px_40px_-18px_rgba(37,99,235,0.65)]'
-          : 'auro-card border-border/60 bg-surface/70 backdrop-blur-xl text-foreground',
-        onClick && 'cursor-pointer hover:-translate-y-0.5 hover:border-primary/40',
+          ? 'border-0 text-white'
+          : 'auro-card border border-border/60 bg-surface/70 backdrop-blur-xl text-foreground',
+        onClick && 'cursor-pointer hover:-translate-y-0.5',
+        onClick && !highlight && 'hover:border-primary/40',
       )}
-      style={highlight ? { background: HIGHLIGHT_BG } : undefined}
+      style={highlight ? { background: HIGHLIGHT_BG, boxShadow: HIGHLIGHT_SHADOW } : undefined}
     >
       <div className="flex items-start justify-between">
         <span
