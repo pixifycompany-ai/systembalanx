@@ -61,6 +61,9 @@ interface CategoriaInternal {
   user_id: string | null;
 }
 
+
+// Marcas das linhas de sistema do cartão (despesa-sombra da fatura e pagamento).
+const MARCAS_SISTEMA = new Set(['[fatura]', '[pagamento-fatura]']);
 export interface ReceitaFormData {
   cliente_id?: string;
   categoria_id?: string;
@@ -624,8 +627,11 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       }
 
       // Captura a fatura ANTES (se mudar valor/conta, precisa recalcular a fatura).
-      const { data: antiga } = await supabase.from('despesas').select('fatura_id').eq('id', id).single();
+      const { data: antiga } = await supabase.from('despesas').select('fatura_id, fornecedor').eq('id', id).single();
       const faturaAntiga = (antiga as any)?.fatura_id ?? null;
+      // Linhas de sistema do cartão ('[fatura]' = sombra, '[pagamento-fatura]') nunca
+      // perdem a marca na edição — sem ela os relatórios contam o cartão em dobro.
+      if (MARCAS_SISTEMA.has((antiga as { fornecedor?: string | null } | null)?.fornecedor ?? '')) delete payload.fornecedor;
 
       const { data, error } = await supabase
         .from('despesas')
@@ -783,15 +789,17 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
   // Update multiple despesas with same fornecedor
   const updateMultipleFornecedor = async (ids: string[], fornecedor: string): Promise<boolean> => {
     try {
+      // Não sobrescreve as linhas de sistema do cartão (sombra/pagamento da fatura).
+      const alvo = despesas.filter(d => ids.includes(d.id) && !MARCAS_SISTEMA.has(d.fornecedor ?? '')).map(d => d.id);
       const { error } = await supabase
         .from('despesas')
         .update({ fornecedor })
-        .in('id', ids);
+        .in('id', alvo);
 
       if (error) throw error;
 
-      setDespesas(prev => prev.map(d => 
-        ids.includes(d.id) ? { ...d, fornecedor } : d
+      setDespesas(prev => prev.map(d =>
+        alvo.includes(d.id) ? { ...d, fornecedor } : d
       ));
       
       toast({ title: `Fornecedor atualizado para ${ids.length} saídas!` });

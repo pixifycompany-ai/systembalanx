@@ -46,7 +46,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
   const currentMonthEnd = endOfMonth(today);
 
   // Fetch all data in parallel
-  const [receitasRes, despesasRes, contratosRes, clientesRes, categoriasRes, contasRes, transferenciasRes, aditivosRes, faturasRes] = await Promise.all([
+  const [receitasRes, despesasRes, contratosRes, clientesRes, categoriasRes, contasRes, transferenciasRes, aditivosRes, faturasRes, fatPagRes] = await Promise.all([
     supabase
       .from('receitas')
       .select('*, cliente:clientes(id, nome, empresa_fonte), categoria:categorias(id, nome, empresa_fonte)')
@@ -80,6 +80,9 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
     supabase
       .from('cartao_faturas')
       .select('*'),
+    supabase
+      .from('cartao_fatura_pagamentos')
+      .select('fatura_id, despesa_id'),
   ]);
 
   const receitas = receitasRes.data || [];
@@ -201,29 +204,55 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
     } : undefined,
   };
 
-  // Expenses by category for current month only
+  // Despesas por categoria — mesmo critério do card "Despesas do mês": o que foi
+  // PAGO no mês (saída do banco). O pagamento da fatura do cartão (ou a fatura
+  // marcada como paga) é distribuído pelas categorias dos itens daquela fatura,
+  // pra mostrar pra onde o dinheiro foi sem contar o cartão em dobro.
   const expensesByCategory: CategoryExpense[] = [];
   const despesasPorCategoria: Record<string, { valor: number; cor: string }> = {};
+  const somaCat = (nome: string, cor: string, valor: number) => {
+    if (!despesasPorCategoria[nome]) despesasPorCategoria[nome] = { valor: 0, cor };
+    despesasPorCategoria[nome].valor += valor;
+  };
+  const faturaPorDespesa = new Map<string, string>(); // despesa (pagamento/sombra) -> fatura
+  for (const fp of ((fatPagRes.data as unknown as { fatura_id: string; despesa_id: string | null }[]) || [])) {
+    if (fp.despesa_id) faturaPorDespesa.set(fp.despesa_id, fp.fatura_id);
+  }
+  for (const f of faturas) if (f.despesa_id) faturaPorDespesa.set(f.despesa_id, f.id);
+  const itensPorFatura = new Map<string, typeof despesas>();
+  for (const d of despesas) {
+    if (!d.fatura_id) continue;
+    const arr = itensPorFatura.get(d.fatura_id) || [];
+    arr.push(d);
+    itensPorFatura.set(d.fatura_id, arr);
+  }
 
   despesas
     .filter(d => {
-      const vencimento = parseISO(d.data_vencimento);
-      return vencimento >= currentMonthStart && vencimento <= currentMonthEnd;
+      const dp = d.data_pagamento ? parseISO(d.data_pagamento) : null;
+      return d.status === 'pago' && d.fatura_id == null && !!dp && dp >= currentMonthStart && dp <= currentMonthEnd;
     })
     .forEach(d => {
-      const categoriaNome = (d.categoria as { nome: string; cor: string })?.nome || 'Outros';
-      const categoriaCor = (d.categoria as { nome: string; cor: string })?.cor || '#6B7280';
-      
-      if (!despesasPorCategoria[categoriaNome]) {
-        despesasPorCategoria[categoriaNome] = { valor: 0, cor: categoriaCor };
+      const valor = Number(d.valor);
+      const faturaId = faturaPorDespesa.get(d.id);
+      const itens = faturaId ? itensPorFatura.get(faturaId) || [] : [];
+      const totalItens = itens.reduce((s, i) => s + Number(i.valor), 0);
+      if (faturaId && totalItens > 0) {
+        // Rateia o pagamento da fatura pela participação de cada item.
+        for (const i of itens) {
+          const cat = i.categoria as { nome: string; cor: string } | null;
+          somaCat(cat?.nome || 'Sem categoria', cat?.cor || '#6B7280', valor * (Number(i.valor) / totalItens));
+        }
+      } else {
+        const cat = d.categoria as { nome: string; cor: string } | null;
+        somaCat(cat?.nome || 'Sem categoria', cat?.cor || '#6B7280', valor);
       }
-      despesasPorCategoria[categoriaNome].valor += Number(d.valor);
     });
 
   Object.entries(despesasPorCategoria).forEach(([categoria, data]) => {
     expensesByCategory.push({
       categoria,
-      valor: data.valor,
+      valor: Math.round(data.valor * 100) / 100,
       cor: data.cor,
     });
   });
@@ -233,10 +262,14 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
   // Top clients by revenue
   const receitasPorCliente: Record<string, { nome: string; valor: number }> = {};
   
+  // Últimos 12 meses (competência) até o fim do mês atual — sem parcelas futuras.
+  const rankIni = startOfMonth(subMonths(today, 11));
   receitas.forEach(r => {
     const clienteId = r.cliente_id;
     const clienteNome = (r.cliente as { nome: string })?.nome || 'Sem cliente';
-    
+    const comp = r.data_competencia ? parseISO(r.data_competencia) : null;
+    if (!comp || comp < rankIni || comp > currentMonthEnd) return;
+
     if (clienteId) {
       if (!receitasPorCliente[clienteId]) {
         receitasPorCliente[clienteId] = { nome: clienteNome, valor: 0 };
@@ -447,7 +480,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
   // Despesas due today
   const despesasHoje = despesas.filter(d => {
     const vencimento = parseISO(d.data_vencimento);
-    return d.status === 'pendente' && 
+    return d.status === 'pendente' && d.fatura_id == null &&
       vencimento.getTime() === today.getTime();
   });
 

@@ -632,7 +632,7 @@ ${contexto}`;
       const wantDesp = tipo !== "receita";
       const [rec, desp] = await Promise.all([
         wantRec ? safe<any>(supabase.from("receitas").select("valor,forma_pagamento,status").gte("data_competencia", inicio).lte("data_competencia", fim)) : Promise.resolve([]),
-        wantDesp ? safe<any>(supabase.from("despesas").select("valor,forma_pagamento,status").gte("data_competencia", inicio).lte("data_competencia", fim)) : Promise.resolve([]),
+        wantDesp ? safe<any>(supabase.from("despesas").select("valor,forma_pagamento,status,fornecedor").gte("data_competencia", inicio).lte("data_competencia", fim)).then((rows: any[]) => rows.filter((d) => d.fornecedor !== "[fatura]" && d.fornecedor !== "[pagamento-fatura]")) : Promise.resolve([]), // competência: itens do cartão sim; fatura/pagamento não (senão conta 2-3x)
       ]);
       const agrupa = (arr: any[]) => {
         const m: Record<string, number> = {};

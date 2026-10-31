@@ -84,7 +84,7 @@ async function fetchAll(period: PeriodFilter, customStart?: Date, customEnd?: Da
 
   const [recRes, despRes, contRes, cliRes, catRes, contasRes, faturasRes, recAllRes, despAllRes] = await Promise.all([
     supabase.from('receitas').select('id, valor, data_competencia, data_vencimento, data_recebimento, status, contrato_id, cliente_id, categoria_id, conta_id, clientes(nome), categorias(nome, cor)').gte('data_competencia', sinceStr),
-    supabase.from('despesas').select('id, valor, data_competencia, data_vencimento, data_pagamento, status, tipo, categoria_id, cliente_id, conta_id, fatura_id, fornecedor, categorias(nome, cor)').gte('data_competencia', sinceStr),
+    supabase.from('despesas').select('id, valor, data_competencia, data_vencimento, data_pagamento, status, tipo, categoria_id, cliente_id, conta_id, fatura_id, fornecedor, categorias(nome, cor, grupo_dre)').gte('data_competencia', sinceStr),
     supabase.from('contratos').select('id, valor, recorrencia, status, data_inicio, data_inativacao, cliente_id'),
     supabase.from('clientes').select('id, nome, status, created_at'),
     supabase.from('categorias').select('id, nome, tipo, cor'),
@@ -305,9 +305,11 @@ async function fetchAll(period: PeriodFilter, customStart?: Date, customEnd?: Da
     cur.receita += Number(r.valor);
     taxesByMonth.set(k, cur);
   });
+  // Impostos = categorias classificadas no DRE como "Deduções da receita" (grupo
+  // imposto). Antes era por palavra no nome e "iss"/"das" pegavam Comissão/Vendas.
   despesas.forEach((d) => {
-    const nome = ((d.categorias as { nome?: string } | null)?.nome || '').toLowerCase();
-    if (nome.includes('imposto') || nome.includes('tributo') || nome.includes('iss') || nome.includes('das') || nome.includes('simples')) {
+    const grupo = (d.categorias as { grupo_dre?: string | null } | null)?.grupo_dre;
+    if (grupo === 'imposto' && isCompetencia(d)) {
       const k = monthKey(parseISO(d.data_competencia));
       const cur = taxesByMonth.get(k) ?? { receita: 0, deducoes: 0 };
       cur.deducoes += Number(d.valor);

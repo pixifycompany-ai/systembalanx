@@ -72,7 +72,7 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
 
   const [receitasRes, despesasRes, contratosRes, clientesRes, contasRes, aditivosRes] = await Promise.all([
     supabase.from('receitas').select('*, cliente:clientes(id, nome)'),
-    supabase.from('despesas').select('*, cliente:clientes(id, nome)'),
+    supabase.from('despesas').select('*, cliente:clientes(id, nome), categoria:categorias(grupo_dre)'),
     supabase.from('contratos').select('*, cliente:clientes(id, nome)'),
     supabase.from('clientes').select('*'),
     supabase.from('contas').select('*').eq('ativa', true),
@@ -81,6 +81,10 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
 
   const receitas = receitasRes.data || [];
   const despesas = despesasRes.data || [];
+  // Distribuição de lucros é retirada dos sócios, não custo da operação:
+  // fica fora do rateio por cliente e da margem (mesmo critério do DRE).
+  const ehDistribuicao = (d: { categoria?: unknown }) =>
+    (d.categoria as { grupo_dre?: string | null } | null)?.grupo_dre === 'distribuicao_lucro';
   const contratos = contratosRes.data || [];
   const clientes = clientesRes.data || [];
   const contas = contasRes.data || [];
@@ -297,7 +301,7 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
   const clientProfitability: ClientProfitability[] = [];
   
   // Separate direct (linked) expenses from unlinked expenses
-  const despesasPagas = despesas.filter(d => d.status === 'pago' && !d.fatura_id);
+  const despesasPagas = despesas.filter(d => d.status === 'pago' && !d.fatura_id && !ehDistribuicao(d));
   const despesasDiretas: Record<string, number> = {}; // cliente_id -> total
   let despesasNaoVinculadas = 0;
 
@@ -400,7 +404,7 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
   let despesaMesAtual = despesas
     .filter(d => {
       const data = d.data_pagamento ? parseISO(d.data_pagamento) : null;
-      return d.status === 'pago' && !d.fatura_id && data && data >= currentMonthStart && data <= currentMonthEnd;
+      return d.status === 'pago' && !d.fatura_id && !ehDistribuicao(d) && data && data >= currentMonthStart && data <= currentMonthEnd;
     })
     .reduce((sum, d) => sum + Number(d.valor), 0);
 
@@ -416,7 +420,7 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
     despesaMesAtual = despesas
       .filter(d => {
         const data = d.data_pagamento ? parseISO(d.data_pagamento) : null;
-        return d.status === 'pago' && !d.fatura_id && data && data >= prevMonthStart && data <= prevMonthEnd;
+        return d.status === 'pago' && !d.fatura_id && !ehDistribuicao(d) && data && data >= prevMonthStart && data <= prevMonthEnd;
       })
       .reduce((sum, d) => sum + Number(d.valor), 0);
   }
@@ -463,7 +467,14 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
     receitas.filter(r => r.status === 'recebido').reduce((sum, r) => sum + Number(r.valor), 0) -
     despesas.filter(d => d.status === 'pago' && !d.fatura_id).reduce((sum, d) => sum + Number(d.valor), 0);
   
-  const despesaMediaDiaria = despesaMesAtual / 30;
+  // Liquidez usa TODA a saída de caixa do mês (inclui distribuição de lucros — é dinheiro saindo).
+  const saidaCaixaMes = despesas
+    .filter(d => {
+      const data = d.data_pagamento ? parseISO(d.data_pagamento) : null;
+      return d.status === 'pago' && !d.fatura_id && data && data >= currentMonthStart && data <= currentMonthEnd;
+    })
+    .reduce((sum, d) => sum + Number(d.valor), 0);
+  const despesaMediaDiaria = (saidaCaixaMes || despesaMesAtual) / 30;
   const diasDeCaixa = despesaMediaDiaria > 0 ? caixaTotal / despesaMediaDiaria : 90;
   const scoreLiquidez = Math.min(100, diasDeCaixa / 90 * 100);
 

@@ -394,7 +394,7 @@ export function TaxesTab({ data }: { data: AdvancedReports['taxes'] }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <KPI label="Receita bruta (12m)" value={brl(totalRec)} info="Soma das receitas dos últimos 12 meses." />
-        <KPI label="Impostos (12m)" value={brl(totalDed)} info="Despesas categorizadas como imposto/tributo/ISS/DAS/Simples nos últimos 12 meses." />
+        <KPI label="Impostos e deduções (12m)" value={brl(totalDed)} info="Despesas das categorias classificadas no DRE como 'Deduções da Receita (Impostos)' — ex.: Impostos e Descontos Concedidos — nos últimos 12 meses. A classificação é feita em Categorias." />
         <KPI label="Carga tributária" value={pct(carga)} info="Impostos ÷ receita bruta nos últimos 12 meses." />
       </div>
       <Card>

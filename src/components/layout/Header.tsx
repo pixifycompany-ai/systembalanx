@@ -21,7 +21,11 @@ export function Header() {
 
   return (
     <header
-      className="sticky top-0 z-40 hidden md:flex items-center justify-between gap-2 px-3 md:px-6 md:border-b md:border-border/40 md:bg-transparent md:backdrop-blur-xl"
+      // Transparente, sem borda nem desfoque: a grade do fundo passa por trás (antes o
+      // backdrop-blur + border-b criavam uma "faixa" separada em todas as telas).
+      // Obs.: #root/body têm overflow-x:hidden, então o sticky não fixa — o cabeçalho
+      // rola junto com a página.
+      className="sticky top-0 z-40 hidden md:flex items-center justify-between gap-2 px-3 md:px-6 bg-transparent"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
         height: 'calc(3.5rem + env(safe-area-inset-top, 0px))',

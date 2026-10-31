@@ -91,7 +91,7 @@ async function fetchRelatoriosData(period: PeriodFilter, customStart?: Date, cus
   const startStr = format(start, 'yyyy-MM-dd');
   const endStr = format(end, 'yyyy-MM-dd');
 
-  const [receitasRes, despesasRes] = await Promise.all([
+  const [receitasRes, despesasRes, recebidasRes, pagasRes] = await Promise.all([
     supabase
       .from('receitas')
       .select('valor, data_competencia, data_recebimento, status, empresa_fonte, categoria:categorias(nome, empresa_fonte, grupo_dre), cliente:clientes(empresa_fonte)')
@@ -102,6 +102,20 @@ async function fetchRelatoriosData(period: PeriodFilter, customStart?: Date, cus
       .select('valor, data_competencia, data_pagamento, status, tipo, fornecedor, categoria:categorias(nome, grupo_dre)')
       .gte('data_competencia', startStr)
       .lte('data_competencia', endStr),
+    // Fluxo de caixa REALIZADO: o que entrou/saiu do banco em cada mês.
+    supabase
+      .from('receitas')
+      .select('valor, data_recebimento')
+      .eq('status', 'recebido')
+      .gte('data_recebimento', startStr)
+      .lte('data_recebimento', endStr),
+    supabase
+      .from('despesas')
+      .select('valor, data_pagamento')
+      .eq('status', 'pago')
+      .is('fatura_id', null) // itens do cartão saem do banco via pagamento da fatura
+      .gte('data_pagamento', startStr)
+      .lte('data_pagamento', endStr),
   ]);
 
   const receitas = receitasRes.data || [];
@@ -257,12 +271,25 @@ async function fetchRelatoriosData(period: PeriodFilter, customStart?: Date, cus
     receitaPorEmpresa,
   };
 
-  // Fluxo de Caixa
+  // Fluxo de Caixa realizado (regime de caixa — bate com os cards da Home):
+  // entradas recebidas × saídas pagas no mês, inclusive distribuição de lucros.
+  const entradasCaixa = emptyValues();
+  const saidasCaixa = emptyValues();
+  (recebidasRes.data || []).forEach((r) => {
+    if (!r.data_recebimento) return;
+    const mk = getMonthKey(r.data_recebimento);
+    if (mk in entradasCaixa) entradasCaixa[mk] += Number(r.valor);
+  });
+  (pagasRes.data || []).forEach((d) => {
+    if (!d.data_pagamento) return;
+    const mk = getMonthKey(d.data_pagamento);
+    if (mk in saidasCaixa) saidasCaixa[mk] += Number(d.valor);
+  });
   let saldoAcumulado = 0;
   const fluxoData: FluxoCaixaData = {
     chartData: months.map((m) => {
-      const entradas = receitaBruta[m];
-      const saidas = impostos[m] + custosVariaveis[m] + despOperacionais[m];
+      const entradas = entradasCaixa[m];
+      const saidas = saidasCaixa[m];
       saldoAcumulado += entradas - saidas;
       return { mes: m, entradas, saidas, saldo: saldoAcumulado };
     }),
