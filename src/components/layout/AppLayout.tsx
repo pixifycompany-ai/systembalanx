@@ -12,7 +12,12 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
-  const { acessoAtivo, loading: tenantLoading } = useTenant();
+  const { acessoAtivo, loading: tenantLoading, memberships, isSuperadmin } = useTenant();
+
+  // Sem nenhuma conta (cadastro interrompido no meio) → volta pro onboarding
+  if (!tenantLoading && memberships.length === 0 && !isSuperadmin) {
+    return <Navigate to="/onboarding" replace />;
+  }
 
   // Gate de assinatura: acesso expirado (trial acabou, não é cortesia nem ativa) → assinatura
   if (!tenantLoading && !acessoAtivo) {

@@ -12,31 +12,35 @@ interface AuthShellProps {
  * Moldura das telas de autenticação: foto do personagem em tela cheia,
  * manchete em branco e o formulário num cartão liso (cores do tema).
  * Desktop: conteúdo à esquerda (o personagem fica à direita da foto).
- * Mobile: foto na metade de cima, cartão ancorado embaixo.
+ * Mobile: foto numa faixa no topo, título e cartão logo abaixo (em fluxo).
  */
 export function AuthShell({ title, children }: AuthShellProps) {
   return (
-    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-[#070B14]">
-      <img
-        src={loginPhoto}
-        alt="Empreendedor sorrindo para a câmera com o celular na mão numa avenida ao entardecer"
-        className="absolute inset-x-0 top-0 h-[56%] w-full object-cover object-[56%_top] md:inset-0 md:h-full md:object-[30%_center]"
-      />
-      {/* Scrim: de baixo pra cima no mobile, da esquerda pra direita no desktop */}
-      <div
-        aria-hidden
-        className="absolute inset-0 md:hidden"
-        style={{ background: 'linear-gradient(180deg, rgba(7,11,20,0.3), rgba(7,11,20,0) 22%, rgba(7,11,20,0.75) 46%, #070B14 56%)' }}
-      />
-      <div
-        aria-hidden
-        className="absolute inset-0 hidden md:block"
-        style={{ background: 'linear-gradient(90deg, rgba(7,11,20,0.92) 0%, rgba(7,11,20,0.65) 32%, rgba(7,11,20,0) 55%)' }}
-      />
+    <div className="relative min-h-[100dvh] w-full overflow-x-hidden bg-[#070B14] md:overflow-hidden">
+      {/* Foto: faixa no topo (mobile) / tela cheia (desktop). No mobile o conteúdo vem
+          DEPOIS da foto, em fluxo normal — formulário maior nunca cobre o rosto. */}
+      <div className="relative h-[34vh] min-h-[220px] md:absolute md:inset-0 md:h-auto">
+        <img
+          src={loginPhoto}
+          alt="Empreendedor sorrindo para a câmera com o celular na mão numa avenida ao entardecer"
+          className="h-full w-full object-cover object-[56%_18%] md:object-[30%_center]"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 md:hidden"
+          style={{ background: 'linear-gradient(180deg, rgba(7,11,20,0.35), rgba(7,11,20,0) 30%, rgba(7,11,20,0.15) 60%, #070B14 100%)' }}
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 hidden md:block"
+          style={{ background: 'linear-gradient(90deg, rgba(7,11,20,0.92) 0%, rgba(7,11,20,0.65) 32%, rgba(7,11,20,0) 55%)' }}
+        />
+        <PixifyLogo size="md" className="absolute left-4 top-[calc(env(safe-area-inset-top,0px)+1rem)] md:hidden [&_span:last-child]:text-white" />
+      </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-end gap-5 px-4 pb-8 pt-20 md:mx-0 md:max-w-none md:justify-center md:px-[clamp(32px,6vw,96px)] md:py-12">
-        <div className="flex w-full flex-col gap-5 md:max-w-[420px] md:gap-7">
-          <PixifyLogo size="md" className="[&_span:last-child]:text-white" />
+      <div className="relative z-10 mx-auto w-full max-w-md px-4 pb-8 md:mx-0 md:flex md:min-h-[100dvh] md:max-w-none md:items-center md:px-[clamp(32px,6vw,96px)] md:py-12">
+        <div className="-mt-6 flex w-full flex-col gap-5 md:mt-0 md:max-w-[420px] md:gap-7">
+          <PixifyLogo size="md" className="hidden md:flex [&_span:last-child]:text-white" />
           <h1 className="text-[30px] font-semibold leading-[1.06] tracking-[-0.035em] text-white md:text-[clamp(36px,4.4vw,54px)] [text-shadow:0_2px_24px_rgba(0,0,0,0.35)]">
             {title}
           </h1>
