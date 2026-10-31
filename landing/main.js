@@ -42,6 +42,17 @@
     reveals.forEach((el) => el.classList.add('is-visible'));
   }
 
+  // ---- animações decorativas: só enquanto visíveis (economiza CPU/GPU no celular) ----
+  const animados = document.querySelectorAll('.bento-card, .hero__art');
+  if ('IntersectionObserver' in window) {
+    const ao = new IntersectionObserver((entries) => {
+      entries.forEach((e) => e.target.classList.toggle('anim-on', e.isIntersecting));
+    }, { rootMargin: '80px 0px' });
+    animados.forEach((el) => ao.observe(el));
+  } else {
+    animados.forEach((el) => el.classList.add('anim-on'));
+  }
+
   // ---- efeito de digitação no hero ----
   const typed = document.getElementById('typed');
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
