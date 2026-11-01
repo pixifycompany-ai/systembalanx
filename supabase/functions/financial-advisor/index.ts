@@ -378,6 +378,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • Gasto por CATEGORIA e "quanto gastei/lucrei" usam COMPETÊNCIA (campos despesas_por_categoria, despesa_competencia, lucro_liquido_dre) — é o mesmo número do DRE em Relatórios. Compras no cartão contam na categoria de cada item, mesmo com a fatura em aberto; a fatura em si não é despesa nova. Distribuição de lucros fica separada (distribuicao_lucros). Só use "pago"/"lucro_caixa" quando perguntarem o que SAIU do caixa.
   • Perguntas de agenda/caixa futuro-ou-passado por data ("o que vence/tenho a pagar/a receber", "hoje", "amanhã", "essa semana", "resto do mês") → agenda_vencimentos (por data de vencimento).
   • Gasto por TEMA que não é categoria cadastrada nem nome exato ("quanto gastei com ifood ou restaurantes", "comer fora", "mercado", "combustível", "Uber/transporte", "farmácia") → fornecedores_do_periodo, você CLASSIFICA pelo nome do fornecedor E pela descrição dos lançamentos (o tema muitas vezes só está na descrição: "almoço", "janta", "lanche", "café"), depois lancamentos_dos_fornecedores com os fornecedores escolhidos e/ou termos_descricao. Seja criteriosa: inclua só o que claramente pertence ao tema (ex.: BARBEARIA não é bar; ALMOFADA não é almoço; prefira escolher fornecedores pelo nome e use termos_descricao só com palavras inteiras como almoço, janta, jantar, lanche, marmita, refeição). Na resposta: total em negrito, os lançamentos (fornecedor — valor · descrição · data) e, no fim, uma linha "Considerei: A, B, C (e descrições com almoço, janta…) — quer incluir ou tirar algum?". Se o tema for exatamente uma categoria cadastrada, pode usar listar_lancamentos com a categoria.
+  • "Vai dar pra pagar as contas de X a Y?", "quanto vou ter na conta dia X", "vou ficar no negativo?", "meu caixa até o fim do mês" → previsao_caixa (NÃO some na mão). Responda: 1ª frase direta (sim/não) com o saldo previsto no fim e o **menor saldo** (dia); se ficar negativo, diga o dia e quanto falta. Depois **Dia a dia**: só os dias com movimento, no formato - **05/11** — saldo R$ X (entra R$ A · sai R$ B: Fornecedor, Fornecedor). Cite à parte os atrasados (a pagar já descontado; a receber não somado, "se entrar, melhora R$ Y"). Sempre diga em 1 linha o **cenário sem receber** (cenario_sem_receber): se as entradas pendentes não caírem, dá ou não dá, e com quanto de folga/falta — é o que mostra se o pagamento depende de clientes pagarem em dia. Termine com uma sugestão prática se o caixa apertar.
   • LISTAR lançamentos de um período, categoria ou fornecedor ("liste as distribuições de lucro de outubro", "despesas de alimentação esse mês", "tudo que paguei pro X em setembro") → listar_lancamentos. Procurar algo sem período ("quanto já paguei pra X", "quando foi a última compra na Y") → buscar_lancamento. Panorama de um cliente → detalhe_cliente. Saldo atual/cartões → saldo_e_contas. Projeção de caixa futuro → projecao_fluxo. Comparar dois períodos → comparativo_periodos.
   • Por FORMA DE PAGAMENTO ("quanto fiz/paguei/recebi de PIX", "quanto no cartão/boleto/dinheiro") → movimento_por_forma (com o intervalo pedido: hoje, ontem, essa semana, esse mês, período).
   • "Quanto está minha fatura do cartão?" / "quanto devo no cartão" → saldo_e_contas (campo cartoes[].fatura_aberta é a fatura em aberto; total_faturas_abertas é a soma).
@@ -426,6 +427,7 @@ ${contexto}`;
       { type: "function", function: { name: "buscar_lancamento", description: "Procura receitas/despesas por texto na descrição, no FORNECEDOR, no nome do CLIENTE ou na CATEGORIA. Retorna fornecedor, cliente, categoria, conta, forma, parcela e status. Ex: 'quanto paguei pra X', 'gastos com energia', 'o que entrou do cliente Y', 'despesas de alimentação'.", parameters: { type: "object", properties: { termo: { type: "string", description: "texto a procurar" } }, required: ["termo"] } } },
       { type: "function", function: { name: "detalhe_cliente", description: "Panorama de um cliente: faturado, recebido, a receber, atrasado, contratos ativos e MRR. Ex: 'como está o cliente X', 'quanto Y me deve'.", parameters: { type: "object", properties: { nome: { type: "string", description: "nome ou parte" } }, required: ["nome"] } } },
       { type: "function", function: { name: "saldo_e_contas", description: "Saldo atual de cada conta + total em caixa e cartões (fatura aberta, limite, disponível). Ex: 'meu saldo', 'como estão meus cartões'.", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "previsao_caixa", description: "Previsão do saldo em conta DIA A DIA num intervalo: parte do saldo atual das contas, desconta o que está atrasado a pagar, e aplica as entradas e saídas pendentes por vencimento (inclui fatura do cartão). Retorna saldo no início, saldo ao fim de cada dia com movimento (e os lançamentos do dia), menor saldo, primeiro dia negativo e saldo final. Use para: 'vai dar pra pagar as contas de X a Y?', 'quanto vou ter na conta dia X?', 'vou ficar no negativo?', 'meu caixa até o fim do mês'.", parameters: { type: "object", properties: { inicio: D, fim: D }, required: ["inicio", "fim"] } } },
       { type: "function", function: { name: "projecao_fluxo", description: "Projeta a variação de caixa nos próximos N dias (a receber − a pagar por vencimento). Ex: 'vou ter caixa mês que vem'. Combine com saldo_e_contas.", parameters: { type: "object", properties: { dias: { type: "number", description: "dias à frente (ex: 30)" } }, required: ["dias"] } } },
       { type: "function", function: { name: "comparativo_periodos", description: "Compara dois intervalos por competência (recebido, pago, lucro, margem) com variação %. Ex: 'esse mês vs passado'.", parameters: { type: "object", properties: { inicio_a: D, fim_a: D, inicio_b: D, fim_b: D }, required: ["inicio_a", "fim_a", "inicio_b", "fim_b"] } } },
       { type: "function", function: { name: "movimento_por_forma", description: "Soma por FORMA DE PAGAMENTO (Pix, cartão de crédito/débito, boleto, dinheiro, transferência) num intervalo por competência. Use p/ 'quanto fiz/paguei/recebi de PIX', 'quanto no cartão', 'quanto em boleto' — hoje, ontem, essa semana, esse mês ou período.", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" } }, required: ["inicio", "fim"] } } },
@@ -959,6 +961,98 @@ ${contexto}`;
       });
     }
 
+    // ---- Previsão de caixa DIA A DIA num intervalo, a partir do saldo atual ----
+    // Saldo = contas bancárias (mesma conta do saldo_e_contas). Movimentos = receitas e
+    // despesas ainda NÃO quitadas, por vencimento (cartão entra como a fatura/sombra).
+    // Conservadora: o que se DEVE e está atrasado sai já no 1º dia; o que se tem a RECEBER
+    // atrasado não entra (vai à parte como "se entrar, melhora").
+    async function toolPrevisaoCaixa(inicio: string, fim: string): Promise<string> {
+      if (!inicio || !fim || fim < inicio) return JSON.stringify({ erro: "Informe inicio e fim (AAAA-MM-DD), com fim >= inicio." });
+      const ini = inicio < hojeISO ? hojeISO : inicio; // não dá pra prever o passado
+      const saldoInfo = JSON.parse(await toolSaldoContas());
+      const saldoAtual = Number(saldoInfo.total_caixa || 0);
+
+      const [rec, desp] = await Promise.all([
+        safe<any>(supabase.from("receitas")
+          .select("descricao,valor,status,data_vencimento,cliente:clientes(nome)")
+          .neq("status", "recebido").lte("data_vencimento", fim)),
+        safe<any>(supabase.from("despesas")
+          .select("descricao,fornecedor,valor,status,data_vencimento,parcela_num,parcela_total,categoria:categorias(nome)")
+          .neq("status", "pago").is("fatura_id", null).lte("data_vencimento", fim)),
+      ]);
+      const recIt = rec.map((r: any) => ({ data: r.data_vencimento, tipo: "entrada", quem: r.cliente?.nome || r.descricao || "Receita", descricao: r.descricao, valor: Number(r.valor || 0) }));
+      const despIt = desp.filter((d: any) => d.fornecedor !== "[pagamento-fatura]").map((d: any) => ({
+        data: d.data_vencimento, tipo: "saida",
+        quem: d.fornecedor === "[fatura]" ? "Fatura do cartão" : (limpaFornecedor(d.fornecedor) || d.descricao || "Despesa"),
+        descricao: d.descricao, parcela: parcelaTxt(d), valor: Number(d.valor || 0),
+      }));
+
+      // Atrasados (vencimento antes de hoje)
+      const pagarAtrasado = despIt.filter((i: any) => i.data < hojeISO);
+      const receberAtrasado = recIt.filter((i: any) => i.data < hojeISO);
+      // Entre hoje e a véspera do início (se o período começa no futuro)
+      const antes = (i: any) => i.data >= hojeISO && i.data < ini;
+      const entradasAntes = recIt.filter(antes).reduce((t: number, i: any) => t + i.valor, 0);
+      const saidasAntes = despIt.filter(antes).reduce((t: number, i: any) => t + i.valor, 0);
+      const totalPagarAtrasado = pagarAtrasado.reduce((t: number, i: any) => t + i.valor, 0);
+      const saldoInicio = saldoAtual - totalPagarAtrasado + entradasAntes - saidasAntes;
+
+      // Dia a dia no intervalo
+      const noPeriodo = (i: any) => i.data >= ini && i.data <= fim;
+      const porDia: Record<string, { entradas: number; saidas: number; itens: any[] }> = {};
+      for (const i of [...recIt, ...despIt].filter(noPeriodo)) {
+        porDia[i.data] = porDia[i.data] || { entradas: 0, saidas: 0, itens: [] };
+        if (i.tipo === "entrada") porDia[i.data].entradas += i.valor; else porDia[i.data].saidas += i.valor;
+        porDia[i.data].itens.push(i);
+      }
+      let saldo = saldoInicio;
+      let menor = { data: ini, saldo: saldoInicio };
+      // Cenário pessimista: nenhuma entrada pendente se confirma (só o que já está na conta)
+      let saldoSemReceber = saldoAtual - totalPagarAtrasado - saidasAntes;
+      let menorSemReceber = { data: ini, saldo: saldoSemReceber };
+      let negativoSemReceber: string | null = saldoSemReceber < 0 ? ini : null;
+      let primeiroNegativo: string | null = saldoInicio < 0 ? ini : null;
+      const dias: any[] = [];
+      for (let d = ini; d <= fim; d = addDaysISO(d, 1)) {
+        const mov = porDia[d];
+        if (mov) {
+          saldo += mov.entradas - mov.saidas;
+          dias.push({ data: d, entradas: mov.entradas, saidas: mov.saidas, saldo_fim_do_dia: Math.round(saldo * 100) / 100,
+            itens: mov.itens.sort((a: any, b: any) => b.valor - a.valor).slice(0, 8) });
+        }
+        if (mov) saldoSemReceber -= mov.saidas;
+        if (saldoSemReceber < menorSemReceber.saldo) menorSemReceber = { data: d, saldo: saldoSemReceber };
+        if (saldoSemReceber < 0 && !negativoSemReceber) negativoSemReceber = d;
+        if (saldo < menor.saldo) menor = { data: d, saldo };
+        if (saldo < 0 && !primeiroNegativo) primeiroNegativo = d;
+      }
+      const r2 = (n: number) => Math.round(n * 100) / 100;
+      const entradasPeriodo = Object.values(porDia).reduce((t, v) => t + v.entradas, 0);
+      const saidasPeriodo = Object.values(porDia).reduce((t, v) => t + v.saidas, 0);
+      return JSON.stringify({
+        periodo: { inicio: ini, fim, hoje: hojeISO },
+        saldo_atual_contas: r2(saldoAtual),
+        contas: saldoInfo.contas,
+        a_pagar_atrasado: { total: r2(totalPagarAtrasado), itens: pagarAtrasado.slice(0, 10), obs: "já descontado no saldo do início (conservador)" },
+        a_receber_atrasado: { total: r2(receberAtrasado.reduce((t: number, i: any) => t + i.valor, 0)), itens: receberAtrasado.slice(0, 10), obs: "NÃO somado — se entrar, o saldo melhora nesse valor" },
+        movimento_antes_do_inicio: ini > hojeISO ? { entradas: r2(entradasAntes), saidas: r2(saidasAntes) } : null,
+        saldo_previsto_no_inicio: r2(saldoInicio),
+        entradas_no_periodo: r2(entradasPeriodo),
+        saidas_no_periodo: r2(saidasPeriodo),
+        saldo_previsto_no_fim: r2(saldo),
+        menor_saldo: { data: menor.data, valor: r2(menor.saldo) },
+        primeiro_dia_negativo: primeiroNegativo,
+        da_para_pagar: primeiroNegativo === null,
+        cenario_sem_receber: {
+          saldo_no_fim: r2(saldoSemReceber), menor_saldo: { data: menorSemReceber.data, valor: r2(menorSemReceber.saldo) },
+          primeiro_dia_negativo: negativoSemReceber, da_para_pagar: negativoSemReceber === null,
+          obs: "Se NENHUMA entrada pendente se confirmar: dá pra pagar só com o que já está nas contas?",
+        },
+        dias_com_movimento: dias,
+        obs: "Previsão só com o que está lançado. Transferências entre contas não mudam o total. Cartão aparece como a fatura no vencimento dela.",
+      });
+    }
+
     async function toolProjecao(dias: number): Promise<string> {
       const start = hojeISO;
       const end = addDaysISO(hojeISO, Math.max(1, Math.floor(dias || 30)));
@@ -1068,6 +1162,7 @@ ${contexto}`;
             else if (tc.function.name === "detalhe_cliente") result = await toolDetalheCliente(args.nome);
             else if (tc.function.name === "saldo_e_contas") result = await toolSaldoContas();
             else if (tc.function.name === "projecao_fluxo") result = await toolProjecao(args.dias);
+            else if (tc.function.name === "previsao_caixa") result = await toolPrevisaoCaixa(args.inicio, args.fim);
             else if (tc.function.name === "comparativo_periodos") result = await toolComparativo(args.inicio_a, args.fim_a, args.inicio_b, args.fim_b);
             else if (tc.function.name === "movimento_por_forma") result = await toolPorForma(args.inicio, args.fim, args.tipo);
             else if (tc.function.name === "compras_parceladas") result = await toolParceladas(args.incluir_quitadas);
