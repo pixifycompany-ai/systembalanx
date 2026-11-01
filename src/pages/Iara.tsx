@@ -112,7 +112,9 @@ export default function Iara() {
   const lastIsUser = messages[messages.length - 1]?.role === 'user';
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-3.5rem-env(safe-area-inset-top,0px))] max-w-3xl flex-col pb-[4.5rem] md:-mb-8 md:-mt-4 md:h-[calc(100dvh-3.5rem)] md:py-4">
+    // Mobile: tela travada na área visível (fixed) — só a conversa rola, a página não.
+    // Embaixo fica o espaço da barra de navegação flutuante.
+    <div className="fixed inset-x-0 top-0 bottom-0 z-30 flex flex-col bg-background px-3 pb-[calc(env(safe-area-inset-bottom,0px)+5.75rem)] pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] md:static md:z-auto md:mx-auto md:-mb-8 md:-mt-4 md:h-[calc(100dvh-3.5rem)] md:max-w-3xl md:bg-transparent md:px-0 md:py-4">
       {/* Cabeçalho */}
       <div className="mb-3 flex items-end gap-3 md:mb-4">
         <button
@@ -149,7 +151,7 @@ export default function Iara() {
         </div>
 
         {/* Mensagens */}
-        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-3.5 py-4 md:px-6 md:py-5">
+        <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3.5 py-4 [-webkit-overflow-scrolling:touch] md:px-6 md:py-5">
           {messages.map((m) => (
             <div key={m.id} className={cn('flex flex-col gap-1', m.role === 'user' ? 'items-end' : 'items-start')}>
               <div className={cn('flex w-full items-end gap-2.5', m.role === 'user' && 'flex-row-reverse')}>

@@ -28,10 +28,22 @@ export function PullToRefresh({ children, threshold = 90, maxPull = 150 }: PullT
   }, [pull]);
 
   useEffect(() => {
+    // Toque dentro de uma área com rolagem própria (ex.: conversa da IARA) que não
+    // está no topo → é rolagem dessa área, não pull-to-refresh da página.
+    const dentroDeRolagemNaoNoTopo = (el: EventTarget | null) => {
+      for (let n = el as HTMLElement | null; n && n !== document.body; n = n.parentElement) {
+        if (n.scrollHeight > n.clientHeight + 1) {
+          const oy = getComputedStyle(n).overflowY;
+          if ((oy === 'auto' || oy === 'scroll') && n.scrollTop > 0) return true;
+        }
+      }
+      return false;
+    };
+
     const onTouchStart = (e: TouchEvent) => {
       // Only start when at the very top of the page
       const scrollTop = window.scrollY || document.documentElement.scrollTop;
-      if (scrollTop > 0 || refreshing) {
+      if (scrollTop > 0 || refreshing || dentroDeRolagemNaoNoTopo(e.target)) {
         startY.current = null;
         tracking.current = false;
         return;
