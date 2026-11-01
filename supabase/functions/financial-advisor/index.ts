@@ -390,6 +390,9 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - NÃO use tabelas (ficam ilegíveis no celular). Para listar categorias, clientes ou lançamentos use lista com marcadores, UM item por linha, no formato:
   - **Nome** — R$ 1.234,56 (detalhe curto, ex.: +35% vs média)
 - No máximo 8 itens por lista; se houver mais, resuma o resto em uma linha ("+ 5 categorias somando R$ 900,00").
+- Ao listar LANÇAMENTOS, identifique de quem é: use o FORNECEDOR (despesa) ou o CLIENTE (receita) como nome do item, com a descrição/categoria e o vencimento no detalhe. Ex.: - **Vivo** — R$ 139,90 (Internet · parcela 6/12 · vence 05/11). Se não houver fornecedor/cliente, use a descrição.
+- "O que tenho a pagar/receber" = SÓ o que está pendente ou atrasado (campo 'pendentes'). NUNCA liste itens já pagos/recebidos dentro do "a pagar/receber"; se for útil, cite-os à parte em **Já pagos no período** com o total.
+- Quando houver vários lançamentos do mesmo fornecedor/cliente, agrupe (use 'pendente_por_quem') e mostre o total de cada um.
 - Separe blocos com um subtítulo curto em negrito quando a resposta tiver mais de uma parte (ex.: **Acima da média**, **Dentro do normal**).
 - Emojis com muita moderação (no máximo 1–2 quando destacam algo importante).
 - Seja concisa: nada de textos longos quando um parágrafo resolve. Ofereça um próximo passo acionável quando fizer sentido.
@@ -404,8 +407,8 @@ ${contexto}`;
     const D = { type: "string", description: "YYYY-MM-DD" };
     const TOOLS = [
       { type: "function", function: { name: "resumo_financeiro", description: "Resultado num intervalo. Competência (= DRE): receita_competencia, despesa_competencia, lucro_liquido_dre, distribuicao_lucros, despesas_por_categoria (inclui itens do cartão). Caixa: recebido, a receber, pago, a pagar, lucro_caixa. Use p/ faturamento, gastos, lucro, margem, gasto por categoria, top clientes.", parameters: { type: "object", properties: { inicio: D, fim: D }, required: ["inicio", "fim"] } } },
-      { type: "function", function: { name: "agenda_vencimentos", description: "Lançamentos por data de VENCIMENTO (o que vence/entra/sai) + totais a receber/pagar. Use p/ hoje, amanhã, essa semana, resto do mês, do dia X ao Y, contas a pagar/receber.", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" }, status: { type: "string", enum: ["pago", "recebido", "pendente", "atrasado"], description: "opcional" } }, required: ["inicio", "fim"] } } },
-      { type: "function", function: { name: "buscar_lancamento", description: "Procura receitas/despesas por texto na descrição ou fornecedor. Ex: 'quanto paguei pra X', 'gastos com energia'.", parameters: { type: "object", properties: { termo: { type: "string", description: "texto a procurar" } }, required: ["termo"] } } },
+      { type: "function", function: { name: "agenda_vencimentos", description: "Lançamentos por data de VENCIMENTO (o que vence/entra/sai) com fornecedor, cliente, categoria, conta, forma e parcela. Separa o que ainda está PENDENTE (a pagar/receber) do que já foi quitado no período, e soma o pendente por fornecedor/cliente. Use p/ hoje, amanhã, essa semana, resto do mês, do dia X ao Y, contas a pagar/receber.", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" }, status: { type: "string", enum: ["pago", "recebido", "pendente", "atrasado"], description: "opcional" } }, required: ["inicio", "fim"] } } },
+      { type: "function", function: { name: "buscar_lancamento", description: "Procura receitas/despesas por texto na descrição, no FORNECEDOR, no nome do CLIENTE ou na CATEGORIA. Retorna fornecedor, cliente, categoria, conta, forma, parcela e status. Ex: 'quanto paguei pra X', 'gastos com energia', 'o que entrou do cliente Y', 'despesas de alimentação'.", parameters: { type: "object", properties: { termo: { type: "string", description: "texto a procurar" } }, required: ["termo"] } } },
       { type: "function", function: { name: "detalhe_cliente", description: "Panorama de um cliente: faturado, recebido, a receber, atrasado, contratos ativos e MRR. Ex: 'como está o cliente X', 'quanto Y me deve'.", parameters: { type: "object", properties: { nome: { type: "string", description: "nome ou parte" } }, required: ["nome"] } } },
       { type: "function", function: { name: "saldo_e_contas", description: "Saldo atual de cada conta + total em caixa e cartões (fatura aberta, limite, disponível). Ex: 'meu saldo', 'como estão meus cartões'.", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "projecao_fluxo", description: "Projeta a variação de caixa nos próximos N dias (a receber − a pagar por vencimento). Ex: 'vou ter caixa mês que vem'. Combine com saldo_e_contas.", parameters: { type: "object", properties: { dias: { type: "number", description: "dias à frente (ex: 30)" } }, required: ["dias"] } } },
@@ -719,19 +722,38 @@ ${contexto}`;
 
     function sanitize(t: string) { return (t || "").replace(/[%,()]/g, " ").trim(); }
 
+    // Marcadores internos do cartão: sombra da fatura e pagamento da fatura (não são lançamentos "de verdade").
+    const ehMarcador = (f?: string | null) => f === "[fatura]" || f === "[pagamento-fatura]";
+    const limpaFornecedor = (f?: string | null) => (f && !f.startsWith("[") ? f : null);
+    const parcelaTxt = (d: any) => (d.parcela_total ? `${d.parcela_num}/${d.parcela_total}` : null);
+
     async function toolBuscar(termo: string): Promise<string> {
       const t = sanitize(termo);
       if (!t) return JSON.stringify({ erro: "termo vazio" });
+      // Também acha por NOME do cliente e por CATEGORIA ("gastos com alimentação").
+      const [clis, cats] = await Promise.all([
+        safe<any>(supabase.from("clientes").select("id").ilike("nome", `%${t}%`).limit(20)),
+        safe<any>(supabase.from("categorias").select("id").ilike("nome", `%${t}%`).limit(20)),
+      ]);
+      const cliIds = clis.map((c: any) => c.id);
+      const catIds = cats.map((c: any) => c.id);
+      const inList = (col: string, ids: string[]) => (ids.length ? `,${col}.in.(${ids.join(",")})` : "");
       const [rec, desp] = await Promise.all([
-        safe<any>(supabase.from("receitas").select("descricao,valor,status,data_vencimento,data_competencia,cliente:clientes(nome)").ilike("descricao", `%${t}%`).limit(25)),
-        safe<any>(supabase.from("despesas").select("descricao,fornecedor,valor,status,data_vencimento,data_competencia,categoria:categorias(nome)").or(`descricao.ilike.%${t}%,fornecedor.ilike.%${t}%`).limit(25)),
+        safe<any>(supabase.from("receitas")
+          .select("descricao,valor,status,data_vencimento,data_competencia,data_recebimento,forma_pagamento,cliente:clientes(nome),categoria:categorias(nome),conta:contas(nome)")
+          .or(`descricao.ilike.%${t}%${inList("cliente_id", cliIds)}${inList("categoria_id", catIds)}`)
+          .order("data_competencia", { ascending: false }).limit(30)),
+        safe<any>(supabase.from("despesas")
+          .select("descricao,fornecedor,valor,status,data_vencimento,data_competencia,data_pagamento,forma_pagamento,parcela_num,parcela_total,categoria:categorias(nome),conta:contas(nome),cliente:clientes(nome)")
+          .or(`descricao.ilike.%${t}%,fornecedor.ilike.%${t}%${inList("cliente_id", cliIds)}${inList("categoria_id", catIds)}`)
+          .order("data_competencia", { ascending: false }).limit(30)),
       ]);
       const itens = [
-        ...rec.map(r => ({ tipo: "receita", descricao: r.descricao, quem: r.cliente?.nome || null, valor: Number(r.valor || 0), status: r.status, vencimento: r.data_vencimento, competencia: r.data_competencia })),
-        ...desp.map(d => ({ tipo: "despesa", descricao: d.descricao || d.fornecedor, quem: d.fornecedor || d.categoria?.nome || null, valor: Number(d.valor || 0), status: d.status, vencimento: d.data_vencimento, competencia: d.data_competencia })),
+        ...rec.map(r => ({ tipo: "receita", descricao: r.descricao, cliente: r.cliente?.nome || null, categoria: r.categoria?.nome || null, conta: r.conta?.nome || null, forma: r.forma_pagamento || null, valor: Number(r.valor || 0), status: r.status, vencimento: r.data_vencimento, competencia: r.data_competencia, quitado_em: r.data_recebimento || null })),
+        ...desp.filter(d => !ehMarcador(d.fornecedor)).map(d => ({ tipo: "despesa", descricao: d.descricao, fornecedor: limpaFornecedor(d.fornecedor), cliente: d.cliente?.nome || null, categoria: d.categoria?.nome || null, conta: d.conta?.nome || null, forma: d.forma_pagamento || null, parcela: parcelaTxt(d), valor: Number(d.valor || 0), status: d.status, vencimento: d.data_vencimento, competencia: d.data_competencia, quitado_em: d.data_pagamento || null })),
       ];
-      const totalDespesas = itens.filter(i => i.tipo === "despesa").reduce((s, i) => s + i.valor, 0);
-      const totalReceitas = itens.filter(i => i.tipo === "receita").reduce((s, i) => s + i.valor, 0);
+      const totalDespesas = itens.filter(i => i.tipo === "despesa").reduce((s2, i) => s2 + i.valor, 0);
+      const totalReceitas = itens.filter(i => i.tipo === "receita").reduce((s2, i) => s2 + i.valor, 0);
       return JSON.stringify({ termo: t, encontrados: itens.length, total_receitas: totalReceitas, total_despesas: totalDespesas, itens: itens.slice(0, 40) });
     }
 
@@ -809,22 +831,40 @@ ${contexto}`;
       const wantRec = tipo !== "despesa";
       const wantDesp = tipo !== "receita";
       const [rec, desp] = await Promise.all([
-        wantRec ? safe<any>(supabase.from("receitas").select("descricao,valor,status,data_vencimento,cliente:clientes(nome)").gte("data_vencimento", inicio).lte("data_vencimento", fim)) : Promise.resolve([]),
-        wantDesp ? safe<any>(supabase.from("despesas").select("descricao,valor,status,data_vencimento,categoria:categorias(nome)").gte("data_vencimento", inicio).lte("data_vencimento", fim).is("fatura_id", null)) : Promise.resolve([]), // cartão aparece como a fatura (sombra), não item a item
+        wantRec ? safe<any>(supabase.from("receitas")
+          .select("descricao,valor,status,data_vencimento,data_recebimento,forma_pagamento,cliente:clientes(nome),categoria:categorias(nome),conta:contas(nome)")
+          .gte("data_vencimento", inicio).lte("data_vencimento", fim)) : Promise.resolve([]),
+        wantDesp ? safe<any>(supabase.from("despesas")
+          .select("descricao,fornecedor,valor,status,data_vencimento,data_pagamento,forma_pagamento,parcela_num,parcela_total,categoria:categorias(nome),conta:contas(nome),cliente:clientes(nome)")
+          .gte("data_vencimento", inicio).lte("data_vencimento", fim).is("fatura_id", null)) : Promise.resolve([]), // cartão aparece como a fatura (sombra), não item a item
       ]);
       let itens = [
-        ...rec.map(r => ({ data: r.data_vencimento, tipo: "receita", descricao: r.descricao || r.cliente?.nome || "Receita", valor: Number(r.valor || 0), status: r.status, quem: r.cliente?.nome || null })),
-        ...desp.map(d => ({ data: d.data_vencimento, tipo: "despesa", descricao: d.descricao || d.categoria?.nome || "Despesa", valor: Number(d.valor || 0), status: d.status, quem: d.categoria?.nome || null })),
+        ...rec.map(r => ({ data: r.data_vencimento, tipo: "receita", descricao: r.descricao || r.cliente?.nome || "Receita", cliente: r.cliente?.nome || null, categoria: r.categoria?.nome || null, conta: r.conta?.nome || null, forma: r.forma_pagamento || null, valor: Number(r.valor || 0), status: r.status, quitado_em: r.data_recebimento || null })),
+        ...desp.map(d => ({ data: d.data_vencimento, tipo: "despesa", descricao: d.fornecedor === "[fatura]" ? (d.descricao || "Fatura do cartão") : (d.descricao || d.categoria?.nome || "Despesa"), fornecedor: d.fornecedor === "[fatura]" ? "Fatura do cartão" : limpaFornecedor(d.fornecedor), cliente: d.cliente?.nome || null, categoria: d.categoria?.nome || null, conta: d.conta?.nome || null, forma: d.forma_pagamento || null, parcela: parcelaTxt(d), valor: Number(d.valor || 0), status: d.status, quitado_em: d.data_pagamento || null })),
       ];
       if (status) itens = itens.filter(i => i.status === status);
       itens.sort((a, b) => String(a.data || "").localeCompare(String(b.data || "")));
-      const aReceber = itens.filter(i => i.tipo === "receita" && i.status !== "recebido").reduce((t, i) => t + i.valor, 0);
-      const aPagar = itens.filter(i => i.tipo === "despesa" && i.status !== "pago").reduce((t, i) => t + i.valor, 0);
+      // Separa o que AINDA falta (pendente/atrasado) do que já foi quitado no período.
+      const quitado = (i: any) => i.status === "pago" || i.status === "recebido";
+      const pendentes = itens.filter(i => !quitado(i));
+      const quitados = itens.filter(quitado);
+      const aReceber = pendentes.filter(i => i.tipo === "receita").reduce((t, i) => t + i.valor, 0);
+      const aPagar = pendentes.filter(i => i.tipo === "despesa").reduce((t, i) => t + i.valor, 0);
+      // Quem concentra o que falta pagar/receber (fornecedor ou cliente; senão a descrição)
+      const porQuem: Record<string, { tipo: string; total: number; itens: number }> = {};
+      for (const i of pendentes) {
+        const quem = (i as any).fornecedor || i.cliente || i.descricao;
+        const k = `${i.tipo}:${quem}`;
+        porQuem[k] = porQuem[k] || { tipo: i.tipo, total: 0, itens: 0 };
+        porQuem[k].total += i.valor; porQuem[k].itens += 1;
+      }
       return JSON.stringify({
         periodo: { inicio, fim },
-        total_itens: itens.length,
         a_receber: aReceber, a_pagar: aPagar, saldo_previsto: aReceber - aPagar,
-        itens: itens.slice(0, 40),
+        pendentes: pendentes.slice(0, 40),
+        ja_quitados_no_periodo: { total_pago: quitados.filter(i => i.tipo === "despesa").reduce((t, i) => t + i.valor, 0), total_recebido: quitados.filter(i => i.tipo === "receita").reduce((t, i) => t + i.valor, 0), itens: quitados.slice(0, 20) },
+        pendente_por_quem: Object.entries(porQuem).map(([k, v]) => ({ quem: k.split(":").slice(1).join(":"), ...v })).sort((a, b) => b.total - a.total).slice(0, 15),
+        obs: "a_pagar/a_receber e 'pendentes' são só o que AINDA falta (pendente/atrasado). 'ja_quitados_no_periodo' é o que já foi pago/recebido nessas datas — não entra no 'a pagar'.",
       });
     }
 
