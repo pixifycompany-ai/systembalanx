@@ -13,7 +13,7 @@ interface Message {
 
 interface RequestBody {
   messages: Message[];
-  period: "current_month" | "last_3_months" | "last_6_months" | "current_year";
+  period?: "current_month" | "last_3_months" | "last_6_months" | "current_year"; // legado: ignorado
 }
 
 function getPeriodDates(period: string): { startDate: string; endDate: string; periodLabel: string } {
@@ -118,8 +118,10 @@ serve(async (req) => {
       }
     } catch (_e) { /* fail open */ }
 
-    const { messages, period }: RequestBody = await req.json();
-    const { startDate, endDate, periodLabel } = getPeriodDates(period);
+    const { messages }: RequestBody = await req.json();
+    // A IARA enxerga TODOS os lançamentos da conta: o panorama inicial é sempre o mês
+    // atual e qualquer outro período (o que a pessoa disser na pergunta) vai pelas ferramentas.
+    const { startDate, endDate, periodLabel } = getPeriodDates("current_month");
     // HOJE no fuso do Brasil (não UTC) — evita "virar o dia" à noite.
     const hojeISO = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
     // Âncoras de data calculadas AQUI (o modelo erra aritmética de data). Semana
@@ -141,6 +143,10 @@ serve(async (req) => {
     const mesFim = new Date(Date.UTC(_hy, _hm, 0)).toISOString().slice(0, 10);          // último dia do mês atual
     const mesPassadoIni = new Date(Date.UTC(_hy, _hm - 2, 1)).toISOString().slice(0, 10);
     const mesPassadoFim = new Date(Date.UTC(_hy, _hm - 1, 0)).toISOString().slice(0, 10);
+    const ultimosMesesIni = (n: number) => new Date(Date.UTC(_hy, _hm - n, 1)).toISOString().slice(0, 10); // n meses contando o atual
+    const anoIni = `${_hy}-01-01`;
+    const anoPassadoIni = `${_hy - 1}-01-01`;
+    const anoPassadoFim = `${_hy - 1}-12-31`;
     const numMeses = monthsBetween(startDate, endDate);
 
     // ---- Busca de dados (em paralelo). Tudo já vem filtrado pela RLS do usuário. ----
@@ -269,7 +275,7 @@ serve(async (req) => {
     // ---- Monta o contexto financeiro ----
     const contexto = `
 DATA DE HOJE: ${hojeISO}
-PERÍODO ANALISADO: ${periodLabel} (${startDate} a ${endDate})
+PANORAMA DO MÊS ATUAL: ${periodLabel} (${startDate} a ${endDate}) — outros períodos: consulte as ferramentas
 ${nomeUsuario ? `USUÁRIO: ${nomeUsuario}` : ""}
 
 CAIXA (contas bancárias):
@@ -354,12 +360,16 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Se a margem estiver negativa ou o caixa apertado, seja honesta e construtiva: aponte os maiores ofensores (categorias/atrasos) e próximos passos práticos.
 
 ## Períodos e datas (MUITO IMPORTANTE)
-- HOJE é ${hojeISO}. O bloco "CONTEXTO FINANCEIRO" abaixo é um panorama do período "${periodLabel}" selecionado no app. Para QUALQUER outro período que a pessoa mencionar, você DEVE usar as ferramentas para consultar os dados reais daquele intervalo — nunca estime.
+- HOJE é ${hojeISO}. Você tem acesso a TODOS os lançamentos da conta, de qualquer data. O bloco "CONTEXTO FINANCEIRO" abaixo é só um panorama do mês atual (${periodLabel}). A pessoa informa o período na própria pergunta; para QUALQUER período diferente do mês atual você DEVE consultar as ferramentas com as datas desse intervalo — nunca estime nem diga que "não tem acesso" a outro período.
+- Sem período na pergunta: use o mês atual. Pergunta de continuação ("e em setembro?", "liste os de outubro") herda o assunto da mensagem anterior e troca só o período.
 - DATAS JÁ CALCULADAS (fuso do Brasil, semana de SEGUNDA a DOMINGO como no Calendário). NÃO recalcule — use EXATAMENTE estes intervalos ISO:
   • "hoje" → ${hojeISO} a ${hojeISO}; "amanhã" → ${amanhaISO}; "ontem" → ${ontemISO}.
   • "essa semana"/"esta semana" → ${semanaIni} a ${semanaFim}.
   • "semana passada" → ${semanaPassadaIni} a ${semanaPassadaFim}; "próxima semana"/"semana que vem" → ${proximaSemanaIni} a ${proximaSemanaFim}.
-  • "esse mês"/"este mês" → ${mesIni} a ${mesFim}; "resto do mês" → ${hojeISO} a ${mesFim}; "mês passado" → ${mesPassadoIni} a ${mesPassadoFim}.
+  • "esse mês"/"este mês"/"mês atual" → ${mesIni} a ${mesFim}; "resto do mês" → ${hojeISO} a ${mesFim}; "mês passado"/"mês anterior" → ${mesPassadoIni} a ${mesPassadoFim}.
+  • "últimos 3 meses" → ${ultimosMesesIni(3)} a ${mesFim}; "últimos 6 meses" → ${ultimosMesesIni(6)} a ${mesFim}; "últimos 12 meses" → ${ultimosMesesIni(12)} a ${mesFim}.
+  • "esse ano"/"este ano" → ${anoIni} a ${mesFim}; "ano passado" → ${anoPassadoIni} a ${anoPassadoFim}.
+  • Nome de mês ("outubro", "em setembro") → o mês inteiro (do dia 1 ao último dia) do ano atual; se esse mês ainda não chegou neste ano, use o do ano passado.
   • "do dia X ao dia Y", "entre X e Y" → use exatamente essas datas (assuma ${_hy}-${String(_hm).padStart(2, "0")} se só vier o dia).
   • Ao mencionar o intervalo na resposta, use estas MESMAS datas (ex.: "essa semana (${semanaIni} a ${semanaFim})").
 - Escolha a ferramenta certa:
@@ -367,7 +377,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • "Despesas acima da média", "o que aumentou", "onde estou gastando mais que o normal" → categorias_vs_media (compara cada categoria com a MÉDIA DELA nos meses anteriores — nunca compare uma categoria com o total do mês).
   • Gasto por CATEGORIA e "quanto gastei/lucrei" usam COMPETÊNCIA (campos despesas_por_categoria, despesa_competencia, lucro_liquido_dre) — é o mesmo número do DRE em Relatórios. Compras no cartão contam na categoria de cada item, mesmo com a fatura em aberto; a fatura em si não é despesa nova. Distribuição de lucros fica separada (distribuicao_lucros). Só use "pago"/"lucro_caixa" quando perguntarem o que SAIU do caixa.
   • Perguntas de agenda/caixa futuro-ou-passado por data ("o que vence/tenho a pagar/a receber", "hoje", "amanhã", "essa semana", "resto do mês") → agenda_vencimentos (por data de vencimento).
-  • Procurar por fornecedor/descrição ("quanto paguei pra X") → buscar_lancamento. Panorama de um cliente → detalhe_cliente. Saldo atual/cartões → saldo_e_contas. Projeção de caixa futuro → projecao_fluxo. Comparar dois períodos → comparativo_periodos.
+  • LISTAR lançamentos de um período, categoria ou fornecedor ("liste as distribuições de lucro de outubro", "despesas de alimentação esse mês", "tudo que paguei pro X em setembro") → listar_lancamentos. Procurar algo sem período ("quanto já paguei pra X", "quando foi a última compra na Y") → buscar_lancamento. Panorama de um cliente → detalhe_cliente. Saldo atual/cartões → saldo_e_contas. Projeção de caixa futuro → projecao_fluxo. Comparar dois períodos → comparativo_periodos.
   • Por FORMA DE PAGAMENTO ("quanto fiz/paguei/recebi de PIX", "quanto no cartão/boleto/dinheiro") → movimento_por_forma (com o intervalo pedido: hoje, ontem, essa semana, esse mês, período).
   • "Quanto está minha fatura do cartão?" / "quanto devo no cartão" → saldo_e_contas (campo cartoes[].fatura_aberta é a fatura em aberto; total_faturas_abertas é a soma).
   • Compras PARCELADAS no cartão ("quantas parcelas faltam", "o que ainda está parcelado", "parcelas do notebook") → compras_parceladas (traz nº de parcelas, pagas, faltam, valor da parcela, próxima data de vencimento e valor restante por compra).
@@ -389,7 +399,8 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Responda em Markdown. Comece pela conclusão/resposta direta (1 frase, com o número principal em **negrito**) e depois os detalhes.
 - NÃO use tabelas (ficam ilegíveis no celular). Para listar categorias, clientes ou lançamentos use lista com marcadores, UM item por linha, no formato:
   - **Nome** — R$ 1.234,56 (detalhe curto, ex.: +35% vs média)
-- No máximo 8 itens por lista; se houver mais, resuma o resto em uma linha ("+ 5 categorias somando R$ 900,00").
+- No máximo 8 itens por lista; se houver mais, resuma o resto em uma linha ("+ 5 categorias somando R$ 900,00"). Exceção: quando a pessoa pedir explicitamente para LISTAR lançamentos, mostre até 20 (e resuma o resto).
+- Para listar lançamentos de um período/categoria/fornecedor use listar_lancamentos (NÃO buscar_lancamento). Mantenha o contexto da conversa: "liste os de outubro" logo após falar de uma categoria = essa categoria em outubro. Nunca diga que não há lançamentos sem ter consultado listar_lancamentos com o período certo.
 - Ao listar LANÇAMENTOS, identifique de quem é: use o FORNECEDOR (despesa) ou o CLIENTE (receita) como nome do item, com a descrição/categoria e o vencimento no detalhe. Ex.: - **Vivo** — R$ 139,90 (Internet · parcela 6/12 · vence 05/11). Se não houver fornecedor/cliente, use a descrição.
 - "O que tenho a pagar/receber" = SÓ o que está pendente ou atrasado (campo 'pendentes'). NUNCA liste itens já pagos/recebidos dentro do "a pagar/receber"; se for útil, cite-os à parte em **Já pagos no período** com o total.
 - Quando houver vários lançamentos do mesmo fornecedor/cliente, agrupe (use 'pendente_por_quem') e mostre o total de cada um.
@@ -408,6 +419,7 @@ ${contexto}`;
     const TOOLS = [
       { type: "function", function: { name: "resumo_financeiro", description: "Resultado num intervalo. Competência (= DRE): receita_competencia, despesa_competencia, lucro_liquido_dre, distribuicao_lucros, despesas_por_categoria (inclui itens do cartão). Caixa: recebido, a receber, pago, a pagar, lucro_caixa. Use p/ faturamento, gastos, lucro, margem, gasto por categoria, top clientes.", parameters: { type: "object", properties: { inicio: D, fim: D }, required: ["inicio", "fim"] } } },
       { type: "function", function: { name: "agenda_vencimentos", description: "Lançamentos por data de VENCIMENTO (o que vence/entra/sai) com fornecedor, cliente, categoria, conta, forma e parcela. Separa o que ainda está PENDENTE (a pagar/receber) do que já foi quitado no período, e soma o pendente por fornecedor/cliente. Use p/ hoje, amanhã, essa semana, resto do mês, do dia X ao Y, contas a pagar/receber.", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" }, status: { type: "string", enum: ["pago", "recebido", "pendente", "atrasado"], description: "opcional" } }, required: ["inicio", "fim"] } } },
+      { type: "function", function: { name: "listar_lancamentos", description: "LISTA os lançamentos de um período com filtros: categoria (ex.: 'Distribuição de Lucros', 'Alimentação'), fornecedor/cliente, tipo e status. Retorna cada lançamento (data, fornecedor/cliente, descrição, categoria, conta, valor, status), total e agrupamentos por fornecedor e por categoria. Use SEMPRE que pedirem para listar/mostrar/detalhar lançamentos de um mês ou período (ex.: 'liste as distribuições de lucro de outubro', 'quais despesas de alimentação esse mês', 'tudo que paguei pro fornecedor X em setembro').", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" }, categoria: { type: "string", description: "nome (ou parte) da categoria" }, quem: { type: "string", description: "fornecedor, cliente ou texto da descrição" }, status: { type: "string", enum: ["pago", "recebido", "pendente", "atrasado"] }, criterio: { type: "string", enum: ["competencia", "vencimento", "pagamento"], description: "qual data usar. Padrão competência (= DRE e categorias). 'pagamento' = quando o dinheiro saiu/entrou." } }, required: ["inicio", "fim"] } } },
       { type: "function", function: { name: "buscar_lancamento", description: "Procura receitas/despesas por texto na descrição, no FORNECEDOR, no nome do CLIENTE ou na CATEGORIA. Retorna fornecedor, cliente, categoria, conta, forma, parcela e status. Ex: 'quanto paguei pra X', 'gastos com energia', 'o que entrou do cliente Y', 'despesas de alimentação'.", parameters: { type: "object", properties: { termo: { type: "string", description: "texto a procurar" } }, required: ["termo"] } } },
       { type: "function", function: { name: "detalhe_cliente", description: "Panorama de um cliente: faturado, recebido, a receber, atrasado, contratos ativos e MRR. Ex: 'como está o cliente X', 'quanto Y me deve'.", parameters: { type: "object", properties: { nome: { type: "string", description: "nome ou parte" } }, required: ["nome"] } } },
       { type: "function", function: { name: "saldo_e_contas", description: "Saldo atual de cada conta + total em caixa e cartões (fatura aberta, limite, disponível). Ex: 'meu saldo', 'como estão meus cartões'.", parameters: { type: "object", properties: {} } } },
@@ -757,6 +769,68 @@ ${contexto}`;
       return JSON.stringify({ termo: t, encontrados: itens.length, total_receitas: totalReceitas, total_despesas: totalDespesas, itens: itens.slice(0, 40) });
     }
 
+    // Lista lançamentos de um período com filtros (categoria, fornecedor/cliente, tipo, status).
+    async function toolListar(inicio: string, fim: string, tipo?: string, categoria?: string, quem?: string, status?: string, base?: string): Promise<string> {
+      const wantRec = tipo !== "despesa";
+      const wantDesp = tipo !== "receita";
+      const colRec = base === "vencimento" ? "data_vencimento" : base === "pagamento" ? "data_recebimento" : "data_competencia";
+      const colDesp = base === "vencimento" ? "data_vencimento" : base === "pagamento" ? "data_pagamento" : "data_competencia";
+
+      let catIds: string[] | null = null;
+      if (categoria && sanitize(categoria)) {
+        const cats = await safe<any>(supabase.from("categorias").select("id,nome").ilike("nome", `%${sanitize(categoria)}%`));
+        if (!cats.length) {
+          const todas = await safe<any>(supabase.from("categorias").select("nome"));
+          return JSON.stringify({ erro: `Nenhuma categoria parecida com "${categoria}".`, categorias_existentes: [...new Set(todas.map((c: any) => c.nome))] });
+        }
+        catIds = cats.map((c: any) => c.id);
+      }
+      const q = quem ? sanitize(quem) : "";
+      const cliIds = q ? (await safe<any>(supabase.from("clientes").select("id").ilike("nome", `%${q}%`).limit(20))).map((c: any) => c.id) : [];
+
+      let recQ: any = supabase.from("receitas")
+        .select("descricao,valor,status,data_competencia,data_vencimento,data_recebimento,forma_pagamento,cliente:clientes(nome),categoria:categorias(nome),conta:contas(nome)")
+        .gte(colRec, inicio).lte(colRec, fim);
+      if (catIds) recQ = recQ.in("categoria_id", catIds);
+      if (q) recQ = cliIds.length ? recQ.or(`descricao.ilike.%${q}%,cliente_id.in.(${cliIds.join(",")})`) : recQ.ilike("descricao", `%${q}%`);
+      if (status) recQ = recQ.eq("status", status);
+
+      let despQ: any = supabase.from("despesas")
+        .select("descricao,fornecedor,valor,status,data_competencia,data_vencimento,data_pagamento,forma_pagamento,parcela_num,parcela_total,categoria:categorias(nome),conta:contas(nome),cliente:clientes(nome)")
+        .gte(colDesp, inicio).lte(colDesp, fim);
+      if (catIds) despQ = despQ.in("categoria_id", catIds);
+      if (q) despQ = despQ.or(`descricao.ilike.%${q}%,fornecedor.ilike.%${q}%${cliIds.length ? `,cliente_id.in.(${cliIds.join(",")})` : ""}`);
+      if (status) despQ = despQ.eq("status", status);
+
+      const [rec, desp] = await Promise.all([
+        wantRec ? safe<any>(recQ.limit(300)) : Promise.resolve([]),
+        wantDesp ? safe<any>(despQ.limit(300)) : Promise.resolve([]),
+      ]);
+      const itens = [
+        ...rec.map((r: any) => ({ data: r[colRec], tipo: "receita", descricao: r.descricao, cliente: r.cliente?.nome || null, categoria: r.categoria?.nome || null, conta: r.conta?.nome || null, forma: r.forma_pagamento || null, valor: Number(r.valor || 0), status: r.status })),
+        // competência: itens do cartão contam (são as compras reais); marcadores da fatura ficam de fora
+        ...desp.filter((d: any) => !ehMarcador(d.fornecedor)).map((d: any) => ({ data: d[colDesp], tipo: "despesa", descricao: d.descricao, fornecedor: limpaFornecedor(d.fornecedor), cliente: d.cliente?.nome || null, categoria: d.categoria?.nome || null, conta: d.conta?.nome || null, forma: d.forma_pagamento || null, parcela: parcelaTxt(d), valor: Number(d.valor || 0), status: d.status })),
+      ].sort((a, b) => String(a.data || "").localeCompare(String(b.data || "")));
+
+      const soma = (arr: any[]) => arr.reduce((t, i) => t + i.valor, 0);
+      const agrupa = (chave: (i: any) => string) => {
+        const m: Record<string, { total: number; itens: number }> = {};
+        for (const i of itens) { const k = chave(i); m[k] = m[k] || { total: 0, itens: 0 }; m[k].total += i.valor; m[k].itens += 1; }
+        return Object.entries(m).map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.total - a.total).slice(0, 15);
+      };
+      return JSON.stringify({
+        periodo: { inicio, fim, criterio: base || "competencia" },
+        filtros: { tipo: tipo || "ambos", categoria: categoria || null, quem: quem || null, status: status || null },
+        quantidade: itens.length,
+        total_despesas: soma(itens.filter(i => i.tipo === "despesa")),
+        total_receitas: soma(itens.filter(i => i.tipo === "receita")),
+        por_fornecedor_ou_cliente: agrupa(i => i.fornecedor || i.cliente || i.descricao || "—"),
+        por_categoria: agrupa(i => i.categoria || "Sem categoria"),
+        itens: itens.slice(0, 80),
+        obs: itens.length > 80 ? `Mostrando 80 de ${itens.length}; os totais consideram todos.` : undefined,
+      });
+    }
+
     async function toolDetalheCliente(nome: string): Promise<string> {
       const t = sanitize(nome);
       const clientesMatch = await safe<any>(supabase.from("clientes").select("id,nome,status,cpf_cnpj").ilike("nome", `%${t}%`).limit(1));
@@ -914,6 +988,7 @@ ${contexto}`;
             if (tc.function.name === "resumo_financeiro") result = await toolResumo(args.inicio, args.fim);
             else if (tc.function.name === "agenda_vencimentos") result = await toolAgenda(args.inicio, args.fim, args.tipo, args.status);
             else if (tc.function.name === "buscar_lancamento") result = await toolBuscar(args.termo);
+            else if (tc.function.name === "listar_lancamentos") result = await toolListar(args.inicio, args.fim, args.tipo, args.categoria, args.quem, args.status, args.criterio);
             else if (tc.function.name === "detalhe_cliente") result = await toolDetalheCliente(args.nome);
             else if (tc.function.name === "saldo_e_contas") result = await toolSaldoContas();
             else if (tc.function.name === "projecao_fluxo") result = await toolProjecao(args.dias);

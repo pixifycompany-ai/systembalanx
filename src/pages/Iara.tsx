@@ -7,23 +7,9 @@ import { IaraMarkdown } from '@/components/iara/IaraMarkdown';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useFinancialAdvisor, type PeriodOption } from '@/hooks/useFinancialAdvisor';
+import { useFinancialAdvisor } from '@/hooks/useFinancialAdvisor';
 import { PropostaLancamentos } from '@/components/iara/PropostaLancamentos';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-
-const PERIOD_LABELS: Record<PeriodOption, string> = {
-  current_month: 'Mês atual',
-  last_3_months: 'Últimos 3 meses',
-  last_6_months: 'Últimos 6 meses',
-  current_year: 'Ano atual',
-};
 
 const SUGESTOES = [
   'O que tenho a pagar essa semana?',
@@ -37,7 +23,7 @@ const SUGESTOES = [
 
 export default function Iara() {
   const navigate = useNavigate();
-  const { messages, isLoading, period, setPeriod, sendMessage, clearChat, clearLancamentos } = useFinancialAdvisor();
+  const { messages, isLoading, sendMessage, clearChat, clearLancamentos } = useFinancialAdvisor();
   const [input, setInput] = useState('');
   const [listening, setListening] = useState(false); // gravando
   const [transcribing, setTranscribing] = useState(false);
@@ -142,16 +128,6 @@ export default function Iara() {
           title="IARA"
           actions={
             <>
-              <Select value={period} onValueChange={(v) => setPeriod(v as PeriodOption)}>
-                <SelectTrigger className="h-10 w-auto gap-1 rounded-full px-4 text-[13px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(PERIOD_LABELS).map(([v, l]) => (
-                    <SelectItem key={v} value={v}>{l}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <button
                 onClick={clearChat}
                 aria-label="Limpar conversa"

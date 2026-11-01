@@ -13,14 +13,10 @@ export interface ChatMessage {
   lancamentos?: PropostaLancamento[];
 }
 
-export type PeriodOption = 'current_month' | 'last_3_months' | 'last_6_months' | 'current_year';
-
 interface UseFinancialAdvisorReturn {
   messages: ChatMessage[];
   isLoading: boolean;
   error: string | null;
-  period: PeriodOption;
-  setPeriod: (period: PeriodOption) => void;
   sendMessage: (content: string) => Promise<void>;
   clearChat: () => void;
   /** Remove o card de prévia de uma mensagem (após criar/cancelar). */
@@ -34,13 +30,12 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
     {
       id: 'welcome',
       role: 'assistant',
-      content: 'Olá! Sou seu assistente financeiro. Analiso seus dados reais para fornecer orientações personalizadas sobre fluxo de caixa, distribuição de lucros e muito mais. Como posso ajudar?',
+      content: 'Olá! Sou a IARA. Tenho acesso a todos os seus lançamentos, contas e clientes — é só perguntar e dizer o período, se quiser (ex.: "mês passado", "últimos 3 meses", "de 10/09 a 20/10"). Sem período, uso o mês atual.',
       timestamp: new Date(),
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [period, setPeriod] = useState<PeriodOption>('current_month');
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) return;
@@ -87,7 +82,6 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
             .filter(m => m.id !== 'welcome')
             .map(m => ({ role: m.role, content: m.content }))
             .concat([{ role: 'user', content: content.trim() }]),
-          period,
         }),
       });
 
@@ -193,7 +187,7 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, period]);
+  }, [messages]);
 
   const clearLancamentos = useCallback((messageId: string) => {
     setMessages(prev => prev.map(m =>
@@ -205,7 +199,7 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
     setMessages([{
       id: 'welcome',
       role: 'assistant',
-      content: 'Olá! Sou seu assistente financeiro. Analiso seus dados reais para fornecer orientações personalizadas sobre fluxo de caixa, distribuição de lucros e muito mais. Como posso ajudar?',
+      content: 'Olá! Sou a IARA. Tenho acesso a todos os seus lançamentos, contas e clientes — é só perguntar e dizer o período, se quiser (ex.: "mês passado", "últimos 3 meses", "de 10/09 a 20/10"). Sem período, uso o mês atual.',
       timestamp: new Date(),
     }]);
     setError(null);
@@ -215,8 +209,6 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
     messages,
     isLoading,
     error,
-    period,
-    setPeriod,
     sendMessage,
     clearChat,
     clearLancamentos,

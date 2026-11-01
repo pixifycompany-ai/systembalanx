@@ -1,21 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Bot, User, Send, Loader2, Sparkles, RefreshCw } from 'lucide-react';
-import { useFinancialAdvisor, type PeriodOption } from '@/hooks/useFinancialAdvisor';
+import { useFinancialAdvisor } from '@/hooks/useFinancialAdvisor';
 import { IaraMarkdown } from '@/components/iara/IaraMarkdown';
 import { cn } from '@/lib/utils';
 import { HexWatermark } from '@/components/shared/NavySurface';
 import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW } from '@/components/shared/navyTokens';
-
-const PERIOD_OPTIONS = [
-  { value: 'current_month', label: 'Mês atual' },
-  { value: 'last_3_months', label: 'Últimos 3 meses' },
-  { value: 'last_6_months', label: 'Últimos 6 meses' },
-  { value: 'current_year', label: 'Ano atual' },
-] as const;
 
 const QUICK_SUGGESTIONS = [
   'Analise meu fluxo de caixa',
@@ -34,7 +26,7 @@ interface AIAdvisorWidgetProps {
 }
 
 export function AIAdvisorWidget({ fill = false, variant = 'surface', className }: AIAdvisorWidgetProps = {}) {
-  const { messages, isLoading, period, setPeriod, sendMessage, clearChat } = useFinancialAdvisor();
+  const { messages, isLoading, sendMessage, clearChat } = useFinancialAdvisor();
   // Sugestões só até a primeira pergunta — depois a conversa ganha o espaço.
   const semPerguntas = !messages.some((m) => m.role === 'user');
   const [input, setInput] = useState('');
@@ -87,22 +79,6 @@ export function AIAdvisorWidget({ fill = false, variant = 'surface', className }
           <span className="truncate">IARA · Assistente</span>
         </h2>
         <div className="flex shrink-0 items-center gap-1.5">
-          <Select value={period} onValueChange={(v) => setPeriod(v as PeriodOption)}>
-            <SelectTrigger
-              className={cn(
-                'h-8 rounded-full px-3 text-xs',
-                fill ? 'w-[132px]' : 'w-[160px]',
-                navy && 'border-white/15 bg-white/10 text-white focus:ring-white/30 focus:ring-offset-0',
-              )}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PERIOD_OPTIONS.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Button
             variant="ghost"
             size="icon"
