@@ -11,6 +11,9 @@ const corsHeaders = {
 };
 
 const LIMITE_DIA_IP = Number(Deno.env.get("IARA_LP_LIMITE_IP") || "40");
+// Teto diário GERAL (soma de todos os visitantes) — protege o custo de IA mesmo com muitos IPs.
+const LIMITE_DIA_TOTAL = Number(Deno.env.get("IARA_LP_LIMITE_DIA") || "2000");
+const CHAVE_TOTAL = "__total__"; // linha do contador geral na mesma tabela (não é um IP)
 
 const SYSTEM = `Você é a IARA, a assistente virtual do site do BALANX. Atende quem está conhecendo o produto (pré-venda), em português do Brasil, de forma curta, simpática e útil.
 
@@ -48,7 +51,15 @@ serve(async (req) => {
       if (qtd > LIMITE_DIA_IP) {
         return new Response(JSON.stringify({ error: "Muitas mensagens por hoje. Crie sua conta grátis em app.balanx.com.br para conversar com a IARA de verdade 🙂" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      await admin.from("lp_chat_uso").upsert({ ip, dia: hoje, qtd }, { onConflict: "ip,dia" });
+      const { data: tot } = await admin.from("lp_chat_uso").select("qtd").eq("ip", CHAVE_TOTAL).eq("dia", hoje).maybeSingle();
+      const qtdTotal = (tot?.qtd ?? 0) + 1;
+      if (qtdTotal > LIMITE_DIA_TOTAL) {
+        return new Response(JSON.stringify({ error: "A IARA do site já atendeu muita gente hoje e fez uma pausa 🙂 Crie sua conta grátis (14 dias, sem cartão) em app.balanx.com.br/criar-conta — lá dentro ela responde tudo sobre os seus números." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      await admin.from("lp_chat_uso").upsert([
+        { ip, dia: hoje, qtd },
+        { ip: CHAVE_TOTAL, dia: hoje, qtd: qtdTotal },
+      ], { onConflict: "ip,dia" });
     } catch (_e) { /* fail open */ }
 
     // ---- Entrada: JSON (texto) ou multipart (áudio) ----
