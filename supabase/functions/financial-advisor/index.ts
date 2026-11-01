@@ -377,6 +377,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • "Despesas acima da média", "o que aumentou", "onde estou gastando mais que o normal" → categorias_vs_media (compara cada categoria com a MÉDIA DELA nos meses anteriores — nunca compare uma categoria com o total do mês).
   • Gasto por CATEGORIA e "quanto gastei/lucrei" usam COMPETÊNCIA (campos despesas_por_categoria, despesa_competencia, lucro_liquido_dre) — é o mesmo número do DRE em Relatórios. Compras no cartão contam na categoria de cada item, mesmo com a fatura em aberto; a fatura em si não é despesa nova. Distribuição de lucros fica separada (distribuicao_lucros). Só use "pago"/"lucro_caixa" quando perguntarem o que SAIU do caixa.
   • Perguntas de agenda/caixa futuro-ou-passado por data ("o que vence/tenho a pagar/a receber", "hoje", "amanhã", "essa semana", "resto do mês") → agenda_vencimentos (por data de vencimento).
+  • Gasto por TEMA que não é categoria cadastrada nem nome exato ("quanto gastei com ifood ou restaurantes", "comer fora", "mercado", "combustível", "Uber/transporte", "farmácia") → fornecedores_do_periodo, você CLASSIFICA pelo nome do fornecedor E pela descrição dos lançamentos (o tema muitas vezes só está na descrição: "almoço", "janta", "lanche", "café"), depois lancamentos_dos_fornecedores com os fornecedores escolhidos e/ou termos_descricao. Seja criteriosa: inclua só o que claramente pertence ao tema (ex.: BARBEARIA não é bar; ALMOFADA não é almoço; prefira escolher fornecedores pelo nome e use termos_descricao só com palavras inteiras como almoço, janta, jantar, lanche, marmita, refeição). Na resposta: total em negrito, os lançamentos (fornecedor — valor · descrição · data) e, no fim, uma linha "Considerei: A, B, C (e descrições com almoço, janta…) — quer incluir ou tirar algum?". Se o tema for exatamente uma categoria cadastrada, pode usar listar_lancamentos com a categoria.
   • LISTAR lançamentos de um período, categoria ou fornecedor ("liste as distribuições de lucro de outubro", "despesas de alimentação esse mês", "tudo que paguei pro X em setembro") → listar_lancamentos. Procurar algo sem período ("quanto já paguei pra X", "quando foi a última compra na Y") → buscar_lancamento. Panorama de um cliente → detalhe_cliente. Saldo atual/cartões → saldo_e_contas. Projeção de caixa futuro → projecao_fluxo. Comparar dois períodos → comparativo_periodos.
   • Por FORMA DE PAGAMENTO ("quanto fiz/paguei/recebi de PIX", "quanto no cartão/boleto/dinheiro") → movimento_por_forma (com o intervalo pedido: hoje, ontem, essa semana, esse mês, período).
   • "Quanto está minha fatura do cartão?" / "quanto devo no cartão" → saldo_e_contas (campo cartoes[].fatura_aberta é a fatura em aberto; total_faturas_abertas é a soma).
@@ -420,6 +421,8 @@ ${contexto}`;
       { type: "function", function: { name: "resumo_financeiro", description: "Resultado num intervalo. Competência (= DRE): receita_competencia, despesa_competencia, lucro_liquido_dre, distribuicao_lucros, despesas_por_categoria (inclui itens do cartão). Caixa: recebido, a receber, pago, a pagar, lucro_caixa. Use p/ faturamento, gastos, lucro, margem, gasto por categoria, top clientes.", parameters: { type: "object", properties: { inicio: D, fim: D }, required: ["inicio", "fim"] } } },
       { type: "function", function: { name: "agenda_vencimentos", description: "Lançamentos por data de VENCIMENTO (o que vence/entra/sai) com fornecedor, cliente, categoria, conta, forma e parcela. Separa o que ainda está PENDENTE (a pagar/receber) do que já foi quitado no período, e soma o pendente por fornecedor/cliente. Use p/ hoje, amanhã, essa semana, resto do mês, do dia X ao Y, contas a pagar/receber.", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" }, status: { type: "string", enum: ["pago", "recebido", "pendente", "atrasado"], description: "opcional" } }, required: ["inicio", "fim"] } } },
       { type: "function", function: { name: "listar_lancamentos", description: "LISTA os lançamentos de um período com filtros: categoria (ex.: 'Distribuição de Lucros', 'Alimentação'), fornecedor/cliente, tipo e status. Retorna cada lançamento (data, fornecedor/cliente, descrição, categoria, conta, valor, status), total e agrupamentos por fornecedor e por categoria. Use SEMPRE que pedirem para listar/mostrar/detalhar lançamentos de um mês ou período (ex.: 'liste as distribuições de lucro de outubro', 'quais despesas de alimentação esse mês', 'tudo que paguei pro fornecedor X em setembro').", parameters: { type: "object", properties: { inicio: D, fim: D, tipo: { type: "string", enum: ["receita", "despesa", "ambos"], description: "padrão: ambos" }, categoria: { type: "string", description: "nome (ou parte) da categoria" }, quem: { type: "string", description: "fornecedor, cliente ou texto da descrição" }, status: { type: "string", enum: ["pago", "recebido", "pendente", "atrasado"] }, criterio: { type: "string", enum: ["competencia", "vencimento", "pagamento"], description: "qual data usar. Padrão competência (= DRE e categorias). 'pagamento' = quando o dinheiro saiu/entrou." } }, required: ["inicio", "fim"] } } },
+      { type: "function", function: { name: "fornecedores_do_periodo", description: "PASSO 1 de gastos por TEMA/assunto que não é uma categoria cadastrada nem um nome exato (ex.: 'restaurantes', 'comer fora', 'delivery', 'ifood ou restaurantes', 'mercado', 'combustível', 'transporte/Uber', 'farmácia', 'assinaturas'). Devolve TODOS os fornecedores de despesa do período com total, nº de lançamentos, exemplos de descrição e categorias, para você decidir quais pertencem ao tema.", parameters: { type: "object", properties: { inicio: D, fim: D, criterio: { type: "string", enum: ["competencia", "vencimento", "pagamento"], description: "padrão competência (inclui compras no cartão)" } }, required: ["inicio", "fim"] } } },
+      { type: "function", function: { name: "lancamentos_dos_fornecedores", description: "PASSO 2 de gastos por tema: soma e lista os lançamentos que pertencem ao tema — pelos FORNECEDORES escolhidos (nomes EXATOS do campo 'fornecedor' de fornecedores_do_periodo) e/ou por TERMOS que aparecem na descrição (ex.: almoço, janta, lanche). Cada item vem com 'entrou_por' (fornecedor ou descricao).", parameters: { type: "object", properties: { inicio: D, fim: D, fornecedores: { type: "array", items: { type: "string" } }, termos_descricao: { type: "array", items: { type: "string" }, description: "palavras da descrição (sem acento não importa)" }, criterio: { type: "string", enum: ["competencia", "vencimento", "pagamento"] } }, required: ["inicio", "fim"] } } },
       { type: "function", function: { name: "buscar_lancamento", description: "Procura receitas/despesas por texto na descrição, no FORNECEDOR, no nome do CLIENTE ou na CATEGORIA. Retorna fornecedor, cliente, categoria, conta, forma, parcela e status. Ex: 'quanto paguei pra X', 'gastos com energia', 'o que entrou do cliente Y', 'despesas de alimentação'.", parameters: { type: "object", properties: { termo: { type: "string", description: "texto a procurar" } }, required: ["termo"] } } },
       { type: "function", function: { name: "detalhe_cliente", description: "Panorama de um cliente: faturado, recebido, a receber, atrasado, contratos ativos e MRR. Ex: 'como está o cliente X', 'quanto Y me deve'.", parameters: { type: "object", properties: { nome: { type: "string", description: "nome ou parte" } }, required: ["nome"] } } },
       { type: "function", function: { name: "saldo_e_contas", description: "Saldo atual de cada conta + total em caixa e cartões (fatura aberta, limite, disponível). Ex: 'meu saldo', 'como estão meus cartões'.", parameters: { type: "object", properties: {} } } },
@@ -831,6 +834,77 @@ ${contexto}`;
       });
     }
 
+    // ---- Gastos por TEMA ("restaurantes", "delivery", "mercado", "transporte"…) ----
+    // Passo 1: entrega todos os fornecedores do período (com exemplos de descrição e
+    // categoria) para o modelo decidir quais pertencem ao tema. Passo 2: soma/lista
+    // exatamente os escolhidos. A chave de cada fornecedor é o nome (ou a descrição, se não houver).
+    const chaveForn = (d: any) => (limpaFornecedor(d.fornecedor) || (d.descricao || "").trim() || "Sem nome");
+    const colPorCriterio = (base?: string) => (base === "vencimento" ? "data_vencimento" : base === "pagamento" ? "data_pagamento" : "data_competencia");
+    async function despesasDoPeriodo(inicio: string, fim: string, base?: string) {
+      const col = colPorCriterio(base);
+      const rows = await safe<any>(supabase.from("despesas")
+        .select("descricao,fornecedor,valor,status,data_competencia,data_vencimento,data_pagamento,forma_pagamento,parcela_num,parcela_total,categoria:categorias(nome),conta:contas(nome)")
+        .gte(col, inicio).lte(col, fim).limit(3000));
+      return { col, rows: rows.filter((d: any) => !ehMarcador(d.fornecedor)) };
+    }
+
+    async function toolFornecedoresDoPeriodo(inicio: string, fim: string, base?: string): Promise<string> {
+      const { rows } = await despesasDoPeriodo(inicio, fim, base);
+      const m: Record<string, { total: number; qtd: number; descricoes: Set<string>; categorias: Set<string> }> = {};
+      for (const d of rows) {
+        const k = chaveForn(d);
+        m[k] = m[k] || { total: 0, qtd: 0, descricoes: new Set(), categorias: new Set() };
+        m[k].total += Number(d.valor || 0); m[k].qtd += 1;
+        if (d.descricao && m[k].descricoes.size < 6) m[k].descricoes.add(String(d.descricao).slice(0, 40));
+        if (d.categoria?.nome) m[k].categorias.add(d.categoria.nome);
+      }
+      // Descrições do período (o tema às vezes só aparece nela: "almoço", "janta", "lanche", "café")
+      const desc: Record<string, { texto: string; total: number; qtd: number }> = {};
+      for (const d of rows) {
+        const t = String(d.descricao || "").trim(); if (!t) continue;
+        const k = norm(t);
+        desc[k] = desc[k] || { texto: t.slice(0, 40), total: 0, qtd: 0 };
+        desc[k].total += Number(d.valor || 0); desc[k].qtd += 1;
+      }
+      const descricoesFrequentes = Object.values(desc).sort((a, b) => b.qtd - a.qtd || b.total - a.total).slice(0, 200)
+        .map((v) => ({ descricao: v.texto, qtd: v.qtd, total: Math.round(v.total * 100) / 100 }));
+      const lista = Object.entries(m).sort((a, b) => b[1].total - a[1].total).slice(0, 300)
+        .map(([k, v]) => ({ fornecedor: k, total: Math.round(v.total * 100) / 100, qtd: v.qtd, descricoes: [...v.descricoes], categorias: [...v.categorias] }));
+      return JSON.stringify({
+        periodo: { inicio, fim, criterio: base || "competencia" },
+        total_fornecedores: Object.keys(m).length,
+        fornecedores: lista,
+        descricoes_frequentes: descricoesFrequentes,
+        instrucao: "Classifique pelo NOME do fornecedor E pela DESCRIÇÃO dos lançamentos quais pertencem ao tema (ex.: restaurante/comer fora: bar, lanchonete, padaria, pizzaria, esfiharia, café, churrascaria, e descrições como almoço, janta, jantar, lanche, café, refeição; delivery: iFood, Rappi, Zé Delivery). Depois chame lancamentos_dos_fornecedores com 'fornecedores' (nomes EXATOS do campo fornecedor) e/ou 'termos_descricao' (palavras que, se aparecerem na descrição, entram — ex.: [\"almoço\",\"janta\",\"lanche\"]).",
+      });
+    }
+
+    async function toolLancamentosDosFornecedores(inicio: string, fim: string, fornecedores: string[], base?: string, termos?: string[]): Promise<string> {
+      const alvo = new Set((fornecedores || []).map((f) => norm(f)).filter(Boolean));
+      const termosN = (termos || []).map((t) => norm(t)).filter((t) => t.length >= 3);
+      if (!alvo.size && !termosN.length) return JSON.stringify({ erro: "Informe fornecedores e/ou termos_descricao (use fornecedores_do_periodo antes)." });
+      const { col, rows } = await despesasDoPeriodo(inicio, fim, base);
+      // Termos casam só PALAVRA INTEIRA (sem acento): "almoco" não pega "almofada", "bar" não pega "barbearia".
+      const regs = termosN.map((t) => new RegExp(`(^|[^a-z0-9])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`));
+      const casaTermo = (txt: string) => regs.some((r) => r.test(norm(txt)));
+      const motivo = (d: any) => alvo.has(norm(chaveForn(d))) ? "fornecedor" : (casaTermo(d.descricao || "") || casaTermo(chaveForn(d))) ? "descricao" : null;
+      const itens = rows.filter((d: any) => motivo(d) !== null)
+        .map((d: any) => ({ data: d[col], fornecedor: chaveForn(d), descricao: d.descricao, entrou_por: motivo(d), categoria: d.categoria?.nome || null, conta: d.conta?.nome || null, forma: d.forma_pagamento || null, parcela: parcelaTxt(d), valor: Number(d.valor || 0), status: d.status }))
+        .sort((a: any, b: any) => String(a.data || "").localeCompare(String(b.data || "")));
+      const porForn: Record<string, { total: number; qtd: number }> = {};
+      for (const i of itens) { porForn[i.fornecedor] = porForn[i.fornecedor] || { total: 0, qtd: 0 }; porForn[i.fornecedor].total += i.valor; porForn[i.fornecedor].qtd += 1; }
+      const encontrados = new Set(itens.map((i: any) => norm(i.fornecedor)));
+      return JSON.stringify({
+        periodo: { inicio, fim, criterio: base || "competencia" },
+        total: itens.reduce((t: number, i: any) => t + i.valor, 0),
+        quantidade: itens.length,
+        por_fornecedor: Object.entries(porForn).map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.total - a.total),
+        itens: itens.slice(0, 80),
+        termos_descricao: termosN,
+        fornecedores_nao_encontrados: [...alvo].filter((f) => !encontrados.has(f)),
+      });
+    }
+
     async function toolDetalheCliente(nome: string): Promise<string> {
       const t = sanitize(nome);
       const clientesMatch = await safe<any>(supabase.from("clientes").select("id,nome,status,cpf_cnpj").ilike("nome", `%${t}%`).limit(1));
@@ -988,6 +1062,8 @@ ${contexto}`;
             if (tc.function.name === "resumo_financeiro") result = await toolResumo(args.inicio, args.fim);
             else if (tc.function.name === "agenda_vencimentos") result = await toolAgenda(args.inicio, args.fim, args.tipo, args.status);
             else if (tc.function.name === "buscar_lancamento") result = await toolBuscar(args.termo);
+            else if (tc.function.name === "fornecedores_do_periodo") result = await toolFornecedoresDoPeriodo(args.inicio, args.fim, args.criterio);
+            else if (tc.function.name === "lancamentos_dos_fornecedores") result = await toolLancamentosDosFornecedores(args.inicio, args.fim, args.fornecedores, args.criterio, args.termos_descricao);
             else if (tc.function.name === "listar_lancamentos") result = await toolListar(args.inicio, args.fim, args.tipo, args.categoria, args.quem, args.status, args.criterio);
             else if (tc.function.name === "detalhe_cliente") result = await toolDetalheCliente(args.nome);
             else if (tc.function.name === "saldo_e_contas") result = await toolSaldoContas();
