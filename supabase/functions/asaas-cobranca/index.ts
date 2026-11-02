@@ -724,6 +724,56 @@ serve(async (req) => {
       return json({ ok: true });
     }
 
+    // ===== ATUALIZAR A PARTIR DA RECEITA (edição no Fluxo de Caixa) =====
+    // A receita é editada no app → a cobrança em aberto ligada a ela acompanha no
+    // Asaas: valor, descrição e vencimento (se não for data passada). Fatura agrupada
+    // (várias receitas numa cobrança): valor = soma das receitas; vencimento mantido.
+    if (action === "atualizar-de-receita") {
+      const { receita_id } = body;
+      const { data: rec } = await admin.from("receitas").select("id, valor, descricao, data_vencimento").eq("id", receita_id).eq("user_id", user.id).maybeSingle();
+      if (!rec) return json({ error: "Receita não encontrada." }, 404);
+      const { data: cob } = await admin.from("cobrancas").select("*").eq("receita_id", rec.id).eq("user_id", user.id)
+        .not("status", "in", "(cancelado,estornado)").order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (!cob) return json({ ok: true, sem_cobranca: true });
+      if (cob.status === "pago") return json({ ok: true, ja_paga: true });
+
+      const linhas = await linhasDaFatura(admin, cob);
+      const agrupada = linhas.length > 1;
+      let valorNovo = Number(rec.valor);
+      if (agrupada) {
+        const ids = linhas.map((l: any) => l.receita_id).filter(Boolean);
+        const { data: recs } = await admin.from("receitas").select("id, valor").in("id", ids);
+        valorNovo = (recs || []).reduce((t: number, r: any) => t + Number(r.valor || 0), 0);
+      }
+      valorNovo = Math.round(valorNovo * 100) / 100;
+      const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+      const novoVenc = !agrupada && rec.data_vencimento && rec.data_vencimento >= hoje ? rec.data_vencimento : null;
+      const vencIgnorado = !agrupada && rec.data_vencimento && rec.data_vencimento < hoje && rec.data_vencimento !== cob.vencimento;
+
+      if (cob.asaas_payment_id) {
+        const payload: Record<string, unknown> = { value: valorNovo };
+        if (novoVenc) payload.dueDate = novoVenc;
+        if (!agrupada && rec.descricao) payload.description = String(rec.descricao).slice(0, 500);
+        const r = await fetch(`${base}/payments/${cob.asaas_payment_id}`, { method: "POST", headers, body: JSON.stringify(payload) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) return json({ error: (j as any)?.errors?.[0]?.description || "O Asaas não aceitou a alteração da cobrança." }, 400);
+      }
+      for (const linha of linhas) {
+        const upd: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        if (linha.id === cob.id || !agrupada) {
+          if (!agrupada) upd.valor = valorNovo;
+          if (novoVenc) upd.vencimento = novoVenc;
+          if (!agrupada && rec.descricao) upd.descricao = rec.descricao;
+        }
+        if (agrupada) {
+          const { data: rl } = await admin.from("receitas").select("valor").eq("id", linha.receita_id).maybeSingle();
+          if (rl) upd.valor = Number(rl.valor);
+        }
+        await admin.from("cobrancas").update(upd).eq("id", linha.id);
+      }
+      return json({ ok: true, atualizada: true, valor: valorNovo, vencimento_ignorado: !!vencIgnorado, agrupada });
+    }
+
     // ===== ATUALIZAR CONTA de recebimento (cobrança + receita vinculada) =====
     if (action === "atualizar-conta") {
       const { cobranca_id, conta_id } = body;

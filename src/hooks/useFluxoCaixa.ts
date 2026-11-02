@@ -444,6 +444,37 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
 
       setReceitas(prev => prev.map(r => r.id === id ? data as unknown as ReceitaInternal : r));
       invalidateDerived();
+
+      // Cobrança em aberto ligada a esta receita acompanha a edição (valor, descrição,
+      // vencimento) — senão o cliente recebe o boleto/Pix com o valor antigo.
+      if ('valor' in formData || 'data_vencimento' in formData || 'descricao' in formData) {
+        // cobrancas ainda não está nos tipos gerados
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: cob } = await (supabase as any).from('cobrancas').select('id, status')
+          .eq('receita_id', id).not('status', 'in', '(cancelado,estornado)').limit(1).maybeSingle() as { data: { id: string; status: string } | null };
+        if (cob && cob.status !== 'pago') {
+          const { data: r, error: errCob } = await supabase.functions.invoke('asaas-cobranca', { body: { action: 'atualizar-de-receita', receita_id: id } });
+          const msgErro = errCob ? 'Não consegui atualizar a cobrança no Asaas.' : (r as { error?: string })?.error;
+          if (msgErro) {
+            toast({ title: 'Entrada salva, mas a cobrança não foi atualizada', description: `${msgErro} Ajuste em Cobranças.`, variant: 'destructive' });
+          } else {
+            const res = r as { agrupada?: boolean; vencimento_ignorado?: boolean };
+            toast({
+              title: 'Entrada e cobrança atualizadas',
+              description: res?.agrupada
+                ? 'A cobrança agrupada passou a ter a soma das receitas; o vencimento dela foi mantido.'
+                : res?.vencimento_ignorado
+                  ? 'Valor atualizado no Asaas. O vencimento não mudou porque é uma data passada.'
+                  : 'O Asaas já está com o novo valor/vencimento.',
+            });
+          }
+          return true;
+        }
+        if (cob?.status === 'pago') {
+          toast({ title: 'Entrada atualizada', description: 'A cobrança ligada a ela já foi paga — não foi alterada.' });
+          return true;
+        }
+      }
       toast({ title: 'Entrada atualizada com sucesso!' });
       return true;
     } catch (err) {
