@@ -1,5 +1,6 @@
 import type { PeriodFilter } from '@/hooks/useRelatorios';
 import { useDFC } from '@/hooks/useDFC';
+import { format, parseISO } from 'date-fns';
 import { formatCurrency } from '@/utils/formatters';
 import { SkeletonChart } from '@/components/shared/LoadingSpinner';
 import { DRETable } from './DRETable';
@@ -31,6 +32,17 @@ export function DFCTab({ period, customStart, customEnd }: DFCTabProps) {
         isNegativeRow={(label) => SAIDAS.has(label)}
         bottomLineLabel="SALDO FINAL"
       />
+      {data.quitadosNoFuturo.length > 0 && (
+        <div className="rounded-[16px] border border-transparent bg-warning-bg px-4 py-3 text-[13px] leading-relaxed text-warning-fg">
+          <b className="font-semibold">Atenção: {data.quitadosNoFuturo.length === 1 ? 'há 1 lançamento marcado como quitado' : `há ${data.quitadosNoFuturo.length} lançamentos marcados como quitados`} com data no futuro.</b>{' '}
+          O saldo da conta já considera, mas o caixa por data só considera no dia — por isso os dois ficam diferentes até lá. Confira a data:
+          <ul className="mt-1.5 space-y-0.5">
+            {data.quitadosNoFuturo.map((q, i) => (
+              <li key={i}>• {q.descricao} — {formatCurrency(q.valor)} ({q.tipo === 'saida' ? 'pago' : 'recebido'} em {format(parseISO(q.data), 'dd/MM/yyyy')})</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="px-1 text-[12px] leading-relaxed text-foreground-muted">
         Saldo real das contas hoje: <b className="font-semibold text-foreground">{formatCurrency(data.saldoAtualContas)}</b> — o saldo final do mês atual bate com ele.
         {data.semConta.quantidade > 0 && (

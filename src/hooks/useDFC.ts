@@ -29,6 +29,8 @@ export interface DFCData {
   saldoAtualContas: number;
   /** Movimentos pagos/recebidos sem conta bancária (não entram no caixa). */
   semConta: { quantidade: number; valor: number };
+  /** Marcados como pagos/recebidos mas com data no FUTURO (provável erro de digitação). */
+  quitadosNoFuturo: { tipo: 'entrada' | 'saida'; descricao: string; valor: number; data: string }[];
 }
 
 const isoDia = (d: Date) => format(d, 'yyyy-MM-dd');
@@ -39,8 +41,8 @@ async function fetchDFC(period: PeriodFilter, customStart?: Date, customEnd?: Da
 
   const [contasRes, recRes, despRes, itensRes, fatPagRes, faturasRes, transfRes] = await Promise.all([
     supabase.from('contas').select('id, tipo, saldo_inicial, ativa'),
-    supabase.from('receitas').select('valor, conta_id, data_recebimento, categoria:categorias(nome, grupo_dre)').eq('status', 'recebido'),
-    supabase.from('despesas').select('id, valor, conta_id, fornecedor, data_pagamento, categoria:categorias(nome, grupo_dre)').eq('status', 'pago').is('fatura_id', null),
+    supabase.from('receitas').select('valor, conta_id, descricao, data_recebimento, categoria:categorias(nome, grupo_dre)').eq('status', 'recebido'),
+    supabase.from('despesas').select('id, valor, conta_id, fornecedor, descricao, data_pagamento, categoria:categorias(nome, grupo_dre)').eq('status', 'pago').is('fatura_id', null),
     // Itens de fatura (compras no cartão) — só para ratear o pagamento por categoria
     supabase.from('despesas').select('valor, fatura_id, categoria:categorias(nome, grupo_dre)').not('fatura_id', 'is', null),
     supabase.from('cartao_fatura_pagamentos').select('fatura_id, despesa_id'),
@@ -54,8 +56,8 @@ async function fetchDFC(period: PeriodFilter, customStart?: Date, customEnd?: Da
   const saldoInicialContas = contas.filter((c) => bancos.has(c.id)).reduce((s, c) => s + Number(c.saldo_inicial || 0), 0);
 
   type Cat = { nome?: string; grupo_dre?: string } | null;
-  const entradas = (recRes.data || []) as { valor: number; conta_id: string | null; data_recebimento: string | null; categoria: Cat }[];
-  const saidas = (despRes.data || []) as { id: string; valor: number; conta_id: string | null; fornecedor: string | null; data_pagamento: string | null; categoria: Cat }[];
+  const entradas = (recRes.data || []) as { valor: number; conta_id: string | null; descricao: string | null; data_recebimento: string | null; categoria: Cat }[];
+  const saidas = (despRes.data || []) as { id: string; valor: number; conta_id: string | null; fornecedor: string | null; descricao: string | null; data_pagamento: string | null; categoria: Cat }[];
 
   // Rateio do pagamento da fatura pelos itens
   const faturaPorDespesa = new Map<string, string>();
@@ -181,7 +183,15 @@ async function fetchDFC(period: PeriodFilter, customStart?: Date, customEnd?: Da
     { label: 'SALDO FINAL', type: 'result', values: saldoFinal },
   ];
 
-  return { rows, months, saldoAtualContas: saldoAte(isoDia(new Date())), semConta };
+  // Quitado com data futura: o saldo de Contas já desconta (status), mas o caixa por data
+  // só desconta no dia — geralmente é ano digitado errado. Mostra pra pessoa corrigir.
+  const hoje = isoDia(new Date());
+  const quitadosNoFuturo = [
+    ...entradasBanco.filter((r) => r.data_recebimento! > hoje).map((r) => ({ tipo: 'entrada' as const, descricao: r.descricao || 'Receita', valor: Number(r.valor), data: r.data_recebimento! })),
+    ...saidasBanco.filter((d) => d.data_pagamento! > hoje).map((d) => ({ tipo: 'saida' as const, descricao: [d.descricao, d.fornecedor && !d.fornecedor.startsWith('[') ? d.fornecedor : null].filter(Boolean).join(' · ') || 'Despesa', valor: Number(d.valor), data: d.data_pagamento! })),
+  ];
+
+  return { rows, months, saldoAtualContas: saldoAte(hoje), semConta, quitadosNoFuturo };
 }
 
 export function useDFC(period: PeriodFilter, customStart?: Date, customEnd?: Date) {
