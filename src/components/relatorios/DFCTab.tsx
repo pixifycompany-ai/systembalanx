@@ -35,7 +35,7 @@ export function DFCTab({ period, customStart, customEnd }: DFCTabProps) {
       {data.quitadosNoFuturo.length > 0 && (
         <div className="rounded-[16px] border border-transparent bg-warning-bg px-4 py-3 text-[13px] leading-relaxed text-warning-fg">
           <b className="font-semibold">Atenção: {data.quitadosNoFuturo.length === 1 ? 'há 1 lançamento marcado como quitado' : `há ${data.quitadosNoFuturo.length} lançamentos marcados como quitados`} com data no futuro.</b>{' '}
-          O saldo da conta já considera, mas o caixa por data só considera no dia — por isso os dois ficam diferentes até lá. Confira a data:
+          O caixa já conta como saída/entrada de hoje (igual ao saldo da conta), mas a data está errada e bagunça os meses do relatório. Corrija a data:
           <ul className="mt-1.5 space-y-0.5">
             {data.quitadosNoFuturo.map((q, i) => (
               <li key={i}>• {q.descricao} — {formatCurrency(q.valor)} ({q.tipo === 'saida' ? 'pago' : 'recebido'} em {format(parseISO(q.data), 'dd/MM/yyyy')})</li>

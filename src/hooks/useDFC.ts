@@ -86,8 +86,21 @@ async function fetchDFC(period: PeriodFilter, customStart?: Date, customEnd?: Da
     valor: entradas.filter((r) => !doBanco(r.conta_id)).reduce((s, r) => s + Number(r.valor), 0)
       - saidas.filter((d) => !doBanco(d.conta_id)).reduce((s, d) => s + Number(d.valor), 0),
   };
-  const entradasBanco = entradas.filter((r) => doBanco(r.conta_id) && r.data_recebimento);
-  const saidasBanco = saidas.filter((d) => doBanco(d.conta_id) && d.data_pagamento);
+  // Quitado com data no FUTURO (normalmente ano digitado errado): o saldo da conta já
+  // desconta pelo status, então o caixa considera HOJE — assim o caixa de hoje é sempre
+  // igual ao saldo real da conta. A data original fica no aviso pra pessoa corrigir.
+  const hoje = isoDia(new Date());
+  const quitadosNoFuturo = [
+    ...entradas.filter((r) => doBanco(r.conta_id) && r.data_recebimento && r.data_recebimento > hoje)
+      .map((r) => ({ tipo: 'entrada' as const, descricao: r.descricao || 'Receita', valor: Number(r.valor), data: r.data_recebimento! })),
+    ...saidas.filter((d) => doBanco(d.conta_id) && d.data_pagamento && d.data_pagamento > hoje)
+      .map((d) => ({ tipo: 'saida' as const, descricao: [d.descricao, d.fornecedor && !d.fornecedor.startsWith('[') ? d.fornecedor : null].filter(Boolean).join(' · ') || 'Despesa', valor: Number(d.valor), data: d.data_pagamento! })),
+  ];
+  const ateHoje = (dt: string) => (dt > hoje ? hoje : dt);
+  const entradasBanco = entradas.filter((r) => doBanco(r.conta_id) && r.data_recebimento)
+    .map((r) => ({ ...r, data_recebimento: ateHoje(r.data_recebimento!) }));
+  const saidasBanco = saidas.filter((d) => doBanco(d.conta_id) && d.data_pagamento)
+    .map((d) => ({ ...d, data_pagamento: ateHoje(d.data_pagamento!) }));
 
   /** Saldo das contas bancárias ao FIM do dia `ate` (inclusive). */
   const saldoAte = (ate: string) =>
@@ -181,14 +194,6 @@ async function fetchDFC(period: PeriodFilter, customStart?: Date, customEnd?: Da
     ...(months.some((m) => outrosMov[m] !== 0) ? [{ label: 'Transferências com contas fora do caixa', type: 'item' as const, values: outrosMov }] : []),
     { label: 'Variação do caixa', type: 'result', values: variacao },
     { label: 'SALDO FINAL', type: 'result', values: saldoFinal },
-  ];
-
-  // Quitado com data futura: o saldo de Contas já desconta (status), mas o caixa por data
-  // só desconta no dia — geralmente é ano digitado errado. Mostra pra pessoa corrigir.
-  const hoje = isoDia(new Date());
-  const quitadosNoFuturo = [
-    ...entradasBanco.filter((r) => r.data_recebimento! > hoje).map((r) => ({ tipo: 'entrada' as const, descricao: r.descricao || 'Receita', valor: Number(r.valor), data: r.data_recebimento! })),
-    ...saidasBanco.filter((d) => d.data_pagamento! > hoje).map((d) => ({ tipo: 'saida' as const, descricao: [d.descricao, d.fornecedor && !d.fornecedor.startsWith('[') ? d.fornecedor : null].filter(Boolean).join(' · ') || 'Despesa', valor: Number(d.valor), data: d.data_pagamento! })),
   ];
 
   return { rows, months, saldoAtualContas: saldoAte(hoje), semConta, quitadosNoFuturo };
