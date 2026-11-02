@@ -264,7 +264,7 @@ export function TransactionEditModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhuma</SelectItem>
-                    {contas.map((conta) => (
+                    {contas.filter((conta) => conta.ativa !== false || conta.id === form.conta_id).map((conta) => (
                       <SelectItem key={conta.id} value={conta.id}>
                         {conta.nome}
                         {conta.banco && (

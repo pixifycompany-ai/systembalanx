@@ -1861,7 +1861,8 @@ export default function FluxoCaixa() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhuma</SelectItem>
-                    {contas.map(c => (
+                    {/* Só contas ativas (arquivadas somem), mas mantém a já escolhida ao editar */}
+                    {contas.filter(c => c.ativa || c.id === formEntrada.conta_id).map(c => (
                       <SelectItem key={c.id} value={c.id}>
                         <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full" style={{ background: c.cor }} />{c.nome}</span>
                       </SelectItem>
@@ -2120,7 +2121,7 @@ export default function FluxoCaixa() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhuma</SelectItem>
-                      {contas.map(c => (
+                      {contas.filter(c => c.ativa || c.id === formSaida.conta_id).map(c => (
                         <SelectItem key={c.id} value={c.id}>
                           <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full" style={{ background: c.cor }} /><span className="truncate">{c.nome}</span>{c.tipo === 'cartao_credito' && <span className="ml-auto rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Crédito</span>}</span>
                         </SelectItem>

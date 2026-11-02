@@ -462,8 +462,9 @@ export function FileImportDialog({ open, onOpenChange, onImportComplete }: FileI
   const findContaId = useCallback((contaName: string): string | null => {
     if (!contaName || !contas) return null;
     const lowerName = contaName.toLowerCase();
-    const found = contas.find(c => 
-      c.nome.toLowerCase().includes(lowerName) || 
+    // Só contas ativas: extrato novo não deve cair numa conta arquivada
+    const found = contas.filter(c => c.ativa).find(c =>
+      c.nome.toLowerCase().includes(lowerName) ||
       (c.banco && c.banco.toLowerCase().includes(lowerName))
     );
     return found?.id || null;

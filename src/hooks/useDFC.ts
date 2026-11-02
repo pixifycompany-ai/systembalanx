@@ -51,8 +51,10 @@ async function fetchDFC(period: PeriodFilter, customStart?: Date, customEnd?: Da
   ]);
 
   const contas = contasRes.data || [];
-  // Mesmas contas do saldo consolidado da Início: ativas e que não são cartão
-  const bancos = new Set(contas.filter((c) => c.tipo !== 'cartao_credito' && c.ativa).map((c) => c.id));
+  // Contas bancárias (não-cartão), INCLUSIVE arquivadas: o histórico delas é caixa de
+  // verdade (ex.: recebimentos que passaram pela Stripe). Arquivada tem saldo ~0, então
+  // o saldo de hoje continua igual ao saldo consolidado das contas ativas.
+  const bancos = new Set(contas.filter((c) => c.tipo !== 'cartao_credito').map((c) => c.id));
   const saldoInicialContas = contas.filter((c) => bancos.has(c.id)).reduce((s, c) => s + Number(c.saldo_inicial || 0), 0);
 
   type Cat = { nome?: string; grupo_dre?: string } | null;

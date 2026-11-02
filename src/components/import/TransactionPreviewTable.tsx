@@ -49,6 +49,8 @@ export interface Conta {
   id: string;
   nome: string;
   banco?: string | null;
+  /** false = arquivada (some das seleções) */
+  ativa?: boolean;
 }
 
 export interface ClienteOption {

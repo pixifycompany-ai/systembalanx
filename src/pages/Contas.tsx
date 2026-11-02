@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { useContas, type ContaDB, type ContaFormData } from '@/hooks/useContas';
 import { useFaturas, type FaturaDB } from '@/hooks/useFaturas';
 import { formatCurrency } from '@/utils/formatters';
-import { Plus, Pencil, Trash2, Building2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building2, Archive, ArchiveRestore } from 'lucide-react';
 import { BuildingLibraryIcon, CreditCardIcon, HomeIcon } from '@heroicons/react/24/outline';
 import { HeroStatCard } from '@/components/shared/HeroStatCard';
 import { SectionCard } from '@/components/shared/SectionCard';
@@ -46,10 +46,14 @@ const defaultFormData: ContaFormData = {
 };
 
 export default function Contas() {
-  const { contas, isLoading, createConta, updateConta, deleteConta, setContaArquivada, deleteCartao, countContaLinks, getTotalBalance, getBankAccounts, getCreditCards, refetch } = useContas();
+  const { contas, isLoading, createConta, updateConta, deleteConta, setContaArquivada, deleteCartao, countContaLinks, getBankAccounts, getCreditCards, refetch } = useContas();
   const { faturas, pagamentos, refetch: refetchFaturas } = useFaturas();
 
-  const bankAccounts = getBankAccounts();
+  const todasContasBancarias = getBankAccounts();
+  // Arquivada = inativa: sai das listas e do saldo total, mas o histórico fica.
+  const bankAccounts = todasContasBancarias.filter((c) => c.ativa);
+  const contasArquivadas = todasContasBancarias.filter((c) => !c.ativa);
+  const saldoContasAtivas = bankAccounts.reduce((s, c) => s + (c.saldo_atual || 0), 0);
   const creditCards = getCreditCards();
 
   const [tab, setTab] = useState<'contas' | 'cartoes'>('contas');
@@ -64,6 +68,8 @@ export default function Contas() {
   const [editingConta, setEditingConta] = useState<ContaDB | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; conta: ContaDB | null; links: { receitas: number; despesas: number; transferencias: number } | null }>({ open: false, conta: null, links: null });
   const [formData, setFormData] = useState<ContaFormData>(defaultFormData);
+  const [archiveConfirm, setArchiveConfirm] = useState<ContaDB | null>(null);
+  const [verArquivadas, setVerArquivadas] = useState(false);
 
   // Cartão state
   const [isCartaoFormOpen, setIsCartaoFormOpen] = useState(false);
@@ -129,6 +135,12 @@ export default function Contas() {
     else await createConta(data);
     setEditingCartao(null);
     refetch();
+  };
+
+  const handleArchive = async () => {
+    if (!archiveConfirm) return;
+    await setContaArquivada(archiveConfirm.id, true);
+    setArchiveConfirm(null);
   };
 
   const handleAskDelete = async (conta: ContaDB) => {
@@ -210,7 +222,7 @@ export default function Contas() {
           <div className="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
             <HeroStatCard
               eyebrow="Saldo total em contas"
-              value={getTotalBalance()}
+              value={saldoContasAtivas}
               subtitle={`${bankAccounts.length} ${bankAccounts.length === 1 ? 'conta ativa' : 'contas ativas'}`}
               className="md:col-span-2 xl:col-span-1 [&>div]:h-full"
             />
@@ -240,6 +252,9 @@ export default function Contas() {
                   <div className="-mr-1.5 -mt-1 flex shrink-0 gap-0.5">
                     <IconButton label="Editar conta" tooltipSide="top" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => handleOpenForm(conta)}>
                       <Pencil className="h-4 w-4" />
+                    </IconButton>
+                    <IconButton label="Arquivar conta" tooltipSide="top" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => setArchiveConfirm(conta)}>
+                      <Archive className="h-4 w-4" />
                     </IconButton>
                     <IconButton label="Excluir conta" tooltipSide="top" variant="danger-ghost" className="h-8 w-8 rounded-full" onClick={() => handleAskDelete(conta)}>
                       <Trash2 className="h-4 w-4" />
@@ -316,6 +331,40 @@ export default function Contas() {
                 </section>
               ))}
             </div>
+          )}
+
+          {/* Contas arquivadas: fora das seleções e do saldo total; histórico preservado */}
+          {contasArquivadas.length > 0 && (
+            <SectionCard
+              title={`Arquivadas (${contasArquivadas.length})`}
+              description="Não aparecem na seleção de conta dos lançamentos nem no saldo total. Os lançamentos antigos continuam nos relatórios."
+              action={
+                <Button variant="outline" size="sm" onClick={() => setVerArquivadas((v) => !v)}>
+                  {verArquivadas ? 'Ocultar' : 'Mostrar'}
+                </Button>
+              }
+            >
+              {verArquivadas && (
+                <div className="rounded-[16px] border border-border px-3.5">
+                  {contasArquivadas.map((conta) => (
+                    <div key={conta.id} className="flex items-center gap-3 border-b border-border py-3 last:border-b-0">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-surface-2 text-foreground-muted">
+                        <Archive className="h-[18px] w-[18px]" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14px] font-semibold text-foreground">{conta.nome}</span>
+                        <span className="block truncate text-[12px] text-foreground-muted">
+                          {[conta.banco, `saldo ${formatCurrency(conta.saldo_atual || 0)}`].filter(Boolean).join(' · ')}
+                        </span>
+                      </span>
+                      <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => setContaArquivada(conta.id, false)}>
+                        <ArchiveRestore className="h-4 w-4" />Reativar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </SectionCard>
           )}
         </TabsContent>
 
@@ -416,7 +465,10 @@ export default function Contas() {
                 </div>
               </div>
               <div className="flex items-center justify-between border-t border-border pt-3.5">
-                <Label>Conta ativa</Label>
+                <div>
+                  <Label>Conta ativa</Label>
+                  <p className="mt-0.5 text-[12px] text-foreground-muted">Desligada = arquivada (some das seleções, histórico mantido)</p>
+                </div>
                 <Switch checked={formData.ativa} onCheckedChange={(c) => setFormData(p => ({ ...p, ativa: c }))} />
               </div>
             </FormSection>
@@ -465,6 +517,21 @@ export default function Contas() {
           contasBancarias={bankAccounts}
         />
       )}
+
+      <ConfirmDialog
+        open={!!archiveConfirm}
+        onOpenChange={(open) => { if (!open) setArchiveConfirm(null); }}
+        onConfirm={handleArchive}
+        title="Arquivar conta"
+        description={archiveConfirm ? (
+          `"${archiveConfirm.nome}" deixa de aparecer na seleção de conta dos lançamentos e no saldo total. Nada é apagado: os lançamentos antigos continuam nos relatórios e dá pra reativar em Contas → Arquivadas.`
+          + (Math.abs(archiveConfirm.saldo_atual || 0) >= 0.01
+            ? ` Atenção: ela tem saldo de ${formatCurrency(archiveConfirm.saldo_atual || 0)} — esse valor deixa de somar no saldo total. Se o dinheiro foi para outra conta, registre uma transferência antes.`
+            : '')
+        ) : ''}
+        confirmLabel="Arquivar"
+        variant="default"
+      />
 
       <ConfirmDialog
         open={deleteConfirm.open}
