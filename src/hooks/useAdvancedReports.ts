@@ -8,7 +8,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { addMonths, differenceInDays, endOfMonth, format, parseISO, startOfMonth, subMonths } from 'date-fns';
+import { addMonths, differenceInDays, endOfMonth, format, parseISO, startOfDay, startOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getValorMensalEquivalente } from '@/utils/contractUtils';
 import type { PeriodFilter } from '@/hooks/useRelatorios';
@@ -33,7 +33,7 @@ function periodWindow(period: PeriodFilter, customStart?: Date, customEnd?: Date
 export interface MRRPoint { month: string; mrr: number; arr: number; newMRR: number; churnMRR: number; }
 export interface TopClient { id: string; nome: string; total: number; share: number; cumulative: number; classe: 'A' | 'B' | 'C'; }
 export interface CategoryAggregate { id: string; nome: string; total: number; share: number; cor?: string; }
-export interface AgingBucket { label: string; count: number; total: number; }
+export interface AgingBucket { label: string; count: number; total: number; /** true = já venceu (atraso); false = a vencer */ vencido: boolean; }
 export interface BurnPoint { month: string; burn: number; }
 export interface BurnRunway { burnAvg: number; cashOnHand: number; runwayMonths: number; series: BurnPoint[]; }
 export interface ClientMargin { id: string; nome: string; receita: number; custoDireto: number; margem: number; margemPct: number; }
@@ -82,7 +82,7 @@ async function fetchAll(period: PeriodFilter, customStart?: Date, customEnd?: Da
     return !!d && d >= pStart && d <= pEnd;
   };
 
-  const [recRes, despRes, contRes, cliRes, catRes, contasRes, faturasRes, recAllRes, despAllRes] = await Promise.all([
+  const [recRes, despRes, contRes, cliRes, catRes, contasRes, faturasRes, recAllRes, despAllRes, abertoRecRes, abertoDespRes] = await Promise.all([
     supabase.from('receitas').select('id, valor, data_competencia, data_vencimento, data_recebimento, status, contrato_id, cliente_id, categoria_id, conta_id, clientes(nome), categorias(nome, cor)').gte('data_competencia', sinceStr),
     supabase.from('despesas').select('id, valor, data_competencia, data_vencimento, data_pagamento, status, tipo, categoria_id, cliente_id, conta_id, fatura_id, fornecedor, categorias(nome, cor, grupo_dre)').gte('data_competencia', sinceStr),
     supabase.from('contratos').select('id, valor, recorrencia, status, data_inicio, data_inativacao, cliente_id'),
@@ -93,6 +93,9 @@ async function fetchAll(period: PeriodFilter, customStart?: Date, customEnd?: Da
     // Conciliação usa TODO o histórico de movimentos confirmados (não o período).
     supabase.from('receitas').select('valor, conta_id, status').eq('status', 'recebido'),
     supabase.from('despesas').select('valor, conta_id, status, fatura_id, fornecedor, data_pagamento').eq('status', 'pago'),
+    // Aging: TUDO o que está em aberto, de qualquer competência (antes só os últimos 12 meses)
+    supabase.from('receitas').select('valor, data_vencimento, status').neq('status', 'recebido'),
+    supabase.from('despesas').select('valor, data_vencimento, status, fatura_id, fornecedor').neq('status', 'pago'),
   ]);
 
   const receitas = recRes.data || [];
@@ -111,10 +114,6 @@ async function fetchAll(period: PeriodFilter, customStart?: Date, customEnd?: Da
   const isCompetencia = (d: { fornecedor?: string | null }) =>
     d.fornecedor !== '[fatura]' && d.fornecedor !== '[pagamento-fatura]';
   const despesasReais = despesas.filter(isCompetencia);
-  // Conta a pagar avulsa (aging): exclui linhas de cartão (a fatura é a conta a pagar).
-  const isPayable = (d: { fatura_id?: string | null; fornecedor?: string | null }) =>
-    !d.fatura_id && d.fornecedor !== '[pagamento-fatura]';
-  const despesasPayable = despesas.filter(isPayable);
 
   // Fatias do período selecionado
   const receitasP = receitas.filter((r) => inPeriod(r.data_competencia));
@@ -175,24 +174,35 @@ async function fetchAll(period: PeriodFilter, customStart?: Date, customEnd?: Da
   const despesaPorCategoria = aggByCategory(despesasReaisP as never);
 
   // ===== Aging (saldo em aberto hoje — independe do seletor) =====
-  const buildAging = (rows: { valor: number; data_vencimento: string; status: string }[], paidStatus: string): AgingBucket[] => {
-    const pending = rows.filter((r) => r.status !== paidStatus && r.data_vencimento);
-    const buckets = [
-      { label: 'A vencer', min: -9999, max: -1, count: 0, total: 0 },
-      { label: '0-30 dias', min: 0, max: 30, count: 0, total: 0 },
-      { label: '31-60 dias', min: 31, max: 60, count: 0, total: 0 },
-      { label: '61-90 dias', min: 61, max: 90, count: 0, total: 0 },
-      { label: '90+ dias', min: 91, max: 9999, count: 0, total: 0 },
-    ];
-    pending.forEach((r) => {
-      const days = differenceInDays(today, parseISO(r.data_vencimento));
+  // Dias = hoje − vencimento. Negativo = ainda vai vencer. Separa ATRASO (vencido) e
+  // A VENCER nos mesmos prazos — antes tudo que não venceu caía num balde só.
+  const AGING_FAIXAS: { label: string; min: number; max: number; vencido: boolean }[] = [
+    { label: 'Atraso 90+ dias', min: 91, max: 99999, vencido: true },
+    { label: 'Atraso 61–90 dias', min: 61, max: 90, vencido: true },
+    { label: 'Atraso 31–60 dias', min: 31, max: 60, vencido: true },
+    { label: 'Atraso 1–30 dias', min: 1, max: 30, vencido: true },
+    { label: 'Vence em até 30 dias', min: -30, max: 0, vencido: false }, // inclui hoje
+    { label: 'Vence em 31–60 dias', min: -60, max: -31, vencido: false },
+    { label: 'Vence em 61–90 dias', min: -90, max: -61, vencido: false },
+    { label: 'Vence em 91 dias a 1 ano', min: -365, max: -91, vencido: false },
+    { label: 'Vence em mais de 1 ano', min: -99999, max: -366, vencido: false },
+  ];
+  const buildAging = (rows: { valor: number; data_vencimento: string | null }[]): AgingBucket[] => {
+    const buckets = AGING_FAIXAS.map((f) => ({ ...f, count: 0, total: 0 }));
+    rows.forEach((r) => {
+      if (!r.data_vencimento) return;
+      const days = differenceInDays(startOfDay(today), parseISO(r.data_vencimento));
       const b = buckets.find((x) => days >= x.min && days <= x.max);
       if (b) { b.count += 1; b.total += Number(r.valor); }
     });
-    return buckets.map(({ label, count, total }) => ({ label, count, total }));
+    return buckets.map(({ label, count, total, vencido }) => ({ label, count, total, vencido }));
   };
-  const agingRecebiveis = buildAging(receitas as never, 'recebido');
-  const agingPagar = buildAging(despesasPayable as never, 'pago');
+  const abertoRec = (abertoRecRes.data || []) as { valor: number; data_vencimento: string | null }[];
+  // A pagar avulso: a fatura do cartão (sombra) é a conta; itens e pagamentos de fatura ficam fora
+  const abertoDesp = ((abertoDespRes.data || []) as { valor: number; data_vencimento: string | null; fatura_id: string | null; fornecedor: string | null }[])
+    .filter((d) => !d.fatura_id && d.fornecedor !== '[pagamento-fatura]');
+  const agingRecebiveis = buildAging(abertoRec);
+  const agingPagar = buildAging(abertoDesp);
 
   // ===== Conciliação (todo o histórico de movimentos confirmados) =====
   // Saldo do banco = entradas e saídas DAQUELA conta. Compras no cartão ficam na

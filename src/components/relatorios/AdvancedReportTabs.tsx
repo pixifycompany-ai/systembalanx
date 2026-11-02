@@ -4,7 +4,7 @@
 import { useState, type ReactNode } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SectionCard } from '@/components/shared/SectionCard';
@@ -251,13 +251,20 @@ export function CategoryTab({ data, title }: { data: AdvancedReports['receitaPor
   );
 }
 
+/** Rótulo curto da faixa no eixo do gráfico (o completo fica na tabela e no tooltip). */
+const agingCurto = (l: string) => l
+  .replace('Atraso 90+ dias', '+90 atr.').replace(/^Atraso (\d+)–(\d+) dias$/, '$1–$2 atr.')
+  .replace('Vence em até 30 dias', '≤30d').replace(/^Vence em (\d+)–(\d+) dias$/, '$1–$2d')
+  .replace('Vence em 91 dias a 1 ano', '91d–1a').replace('Vence em mais de 1 ano', '+1 ano');
+
 export function AgingTab({ data, title }: { data: AdvancedReports['agingRecebiveis']; title: string }) {
   const total = data.reduce((s, b) => s + b.total, 0);
+  const vencido = data.filter((b) => b.vencido).reduce((s, b) => s + b.total, 0);
   return (
     <TableCard
       title={title}
-      description={`Total em aberto: ${brl(total)}`}
-      info="Distribui tudo o que está EM ABERTO (não recebido / não pago) pelo tempo desde o vencimento. 'A vencer' = ainda não venceu; as demais faixas são dias de atraso. Independe do filtro de período."
+      description={`Em aberto: ${brl(total)} · Vencido: ${brl(vencido)} · A vencer: ${brl(total - vencido)}`}
+      info="Tudo o que está EM ABERTO (não recebido / não pago), de qualquer data, separado em ATRASO (dias desde o vencimento) e A VENCER (dias até o vencimento, contando hoje). Independe do filtro de período."
       mobile={data.map((b) => (
         <Row key={b.label} title={b.label} subtitle={`${b.count} ${b.count === 1 ? 'lançamento' : 'lançamentos'}`} value={brl(b.total)} />
       ))}
@@ -267,7 +274,7 @@ export function AgingTab({ data, title }: { data: AdvancedReports['agingRecebive
           <TableBody>
             {data.map((b) => (
               <BodyRow key={b.label}>
-                <TableCell className="font-medium">{b.label}</TableCell>
+                <TableCell className={cn('font-medium', b.vencido && b.total > 0 && 'text-[hsl(var(--danger-fg))]')}>{b.label}</TableCell>
                 <TableCell className="text-right tabular-nums text-foreground-muted">{b.count}</TableCell>
                 <TableCell className={cn('text-right', VALUE)}>{brl(b.total)}</TableCell>
               </BodyRow>
@@ -280,10 +287,12 @@ export function AgingTab({ data, title }: { data: AdvancedReports['agingRecebive
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid {...gridProps} />
-            <XAxis dataKey="label" {...axisProps} />
+            <XAxis dataKey="label" {...axisProps} interval={0} tickFormatter={agingCurto} />
             <YAxis {...yMoney} />
             <Tooltip formatter={(v: number) => brl(v)} cursor={barCursor} {...tooltipProps} />
-            <Bar dataKey="total" name="Valor" fill={CHART.primary} radius={[6, 6, 0, 0]} maxBarSize={44} />
+            <Bar dataKey="total" name="Valor" radius={[6, 6, 0, 0]} maxBarSize={44}>
+              {data.map((b) => <Cell key={b.label} fill={b.vencido ? CHART.danger : CHART.primary} />)}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
