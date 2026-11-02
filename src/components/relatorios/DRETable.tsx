@@ -12,12 +12,27 @@ import { EmptyNote } from './ReportKit';
 interface DRETableProps {
   rows: DRERow[];
   months: string[];
+  /** Reuso pelo DFC (caixa): título, subtítulo e regras de linha próprias. */
+  title?: string;
+  description?: string;
+  /** Linha mostrada entre parênteses (saída/dedução). Padrão: regras do DRE. */
+  isNegativeRow?: (label: string) => boolean;
+  /** Linha final com destaque. Padrão: "LUCRO / PREJUÍZO LÍQUIDO". */
+  bottomLineLabel?: string;
 }
 
-// Linha final do DRE (resultado do período) ganha destaque próprio.
-const isBottomLine = (row: DRERow) => row.type === 'result' && row.label.includes('LÍQUIDO');
+const DRE_NEGATIVE = (label: string) =>
+  label.includes('DEDUÇ') || label.includes('CUSTO') || label.includes('DESPESA') || label.includes('DISTRIBUIÇÃO');
 
-export function DRETable({ rows, months }: DRETableProps) {
+export function DRETable({
+  rows, months,
+  title = 'DRE – Demonstrativo de Resultado',
+  description = 'Toque numa linha com seta para ver as categorias que a compõem',
+  isNegativeRow = DRE_NEGATIVE,
+  bottomLineLabel = 'LÍQUIDO',
+}: DRETableProps) {
+  // Linha final (resultado do período) ganha destaque próprio.
+  const isBottomLine = (row: DRERow) => row.type === 'result' && row.label.includes(bottomLineLabel);
   const currentMonthLabel = (() => {
     const now = new Date();
     const label = format(now, 'MMM yyyy', { locale: ptBR });
@@ -39,14 +54,13 @@ export function DRETable({ rows, months }: DRETableProps) {
 
   if (rows.length === 0) {
     return (
-      <SectionCard title="DRE – Demonstrativo de Resultado">
+      <SectionCard title={title}>
         <EmptyNote>Sem dados para o período selecionado</EmptyNote>
       </SectionCard>
     );
   }
 
-  const isDeductionRow = (label: string) =>
-    label.includes('DEDUÇ') || label.includes('CUSTO') || label.includes('DESPESA') || label.includes('DISTRIBUIÇÃO');
+  const isDeductionRow = isNegativeRow;
 
   const fmt = (val: number, label: string) => {
     const showAsNegative = isDeductionRow(label) && val > 0;
@@ -61,8 +75,8 @@ export function DRETable({ rows, months }: DRETableProps) {
     <SectionCard
       flush
       className="animate-fade-in overflow-hidden"
-      title="DRE – Demonstrativo de Resultado"
-      description="Toque numa linha com seta para ver as categorias que a compõem"
+      title={title}
+      description={description}
     >
       {/* Mobile: seletor de mês + coluna única */}
       <div className="md:hidden">

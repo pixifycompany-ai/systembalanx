@@ -8,6 +8,7 @@ import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import { DRETable } from '@/components/relatorios/DRETable';
 import { ReceitasDespesasTab } from '@/components/relatorios/ReceitasDespesasTab';
 import { FluxoCaixaTab } from '@/components/relatorios/FluxoCaixaTab';
+import { DFCTab } from '@/components/relatorios/DFCTab';
 import { ComparativoTab } from '@/components/relatorios/ComparativoTab';
 import {
   MRRTab, TopClientsTab, CategoryTab, AgingTab, BurnRunwayTab,
@@ -36,7 +37,8 @@ const COMPARATIVOS: { value: ComparativoFilter; label: string }[] = [
 ];
 
 const TABS: { value: string; label: string }[] = [
-  { value: 'dre', label: 'DRE' },
+  { value: 'dre', label: 'DRE (competência)' },
+  { value: 'dfc', label: 'DFC (caixa)' },
   { value: 'recdep', label: 'Rec vs Desp' },
   { value: 'fluxo', label: 'Fluxo de Caixa' },
   { value: 'comp', label: 'Comparativo' },
@@ -128,7 +130,14 @@ export default function Relatorios() {
             </TabsList>
           </div>
 
-          <TabsContent value="dre" className="mt-4 md:mt-6"><DRETable rows={dreRows} months={months} /></TabsContent>
+          <TabsContent value="dre" className="mt-4 md:mt-6">
+            <DRETable
+              rows={dreRows}
+              months={months}
+              description="Regime de competência: cada receita e despesa no mês a que pertence (data de competência), paga ou não. Compras no cartão contam na categoria delas. Toque numa linha com seta para ver as categorias."
+            />
+          </TabsContent>
+          <TabsContent value="dfc" className="mt-4 md:mt-6"><DFCTab period={period} customStart={cStart} customEnd={cEnd} /></TabsContent>
           <TabsContent value="recdep" className="mt-4 md:mt-6"><ReceitasDespesasTab data={recDespResumo} /></TabsContent>
           <TabsContent value="fluxo" className="mt-4 md:mt-6"><FluxoCaixaTab data={fluxoData} /></TabsContent>
           <TabsContent value="comp" className="mt-4 md:mt-6">

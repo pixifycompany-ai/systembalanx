@@ -92,7 +92,7 @@ async function fetchAll(period: PeriodFilter, customStart?: Date, customEnd?: Da
     supabase.from('cartao_faturas').select('cartao_id, valor_total, valor_pago, status'),
     // Conciliação usa TODO o histórico de movimentos confirmados (não o período).
     supabase.from('receitas').select('valor, conta_id, status').eq('status', 'recebido'),
-    supabase.from('despesas').select('valor, conta_id, status, fatura_id, fornecedor').eq('status', 'pago'),
+    supabase.from('despesas').select('valor, conta_id, status, fatura_id, fornecedor, data_pagamento').eq('status', 'pago'),
   ]);
 
   const receitas = recRes.data || [];
@@ -206,15 +206,19 @@ async function fetchAll(period: PeriodFilter, customStart?: Date, customEnd?: Da
       return { conta: c.nome, saldoInicial: Number(c.saldo_inicial), entradas, saidas, saldoCalculado };
     });
 
-  // ===== Burn Rate & Runway (série 6m; caixa = saldo real conciliado) =====
+  // ===== Burn Rate & Runway (série 6m) — tudo em REGIME DE CAIXA =====
+  // Runway = caixa ÷ queima. O caixa é o saldo real das contas, então a queima também
+  // tem que ser caixa: o que SAIU das contas bancárias no mês (data_pagamento), com o
+  // pagamento da fatura do cartão no lugar dos itens (competência aqui misturava regimes).
+  const contasBanco = new Set(contas.filter((c) => c.tipo !== 'cartao_credito').map((c) => c.id));
   const burnSeries: BurnPoint[] = [];
   for (let i = 5; i >= 0; i--) {
     const m = startOfMonth(subMonths(today, i));
     const mEnd = endOfMonth(m);
-    const burn = despesasReais
+    const burn = despAll
       .filter((d) => {
-        const dt = fromIso(d.data_competencia);
-        return dt && dt >= m && dt <= mEnd;
+        const dt = fromIso((d as { data_pagamento?: string | null }).data_pagamento ?? null);
+        return !d.fatura_id && !!d.conta_id && contasBanco.has(d.conta_id) && dt && dt >= m && dt <= mEnd;
       })
       .reduce((s, d) => s + Number(d.valor), 0);
     burnSeries.push({ month: monthKey(m), burn });

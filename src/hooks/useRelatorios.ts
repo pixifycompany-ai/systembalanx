@@ -45,7 +45,7 @@ export interface ComparativoData {
   periodo2Label: string;
 }
 
-function getMonthRange(period: PeriodFilter, customStart?: Date, customEnd?: Date) {
+export function getMonthRange(period: PeriodFilter, customStart?: Date, customEnd?: Date) {
   const today = new Date();
   let start: Date;
   let end: Date;
@@ -75,7 +75,7 @@ function getMonthRange(period: PeriodFilter, customStart?: Date, customEnd?: Dat
   return { start, end };
 }
 
-function getMonthColumns(start: Date, end: Date): string[] {
+export function getMonthColumns(start: Date, end: Date): string[] {
   const cols: string[] = [];
   let current = new Date(start.getFullYear(), start.getMonth(), 1);
   while (current <= end) {

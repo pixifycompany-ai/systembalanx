@@ -297,13 +297,13 @@ export function BurnRunwayTab({ data }: { data: AdvancedReports['burnRunway'] })
       <KpiStrip
         items={[
           { label: 'Runway', value: `${data.runwayMonths.toFixed(1)} meses`, highlight: true, info: 'Por quantos meses o caixa atual dura mantendo o burn médio. = Caixa ÷ Burn médio (3m).' },
-          { label: 'Burn médio (3m)', value: brl(data.burnAvg), tone: 'danger', info: 'Média das despesas operacionais dos últimos 3 meses (exclui faturas de cartão espelhadas). É quanto a operação consome por mês, em média.' },
+          { label: 'Burn médio (3m)', value: brl(data.burnAvg), tone: 'danger', info: 'Média do que SAIU das contas bancárias nos últimos 3 meses (regime de caixa: pela data de pagamento; o cartão entra quando a fatura é paga; inclui retiradas). Mesmo regime do caixa usado no Runway.' },
           { label: 'Caixa estimado', value: brl(data.cashOnHand), hint: 'Saldo real conciliado das contas', info: 'Saldo real das contas (não-cartão): saldo inicial + entradas recebidas − saídas pagas, considerando todo o histórico. É o mesmo cálculo da aba Conciliação.' },
         ]}
       />
       <SectionCard
         className="animate-fade-in"
-        title={<TitleWithInfo title="Burn Rate mensal (6 meses)" info="Despesas operacionais mês a mês nos últimos 6 meses." />}
+        title={<TitleWithInfo title="Burn Rate mensal (6 meses)" info="Quanto saiu das contas bancárias em cada um dos últimos 6 meses (regime de caixa, pela data de pagamento)." />}
       >
         <div className="h-[240px]">
           <ResponsiveContainer width="100%" height="100%">
