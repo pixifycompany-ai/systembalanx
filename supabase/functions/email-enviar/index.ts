@@ -39,6 +39,9 @@ serve(async (req) => {
     const from = `${remetenteNome.replace(/[<>\n"]/g, "")} <${fromEmail}>`;
     const replyTo = user.email || null;
 
+    // Cobrança marcada "enviar chave PIX": o e-mail leva SÓ a chave (sem link do Asaas e
+    // sem boleto anexado), igual ao WhatsApp.
+    const modoPix = !!String(b.pix || "").trim();
     const vals = {
       cliente: String(b.cliente || "cliente"), descricao: String(b.descricao || "cobrança"),
       valor: String(b.valor || ""), vencimento: String(b.vencimento || ""),
@@ -48,7 +51,7 @@ serve(async (req) => {
     const subjectTpl = (cfg?.email_assunto || EMAIL_ASSUNTO_PADRAO);
     const { subject, html, text } = montarEmailCobranca({
       ...vals,
-      link: b.link || null,
+      link: modoPix ? null : (b.link || null),
       pix: b.pix || null,
       titular: b.titular || null,
       intro: b.intro || null, // corpo já personalizado pelo usuário no envio
@@ -65,7 +68,7 @@ serve(async (req) => {
 
     // Anexa o boleto (PDF) do Asaas quando a cobrança é boleto. Usa service role
     // para ler a chave do Asaas (que o cliente autenticado não pode ler).
-    if (b.asaas_payment_id && temBoleto(b.forma)) {
+    if (b.asaas_payment_id && temBoleto(b.forma) && !modoPix) {
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       if (serviceKey) {
         const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
@@ -81,6 +84,18 @@ serve(async (req) => {
       apiKey, from, to: para, subject, html, text, replyTo,
       attachments: attachments.length ? attachments : undefined,
     });
+    // Registra o envio (o webhook do Resend atualiza: entregue / devolvido / falhou…)
+    try {
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (serviceKey) {
+        const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
+        await admin.from("email_envios").insert({
+          user_id: user.id, cobranca_id: b.cobranca_id || null, resend_id: r.ok ? (r.id || null) : null,
+          para, assunto: subject, origem: "manual",
+          status: r.ok ? "enviado" : "falhou", erro: r.ok ? null : `${r.status}: ${r.error || "recusado pelo Resend"}`,
+        });
+      }
+    } catch (_e) { /* registro é best-effort */ }
     if (!r.ok) {
       console.error("email send error", r.status, r.error);
       return json({ error: `Falha ao enviar e-mail (${r.status}): ${r.error || ""}`, status: r.status }, 400);

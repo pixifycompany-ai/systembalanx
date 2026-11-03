@@ -529,6 +529,8 @@ export function useCobrancas() {
 
   // Envia a cobrança por e-mail (Resend). `dados` carrega os campos do template.
   const enviarEmail = async (dados: {
+    /** Para registrar o envio e acompanhar entrega/falha (webhook do Resend). */
+    cobranca_id?: string | null;
     para: string; cliente: string; descricao: string; valor: string; vencimento: string;
     prazo?: string | null; dias?: string | null;
     link?: string | null; pix?: string | null; titular?: string | null; intro?: string | null;

@@ -230,7 +230,7 @@ serve(async (req) => {
           };
           const { subject, html, text } = montarEmailCobranca({
             cliente: valsEmail.cliente, descricao, valor: valsEmail.valor, vencimento: valsEmail.vencimento,
-            link: cob.invoice_url || null, pix: usaPix ? (cfg?.pix_chave || null) : null,
+            link: usaPix ? null : (cob.invoice_url || null), pix: usaPix ? (cfg?.pix_chave || null) : null,
             titular: usaPix ? (cfg?.pix_titular || null) : null, remetenteNome,
             subject: preencherEmailTpl(cfg?.email_assunto || EMAIL_ASSUNTO_PADRAO, valsEmail),
             intro: preencherEmailTpl(cfg?.email_corpo || EMAIL_CORPO_PADRAO, valsEmail),
@@ -241,7 +241,7 @@ serve(async (req) => {
             if (signed?.signedUrl) attachments.push({ filename: nfNome, path: signed.signedUrl });
           }
           // Boleto (PDF) do Asaas quando a cobrança é boleto.
-          if (cob.asaas_payment_id && temBoleto(cob.forma_pagamento) && cfg?.asaas_api_key) {
+          if (cob.asaas_payment_id && temBoleto(cob.forma_pagamento) && cfg?.asaas_api_key && !usaPix) {
             const boletoUrl = await buscarBoletoUrl(cfg.asaas_api_key, cfg.asaas_env, cob.asaas_payment_id);
             if (boletoUrl) attachments.push({ filename: "boleto.pdf", path: boletoUrl });
           }
@@ -250,6 +250,12 @@ serve(async (req) => {
             to: para, subject, html, text, replyTo: await emailAgencia(cob.user_id),
             attachments: attachments.length ? attachments : undefined,
           });
+          // Registra o envio automático (o webhook do Resend atualiza o status depois)
+          await admin.from("email_envios").insert({
+            user_id: cob.user_id, cobranca_id: cob.id, resend_id: r.ok ? (r.id || null) : null,
+            para, assunto: subject, origem: "auto",
+            status: r.ok ? "enviado" : "falhou", erro: r.ok ? null : `${r.status}: ${r.error || "recusado pelo Resend"}`,
+          }).then(() => {}, () => {});
           if (!r.ok) { erros++; console.error("auto email fail", cob.id, r.status, r.error); }
           else {
             if (attachments.length) removerNf = true;

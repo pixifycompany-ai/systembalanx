@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useActionParam } from '@/hooks/useActionParam';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
@@ -260,6 +261,26 @@ export default function Cobrancas() {
   const [emPara, setEmPara] = useState('');
   const [emIntro, setEmIntro] = useState('');
   const [emSending, setEmSending] = useState(false);
+
+  // E-mails que falharam (registro email_envios, atualizado pelo webhook do Resend)
+  type FalhaEmail = { id: string; cobranca_id: string | null; para: string; assunto: string | null; status: string; erro: string | null; created_at: string };
+  const [falhasEmail, setFalhasEmail] = useState<FalhaEmail[]>([]);
+  const carregarFalhasEmail = useCallback(async () => {
+    // email_envios ainda não está nos tipos gerados
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any).from('email_envios')
+      .select('id, cobranca_id, para, assunto, status, erro, created_at')
+      .in('status', ['falhou', 'devolvido', 'spam']).eq('visto', false)
+      .gte('created_at', format(addDays(new Date(), -30), 'yyyy-MM-dd'))
+      .order('created_at', { ascending: false }).limit(10);
+    setFalhasEmail((data || []) as FalhaEmail[]);
+  }, []);
+  useEffect(() => { carregarFalhasEmail(); }, [carregarFalhasEmail]);
+  const dispensarFalha = async (id: string) => {
+    setFalhasEmail((f) => f.filter((x) => x.id !== id));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from('email_envios').update({ visto: true }).eq('id', id);
+  };
   const openEmail = (cob: FaturaView) => {
     const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
     const usaPix = !!cob.envio_pix && !!pixCfg.chave;
@@ -289,6 +310,7 @@ export default function Cobrancas() {
     const usaPix = !!emCob.envio_pix && !!pixCfg.chave;
     setEmSending(true);
     const res = await enviarEmail({
+      cobranca_id: emCob.id,
       para: emPara.trim(),
       cliente: cli?.nome || 'cliente',
       descricao: emCob.descricao || 'cobrança',
@@ -296,7 +318,8 @@ export default function Cobrancas() {
       vencimento: formatDate(emCob.vencimento),
       prazo: frasePrazo(differenceInCalendarDays(parseISO(emCob.vencimento), new Date())),
       dias: String(Math.abs(differenceInCalendarDays(parseISO(emCob.vencimento), new Date()))),
-      link: emCob.invoice_url || null,
+      // Chave PIX no lugar do boleto/link do Asaas (igual ao WhatsApp)
+      link: usaPix ? null : (emCob.invoice_url || null),
       pix: usaPix ? pixCfg.chave : null,
       titular: usaPix ? pixCfg.titular : null,
       intro: emIntro.trim() || null,
@@ -306,6 +329,7 @@ export default function Cobrancas() {
       asaas_payment_id: emCob.asaas_payment_id || null,
     });
     setEmSending(false);
+    carregarFalhasEmail();
     if (res) {
       if (res.docEnviado && emCob.nota_fiscal_path) {
         await marcarNotaEnviada(emCob.linhas.find((l) => l.nota_fiscal_path)?.id || emCob.id, emCob.nota_fiscal_path);
@@ -504,7 +528,7 @@ export default function Cobrancas() {
           </button>
           <button onClick={() => setEnvioPix(cob.linhas.map((l) => l.id), !cob.envio_pix)} className={MENU_ITEM}>
             <KeyRound className={cn('h-4 w-4', cob.envio_pix ? 'text-success-fg' : 'text-foreground-muted')} />
-            {cob.envio_pix ? 'WhatsApp: voltar ao link Asaas' : 'WhatsApp: enviar chave PIX'}
+            {cob.envio_pix ? 'Voltar ao link/boleto do Asaas' : 'Cobrar com chave PIX (WhatsApp e e-mail)'}
           </button>
           {cob.status !== 'pago' && cob.status !== 'cancelado' && (
             <button onClick={() => abrirForma(cob)} className={MENU_ITEM}>
@@ -629,6 +653,33 @@ export default function Cobrancas() {
           { label: 'Recebido', value: totais.recebido, tone: 'green' },
         ]}
       />
+
+      {falhasEmail.length > 0 && (
+        <div className="mb-4 rounded-[20px] border border-transparent bg-danger-bg px-4 py-3.5 text-danger-fg md:mb-6">
+          <p className="flex items-center gap-2 text-[14px] font-semibold">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {falhasEmail.length === 1 ? '1 e-mail de cobrança não chegou' : `${falhasEmail.length} e-mails de cobrança não chegaram`}
+          </p>
+          <ul className="mt-2 space-y-2">
+            {falhasEmail.map((f) => {
+              const fat = f.cobranca_id ? faturasView.find((v) => v.id === f.cobranca_id || v.linhas.some((l) => l.id === f.cobranca_id)) : undefined;
+              const rotulo = f.status === 'devolvido' ? 'Devolvido' : f.status === 'spam' ? 'Marcado como spam' : 'Falhou';
+              return (
+                <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl bg-surface/70 px-3 py-2 text-[12.5px] text-foreground">
+                  <span className="min-w-0 flex-1">
+                    <b className="font-semibold">{rotulo}</b> · {f.para} · {formatDate(f.created_at.slice(0, 10))}
+                    <span className="block truncate text-foreground-muted">{f.assunto}{f.erro ? ` — ${f.erro}` : ''}</span>
+                  </span>
+                  <span className="flex shrink-0 gap-1.5">
+                    {fat && <Button size="sm" variant="outline" onClick={() => openEmail(fat)}>Reenviar</Button>}
+                    <Button size="sm" variant="ghost" onClick={() => dispensarFalha(f.id)}>Dispensar</Button>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className="mb-4 grid gap-3 md:mb-6 md:grid-cols-2">
         {/* Fim de semana: padrão global + ação em massa (seleção) */}
@@ -1128,7 +1179,7 @@ export default function Cobrancas() {
               <div className="space-y-1.5">
                 <Label className="text-[12px] text-foreground-muted">Mensagem de abertura</Label>
                 <Textarea value={emIntro} onChange={(e) => setEmIntro(e.target.value)} rows={3} className="text-[13px] leading-relaxed" />
-                <p className="text-[11.5px] text-foreground-muted">O e-mail já inclui valor, vencimento, botão de pagamento{emCob?.envio_pix ? ' e chave PIX' : ''}.</p>
+                <p className="text-[11.5px] text-foreground-muted">{emCob?.envio_pix && pixCfg.chave ? 'O e-mail vai com valor, vencimento e a chave PIX (sem boleto nem link do Asaas).' : 'O e-mail já inclui valor, vencimento e o botão de pagamento do Asaas.'}</p>
               </div>
               {emCob?.nota_fiscal_path ? (
                 <InlineNotice tone="neutral" icon={<FileText className="text-primary" />}>

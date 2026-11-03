@@ -80,6 +80,7 @@ export function montarEmailCobranca(d: DadosCobrancaEmail): { subject: string; h
          <div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Chave PIX</div>
          <div style="font-family:'Courier New',monospace;font-size:15px;color:#111827;word-break:break-all;">${esc(d.pix!)}</div>
          ${d.titular ? `<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6b7280;margin-top:6px;">Em nome de: ${esc(d.titular)}</div>` : ""}
+         ${!temLink ? `<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#374151;margin-top:10px;">Após o pagamento, é só responder este e-mail com o comprovante. Obrigado!</div>` : ""}
        </div>`
     : "";
 
@@ -136,7 +137,7 @@ export function montarEmailCobranca(d: DadosCobrancaEmail): { subject: string; h
     `Valor: ${d.valor}`,
     `Vencimento: ${d.vencimento}`,
     temLink ? `\nPagar: ${d.link}` : "",
-    temPix ? `\nChave PIX: ${d.pix}${d.titular ? ` (em nome de ${d.titular})` : ""}` : "",
+    temPix ? `\nChave PIX: ${d.pix}${d.titular ? ` (em nome de ${d.titular})` : ""}${!temLink ? "\nApós o pagamento, é só responder este e-mail com o comprovante." : ""}` : "",
     ``,
     `Em caso de dúvida, responda este e-mail.${remetente ? ` — ${remetente}` : ""}`,
   ].filter((l) => l !== "").join("\n");
