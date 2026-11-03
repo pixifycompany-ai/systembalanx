@@ -2,6 +2,25 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+export interface NotaFiscal { path: string; nome: string }
+/** Nota anexada + a linha (cobrança) que a guarda — numa fatura agrupada podem ser várias. */
+export interface NotaRef extends NotaFiscal { cobranca_id: string }
+export const MAX_NOTAS_FISCAIS = 10;
+
+/** Notas fiscais da cobrança, aceitando o formato antigo (uma só em nota_fiscal_path). */
+export function notasDe(c: Pick<Cobranca, 'notas_fiscais' | 'nota_fiscal_path' | 'nota_fiscal_nome'>): NotaFiscal[] {
+  const arr = Array.isArray(c.notas_fiscais) ? c.notas_fiscais.filter((n) => n?.path) : [];
+  if (arr.length) return arr.map((n) => ({ path: n.path, nome: n.nome || 'nota-fiscal.pdf' }));
+  return c.nota_fiscal_path ? [{ path: c.nota_fiscal_path, nome: c.nota_fiscal_nome || 'nota-fiscal.pdf' }] : [];
+}
+
+/** Notas de várias linhas (fatura agrupada), sem repetir arquivo. */
+export function notasDasLinhas(linhas: Cobranca[]): NotaRef[] {
+  const vistos = new Set<string>();
+  return linhas.flatMap((l) => notasDe(l).map((n) => ({ ...n, cobranca_id: l.id })))
+    .filter((n) => !vistos.has(n.path) && !!vistos.add(n.path));
+}
+
 export interface Cobranca {
   id: string;
   cliente_id: string | null;
@@ -21,6 +40,8 @@ export interface Cobranca {
   created_at?: string | null;
   nota_fiscal_path?: string | null;
   nota_fiscal_nome?: string | null;
+  /** Até 10 PDFs; nota_fiscal_path/nome espelham a 1ª (formato antigo). */
+  notas_fiscais?: NotaFiscal[] | null;
   nota_fiscal_enviada?: boolean | null;
   exigir_nf?: boolean | null;
   envio_pix?: boolean | null;
@@ -437,34 +458,68 @@ export function useCobrancas() {
     }
   };
 
-  // Anexa um PDF de nota fiscal à cobrança (Storage privado) e grava o path.
-  const anexarNota = async (cobranca_id: string, file: File) => {
+  // Lê as notas atuais direto do banco (evita sobrescrever com estado velho).
+  const notasAtuais = async (cobranca_id: string): Promise<NotaFiscal[]> => {
+    const { data } = await (supabase as any).from('cobrancas')
+      .select('notas_fiscais, nota_fiscal_path, nota_fiscal_nome').eq('id', cobranca_id).maybeSingle();
+    return data ? notasDe(data) : [];
+  };
+  const gravarNotas = (cobranca_id: string, notas: NotaFiscal[], extra: Record<string, unknown> = {}) =>
+    (supabase as any).from('cobrancas').update({
+      notas_fiscais: notas,
+      nota_fiscal_path: notas[0]?.path ?? null,
+      nota_fiscal_nome: notas[0]?.nome ?? null,
+      ...extra,
+    }).eq('id', cobranca_id);
+
+  // Anexa PDFs de nota fiscal à cobrança (Storage privado), até 10 no total.
+  // `jaNaFatura` = notas em outras linhas da mesma fatura agrupada (contam no limite).
+  const anexarNotas = async (cobranca_id: string, files: File[], jaNaFatura = 0) => {
     setBusyId(cobranca_id);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Sessão expirada.');
-      if (file.type && file.type !== 'application/pdf') throw new Error('Envie um arquivo PDF.');
-      const path = `${user.id}/${cobranca_id}-${Date.now()}.pdf`;
-      const { error: upErr } = await supabase.storage.from('notas-fiscais').upload(path, file, { contentType: 'application/pdf', upsert: true });
-      if (upErr) throw upErr;
-      const { error: updErr } = await (supabase as any).from('cobrancas').update({ nota_fiscal_path: path, nota_fiscal_nome: file.name }).eq('id', cobranca_id);
-      if (updErr) throw updErr;
-      toast.success('Nota fiscal anexada.');
+      if (!files.length) return false;
+      if (files.some((f) => f.type && f.type !== 'application/pdf')) throw new Error('Envie apenas arquivos PDF.');
+      const atuais = await notasAtuais(cobranca_id);
+      const livres = MAX_NOTAS_FISCAIS - atuais.length - jaNaFatura;
+      if (livres <= 0) throw new Error(`Limite de ${MAX_NOTAS_FISCAIS} notas fiscais por cobrança.`);
+      const lote = files.slice(0, livres);
+      const novas: NotaFiscal[] = [];
+      for (const [i, file] of lote.entries()) {
+        const path = `${user.id}/${cobranca_id}-${Date.now()}-${i}.pdf`;
+        const { error: upErr } = await supabase.storage.from('notas-fiscais').upload(path, file, { contentType: 'application/pdf', upsert: true });
+        if (upErr) throw upErr;
+        novas.push({ path, nome: file.name });
+      }
+      const { error: updErr } = await gravarNotas(cobranca_id, [...atuais, ...novas]);
+      if (updErr) {
+        await supabase.storage.from('notas-fiscais').remove(novas.map((n) => n.path));
+        throw updErr;
+      }
+      if (lote.length < files.length) {
+        toast.warning(`Anexadas ${lote.length} de ${files.length}: o limite é ${MAX_NOTAS_FISCAIS} notas por cobrança.`);
+      } else {
+        toast.success(lote.length > 1 ? `${lote.length} notas fiscais anexadas.` : 'Nota fiscal anexada.');
+      }
       await load();
       return true;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao anexar nota fiscal');
+      await load();
       return false;
     } finally {
       setBusyId(null);
     }
   };
 
-  const removerNota = async (cobranca_id: string, path?: string | null) => {
-    setBusyId(cobranca_id);
+  const removerNota = async (nota: NotaRef) => {
+    setBusyId(nota.cobranca_id);
     try {
-      if (path) await supabase.storage.from('notas-fiscais').remove([path]);
-      await (supabase as any).from('cobrancas').update({ nota_fiscal_path: null, nota_fiscal_nome: null }).eq('id', cobranca_id);
+      await supabase.storage.from('notas-fiscais').remove([nota.path]);
+      const atuais = await notasAtuais(nota.cobranca_id);
+      const { error } = await gravarNotas(nota.cobranca_id, atuais.filter((n) => n.path !== nota.path));
+      if (error) throw error;
       toast.success('Nota fiscal removida.');
       await load();
       return true;
@@ -493,20 +548,34 @@ export function useCobrancas() {
     return data?.signedUrl || null;
   };
 
-  // Após envio confirmado do PDF: apaga o arquivo do Storage (economiza espaço)
-  // e registra que a NF foi enviada.
-  const marcarNotaEnviada = async (cobranca_id: string, path: string) => {
+  // Após envio confirmado dos PDFs: apaga os arquivos do Storage (economiza espaço)
+  // e registra que a NF foi enviada. Notas não enviadas continuam anexadas.
+  const marcarNotasEnviadas = async (notas: NotaRef[]) => {
+    if (!notas.length) return;
     try {
-      await supabase.storage.from('notas-fiscais').remove([path]);
-      await (supabase as any).from('cobrancas').update({ nota_fiscal_path: null, nota_fiscal_nome: null, nota_fiscal_enviada: true }).eq('id', cobranca_id);
+      await supabase.storage.from('notas-fiscais').remove(notas.map((n) => n.path));
+      for (const id of new Set(notas.map((n) => n.cobranca_id))) {
+        const enviadas = new Set(notas.filter((n) => n.cobranca_id === id).map((n) => n.path));
+        const atuais = await notasAtuais(id);
+        await gravarNotas(id, atuais.filter((n) => !enviadas.has(n.path)), { nota_fiscal_enviada: true });
+      }
       await load();
     } catch { /* silencioso: o envio já ocorreu */ }
   };
 
-  const enviarWhatsapp = async (telefone: string, text: string, documento?: { url: string; nome: string } | null) => {
+  /** Quantos documentos a função de envio confirmou (as primeiras N notas). */
+  const docsConfirmados = (data: unknown) => {
+    const d = data as { docEnviado?: boolean; docsEnviados?: number } | null;
+    return typeof d?.docsEnviados === 'number' ? d.docsEnviados : d?.docEnviado ? 1 : 0;
+  };
+
+  const enviarWhatsapp = async (telefone: string, text: string, documentos: { url: string; nome: string }[] = []) => {
     try {
       const body: Record<string, unknown> = { telefone, text };
-      if (documento?.url) { body.documento_url = documento.url; body.documento_nome = documento.nome; }
+      if (documentos.length) {
+        body.documentos = documentos;
+        body.documento_url = documentos[0].url; body.documento_nome = documentos[0].nome; // formato antigo
+      }
       const { data, error } = await supabase.functions.invoke('whatsapp-enviar', { body });
       if (error) {
         // supabase-js troca nosso JSON {error} por "non-2xx" genérico; lê o corpo real.
@@ -520,7 +589,7 @@ export function useCobrancas() {
       }
       if ((data as { error?: string })?.error) throw new Error((data as { error?: string }).error);
       toast.success('WhatsApp enviado!');
-      return { ok: true, docEnviado: !!(data as { docEnviado?: boolean })?.docEnviado };
+      return { ok: true, docsEnviados: docsConfirmados(data) };
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao enviar WhatsApp', { duration: 8000 });
       return null;
@@ -534,11 +603,16 @@ export function useCobrancas() {
     para: string; cliente: string; descricao: string; valor: string; vencimento: string;
     prazo?: string | null; dias?: string | null;
     link?: string | null; pix?: string | null; titular?: string | null; intro?: string | null;
-    nota_fiscal_path?: string | null; nota_fiscal_nome?: string | null;
+    notas?: NotaFiscal[];
     forma?: string | null; asaas_payment_id?: string | null;
   }) => {
     try {
-      const { data, error } = await supabase.functions.invoke('email-enviar', { body: dados });
+      const { notas = [], ...resto } = dados;
+      const body = {
+        ...resto, notas,
+        nota_fiscal_path: notas[0]?.path ?? null, nota_fiscal_nome: notas[0]?.nome ?? null, // formato antigo
+      };
+      const { data, error } = await supabase.functions.invoke('email-enviar', { body });
       if (error) {
         let msg = error.message;
         try {
@@ -550,7 +624,7 @@ export function useCobrancas() {
       }
       if ((data as { error?: string })?.error) throw new Error((data as { error?: string }).error);
       toast.success('E-mail enviado!');
-      return { ok: true, docEnviado: !!(data as { docEnviado?: boolean })?.docEnviado };
+      return { ok: true, docsEnviados: docsConfirmados(data) };
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao enviar e-mail', { duration: 8000 });
       return null;
@@ -576,7 +650,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, criarAvulsaParcelada, listarAssinaturas, vincularAssinatura, desvincularAssinatura, encerrarContratoCobrancas, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNota, removerNota, setExigirNf, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, criarAvulsaParcelada, listarAssinaturas, vincularAssinatura, desvincularAssinatura, encerrarContratoCobrancas, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNotas, removerNota, setExigirNf, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

@@ -34,7 +34,7 @@ serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) return json({ error: "Unauthorized" }, 401);
 
-    const { telefone, text, documento_url, documento_nome } = await req.json().catch(() => ({}));
+    const { telefone, text, documento_url, documento_nome, documentos } = await req.json().catch(() => ({}));
     const to = normalizarWhats(String(telefone || ""));
     if (!to) return json({ error: "Telefone do cliente inválido/ausente. Cadastre o WhatsApp com DDD." }, 400);
     if (!text || !String(text).trim()) return json({ error: "Mensagem vazia." }, 400);
@@ -60,18 +60,26 @@ serve(async (req) => {
       return json({ error: `Falha ao enviar (${resp.status})${dica}${detalhe}`, status: resp.status, to }, 400);
     }
 
-    // Envia o PDF (nota fiscal) como documento, logo após o texto.
-    let docEnviado = false;
-    if (documento_url) {
+    // Envia os PDFs (notas fiscais, até 10) como documentos, logo após o texto.
+    // `documento_url` é o formato antigo (um único PDF).
+    const docs: { url: string; nome?: string }[] = Array.isArray(documentos)
+      ? documentos.filter((d: { url?: string }) => d?.url).slice(0, 10)
+      : documento_url ? [{ url: String(documento_url), nome: documento_nome }] : [];
+    // Conta só os enviados em sequência: quem chama apaga do Storage os N primeiros.
+    let docsEnviados = 0;
+    for (const d of docs) {
       const dr = await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/document`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
-        body: JSON.stringify({ to, url: String(documento_url), filename: documento_nome || "documento.pdf", mimetype: "application/pdf" }),
+        body: JSON.stringify({ to, url: String(d.url), filename: d.nome || "documento.pdf", mimetype: "application/pdf" }),
       });
-      if (dr.ok) docEnviado = true;
-      else console.error("whatsapp document error", dr.status, await dr.text().catch(() => ""));
+      if (!dr.ok) {
+        console.error("whatsapp document error", dr.status, await dr.text().catch(() => ""));
+        break;
+      }
+      docsEnviados++;
     }
-    return json({ ok: true, to, docEnviado });
+    return json({ ok: true, to, docEnviado: docsEnviados > 0, docsEnviados, docsTotal: docs.length });
   } catch (e) {
     console.error("whatsapp-enviar error", e);
     return json({ error: e instanceof Error ? e.message : "Erro" }, 500);

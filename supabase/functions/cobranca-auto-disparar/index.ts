@@ -13,6 +13,13 @@ const TPL_PADRAO =
 const TPL_PIX_PADRAO =
   "Olá {cliente}! 👋\n\nSua cobrança de *{descricao}* {prazo}:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\n🔑 *Chave PIX:* {pix}\n👤 Em nome de: {titular}\n\nApós o pagamento, é só enviar o comprovante. Obrigado!";
 
+// Notas fiscais da linha: `notas_fiscais` (até 10) ou o formato antigo de uma só.
+function notasDaLinha(l: any): { path: string; nome: string }[] {
+  const arr = Array.isArray(l?.notas_fiscais) ? l.notas_fiscais.filter((n: any) => n?.path) : [];
+  if (arr.length) return arr.map((n: any) => ({ path: String(n.path), nome: String(n.nome || "nota-fiscal.pdf") }));
+  return l?.nota_fiscal_path ? [{ path: String(l.nota_fiscal_path), nome: String(l.nota_fiscal_nome || "nota-fiscal.pdf") }] : [];
+}
+
 function normalizarWhats(tel: string): string | null {
   let d = String(tel || "").replace(/\D/g, "");
   if (!d) return null;
@@ -105,7 +112,7 @@ serve(async (req) => {
   };
 
   const { data: cobs } = await admin.from("cobrancas")
-    .select("id, user_id, cliente_id, contrato_id, asaas_payment_id, descricao, valor, vencimento, invoice_url, forma_pagamento, status, exigir_nf, envio_pix, enviar_fim_semana, nota_fiscal_path, nota_fiscal_nome, nota_fiscal_enviada, auto_wpp_ultimo_dia, auto_email_ultimo_dia, created_at, clientes(nome, telefone, email, canal_cobranca), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
+    .select("id, user_id, cliente_id, contrato_id, asaas_payment_id, descricao, valor, vencimento, invoice_url, forma_pagamento, status, exigir_nf, envio_pix, enviar_fim_semana, nota_fiscal_path, nota_fiscal_nome, notas_fiscais, nota_fiscal_enviada, auto_wpp_ultimo_dia, auto_email_ultimo_dia, created_at, clientes(nome, telefone, email, canal_cobranca), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
     .in("status", ["pendente", "vencido"])
     .order("created_at", { ascending: true });
 
@@ -167,16 +174,15 @@ serve(async (req) => {
       // Frase adaptativa (antes/no dia/atraso) + contagem de dias.
       const prazoTxt = frasePrazo(d);
       const diasTxt = String(Math.abs(d));
-      const comNf = linhas.find((l) => l.nota_fiscal_path);
+      // Notas fiscais (até 10) de todas as linhas da fatura.
+      const notas = linhas.flatMap((l) => notasDaLinha(l).map((n) => ({ ...n, linhaId: l.id as string }))).slice(0, 10);
       const exigeNf = linhas.some((l) => l.exigir_nf);
       const nfJaEnviada = linhas.some((l) => l.nota_fiscal_enviada);
-      const bloqueadoPorNf = exigeNf && !comNf && !nfJaEnviada;
-      const nfPath: string | null = comNf?.nota_fiscal_path ?? null;
-      const nfNome = comNf?.nota_fiscal_nome || "nota-fiscal.pdf";
+      const bloqueadoPorNf = exigeNf && !notas.length && !nfJaEnviada;
       const usaPix = linhas.some((l) => l.envio_pix) && !!cfg?.pix_chave;
 
       let algoEnviado = false;      // marcou canal com sucesso?
-      let removerNf = false;        // NF entregue em algum canal → pode apagar
+      const nfsEntregues = new Set<string>(); // NFs entregues em algum canal → pode apagar
       let fezAlgumaTentativa = false;
 
       // ---------- WhatsApp ----------
@@ -198,15 +204,14 @@ serve(async (req) => {
           });
           if (!tr.ok) { erros++; console.error("auto text fail", cob.id, tr.status, await tr.text().catch(() => "")); }
           else {
-            if (nfPath) {
-              const { data: signed } = await admin.storage.from("notas-fiscais").createSignedUrl(nfPath, 600);
-              if (signed?.signedUrl) {
-                const dr = await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/document`, {
-                  method: "POST", headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
-                  body: JSON.stringify({ to, url: signed.signedUrl, filename: nfNome, mimetype: "application/pdf" }),
-                }).catch(() => null);
-                if (dr && dr.ok) removerNf = true;
-              }
+            for (const n of notas) {
+              const { data: signed } = await admin.storage.from("notas-fiscais").createSignedUrl(n.path, 600);
+              if (!signed?.signedUrl) continue;
+              const dr = await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/document`, {
+                method: "POST", headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
+                body: JSON.stringify({ to, url: signed.signedUrl, filename: n.nome, mimetype: "application/pdf" }),
+              }).catch(() => null);
+              if (dr && dr.ok) nfsEntregues.add(n.path);
             }
             await admin.from("cobrancas").update({ auto_wpp_ultimo_dia: hoje }).in("id", linhas.map((l) => l.id));
             enviados++; algoEnviado = true;
@@ -236,9 +241,10 @@ serve(async (req) => {
             intro: preencherEmailTpl(cfg?.email_corpo || EMAIL_CORPO_PADRAO, valsEmail),
           });
           const attachments: ResendAnexo[] = [];
-          if (nfPath) {
-            const { data: signed } = await admin.storage.from("notas-fiscais").createSignedUrl(nfPath, 600);
-            if (signed?.signedUrl) attachments.push({ filename: nfNome, path: signed.signedUrl });
+          const nfsAnexadas: string[] = [];
+          for (const n of notas) {
+            const { data: signed } = await admin.storage.from("notas-fiscais").createSignedUrl(n.path, 600);
+            if (signed?.signedUrl) { attachments.push({ filename: n.nome, path: signed.signedUrl }); nfsAnexadas.push(n.path); }
           }
           // Boleto (PDF) do Asaas quando a cobrança é boleto.
           if (cob.asaas_payment_id && temBoleto(cob.forma_pagamento) && cfg?.asaas_api_key && !usaPix) {
@@ -258,7 +264,7 @@ serve(async (req) => {
           }).then(() => {}, () => {});
           if (!r.ok) { erros++; console.error("auto email fail", cob.id, r.status, r.error); }
           else {
-            if (attachments.length) removerNf = true;
+            nfsAnexadas.forEach((p) => nfsEntregues.add(p));
             await admin.from("cobrancas").update({ auto_email_ultimo_dia: hoje }).in("id", linhas.map((l) => l.id));
             enviadosEmail++; algoEnviado = true;
           }
@@ -266,9 +272,18 @@ serve(async (req) => {
       }
 
       // NF entregue em pelo menos um canal → apaga do Storage e marca enviada.
-      if (removerNf && comNf && nfPath) {
-        await admin.from("cobrancas").update({ nota_fiscal_path: null, nota_fiscal_nome: null, nota_fiscal_enviada: true }).eq("id", comNf.id);
-        await admin.storage.from("notas-fiscais").remove([nfPath]).catch(() => {});
+      if (nfsEntregues.size) {
+        for (const l of linhas) {
+          const todas = notasDaLinha(l);
+          if (!todas.some((n) => nfsEntregues.has(n.path))) continue;
+          const restantes = todas.filter((n) => !nfsEntregues.has(n.path));
+          await admin.from("cobrancas").update({
+            notas_fiscais: restantes,
+            nota_fiscal_path: restantes[0]?.path ?? null, nota_fiscal_nome: restantes[0]?.nome ?? null,
+            nota_fiscal_enviada: true,
+          }).eq("id", l.id);
+        }
+        await admin.storage.from("notas-fiscais").remove([...nfsEntregues]).catch(() => {});
       }
       if (!fezAlgumaTentativa && !algoEnviado) pulados++;
     } catch (e) {

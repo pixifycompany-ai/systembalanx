@@ -26,7 +26,10 @@ import {
   frasePrazo,
   WHATSAPP_TEMPLATE_PIX_PADRAO,
   COBRANCA_STATUS_LABEL,
+  MAX_NOTAS_FISCAIS,
+  notasDasLinhas,
   type Cobranca,
+  type NotaRef,
 } from '@/hooks/useCobrancas';
 import { useClientes } from '@/hooks/useClientes';
 import { useContas } from '@/hooks/useContas';
@@ -65,7 +68,7 @@ const FORMAS = [
 
 type TipoFiltro = 'todas' | 'recorrente' | 'avulsa';
 // Cobrança exibida = fatura; `linhas` = uma por contrato quando agrupada.
-type FaturaView = Cobranca & { linhas: Cobranca[] };
+type FaturaView = Cobranca & { linhas: Cobranca[]; notas: NotaRef[] };
 type SortKey = 'cliente' | 'descricao' | 'tipo' | 'valor' | 'vencimento' | 'status';
 
 function statusPill(status: string) {
@@ -73,12 +76,29 @@ function statusPill(status: string) {
   return <span className={cn('inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold', toneCls[meta.tone])}>{meta.label}</span>;
 }
 
+/** "Vai anexar" no envio manual: lista as notas fiscais com link para ver cada uma. */
+function NotasAnexo({ notas, onVer }: { notas: NotaRef[]; onVer: (path: string) => void }) {
+  return (
+    <div className="space-y-1">
+      <p>Vai anexar {notas.length > 1 ? `${notas.length} notas fiscais:` : 'a nota fiscal:'}</p>
+      <ul className="space-y-0.5">
+        {notas.map((n) => (
+          <li key={n.path} className="flex items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-foreground-muted">{n.nome}</span>
+            <button onClick={() => onVer(n.path)} className="shrink-0 font-medium text-primary hover:underline">ver</button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function Cobrancas() {
   const isMobile = useIsMobile();
   const {
     cobrancas, loading, busyId,
     criarAvulsa, criarAvulsaParcelada, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail,
-    anexarNota, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotaEnviada, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg, emailCfg,
+    anexarNotas, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg, emailCfg,
     fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana,
   } = useCobrancas();
   const [conciliarOpen, setConciliarOpen] = useState(false);
@@ -142,19 +162,18 @@ export default function Cobrancas() {
     return [...grupos.values()].map((ls) => {
       const linhas = [...ls].sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')) || a.id.localeCompare(b.id));
       const p = linhas[0];
-      if (linhas.length === 1) return { ...p, linhas };
-      const comNf = linhas.find((l) => l.nota_fiscal_path);
+      const notas = notasDasLinhas(linhas);
+      if (linhas.length === 1) return { ...p, linhas, notas };
       return {
         ...p,
         valor: Math.round(linhas.reduce((s, l) => s + (Number(l.valor) || 0), 0) * 100) / 100,
         descricao: linhas.map((l) => l.descricao).filter(Boolean).join(' + '),
         receita_id: linhas.every((l) => l.receita_id) ? p.receita_id : null,
-        nota_fiscal_path: comNf?.nota_fiscal_path ?? null,
-        nota_fiscal_nome: comNf?.nota_fiscal_nome ?? null,
         nota_fiscal_enviada: linhas.some((l) => l.nota_fiscal_enviada),
         exigir_nf: linhas.some((l) => l.exigir_nf),
         envio_pix: linhas.some((l) => l.envio_pix),
         linhas,
+        notas,
       };
     });
   }, [cobrancas]);
@@ -214,12 +233,10 @@ export default function Cobrancas() {
   const [waTel, setWaTel] = useState('');
   const [waText, setWaText] = useState('');
   const [waSending, setWaSending] = useState(false);
-  const [waCob, setWaCob] = useState<Cobranca | null>(null);
-  const [waNfLinhaId, setWaNfLinhaId] = useState<string | null>(null); // linha que guarda o PDF
+  const [waCob, setWaCob] = useState<FaturaView | null>(null);
   const openWhatsapp = (cob: FaturaView) => {
     const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
     setWaCob(cob);
-    setWaNfLinhaId(cob.linhas.find((l) => l.nota_fiscal_path)?.id ?? null);
     setWaTel(cli?.telefone || '');
     const usaPix = !!cob.envio_pix && !!pixCfg.chave;
     const diff = differenceInCalendarDays(parseISO(cob.vencimento), new Date());
@@ -236,21 +253,26 @@ export default function Cobrancas() {
     }));
     setWaOpen(true);
   };
-  const waBloqueado = !!waCob?.exigir_nf && !waCob?.nota_fiscal_path && !waCob?.nota_fiscal_enviada;
+  const waBloqueado = !!waCob?.exigir_nf && !waCob?.notas.length && !waCob?.nota_fiscal_enviada;
   const handleEnviarWa = async () => {
     if (!waCob) return;
     if (waBloqueado) { toast.error('Esta cobrança exige nota fiscal anexada para disparar.'); return; }
     setWaSending(true);
-    let doc: { url: string; nome: string } | null = null;
-    if (waCob.nota_fiscal_path) {
-      const url = await notaSignedUrl(waCob.nota_fiscal_path);
-      if (url) doc = { url, nome: waCob.nota_fiscal_nome || 'nota-fiscal.pdf' };
+    // Gera os links na ordem das notas; para na 1ª falha (a função confirma as N primeiras).
+    const docs: { url: string; nome: string }[] = [];
+    for (const n of waCob.notas) {
+      const url = await notaSignedUrl(n.path);
+      if (!url) break;
+      docs.push({ url, nome: n.nome });
     }
-    const res = await enviarWhatsapp(waTel, waText, doc);
+    const res = await enviarWhatsapp(waTel, waText, docs);
     setWaSending(false);
     if (res) {
-      // Envio confirmado do PDF → apaga do Storage pra não ocupar espaço.
-      if (res.docEnviado && waCob.nota_fiscal_path) await marcarNotaEnviada(waNfLinhaId || waCob.id, waCob.nota_fiscal_path);
+      // PDFs com envio confirmado → apaga do Storage pra não ocupar espaço.
+      await marcarNotasEnviadas(waCob.notas.slice(0, res.docsEnviados));
+      if (res.docsEnviados < waCob.notas.length) {
+        toast.warning(`${waCob.notas.length - res.docsEnviados} nota(s) fiscal(is) não foram enviadas e continuam anexadas.`);
+      }
       setWaOpen(false);
     }
   };
@@ -302,7 +324,7 @@ export default function Cobrancas() {
     }));
     setEmOpen(true);
   };
-  const emBloqueado = !!emCob?.exigir_nf && !emCob?.nota_fiscal_path && !emCob?.nota_fiscal_enviada;
+  const emBloqueado = !!emCob?.exigir_nf && !emCob?.notas.length && !emCob?.nota_fiscal_enviada;
   const handleEnviarEmail = async () => {
     if (!emCob) return;
     if (emBloqueado) { toast.error('Esta cobrança exige nota fiscal anexada para disparar.'); return; }
@@ -323,16 +345,16 @@ export default function Cobrancas() {
       pix: usaPix ? pixCfg.chave : null,
       titular: usaPix ? pixCfg.titular : null,
       intro: emIntro.trim() || null,
-      nota_fiscal_path: emCob.nota_fiscal_path || null,
-      nota_fiscal_nome: emCob.nota_fiscal_nome || null,
+      notas: emCob.notas.map(({ path, nome }) => ({ path, nome })),
       forma: emCob.forma_pagamento || null,
       asaas_payment_id: emCob.asaas_payment_id || null,
     });
     setEmSending(false);
     carregarFalhasEmail();
     if (res) {
-      if (res.docEnviado && emCob.nota_fiscal_path) {
-        await marcarNotaEnviada(emCob.linhas.find((l) => l.nota_fiscal_path)?.id || emCob.id, emCob.nota_fiscal_path);
+      await marcarNotasEnviadas(emCob.notas.slice(0, res.docsEnviados));
+      if (res.docsEnviados < emCob.notas.length) {
+        toast.warning(`${emCob.notas.length - res.docsEnviados} nota(s) fiscal(is) não foram anexadas e continuam na cobrança.`);
       }
       setEmOpen(false);
     }
@@ -464,13 +486,20 @@ export default function Cobrancas() {
 
   // ===== Nota fiscal (PDF) =====
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const uploadTargetRef = useRef<string | null>(null);
-  const pedirUploadNota = (cobranca_id: string) => { uploadTargetRef.current = cobranca_id; fileInputRef.current?.click(); };
+  const uploadTargetRef = useRef<{ id: string; jaNaFatura: number } | null>(null);
+  // Numa fatura agrupada as notas ficam numa linha só (a que já tem nota, ou a 1ª);
+  // as das outras linhas contam no limite de 10.
+  const pedirUploadNota = (cob: FaturaView) => {
+    if (cob.notas.length >= MAX_NOTAS_FISCAIS) { toast.error(`Limite de ${MAX_NOTAS_FISCAIS} notas fiscais por cobrança.`); return; }
+    const id = cob.notas[0]?.cobranca_id ?? cob.id;
+    uploadTargetRef.current = { id, jaNaFatura: cob.notas.filter((n) => n.cobranca_id !== id).length };
+    fileInputRef.current?.click();
+  };
   const onFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    const id = uploadTargetRef.current;
+    const files = Array.from(e.target.files ?? []);
+    const alvo = uploadTargetRef.current;
     e.target.value = '';
-    if (file && id) await anexarNota(id, file);
+    if (files.length && alvo) await anexarNotas(alvo.id, files, alvo.jaNaFatura);
   };
   const abrirNota = async (path: string) => {
     const url = await notaSignedUrl(path);
@@ -505,21 +534,32 @@ export default function Cobrancas() {
             </button>
           )}
           {/* Nota fiscal (PDF) */}
-          {cob.nota_fiscal_path ? (
-            <>
-              <button onClick={() => abrirNota(cob.nota_fiscal_path!)} className={MENU_ITEM}>
-                <FileText className="h-4 w-4 text-primary" /> Ver nota fiscal
-              </button>
-              <button onClick={() => pedirUploadNota(cob.id)} className={MENU_ITEM}>
-                <Paperclip className="h-4 w-4 text-foreground-muted" /> Trocar nota fiscal
-              </button>
-              <button onClick={() => removerNota(cob.linhas.find((l) => l.nota_fiscal_path)?.id || cob.id, cob.nota_fiscal_path)} className={MENU_ITEM_DANGER}>
-                <Trash2 className="h-4 w-4" /> Remover nota fiscal
-              </button>
-            </>
-          ) : (
-            <button onClick={() => pedirUploadNota(cob.id)} className={MENU_ITEM}>
-              <Paperclip className="h-4 w-4 text-foreground-muted" /> Anexar nota fiscal (PDF)
+          {cob.notas.length > 0 && (
+            <div className="my-1 rounded-xl bg-surface-2/60 p-1">
+              <p className="px-2 pb-0.5 pt-1 text-[11px] font-medium text-foreground-muted">
+                Notas fiscais · {cob.notas.length}/{MAX_NOTAS_FISCAIS}
+              </p>
+              {cob.notas.map((n) => (
+                <div key={n.path} className="flex items-center gap-1">
+                  <button onClick={() => abrirNota(n.path)} className={cn(MENU_ITEM, 'min-w-0 flex-1 py-1.5')} title={`Ver ${n.nome}`}>
+                    <FileText className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="truncate">{n.nome}</span>
+                  </button>
+                  <button
+                    onClick={() => removerNota(n)}
+                    aria-label={`Remover ${n.nome}`}
+                    className="no-touch-min inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-foreground-muted transition-colors hover:bg-danger-bg hover:text-danger-fg"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {cob.notas.length < MAX_NOTAS_FISCAIS && (
+            <button onClick={() => pedirUploadNota(cob)} className={MENU_ITEM}>
+              <Paperclip className="h-4 w-4 text-foreground-muted" />
+              {cob.notas.length ? 'Anexar mais notas fiscais' : 'Anexar notas fiscais (PDF)'}
             </button>
           )}
           <button onClick={() => setExigirNf(cob.linhas.map((l) => l.id), !cob.exigir_nf)} className={MENU_ITEM}>
@@ -607,7 +647,7 @@ export default function Cobrancas() {
         }
       />
 
-      <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={onFileChosen} />
+      <input ref={fileInputRef} type="file" accept="application/pdf" multiple className="hidden" onChange={onFileChosen} />
 
       {/* Seletor de período (por vencimento) */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -863,9 +903,13 @@ export default function Cobrancas() {
                             </button>
                           )}
                           {cob.linhas.length > 1 && <GrupoChip qtd={cob.linhas.length} />}
-                          {cob.nota_fiscal_path && <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Nota fiscal anexada" />}
-                          {!cob.nota_fiscal_path && cob.nota_fiscal_enviada && <FileText className="h-3.5 w-3.5 shrink-0 text-success-fg" aria-label="Nota fiscal enviada" />}
-                          {cob.exigir_nf && !cob.nota_fiscal_path && !cob.nota_fiscal_enviada && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-warning-fg" aria-label="Exige nota fiscal" />}
+                          {cob.notas.length > 0 && (
+                            <span className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-medium text-primary" aria-label={`${cob.notas.length} nota(s) fiscal(is) anexada(s)`}>
+                              <Paperclip className="h-3.5 w-3.5" />{cob.notas.length > 1 && cob.notas.length}
+                            </span>
+                          )}
+                          {!cob.notas.length && cob.nota_fiscal_enviada && <FileText className="h-3.5 w-3.5 shrink-0 text-success-fg" aria-label="Nota fiscal enviada" />}
+                          {cob.exigir_nf && !cob.notas.length && !cob.nota_fiscal_enviada && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-warning-fg" aria-label="Exige nota fiscal" />}
                           {cob.enviar_fim_semana === false && <CalendarOff className="h-3.5 w-3.5 shrink-0 text-foreground-subtle" aria-label="Não dispara no fim de semana" />}
                         </div>
                       </div>
@@ -1181,18 +1225,15 @@ export default function Cobrancas() {
                 <Textarea value={emIntro} onChange={(e) => setEmIntro(e.target.value)} rows={3} className="text-[13px] leading-relaxed" />
                 <p className="text-[11.5px] text-foreground-muted">{emCob?.envio_pix && pixCfg.chave ? 'O e-mail vai com valor, vencimento e a chave PIX (sem boleto nem link do Asaas).' : 'O e-mail já inclui valor, vencimento e o botão de pagamento do Asaas.'}</p>
               </div>
-              {emCob?.nota_fiscal_path ? (
+              {emCob?.notas.length ? (
                 <InlineNotice tone="neutral" icon={<FileText className="text-primary" />}>
-                  <div className="flex items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate">Vai anexar: {emCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
-                    <button onClick={() => abrirNota(emCob.nota_fiscal_path!)} className="shrink-0 font-medium text-primary hover:underline">ver</button>
-                  </div>
+                  <NotasAnexo notas={emCob.notas} onVer={abrirNota} />
                 </InlineNotice>
               ) : emBloqueado ? (
                 <InlineNotice tone="warning" icon={<ShieldCheck />}>
                   <div className="flex items-center gap-2">
                     <span className="min-w-0 flex-1">Esta cobrança exige nota fiscal.</span>
-                    <button onClick={() => { setEmOpen(false); pedirUploadNota(emCob!.id); }} className="shrink-0 font-semibold hover:underline">Anexar</button>
+                    <button onClick={() => { setEmOpen(false); pedirUploadNota(emCob!); }} className="shrink-0 font-semibold hover:underline">Anexar</button>
                   </div>
                 </InlineNotice>
               ) : null}
@@ -1224,18 +1265,15 @@ export default function Cobrancas() {
                 <Textarea value={waText} onChange={(e) => setWaText(e.target.value)} rows={10} className="font-mono text-[13px] leading-relaxed" />
               </div>
               {/* Status da nota fiscal */}
-              {waCob?.nota_fiscal_path ? (
+              {waCob?.notas.length ? (
                 <InlineNotice tone="neutral" icon={<FileText className="text-primary" />}>
-                  <div className="flex items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate">Vai anexar: {waCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
-                    <button onClick={() => abrirNota(waCob.nota_fiscal_path!)} className="shrink-0 font-medium text-primary hover:underline">ver</button>
-                  </div>
+                  <NotasAnexo notas={waCob.notas} onVer={abrirNota} />
                 </InlineNotice>
               ) : waCob?.exigir_nf && !waCob?.nota_fiscal_enviada ? (
                 <InlineNotice tone="warning" icon={<ShieldCheck />}>
                   <div className="flex items-center gap-2">
                     <span className="min-w-0 flex-1">Esta cobrança exige nota fiscal.</span>
-                    <button onClick={() => { setWaOpen(false); pedirUploadNota(waCob.id); }} className="shrink-0 font-semibold hover:underline">Anexar</button>
+                    <button onClick={() => { setWaOpen(false); pedirUploadNota(waCob); }} className="shrink-0 font-semibold hover:underline">Anexar</button>
                   </div>
                 </InlineNotice>
               ) : null}

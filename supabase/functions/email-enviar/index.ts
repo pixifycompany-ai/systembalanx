@@ -59,12 +59,18 @@ serve(async (req) => {
       remetenteNome,
     });
 
-    // Anexa a nota fiscal (PDF) via URL assinada, se houver.
+    // Anexa as notas fiscais (PDFs, até 10) via URL assinada. `nota_fiscal_path` é o
+    // formato antigo (uma só). Para na primeira falha: quem chama apaga as N primeiras.
     const attachments: ResendAnexo[] = [];
-    if (b.nota_fiscal_path) {
-      const { data: signed } = await supabase.storage.from("notas-fiscais").createSignedUrl(String(b.nota_fiscal_path), 600);
-      if (signed?.signedUrl) attachments.push({ filename: String(b.nota_fiscal_nome || "nota-fiscal.pdf"), path: signed.signedUrl });
+    const notas: { path: string; nome?: string }[] = Array.isArray(b.notas)
+      ? b.notas.filter((n: { path?: string }) => n?.path).slice(0, 10)
+      : b.nota_fiscal_path ? [{ path: String(b.nota_fiscal_path), nome: b.nota_fiscal_nome }] : [];
+    for (const n of notas) {
+      const { data: signed } = await supabase.storage.from("notas-fiscais").createSignedUrl(String(n.path), 600);
+      if (!signed?.signedUrl) break;
+      attachments.push({ filename: String(n.nome || "nota-fiscal.pdf"), path: signed.signedUrl });
     }
+    const docsEnviados = attachments.length;
 
     // Anexa o boleto (PDF) do Asaas quando a cobrança é boleto. Usa service role
     // para ler a chave do Asaas (que o cliente autenticado não pode ler).
@@ -100,7 +106,7 @@ serve(async (req) => {
       console.error("email send error", r.status, r.error);
       return json({ error: `Falha ao enviar e-mail (${r.status}): ${r.error || ""}`, status: r.status }, 400);
     }
-    return json({ ok: true, id: r.id, docEnviado: attachments.length > 0 });
+    return json({ ok: true, id: r.id, docEnviado: docsEnviados > 0, docsEnviados, docsTotal: notas.length });
   } catch (e) {
     console.error("email-enviar error", e);
     return json({ error: e instanceof Error ? e.message : "Erro" }, 500);

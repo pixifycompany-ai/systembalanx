@@ -37,7 +37,7 @@ import { formatCurrency, formatDate } from '@/utils/formatters';
 import { exportContratos } from '@/utils/exportCSV';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
 import { useContratos, type ContratoFormData } from '@/hooks/useContratos';
-import { useCobrancas, preencherTemplate, WHATSAPP_TEMPLATE_PIX_PADRAO, type Cobranca } from '@/hooks/useCobrancas';
+import { useCobrancas, preencherTemplate, notasDasLinhas, WHATSAPP_TEMPLATE_PIX_PADRAO, type Cobranca } from '@/hooks/useCobrancas';
 import { useContas } from '@/hooks/useContas';
 import { ContratoCobrancaCell } from '@/components/contratos/ContratoCobrancaCell';
 import { AgruparCobrancaSheet, type ContratoParaAgrupar } from '@/components/contratos/AgruparCobrancaSheet';
@@ -126,7 +126,7 @@ export default function Contratos() {
     receberManual: receberManualCobranca,
     enviarWhatsapp,
     notaSignedUrl,
-    marcarNotaEnviada,
+    marcarNotasEnviadas,
     whatsappTemplate,
     pixCfg,
   } = useCobrancas();
@@ -157,7 +157,7 @@ export default function Contratos() {
     const cli = clientes.find((c) => c.id === cob.cliente_id);
     const grupo = linhasDaFatura(cob);
     setWhatsappGrupo(grupo);
-    setWhatsappCob(grupo.find((l) => l.nota_fiscal_path) ?? cob);
+    setWhatsappCob(cob);
     setWhatsappTel(cli?.telefone || '');
     const usaPix = grupo.some((l) => l.envio_pix) && !!pixCfg.chave;
     setWhatsappText(preencherTemplate(usaPix ? (pixCfg.template || WHATSAPP_TEMPLATE_PIX_PADRAO) : whatsappTemplate, {
@@ -171,21 +171,23 @@ export default function Contratos() {
     }));
     setWhatsappOpen(true);
   };
+  const whatsappNotas = useMemo(() => notasDasLinhas(whatsappGrupo), [whatsappGrupo]);
   const whatsappBloqueado = whatsappGrupo.some((l) => l.exigir_nf)
-    && !whatsappGrupo.some((l) => l.nota_fiscal_path || l.nota_fiscal_enviada);
+    && !whatsappNotas.length && !whatsappGrupo.some((l) => l.nota_fiscal_enviada);
   const handleEnviarWhatsapp = async () => {
     if (!whatsappCob) return;
     if (whatsappBloqueado) { toast.error('Esta cobrança exige nota fiscal anexada para disparar.'); return; }
     setWhatsappSending(true);
-    let doc: { url: string; nome: string } | null = null;
-    if (whatsappCob.nota_fiscal_path) {
-      const url = await notaSignedUrl(whatsappCob.nota_fiscal_path);
-      if (url) doc = { url, nome: whatsappCob.nota_fiscal_nome || 'nota-fiscal.pdf' };
+    const docs: { url: string; nome: string }[] = [];
+    for (const n of whatsappNotas) {
+      const url = await notaSignedUrl(n.path);
+      if (!url) break;
+      docs.push({ url, nome: n.nome });
     }
-    const res = await enviarWhatsapp(whatsappTel, whatsappText, doc);
+    const res = await enviarWhatsapp(whatsappTel, whatsappText, docs);
     setWhatsappSending(false);
     if (res) {
-      if (res.docEnviado && whatsappCob.nota_fiscal_path) await marcarNotaEnviada(whatsappCob.id, whatsappCob.nota_fiscal_path);
+      await marcarNotasEnviadas(whatsappNotas.slice(0, res.docsEnviados));
       setWhatsappOpen(false);
     }
   };
@@ -1447,9 +1449,10 @@ export default function Contratos() {
                   <Textarea value={whatsappText} onChange={(e) => setWhatsappText(e.target.value)} rows={10} className="font-mono text-[13px] leading-relaxed" />
                   <p className="text-[11.5px] text-foreground-muted">Aceita *negrito*, _itálico_ e quebra de linha. Edite à vontade — o padrão vem de Meu Perfil.</p>
                 </div>
-                {whatsappCob?.nota_fiscal_path ? (
+                {whatsappNotas.length ? (
                   <InlineNotice tone="neutral" icon={<FileText className="text-primary" />}>
-                    <span className="block truncate">Vai anexar: {whatsappCob.nota_fiscal_nome || 'nota-fiscal.pdf'}</span>
+                    <span className="block">Vai anexar {whatsappNotas.length > 1 ? `${whatsappNotas.length} notas fiscais:` : 'a nota fiscal:'}</span>
+                    {whatsappNotas.map((n) => <span key={n.path} className="block truncate text-foreground-muted">{n.nome}</span>)}
                   </InlineNotice>
                 ) : whatsappBloqueado ? (
                   <InlineNotice tone="warning" icon={<FileText />}>
