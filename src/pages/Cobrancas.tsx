@@ -76,6 +76,15 @@ function statusPill(status: string) {
   return <span className={cn('inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold', toneCls[meta.tone])}>{meta.label}</span>;
 }
 
+/** Motivo de falha do Resend em português (o webhook grava o código cru). */
+function motivoEmail(erro: string | null) {
+  const e = String(erro || '');
+  if (/invalid_attachment/i.test(e)) return 'não foi possível anexar o PDF (nota fiscal ou boleto). Reenvie.';
+  if (/suppress/i.test(e)) return 'endereço bloqueado por devoluções anteriores.';
+  if (/mailbox|does not exist|user unknown|no such user/i.test(e)) return 'a caixa de e-mail não existe.';
+  return e || 'falha no envio';
+}
+
 /** "Vai anexar" no envio manual: lista as notas fiscais com link para ver cada uma. */
 function NotasAnexo({ notas, onVer }: { notas: NotaRef[]; onVer: (path: string) => void }) {
   return (
@@ -297,7 +306,34 @@ export default function Cobrancas() {
       .order('created_at', { ascending: false }).limit(10);
     setFalhasEmail((data || []) as FalhaEmail[]);
   }, []);
-  useEffect(() => { carregarFalhasEmail(); }, [carregarFalhasEmail]);
+  // A falha chega pelo webhook segundos (ou minutos) depois do envio: recarrega ao
+  // voltar para a aba e a cada minuto enquanto a tela está aberta.
+  useEffect(() => {
+    carregarFalhasEmail();
+    const onFocus = () => { if (document.visibilityState === 'visible') carregarFalhasEmail(); };
+    document.addEventListener('visibilitychange', onFocus);
+    const t = window.setInterval(onFocus, 60_000);
+    return () => { document.removeEventListener('visibilitychange', onFocus); window.clearInterval(t); };
+  }, [carregarFalhasEmail]);
+  // Logo após um envio manual, acompanha o status daquele e-mail por ~40s.
+  const acompanharEnvio = (resendId: string, para: string) => {
+    let feito = false;
+    for (const ms of [4_000, 12_000, 40_000]) {
+      window.setTimeout(async () => {
+        if (feito) return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase as any).from('email_envios').select('status, erro').eq('resend_id', resendId).maybeSingle();
+        if (!data) return;
+        if (['falhou', 'devolvido', 'spam'].includes(data.status)) {
+          feito = true;
+          toast.error(`O e-mail para ${para} não foi entregue: ${motivoEmail(data.erro)}`, { duration: 12000 });
+          carregarFalhasEmail();
+        } else if (data.status === 'entregue') {
+          feito = true;
+        }
+      }, ms);
+    }
+  };
   const dispensarFalha = async (id: string) => {
     setFalhasEmail((f) => f.filter((x) => x.id !== id));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -351,6 +387,7 @@ export default function Cobrancas() {
     });
     setEmSending(false);
     carregarFalhasEmail();
+    if (res?.resendId) acompanharEnvio(res.resendId, emPara.trim());
     if (res) {
       await marcarNotasEnviadas(emCob.notas.slice(0, res.docsEnviados));
       if (res.docsEnviados < emCob.notas.length) {
@@ -708,7 +745,7 @@ export default function Cobrancas() {
                 <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl bg-surface/70 px-3 py-2 text-[12.5px] text-foreground">
                   <span className="min-w-0 flex-1">
                     <b className="font-semibold">{rotulo}</b> · {f.para} · {formatDate(f.created_at.slice(0, 10))}
-                    <span className="block truncate text-foreground-muted">{f.assunto}{f.erro ? ` — ${f.erro}` : ''}</span>
+                    <span className="block truncate text-foreground-muted">{f.assunto}{f.erro ? ` — ${motivoEmail(f.erro)}` : ''}</span>
                   </span>
                   <span className="flex shrink-0 gap-1.5">
                     {fat && <Button size="sm" variant="outline" onClick={() => openEmail(fat)}>Reenviar</Button>}

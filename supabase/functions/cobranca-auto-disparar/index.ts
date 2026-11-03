@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { montarEmailCobranca, enviarEmailResend, preencherEmailTpl, EMAIL_ASSUNTO_PADRAO, EMAIL_CORPO_PADRAO, type ResendAnexo } from "../_shared/email.ts";
 import { buscarBoletoUrl, temBoleto } from "../_shared/asaas.ts";
+import { anexoDaNota } from "../_shared/notas.ts";
 import { frasePrazo } from "../_shared/prazo.ts";
 
 // Worker do cron: roda 1x/dia, encontra cobranças que casam com a regra de
@@ -243,8 +244,8 @@ serve(async (req) => {
           const attachments: ResendAnexo[] = [];
           const nfsAnexadas: string[] = [];
           for (const n of notas) {
-            const { data: signed } = await admin.storage.from("notas-fiscais").createSignedUrl(n.path, 600);
-            if (signed?.signedUrl) { attachments.push({ filename: n.nome, path: signed.signedUrl }); nfsAnexadas.push(n.path); }
+            const anexo = await anexoDaNota(admin, n.path, n.nome);
+            if (anexo) { attachments.push(anexo); nfsAnexadas.push(n.path); }
           }
           // Boleto (PDF) do Asaas quando a cobrança é boleto.
           if (cob.asaas_payment_id && temBoleto(cob.forma_pagamento) && cfg?.asaas_api_key && !usaPix) {

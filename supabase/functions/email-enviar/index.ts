@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { montarEmailCobranca, enviarEmailResend, preencherEmailTpl, EMAIL_ASSUNTO_PADRAO, type ResendAnexo } from "../_shared/email.ts";
 import { buscarBoletoUrl, temBoleto } from "../_shared/asaas.ts";
+import { anexoDaNota } from "../_shared/notas.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,16 +60,16 @@ serve(async (req) => {
       remetenteNome,
     });
 
-    // Anexa as notas fiscais (PDFs, até 10) via URL assinada. `nota_fiscal_path` é o
+    // Anexa as notas fiscais (PDFs, até 10) com o conteúdo do arquivo. `nota_fiscal_path` é o
     // formato antigo (uma só). Para na primeira falha: quem chama apaga as N primeiras.
     const attachments: ResendAnexo[] = [];
     const notas: { path: string; nome?: string }[] = Array.isArray(b.notas)
       ? b.notas.filter((n: { path?: string }) => n?.path).slice(0, 10)
       : b.nota_fiscal_path ? [{ path: String(b.nota_fiscal_path), nome: b.nota_fiscal_nome }] : [];
     for (const n of notas) {
-      const { data: signed } = await supabase.storage.from("notas-fiscais").createSignedUrl(String(n.path), 600);
-      if (!signed?.signedUrl) break;
-      attachments.push({ filename: String(n.nome || "nota-fiscal.pdf"), path: signed.signedUrl });
+      const anexo = await anexoDaNota(supabase, String(n.path), String(n.nome || "nota-fiscal.pdf"));
+      if (!anexo) break;
+      attachments.push(anexo);
     }
     const docsEnviados = attachments.length;
 

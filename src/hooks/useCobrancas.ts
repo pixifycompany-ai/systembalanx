@@ -623,8 +623,8 @@ export function useCobrancas() {
         throw new Error(msg);
       }
       if ((data as { error?: string })?.error) throw new Error((data as { error?: string }).error);
-      toast.success('E-mail enviado!');
-      return { ok: true, docsEnviados: docsConfirmados(data) };
+      toast.success('E-mail enviado! Vamos avisar aqui se ele não for entregue.');
+      return { ok: true, docsEnviados: docsConfirmados(data), resendId: (data as { id?: string })?.id ?? null };
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erro ao enviar e-mail', { duration: 8000 });
       return null;
