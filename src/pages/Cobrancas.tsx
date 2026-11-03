@@ -304,7 +304,19 @@ export default function Cobrancas() {
       .in('status', ['falhou', 'devolvido', 'spam']).eq('visto', false)
       .gte('created_at', format(addDays(new Date(), -30), 'yyyy-MM-dd'))
       .order('created_at', { ascending: false }).limit(10);
-    setFalhasEmail((data || []) as FalhaEmail[]);
+    const falhas = (data || []) as FalhaEmail[];
+    // Falha já resolvida: a mesma cobrança foi reenviada depois para o mesmo e-mail e saiu.
+    const ids = [...new Set(falhas.map((f) => f.cobranca_id).filter(Boolean))];
+    let ok: { cobranca_id: string; para: string; created_at: string }[] = [];
+    if (ids.length) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = await (supabase as any).from('email_envios').select('cobranca_id, para, created_at')
+        .in('cobranca_id', ids).in('status', ['enviado', 'entregue', 'atrasado']);
+      ok = r.data || [];
+    }
+    const mesmo = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+    setFalhasEmail(falhas.filter((f) => !ok.some((o) =>
+      o.cobranca_id === f.cobranca_id && mesmo(o.para, f.para) && o.created_at > f.created_at)));
   }, []);
   // A falha chega pelo webhook segundos (ou minutos) depois do envio: recarrega ao
   // voltar para a aba e a cada minuto enquanto a tela está aberta.
