@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { Header } from './Header';
@@ -5,6 +6,7 @@ import { MobileBottomNav } from './MobileBottomNav';
 import { PullToRefresh } from './PullToRefresh';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useTenant } from '@/contexts/TenantContext';
+import { ligarMascara } from '@/lib/ocultarValores';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -13,6 +15,9 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const { acessoAtivo, loading: tenantLoading, memberships, isSuperadmin } = useTenant();
+
+  // Layout effect: esconde os valores antes da 1ª pintura da tela
+  useLayoutEffect(() => ligarMascara(), []);
 
   // Sem nenhuma conta (cadastro interrompido no meio) → volta pro onboarding
   if (!tenantLoading && memberships.length === 0 && !isSuperadmin) {

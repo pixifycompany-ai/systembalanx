@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { NotificationBell } from './NotificationBell';
+import { OlhoValores } from '@/components/shared/OlhoValores';
 
 const routeLabels: Record<string, { group: string; label: string }> = {
   '/': { group: 'Visão geral', label: 'Dashboard' },
@@ -44,6 +45,7 @@ export function Header() {
       <div className="md:hidden flex-1" />
 
       <div className="flex items-center gap-1 md:gap-2 shrink-0">
+        <OlhoValores />
         <NotificationBell />
       </div>
     </header>
