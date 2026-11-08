@@ -50,12 +50,14 @@ function greeting() {
 
 function diasParaVencer(dateStr: string) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
-  const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  // "2026-11-10" sozinho é lido como meia-noite UTC (= dia 09 à noite no Brasil);
+  // com o horário explícito vira meia-noite local, igual ao widget do desktop.
+  const d = new Date(dateStr.split('T')[0] + 'T00:00:00');
+  const diff = Math.round((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   if (diff < 0) return 'Atrasado';
   if (diff === 0) return 'Hoje';
   if (diff === 1) return 'Amanhã';
-  return `em ${diff}d`;
+  return `em ${diff} dias`;
 }
 
 /** Até 2 iniciais do nome (avatar das listas). */
