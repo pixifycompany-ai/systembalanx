@@ -28,7 +28,7 @@ import { useClientes } from '@/hooks/useClientes';
 import { useContas, useAccountRunningBalance } from '@/hooks/useContas';
 import { useTransferencias, type TransferenciaFormData } from '@/hooks/useTransferencias';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
-import { TrendingUp, TrendingDown, ArrowLeftRight, ArrowRightLeft, Filter, Plus, Pencil, Trash2, Upload, CalendarIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarRange, X, FileText, BarChart3, Repeat, SlidersHorizontal, CheckCircle2, CreditCard, User, Store, Receipt, Search, MoreHorizontal } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowLeftRight, ArrowRightLeft, Filter, Plus, Pencil, Trash2, Upload, CalendarIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarRange, X, FileText, BarChart3, Repeat, SlidersHorizontal, CheckCircle2, CreditCard, User, Store, Receipt, Search, MoreHorizontal, Paperclip } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { FluxoCaixaKPIRow } from '@/components/fluxocaixa/FluxoCaixaKPIRow';
 import { ReceiptGenerator, type ReceiptData } from '@/components/shared/ReceiptGenerator';
@@ -1635,6 +1635,9 @@ export default function FluxoCaixa() {
                           <td className="px-3 py-3">
                             <div className="min-w-0">
                               <div className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-foreground [overflow-wrap:anywhere]" title={t.descricao}>
+                                {!!t.anexos?.length && (
+                                  <Paperclip className="mr-1 inline h-3.5 w-3.5 -translate-y-px text-primary" aria-label={`${t.anexos.length} anexo(s)`} />
+                                )}
                                 {t.descricao}
                               </div>
                               {!isTransfer && (t.cliente?.nome || t.fornecedor) && (
@@ -2325,6 +2328,7 @@ export default function FluxoCaixa() {
               onEdit={handleEditFromDetail}
               onDelete={handleMobileDelete}
               onGerarCobranca={podeGerarCobranca(detailItem) ? (t) => setCobrancaFor(t) : undefined}
+              onAnexosChange={() => { refetchFluxo(); }}
             />
           );
         })()}

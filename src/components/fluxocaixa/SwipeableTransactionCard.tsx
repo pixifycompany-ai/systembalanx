@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { parseISO } from 'date-fns';
-import { Check, Trash2, ArrowUp, ArrowDown, ArrowLeftRight, User, Store } from 'lucide-react';
+import { Check, Trash2, ArrowUp, ArrowDown, ArrowLeftRight, User, Store, Paperclip } from 'lucide-react';
 import { EyeIcon, DocumentDuplicateIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '@/utils/formatters';
 import type { TransacaoUnificada } from '@/types/fluxoCaixa';
@@ -213,7 +213,10 @@ export function SwipeableTransactionCard({
           </span>
 
           <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
-            <p className="truncate text-[14px] font-semibold leading-tight text-foreground">{t.descricao}</p>
+            <p className="flex min-w-0 items-center gap-1 text-[14px] font-semibold leading-tight text-foreground">
+              {!!t.anexos?.length && <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" aria-label={`${t.anexos.length} anexo(s)`} />}
+              <span className="truncate">{t.descricao}</span>
+            </p>
             <div className="flex min-w-0 items-center gap-1.5">
               {parte && (
                 <span className="inline-flex min-w-0 max-w-[60%] shrink-0 items-center gap-1 rounded-full bg-surface-2 px-2 py-[1px] text-[10.5px] font-medium text-foreground-muted">

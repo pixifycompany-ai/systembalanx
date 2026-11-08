@@ -1,3 +1,5 @@
+import type { AnexoDespesa } from '@/lib/anexosDespesa';
+
 // Unified Transaction Types for Cash Flow
 
 export interface TransacaoUnificada {
@@ -23,6 +25,8 @@ export interface TransacaoUnificada {
   // Campos específicos de despesas
   fornecedor?: string | null;
   tipo_despesa?: 'fixa' | 'variavel';
+  /** Boletos/notas anexados (some quando a despesa é paga). */
+  anexos?: AnexoDespesa[];
   
   // Campo comum
   conta_id?: string | null;

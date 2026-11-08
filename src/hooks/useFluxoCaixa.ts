@@ -7,6 +7,7 @@ import { calcularCompetenciaFatura, toISODate } from '@/utils/faturaCalculator';
 import type { ContaDB } from '@/hooks/useContas';
 import { parseISO, startOfDay, isBefore, addMonths } from 'date-fns';
 import type { TransacaoUnificada, TipoTransacao } from '@/types/fluxoCaixa';
+import { anexosDe, limparLixeiraAnexos } from '@/lib/anexosDespesa';
 
 // Internal types - different from the exported hook types
 interface ReceitaInternal {
@@ -207,6 +208,8 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
   }, []);
 
   const fetchData = useCallback(async () => {
+    // Anexos de despesas pagas/excluídas saem do Storage (em segundo plano)
+    limparLixeiraAnexos();
     try {
       setIsLoading(true);
       setError(null);
@@ -319,6 +322,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       forma_pagamento: (d as unknown as { forma_pagamento?: string | null }).forma_pagamento ?? null,
       conta_id: d.conta_id,
       recurrence_group_id: d.recurrence_group_id,
+      anexos: anexosDe(d as unknown as { anexos?: unknown }),
     }));
 
     // Transferências geram 2 linhas: saída na origem + entrada no destino

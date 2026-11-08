@@ -6,6 +6,7 @@ import type { TransacaoUnificada } from '@/types/fluxoCaixa';
 import { cn } from '@/lib/utils';
 import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW, NAVY_TONE } from '@/components/shared/navyTokens';
 import { HexWatermark } from '@/components/shared/NavySurface';
+import { AnexosDespesa } from './AnexosDespesa';
 
 interface Row {
   label: string;
@@ -25,6 +26,8 @@ interface TransactionDetailSheetProps {
   onDelete: (t: TransacaoUnificada) => void;
   /** Quando presente, mostra "Gerar cobrança no Asaas" (receita em aberto). */
   onGerarCobranca?: (t: TransacaoUnificada) => void;
+  /** Anexos da despesa mudaram (recarrega a lista). */
+  onAnexosChange?: () => void;
 }
 
 const statusLabel: Record<string, string> = {
@@ -42,6 +45,7 @@ export function TransactionDetailSheet({
   onEdit,
   onDelete,
   onGerarCobranca,
+  onAnexosChange,
 }: TransactionDetailSheetProps) {
   if (!t) return null;
   const isReceita = t.tipo === 'entrada';
@@ -108,6 +112,11 @@ export function TransactionDetailSheet({
               </div>
             ))}
           </div>
+
+          {/* Boleto/nota da despesa a pagar: some sozinho quando ela é paga */}
+          {t.tabela_origem === 'despesas' && !settled && (
+            <AnexosDespesa key={t.id} despesaId={t.id} inicial={t.anexos ?? []} onChange={onAnexosChange} />
+          )}
 
           {onGerarCobranca && (
             <button
