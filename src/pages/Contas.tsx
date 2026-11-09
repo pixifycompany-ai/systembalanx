@@ -511,7 +511,7 @@ export default function Contas() {
       {pagarState && (
         <PagarFaturaDialog
           open={!!pagarState}
-          onOpenChange={(o) => !o && setPagarState(null)}
+          onOpenChange={(o) => { if (!o) { setPagarState(null); refetchFaturas(); refetch(); } }}
           cartao={pagarState.cartao}
           fatura={pagarState.fatura}
           contasBancarias={bankAccounts}

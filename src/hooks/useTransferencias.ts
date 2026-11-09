@@ -75,7 +75,7 @@ export function useTransferencias() {
   useEffect(() => {
     if (!authUser?.id) return;
     const channel = supabase
-      .channel(`transferencias-rt-${authUser.id}`)
+      .channel(`transferencias-rt-${authUser.id}-${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'transferencias', filter: `user_id=eq.${authUser.id}` },

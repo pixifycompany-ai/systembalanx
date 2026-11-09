@@ -145,7 +145,7 @@ export function useReceitas() {
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
-      .channel(`receitas-rt-${user.id}`)
+      .channel(`receitas-rt-${user.id}-${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'receitas', filter: `user_id=eq.${user.id}` },

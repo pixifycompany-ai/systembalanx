@@ -151,7 +151,7 @@ export function useDespesas() {
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
-      .channel(`despesas-rt-${user.id}`)
+      .channel(`despesas-rt-${user.id}-${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'despesas', filter: `user_id=eq.${user.id}` },

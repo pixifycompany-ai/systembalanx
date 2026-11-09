@@ -363,8 +363,10 @@ export function useFaturas(cartaoId?: string) {
   // Realtime
   useEffect(() => {
     if (!user?.id) return;
+    // Nome único por instância: o supabase-js REUSA canal de mesmo nome, e ao fechar
+    // o "Pagar fatura" (2ª instância) o cleanup derrubava o canal da tela de Contas.
     const ch = supabase
-      .channel(`faturas-rt-${user.id}`)
+      .channel(`faturas-rt-${user.id}-${crypto.randomUUID()}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'cartao_faturas', filter: `user_id=eq.${user.id}` }, () => {
         fetch();
         invalidate();
