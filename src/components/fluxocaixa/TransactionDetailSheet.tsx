@@ -28,6 +28,8 @@ interface TransactionDetailSheetProps {
   onGerarCobranca?: (t: TransacaoUnificada) => void;
   /** Anexos da despesa mudaram (recarrega a lista). */
   onAnexosChange?: () => void;
+  /** Fatura de cartão em aberto: abre o "Pagar fatura" (escolhe a conta que pagou). */
+  onPagarFatura?: (t: TransacaoUnificada) => void;
 }
 
 const statusLabel: Record<string, string> = {
@@ -46,6 +48,7 @@ export function TransactionDetailSheet({
   onDelete,
   onGerarCobranca,
   onAnexosChange,
+  onPagarFatura,
 }: TransactionDetailSheetProps) {
   if (!t) return null;
   const isReceita = t.tipo === 'entrada';
@@ -116,6 +119,15 @@ export function TransactionDetailSheet({
           {/* Boleto/nota da despesa a pagar: some sozinho quando ela é paga */}
           {t.tabela_origem === 'despesas' && !settled && (
             <AnexosDespesa key={t.id} despesaId={t.id} inicial={t.anexos ?? []} onChange={onAnexosChange} />
+          )}
+
+          {onPagarFatura && (
+            <button
+              onClick={() => { onOpenChange(false); onPagarFatura(t); }}
+              className="h-11 w-full rounded-full bg-primary text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Pagar fatura
+            </button>
           )}
 
           {onGerarCobranca && (

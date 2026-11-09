@@ -662,8 +662,14 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       }
 
       // Captura a fatura ANTES (se mudar valor/conta, precisa recalcular a fatura).
-      const { data: antiga } = await supabase.from('despesas').select('fatura_id, fornecedor').eq('id', id).single();
+      const { data: antiga } = await supabase.from('despesas').select('fatura_id, fornecedor, status').eq('id', id).single();
       const faturaAntiga = (antiga as any)?.fatura_id ?? null;
+      // Fatura de cartão ('[fatura]') não tem conta: marcar "pago" aqui não tiraria o
+      // dinheiro de nenhum banco. O pagamento é pelo "Pagar fatura" (escolhe a conta).
+      const atual = antiga as { fornecedor?: string | null; status?: string } | null;
+      if (atual?.fornecedor === '[fatura]' && payload.status === 'pago' && atual?.status !== 'pago') {
+        throw new Error('Fatura de cartão: use "Pagar fatura" para escolher a conta que pagou.');
+      }
       // Linhas de sistema do cartão ('[fatura]' = sombra, '[pagamento-fatura]') nunca
       // perdem a marca na edição — sem ela os relatórios contam o cartão em dobro.
       if (MARCAS_SISTEMA.has((antiga as { fornecedor?: string | null } | null)?.fornecedor ?? '')) delete payload.fornecedor;
@@ -743,8 +749,22 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       // Fetch due dates for selected items to use as payment dates
       const { data: items } = await supabase
         .from(tipo)
-        .select('id, data_vencimento')
+        .select('*')
         .in('id', ids);
+
+      // Fatura de cartão não entra na baixa em lote: sem conta, o saldo não sairia de
+      // nenhum banco. Ela é paga pelo "Pagar fatura".
+      if (tipo === 'despesas' && status === 'pago') {
+        const faturas = (items || []).filter((i) => (i as { fornecedor?: string | null }).fornecedor === '[fatura]').map((i) => i.id);
+        if (faturas.length) {
+          ids = ids.filter((id) => !faturas.includes(id));
+          toast({
+            title: `${faturas.length} fatura(s) de cartão ficaram de fora`,
+            description: 'Pague cada fatura pelo "Pagar fatura" para escolher a conta que pagou.',
+          });
+          if (!ids.length) return false;
+        }
+      }
 
       // Update each item individually to use its own due date
       const dateField = tipo === 'receitas' ? 'data_recebimento' : 'data_pagamento';

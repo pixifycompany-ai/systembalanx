@@ -45,6 +45,9 @@ import type { TipoTransacao, TransacaoUnificada } from '@/types/fluxoCaixa';
 import { cn } from '@/lib/utils';
 import { createAuxiliaryTransactions } from '@/hooks/useAuxiliaryTransactions';
 import { supabase } from '@/integrations/supabase/client';
+import { PagarFaturaDialog } from '@/components/cartoes/PagarFaturaDialog';
+import type { FaturaDB } from '@/hooks/useFaturas';
+import type { ContaDB } from '@/hooks/useContas';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MobileTransactionList } from '@/components/fluxocaixa/MobileTransactionList';
 import { PullToRefresh } from '@/components/shared/PullToRefresh';
@@ -177,6 +180,7 @@ export default function FluxoCaixa() {
   // Modal states
   const [entradaModalOpen, setEntradaModalOpen] = useState(false);
   const [saidaModalOpen, setSaidaModalOpen] = useState(false);
+  const [pagarFaturaState, setPagarFaturaState] = useState<{ cartao: ContaDB; fatura: FaturaDB } | null>(null);
   const [detailItem, setDetailItem] = useState<TransacaoUnificada | null>(null);
   // "Gerar cobrança" a partir de uma receita em aberto (e das próximas parcelas)
   const [cobrancaFor, setCobrancaFor] = useState<TransacaoUnificada | null>(null);
@@ -649,6 +653,11 @@ export default function FluxoCaixa() {
   const handleSubmitSaida = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formSaida.descricao || formSaida.valor <= 0) return;
+    if (editingItem && ehFaturaCartao(editingItem) && formSaida.status === 'pago' && editingItem.status !== 'pago') {
+      setSaidaModalOpen(false);
+      await abrirPagarFatura(editingItem.id);
+      return;
+    }
 
     setIsSaving(true);
     let success: boolean;
@@ -755,6 +764,12 @@ export default function FluxoCaixa() {
   };
 
   const handleBulkStatusChange = async (status: string) => {
+    // Só uma fatura de cartão selecionada: vai direto para o Pagar fatura.
+    if (status === 'pago' && !hasEntradas && selectedSaidas.length === 1 && ehFaturaCartao(selectedSaidas[0])) {
+      clearSelection();
+      await abrirPagarFatura(selectedSaidas[0].id);
+      return;
+    }
     setIsSaving(true);
     
     if (hasEntradas && !hasSaidas) {
@@ -910,9 +925,22 @@ export default function FluxoCaixa() {
     }
   }, [actionParam]);
 
+  // Fatura de cartão ('[fatura]') não tem conta: "dar baixa" nela abre o Pagar fatura,
+  // que pergunta de qual banco saiu o dinheiro (senão o saldo das contas fica errado).
+  const ehFaturaCartao = (t: { fornecedor?: string | null }) => t.fornecedor === '[fatura]';
+  const abrirPagarFatura = async (despesaId: string) => {
+    const { data } = await supabase.from('cartao_faturas' as never).select('*').eq('despesa_id', despesaId).maybeSingle();
+    const fatura = data as unknown as FaturaDB | null;
+    const cartao = fatura ? contas.find((c) => c.id === fatura.cartao_id) : undefined;
+    if (!fatura || !cartao) { toast.error('Não achei a fatura deste cartão. Pague pela tela de Contas.'); return; }
+    if (fatura.status === 'paga') { toast.info('Esta fatura já está paga.'); return; }
+    setPagarFaturaState({ cartao, fatura });
+  };
+
   // Mobile swipe confirm handler — atualiza SÓ status+data (update parcial preserva categoria/conta/cliente/etc)
   const handleMobileConfirm = async (t: TransacaoUnificada) => {
     if (t.tabela_origem === 'transferencia') return; // não há "dar baixa" em transferências
+    if (ehFaturaCartao(t)) { await abrirPagarFatura(t.id); return; }
     if (t.tipo === 'entrada') {
       await updateReceita(t.id, { status: 'recebido', data_recebimento: format(new Date(), 'yyyy-MM-dd') });
     } else {
@@ -2329,9 +2357,25 @@ export default function FluxoCaixa() {
               onDelete={handleMobileDelete}
               onGerarCobranca={podeGerarCobranca(detailItem) ? (t) => setCobrancaFor(t) : undefined}
               onAnexosChange={() => { refetchFluxo(); }}
+              onPagarFatura={ehFaturaCartao(detailItem) && detailItem.status !== 'pago' ? (t) => abrirPagarFatura(t.id) : undefined}
             />
           );
         })()}
+
+        {pagarFaturaState && (
+          <PagarFaturaDialog
+            open
+            onOpenChange={(o) => {
+              if (o) return;
+              setPagarFaturaState(null);
+              refetchFluxo();
+              syncContas();
+            }}
+            cartao={pagarFaturaState.cartao}
+            fatura={pagarFaturaState.fatura}
+            contasBancarias={activeContas.filter((c) => c.tipo !== 'cartao_credito')}
+          />
+        )}
 
         {/* Gerar cobrança no Asaas a partir do lançamento */}
         <GerarCobrancaDialog
