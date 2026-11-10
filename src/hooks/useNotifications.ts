@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { gruposDuplicados } from '@/lib/duplicados';
 import { parseISO, isBefore, isToday, addDays, startOfDay, format } from 'date-fns';
 
 export interface DuplicateDetail {
@@ -163,44 +164,15 @@ export function useNotifications() {
         });
       }
 
-      // 4. Duplicates: group by valor + fornecedor/cliente + month
-      const dupeMap = new Map<string, typeof allPending>();
-      for (const item of allPending) {
-        if (!item.data_vencimento) continue;
-        const month = format(parseISO(item.data_vencimento), 'yyyy-MM');
-        const key = `${item.valor}-${item.fornecedor_cliente.toLowerCase().trim()}-${month}`;
-        const group = dupeMap.get(key) || [];
-        group.push(item);
-        dupeMap.set(key, group);
-      }
-
-      // Não é duplicata: parcelas diferentes da mesma série ("(2/6)" x "(3/6)", ex.:
-      // quinzenal) ou cada lançamento com a sua própria cobrança no Asaas.
-      const parcela = (d: string) => d.match(/\((\d+)\s*\/\s*\d+\)/)?.[1] ?? null;
-      const conflitam = (a: typeof allPending[number], b: typeof allPending[number]) => {
-        const pa = parcela(a.descricao), pb = parcela(b.descricao);
-        if (pa && pb && pa !== pb) return false;
-        const ca = cobrancaDe.get(a.id), cb = cobrancaDe.get(b.id);
-        if (ca && cb && ca !== cb) return false;
-        return true;
-      };
-
-      const allDuplicates: DuplicateDetail[] = [];
-      dupeMap.forEach((grupo) => {
-        const group = grupo.filter((a) => grupo.some((b) => b !== a && conflitam(a, b)));
-        if (group.length > 1) {
-          group.forEach(item => {
-            allDuplicates.push({
-              id: item.id,
-              descricao: item.descricao,
-              valor: item.valor,
-              data_vencimento: item.data_vencimento,
-              tipo: item.tipo,
-              fornecedor_cliente: item.fornecedor_cliente,
-            });
-          });
-        }
-      });
+      // 4. Possíveis duplicados (regra compartilhada com a tela de Pendências)
+      const allDuplicates: DuplicateDetail[] = gruposDuplicados(allPending, cobrancaDe).flat().map((item) => ({
+        id: item.id,
+        descricao: item.descricao,
+        valor: item.valor,
+        data_vencimento: item.data_vencimento,
+        tipo: item.tipo,
+        fornecedor_cliente: item.fornecedor_cliente,
+      }));
 
       if (allDuplicates.length > 0) {
         notifs.push({

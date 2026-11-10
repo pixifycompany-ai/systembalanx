@@ -39,6 +39,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { formatCurrency } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 
+import { PendenciasAviso } from '@/components/shared/PendenciasAviso';
 import type { UpcomingItem } from '@/components/dashboard/UpcomingDueWidget';
 
 function greeting() {
@@ -217,6 +218,8 @@ export default function Dashboard() {
           </>
         }
       />
+
+      <PendenciasAviso />
 
       {/* ===== MOBILE ===== */}
       <div className="space-y-4 md:hidden">

@@ -94,6 +94,10 @@ export function NotificationBell() {
             <h4 className="text-[15px] font-semibold text-foreground">Notificações</h4>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               {totalCount > 0 ? `${totalCount} pendente${totalCount > 1 ? 's' : ''}` : 'Tudo em dia'}
+              {' · '}
+              <button onClick={() => navigate('/pendencias')} className="font-semibold text-primary hover:underline">
+                Ver todas as pendências
+              </button>
             </p>
           </div>
           {notifications.length > 0 && (

@@ -448,6 +448,7 @@ export default function Cobrancas() {
   const somaParcelas = useMemo(() => pcRows.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0), [pcRows]);
   const abrirAvulsa = () => { setAvulsa(emptyAvulsa); setParcelar(false); setPc(emptyPc); setPcRows([]); setAvulsaOpen(true); };
   useActionParam('novo', abrirAvulsa);
+  useActionParam('conciliar', () => setConciliarOpen(true));
   const handleCriarAvulsa = async () => {
     if (!avulsa.cliente_id) return;
     if (parcelar) {

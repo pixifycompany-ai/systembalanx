@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Sparkles,
   Receipt,
+  ListChecks,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -23,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useTenant } from '@/contexts/TenantContext';
 import { cn } from '@/lib/utils';
+import { usePendencias } from '@/hooks/usePendencias';
 import {
   Sidebar,
   SidebarContent,
@@ -44,6 +46,7 @@ const navGroups = [
     label: 'Principal',
     items: [
       { href: '/', label: 'Início', icon: LayoutDashboard },
+      { href: '/pendencias', label: 'Pendências', icon: ListChecks },
       { href: '/iara', label: 'IARA · Assistente', icon: Sparkles },
       { href: '/fluxo-caixa', label: 'Fluxo de Caixa', icon: ArrowLeftRight },
       { href: '/calendario', label: 'Calendário', icon: CalendarDays },
@@ -102,6 +105,7 @@ export function AppSidebar() {
   const { profile, avatarSignedUrl } = useProfile();
   const { activeTenant, isSuperadmin } = useTenant();
   const isCollapsed = state === 'collapsed';
+  const { total: totalPendencias } = usePendencias();
 
   const nome = profile?.nome?.trim() || 'Minha conta';
   const inicial = (profile?.nome?.trim()?.[0] || 'B').toUpperCase();
@@ -140,6 +144,11 @@ export function AppSidebar() {
                         <NavLink to={item.href} end>
                           <item.icon className="h-4 w-4" />
                           <span>{item.label}</span>
+                          {item.href === '/pendencias' && totalPendencias > 0 && (
+                            <span className="ml-auto rounded-full bg-warning-bg px-1.5 py-px text-[10.5px] font-semibold tabular-nums text-warning-fg">
+                              {totalPendencias > 99 ? '99+' : totalPendencias}
+                            </span>
+                          )}
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

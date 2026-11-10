@@ -14,7 +14,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Switch } from '@/components/ui/switch';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTenant } from '@/contexts/TenantContext';
-import { ShieldCheckIcon, MicrophoneIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
+import { ShieldCheckIcon, MicrophoneIcon, ArrowUpTrayIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 import { Sparkle } from '@/components/shared/Sparkle';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +33,12 @@ const mainItems = [
 ];
 
 const moreSections = [
+  {
+    label: 'Visão geral',
+    items: [
+      { href: '/pendencias', label: 'Pendências', icon: ClipboardDocumentCheckIcon },
+    ],
+  },
   {
     label: 'Análise',
     items: [
