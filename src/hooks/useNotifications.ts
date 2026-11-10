@@ -44,6 +44,7 @@ export function useNotifications() {
       const [
         { data: receitas },
         { data: despesas },
+        { data: cobrancasLigadas },
       ] = await Promise.all([
         supabase
           .from('receitas')
@@ -53,7 +54,15 @@ export function useNotifications() {
           .from('despesas')
           .select('id, descricao, valor, data_vencimento, status, fornecedor, fatura_id')
           .in('status', ['pendente', 'atrasado']),
+        // cobrancas ainda não está nos tipos gerados
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from('cobrancas').select('id, receita_id')
+          .not('receita_id', 'is', null).not('status', 'in', '(cancelado,estornado)'),
       ]);
+      // Receita → cobrança (Asaas) ligada: cada uma com a sua não é duplicata.
+      const cobrancaDe = new Map<string, string>(
+        ((cobrancasLigadas || []) as { id: string; receita_id: string }[]).map((c) => [c.receita_id, c.id]),
+      );
 
       const receitaItems = (receitas || []).map(r => ({
         id: r.id,
@@ -165,8 +174,20 @@ export function useNotifications() {
         dupeMap.set(key, group);
       }
 
+      // Não é duplicata: parcelas diferentes da mesma série ("(2/6)" x "(3/6)", ex.:
+      // quinzenal) ou cada lançamento com a sua própria cobrança no Asaas.
+      const parcela = (d: string) => d.match(/\((\d+)\s*\/\s*\d+\)/)?.[1] ?? null;
+      const conflitam = (a: typeof allPending[number], b: typeof allPending[number]) => {
+        const pa = parcela(a.descricao), pb = parcela(b.descricao);
+        if (pa && pb && pa !== pb) return false;
+        const ca = cobrancaDe.get(a.id), cb = cobrancaDe.get(b.id);
+        if (ca && cb && ca !== cb) return false;
+        return true;
+      };
+
       const allDuplicates: DuplicateDetail[] = [];
-      dupeMap.forEach((group) => {
+      dupeMap.forEach((grupo) => {
+        const group = grupo.filter((a) => grupo.some((b) => b !== a && conflitam(a, b)));
         if (group.length > 1) {
           group.forEach(item => {
             allDuplicates.push({
