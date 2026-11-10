@@ -39,10 +39,12 @@ import { SectionCard } from '@/components/shared/SectionCard';
 import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { VinculoPickerSheet } from '@/components/cobrancas/VinculoPickerSheet';
+import { desvincularCobranca, opcoesReceitas, vincularCobrancaReceita } from '@/lib/vinculoCobranca';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
   XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Repeat, Receipt, Wallet, CreditCard,
-  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound, Users, Mail, CalendarOff, CalendarCheck, Search, AlertTriangle, Check,
+  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound, Users, Mail, CalendarOff, CalendarCheck, Search, AlertTriangle, Check, Link2, Unlink,
 } from 'lucide-react';
 
 const toneCls: Record<string, string> = {
@@ -108,9 +110,21 @@ export default function Cobrancas() {
     cobrancas, loading, busyId,
     criarAvulsa, criarAvulsaParcelada, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail,
     anexarNotas, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg, emailCfg,
-    fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana,
+    fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload,
   } = useCobrancas();
   const [conciliarOpen, setConciliarOpen] = useState(false);
+  // Vínculo manual cobrança ↔ lançamento (só cobrança de uma linha; fatura agrupada usa a conciliação)
+  const [vinculoCob, setVinculoCob] = useState<FaturaView | null>(null);
+  const desvincular = async (cob: FaturaView) => {
+    if (!window.confirm('Desvincular o lançamento desta cobrança? O lançamento continua no fluxo de caixa.')) return;
+    try {
+      await desvincularCobranca(cob.id);
+      toast.success('Lançamento desvinculado.');
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao desvincular');
+    }
+  };
   // Seleção em massa (por fatura) para ativar/desativar envio no fim de semana.
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -581,6 +595,18 @@ export default function Cobrancas() {
             <button onClick={() => receberManual(cob.id)} className={MENU_ITEM}>
               <HandCoins className="h-4 w-4 text-success-fg" /> Identificar pagamento manual
             </button>
+          )}
+          {cob.linhas.length === 1 && (
+            <>
+              <button onClick={() => setVinculoCob(cob)} className={MENU_ITEM}>
+                <Link2 className="h-4 w-4 text-foreground-muted" /> {cob.receita_id ? 'Trocar lançamento vinculado' : 'Vincular a um lançamento'}
+              </button>
+              {cob.receita_id && (
+                <button onClick={() => desvincular(cob)} className={MENU_ITEM}>
+                  <Unlink className="h-4 w-4 text-foreground-muted" /> Desvincular lançamento
+                </button>
+              )}
+            </>
           )}
           {/* Nota fiscal (PDF) */}
           {cob.notas.length > 0 && (
@@ -1142,6 +1168,32 @@ export default function Cobrancas() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <VinculoPickerSheet
+        open={!!vinculoCob}
+        onOpenChange={(o) => { if (!o) setVinculoCob(null); }}
+        title={vinculoCob?.receita_id ? 'Trocar lançamento vinculado' : 'Vincular a um lançamento'}
+        subtitle={vinculoCob ? `Cobrança de ${formatCurrency(Number(vinculoCob.valor))}, vence ${formatDate(vinculoCob.vencimento)}. O lançamento escolhido passa a seguir esta cobrança.` : ''}
+        tipoItem="lançamento"
+        carregar={() => (vinculoCob ? opcoesReceitas({
+          id: vinculoCob.id, cliente_id: vinculoCob.cliente_id, valor: Number(vinculoCob.valor),
+          vencimento: vinculoCob.vencimento, receita_id: vinculoCob.receita_id,
+        }) : Promise.resolve([]))}
+        onEscolher={async (op) => {
+          if (!vinculoCob) return false;
+          try {
+            const r = await vincularCobrancaReceita(vinculoCob.id, op.id);
+            toast.success('Lançamento vinculado.', {
+              description: r.anteriorApagado ? 'O lançamento criado automaticamente por esta cobrança foi removido (era duplicado).' : undefined,
+            });
+            await reload();
+            return true;
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Erro ao vincular');
+            return false;
+          }
+        }}
+      />
 
       <ConciliacaoSheet
         open={conciliarOpen}

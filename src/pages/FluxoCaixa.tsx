@@ -2357,6 +2357,7 @@ export default function FluxoCaixa() {
               onDelete={handleMobileDelete}
               onGerarCobranca={podeGerarCobranca(detailItem) ? (t) => setCobrancaFor(t) : undefined}
               onAnexosChange={() => { refetchFluxo(); }}
+              onCobrancaChange={() => { refetchFluxo(); }}
               onPagarFatura={ehFaturaCartao(detailItem) && detailItem.status !== 'pago' ? (t) => abrirPagarFatura(t.id) : undefined}
             />
           );

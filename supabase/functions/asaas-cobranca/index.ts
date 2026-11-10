@@ -881,6 +881,41 @@ serve(async (req) => {
       return json({ ok: true, vinculadas, criadas, erros });
     }
 
+    // ===== VÍNCULO MANUAL cobrança ↔ lançamento (vincular, trocar, desfazer) =====
+    if (action === "vincular-receita") {
+      const agora = new Date().toISOString();
+      const { data: c } = await admin.from("cobrancas").select("*").eq("id", body.cobranca_id).eq("user_id", user.id).maybeSingle();
+      if (!c) return json({ error: "Cobrança não encontrada." }, 404);
+      const { data: rec } = await admin.from("receitas").select("id, conta_id").eq("id", body.receita_id).eq("user_id", user.id).maybeSingle();
+      if (!rec) return json({ error: "Lançamento não encontrado." }, 404);
+      if (c.receita_id === rec.id) return json({ ok: true });
+
+      // O lançamento escolhido pode estar em outra cobrança: sai de lá e passa para esta
+      // (a outra fica "sem vínculo" e aparece na conciliação).
+      const { data: soltas } = await admin.from("cobrancas").update({ receita_id: null, updated_at: agora })
+        .eq("user_id", user.id).eq("receita_id", rec.id).neq("id", c.id).select("id");
+
+      // O lançamento anterior desta cobrança, se foi criado por ela e segue em aberto,
+      // viraria duplicata do escolhido → apaga. Lançado à mão é preservado.
+      let anteriorApagado = false;
+      if (c.receita_id) {
+        await apagarReceitaSeCriada(admin, c);
+        const { data: ainda } = await admin.from("receitas").select("id").eq("id", c.receita_id).maybeSingle();
+        anteriorApagado = !ainda;
+      }
+      await vincularReceita(admin, rec.id, alvoDe(c), rec.conta_id);
+      await admin.from("cobrancas").update({ receita_id: rec.id, updated_at: agora }).eq("id", c.id);
+      return json({ ok: true, anteriorApagado, outrasSoltas: soltas?.length || 0 });
+    }
+
+    if (action === "desvincular-receita") {
+      const { data: c } = await admin.from("cobrancas").select("id, receita_id").eq("id", body.cobranca_id).eq("user_id", user.id).maybeSingle();
+      if (!c) return json({ error: "Cobrança não encontrada." }, 404);
+      // O lançamento continua no fluxo de caixa; só deixa de seguir esta cobrança.
+      await admin.from("cobrancas").update({ receita_id: null, updated_at: new Date().toISOString() }).eq("id", c.id);
+      return json({ ok: true });
+    }
+
     // ===== SINCRONIZAR status (puxa do Asaas) =====
     if (action === "sincronizar") {
       const filtro = admin.from("cobrancas").select("*").eq("user_id", user.id).not("asaas_payment_id", "is", null);

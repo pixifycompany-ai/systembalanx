@@ -6,7 +6,9 @@ import type { TransacaoUnificada } from '@/types/fluxoCaixa';
 import { cn } from '@/lib/utils';
 import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW, NAVY_TONE } from '@/components/shared/navyTokens';
 import { HexWatermark } from '@/components/shared/NavySurface';
+import { useState } from 'react';
 import { AnexosDespesa } from './AnexosDespesa';
+import { CobrancaDoLancamento } from './CobrancaDoLancamento';
 
 interface Row {
   label: string;
@@ -30,6 +32,8 @@ interface TransactionDetailSheetProps {
   onAnexosChange?: () => void;
   /** Fatura de cartão em aberto: abre o "Pagar fatura" (escolhe a conta que pagou). */
   onPagarFatura?: (t: TransacaoUnificada) => void;
+  /** Vínculo com cobrança mudou (valor/vencimento do lançamento podem mudar). */
+  onCobrancaChange?: () => void;
 }
 
 const statusLabel: Record<string, string> = {
@@ -49,7 +53,9 @@ export function TransactionDetailSheet({
   onGerarCobranca,
   onAnexosChange,
   onPagarFatura,
+  onCobrancaChange,
 }: TransactionDetailSheetProps) {
+  const [temCobranca, setTemCobranca] = useState(false);
   if (!t) return null;
   const isReceita = t.tipo === 'entrada';
   const settled = t.status === 'recebido' || t.status === 'pago';
@@ -130,7 +136,11 @@ export function TransactionDetailSheet({
             </button>
           )}
 
-          {onGerarCobranca && (
+          {t.tabela_origem === 'receitas' && (
+            <CobrancaDoLancamento key={t.id} receita={t} onChange={onCobrancaChange} onVinculo={setTemCobranca} />
+          )}
+
+          {onGerarCobranca && !temCobranca && (
             <button
               onClick={() => { onOpenChange(false); onGerarCobranca(t); }}
               className="h-11 w-full rounded-full border border-border bg-surface text-[13px] font-semibold text-primary transition-colors hover:bg-surface-2"
