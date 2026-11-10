@@ -543,6 +543,22 @@ export default function Contratos() {
       if ((r?.canceladas ?? 0) > 0) {
         toast.success(`${r!.canceladas} cobrança(s) aguardando cancelada(s).`, { description: 'As vencidas foram mantidas.' });
       }
+      // Receitas futuras ainda em aberto (geradas pela janela de 12 meses ou lançadas
+      // à mão) deixam de fazer sentido: pergunta antes de apagar. Recebidas ficam.
+      const corte = data.data_inativacao || new Date().toISOString().split('T')[0];
+      const { data: futuras } = await supabase.from('receitas').select('id, data_vencimento')
+        .eq('contrato_id', editingContrato.id).in('status', ['pendente', 'atrasado'])
+        .gt('data_vencimento', corte).order('data_vencimento');
+      if (futuras?.length) {
+        const de = formatDate(futuras[0].data_vencimento);
+        const ate = formatDate(futuras[futuras.length - 1].data_vencimento);
+        const msg = `Este contrato tem ${futuras.length} receita(s) futura(s) em aberto (${de} a ${ate}).\n\nApagar? As já recebidas não são mexidas.`;
+        if (window.confirm(msg)) {
+          const { error } = await supabase.from('receitas').delete().in('id', futuras.map((f) => f.id));
+          if (error) toast.error('Erro ao apagar as receitas futuras', { description: error.message });
+          else toast.success(`${futuras.length} receita(s) futura(s) apagada(s).`);
+        }
+      }
     }
 
     setModalOpen(false);
