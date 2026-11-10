@@ -151,6 +151,11 @@ export default function FluxoCaixa() {
       : null;
   const initialStatus = searchParams.get('status')?.split(',').filter(Boolean)
     || (vencParam ? ['pendente', 'atrasado'] : []);
+  // Data usada no filtro de mês/período: vencimento (padrão) ou a data em que o dinheiro
+  // entrou/saiu (recebimento/pagamento), usada pelos cards "recebidas/pagas no mês" do início.
+  const [dataBase, setDataBase] = useState<'vencimento' | 'efetivacao'>(
+    searchParams.get('base') === 'efetivacao' ? 'efetivacao' : 'vencimento',
+  );
 
   // Filters - default to current month
   const currentMonth = format(new Date(), 'yyyy-MM');
@@ -324,14 +329,17 @@ export default function FluxoCaixa() {
         categoriaFilter.length === 0 || categoriaFilter.includes(t.categoria_id || SEM_CATEGORIA);
       
       let matchesDate = true;
-      if (dateFilterMode === 'month' && monthFilter !== 'all' && t.data_vencimento) {
-        const vencimento = parseISO(t.data_vencimento);
+      // Por recebimento/pagamento: sem essa data (ainda em aberto) não entra no período.
+      const dataRef = dataBase === 'efetivacao' ? t.data_efetivacao : t.data_vencimento;
+      const filtrandoData = (dateFilterMode === 'month' && monthFilter !== 'all') || (dateFilterMode === 'range' && !!dateRangeStart && !!dateRangeEnd);
+      if (filtrandoData && !dataRef) {
+        matchesDate = dataBase === 'vencimento';
+      } else if (dateFilterMode === 'month' && monthFilter !== 'all' && dataRef) {
         const monthStart = startOfMonth(parseISO(`${monthFilter}-01`));
         const monthEnd = endOfMonth(monthStart);
-        matchesDate = isWithinInterval(vencimento, { start: monthStart, end: monthEnd });
-      } else if (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd && t.data_vencimento) {
-        const vencimento = parseISO(t.data_vencimento);
-        matchesDate = isWithinInterval(vencimento, { start: dateRangeStart, end: dateRangeEnd });
+        matchesDate = isWithinInterval(parseISO(dataRef), { start: monthStart, end: monthEnd });
+      } else if (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd && dataRef) {
+        matchesDate = isWithinInterval(parseISO(dataRef), { start: dateRangeStart, end: dateRangeEnd });
       }
       
       return matchesTipo && matchesStatus && matchesSearch && matchesConta && matchesCategoria && matchesDate;
@@ -374,7 +382,7 @@ export default function FluxoCaixa() {
       
       return sortConfig.direction === 'asc' ? comparison : -comparison;
     });
-  }, [transacoes, tipoFilter, statusFilter, monthFilter, searchTerm, contaFilter, categoriaFilter, dateFilterMode, dateRangeStart, dateRangeEnd, sortConfig, contas]);
+  }, [transacoes, tipoFilter, statusFilter, monthFilter, searchTerm, contaFilter, categoriaFilter, dateFilterMode, dateRangeStart, dateRangeEnd, sortConfig, contas, dataBase]);
 
   // Handle sort toggle
   const handleSort = (column: SortColumn) => {
@@ -1341,9 +1349,9 @@ export default function FluxoCaixa() {
               <Button variant="outline" size="sm" className="h-9 shrink-0 gap-2 px-4 text-[13px]">
                 <SlidersHorizontal className="h-4 w-4" />
                 Mais filtros
-                {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range') && (
+                {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase === 'efetivacao') && (
                   <span className="ml-0.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-semibold text-background">
-                    {statusFilter.length + categoriaFilter.length + (dateFilterMode === 'range' ? 1 : 0)}
+                    {statusFilter.length + categoriaFilter.length + (dateFilterMode === 'range' ? 1 : 0) + (dataBase === 'efetivacao' ? 1 : 0)}
                   </span>
                 )}
               </Button>
@@ -1418,15 +1426,15 @@ export default function FluxoCaixa() {
             </PopoverContent>
           </Popover>
 
-          {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range') && (
-            <Button variant="ghost" size="sm" className="h-9 text-[13px] text-foreground-muted" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDateFilterMode('month'); setDateRangeStart(undefined); setDateRangeEnd(undefined); }}>
+          {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase === 'efetivacao') && (
+            <Button variant="ghost" size="sm" className="h-9 text-[13px] text-foreground-muted" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDateFilterMode('month'); setDateRangeStart(undefined); setDateRangeEnd(undefined); setDataBase('vencimento'); }}>
               <X className="mr-1 h-3.5 w-3.5" /> Limpar filtros
             </Button>
           )}
         </div>
 
         {/* Chips de filtros aplicados (mais filtros) */}
-        {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range') && (
+        {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase === 'efetivacao') && (
           <div className="mb-4 hidden flex-wrap items-center gap-2 md:flex">
             {categoriaFilter.map(id => {
               const cat = id === SEM_CATEGORIA ? null : categoriaNomePorId.get(id);
@@ -1442,6 +1450,14 @@ export default function FluxoCaixa() {
                 />
               );
             })}
+            {dataBase === 'efetivacao' && (
+              <FilterPill
+                active
+                label="Data"
+                value={tipoFilter === 'entrada' ? 'de recebimento' : tipoFilter === 'saida' ? 'de pagamento' : 'de recebimento/pagamento'}
+                onClear={() => setDataBase('vencimento')}
+              />
+            )}
             {statusFilter.map(s => {
               const label = statusOptions.find(o => o.value === s)?.label || s;
               return (

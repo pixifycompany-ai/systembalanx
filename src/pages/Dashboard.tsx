@@ -281,19 +281,19 @@ export default function Dashboard() {
         {/* Receitas / Despesas do mês */}
         <div className="grid grid-cols-2 gap-2.5">
           <MonthStatCard
-            label="Receitas do mês"
+            label="Receitas recebidas no mês"
             value={resumo.faturamento_mes}
             delta={variacaoPct(resumo.faturamento_mes, resumo.faturamento_mes_anterior)}
             hint={hintComparacao}
-            onClick={() => navigate('/fluxo-caixa?tipo=entrada')}
+            onClick={() => navigate('/fluxo-caixa?tipo=entrada&status=recebido&base=efetivacao')}
           />
           <MonthStatCard
-            label="Despesas do mês"
+            label="Despesas pagas no mês"
             value={resumo.despesas_mes}
             invertDelta
             delta={variacaoPct(resumo.despesas_mes, resumo.despesas_mes_anterior)}
             hint={hintComparacao}
-            onClick={() => navigate('/fluxo-caixa?tipo=saida')}
+            onClick={() => navigate('/fluxo-caixa?tipo=saida&status=pago&base=efetivacao')}
           />
         </div>
 
@@ -439,19 +439,19 @@ export default function Dashboard() {
             onClick={() => setSaldoSheetOpen(true)}
           />
           <KpiStatCard
-            label="Receitas do mês"
+            label="Receitas recebidas no mês"
             value={resumo.faturamento_mes}
             delta={variacaoPct(resumo.faturamento_mes, resumo.faturamento_mes_anterior)}
             hint={hintComparacao}
-            onClick={() => navigate('/fluxo-caixa?tipo=entrada')}
+            onClick={() => navigate('/fluxo-caixa?tipo=entrada&status=recebido&base=efetivacao')}
           />
           <KpiStatCard
-            label="Despesas do mês"
+            label="Despesas pagas no mês"
             value={resumo.despesas_mes}
             invertDelta
             delta={variacaoPct(resumo.despesas_mes, resumo.despesas_mes_anterior)}
             hint={hintComparacao}
-            onClick={() => navigate('/fluxo-caixa?tipo=saida')}
+            onClick={() => navigate('/fluxo-caixa?tipo=saida&status=pago&base=efetivacao')}
           />
           <KpiStatCard
             label="Lucro do mês"
