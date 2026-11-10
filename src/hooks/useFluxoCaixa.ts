@@ -139,6 +139,7 @@ interface TransferenciaInternal {
 
 export function useFluxoCaixa(): UseFluxoCaixaReturn {
   const [receitas, setReceitas] = useState<ReceitaInternal[]>([]);
+  const [receitasComCobranca, setReceitasComCobranca] = useState<Set<string>>(new Set());
   const [despesas, setDespesas] = useState<DespesaInternal[]>([]);
   const [transferenciasInternas, setTransferenciasInternas] = useState<TransferenciaInternal[]>([]);
   const [categoriasReceita, setCategoriasReceita] = useState<CategoriaInternal[]>([]);
@@ -220,6 +221,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
         { data: transferenciasData, error: transferenciasError },
         { data: catReceitaData, error: catReceitaError },
         { data: catDespesaData, error: catDespesaError },
+        { data: cobrancasLigadas },
       ] = await Promise.all([
         supabase
           .from('receitas')
@@ -248,6 +250,10 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
           .select('*')
           .eq('tipo', 'despesa')
           .order('nome'),
+        // cobrancas ainda não está nos tipos gerados
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from('cobrancas').select('receita_id')
+          .not('receita_id', 'is', null).not('status', 'in', '(cancelado,estornado)'),
       ]);
 
       if (receitasError) throw receitasError;
@@ -258,6 +264,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       
       // Cast to internal types since we only select specific fields
       setReceitas((receitasData || []) as unknown as ReceitaInternal[]);
+      setReceitasComCobranca(new Set(((cobrancasLigadas || []) as { receita_id: string }[]).map((c) => c.receita_id)));
       setDespesas((despesasData || []) as unknown as DespesaInternal[]);
       setTransferenciasInternas((transferenciasData || []) as unknown as TransferenciaInternal[]);
       setCategoriasReceita((catReceitaData || []) as CategoriaInternal[]);
@@ -300,6 +307,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
       contrato_id: r.contrato_id,
       conta_id: r.conta_id,
       recurrence_group_id: r.recurrence_group_id,
+      tem_cobranca: receitasComCobranca.has(r.id),
     }));
 
     const despesasTransformadas: TransacaoUnificada[] = despesas.map(d => ({
@@ -378,7 +386,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
     });
 
     return [...receitasTransformadas, ...despesasTransformadas, ...transferenciasTransformadas];
-  }, [receitas, despesas, transferenciasInternas]);
+  }, [receitas, despesas, transferenciasInternas, receitasComCobranca]);
 
   const categorias = useMemo(() => [...categoriasReceita, ...categoriasDespesa], [categoriasReceita, categoriasDespesa]);
 

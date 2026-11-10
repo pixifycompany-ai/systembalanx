@@ -21,6 +21,8 @@ export interface TransacaoUnificada {
   cliente?: { id: string; nome: string; empresa_fonte?: string | null } | null;
   forma_pagamento?: string | null;
   contrato_id?: string | null;
+  /** Receita já ligada a uma cobrança (Asaas) ativa: não oferece "Gerar cobrança". */
+  tem_cobranca?: boolean;
   
   // Campos específicos de despesas
   fornecedor?: string | null;

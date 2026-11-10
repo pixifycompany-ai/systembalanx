@@ -185,7 +185,7 @@ export default function FluxoCaixa() {
   // "Gerar cobrança" a partir de uma receita em aberto (e das próximas parcelas)
   const [cobrancaFor, setCobrancaFor] = useState<TransacaoUnificada | null>(null);
   const podeGerarCobranca = (t: TransacaoUnificada) =>
-    t.tabela_origem === 'receitas' && (t.status === 'pendente' || t.status === 'atrasado');
+    t.tabela_origem === 'receitas' && (t.status === 'pendente' || t.status === 'atrasado') && !t.tem_cobranca;
   const [editingItem, setEditingItem] = useState<TransacaoUnificada | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
