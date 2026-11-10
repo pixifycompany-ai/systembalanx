@@ -176,3 +176,8 @@ update public.receitas r
      (select tenant_id from public.clientes where id = r.cliente_id),
      (select current_tenant_id from public.profiles where user_id = r.user_id))
  where r.tenant_id is null;
+
+-- Aplicado depois (10/11/2026): Digicont "Serviço de Conteúdo e Tráfego" fora da
+-- geração até o dono decidir se o serviço continua; e a 1ª geração (108 receitas).
+-- update public.contratos set gerar_receitas = false where id = '568bd1d9-d802-4875-8814-e768f440f212';
+-- select count(*) from public.gerar_receitas_contratos();
