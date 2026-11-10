@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { apagarReceitaSeCriada, isPago, lancarJurosMulta, mapStatus, registrarFatura } from "../_shared/faturas.ts";
+import { apagarReceitaSeCriada, isPago, lancarJurosMulta, mapStatus, registrarFatura, repartir } from "../_shared/faturas.ts";
 import { buscarCustomer } from "../_shared/asaas.ts";
 
 // Webhook das COBRANÇAS dos clientes (conta Asaas do próprio tenant).
@@ -92,16 +92,38 @@ serve(async (req) => {
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }
 
-    for (const cob of linhas) {
+    // Valor/vencimento podem mudar no Asaas depois de criada a fatura (ex.: assinatura
+    // de valor variável como a Revvue, que cobra por cliente ativo). A cobrança segue o
+    // Asaas e a receita ainda em aberto também. Em grupo, o valor é repartido entre as
+    // linhas na proporção atual; linhas que dividem a mesma receita somam as partes.
+    const valorAsaas = Number(p.value);
+    const temValor = Number.isFinite(valorAsaas) && valorAsaas > 0;
+    const partes = temValor
+      ? (linhas.length > 1 ? repartir(valorAsaas, linhas.map((l: any) => Number(l.valor))) : [valorAsaas])
+      : linhas.map((l: any) => Number(l.valor));
+    const vencAsaas: string | null = p.dueDate || null;
+    const valorPorReceita = new Map<string, number>();
+    linhas.forEach((l: any, i: number) => {
+      if (l.receita_id) valorPorReceita.set(l.receita_id, (valorPorReceita.get(l.receita_id) || 0) + partes[i]);
+    });
+
+    for (const [i, cob] of linhas.entries()) {
       await admin.from("cobrancas").update({
         status: novoStatus,
         invoice_url: p.invoiceUrl ?? cob.invoice_url,
         data_pagamento: pago ? dataPag : null,
+        valor: partes[i],
+        vencimento: vencAsaas || cob.vencimento,
         updated_at: new Date().toISOString(),
       }).eq("id", cob.id);
 
       // Baixa / atualiza a receita de cada contrato
       if (!cob.receita_id) continue;
+      if (!pago && temValor) {
+        const upd: Record<string, unknown> = { valor: Math.round((valorPorReceita.get(cob.receita_id) || partes[i]) * 100) / 100 };
+        if (vencAsaas) upd.data_vencimento = vencAsaas;
+        await admin.from("receitas").update(upd).eq("id", cob.receita_id).in("status", ["pendente", "atrasado"]);
+      }
       if (pago) {
         await admin.from("receitas").update({ status: "recebido", data_recebimento: dataPag || cob.vencimento }).eq("id", cob.receita_id);
       } else if (p.status === "OVERDUE") {
