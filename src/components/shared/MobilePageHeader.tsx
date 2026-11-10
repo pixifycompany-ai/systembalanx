@@ -24,7 +24,9 @@ export function MobilePageHeader({ eyebrow, title, actions, className }: MobileP
           <p className="mb-0.5 text-[13px] text-foreground-muted md:text-sm">{eyebrow}</p>
         )}
         <div className="flex items-center gap-2.5">
-          <h1 className="min-w-0 truncate text-[28px] font-semibold leading-[1.1] tracking-[-0.03em] text-foreground md:text-[38px]">
+          {/* pr: com o espaçamento negativo, a caixa do título (do tamanho do texto, ao
+              lado do olhinho) termina antes da última letra e o truncate a cortava */}
+          <h1 className="min-w-0 truncate pr-[0.08em] text-[28px] font-semibold leading-[1.1] tracking-[-0.03em] text-foreground md:text-[38px]">
             {title}
           </h1>
           {/* No desktop o olhinho fica no Header; o Header não aparece no mobile */}
