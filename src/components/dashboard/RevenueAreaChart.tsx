@@ -10,6 +10,8 @@ interface RevenueAreaChartProps {
   data6m: FaturamentoVsDespesas[];
   data12m: FaturamentoVsDespesas[];
   className?: string;
+  /** Clique num mês do gráfico (yyyy-MM). */
+  onMesClick?: (mes: string) => void;
 }
 
 const PERIODOS = [
@@ -50,7 +52,7 @@ function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) 
   );
 }
 
-export function RevenueAreaChart({ data3m, data6m, data12m, className }: RevenueAreaChartProps) {
+export function RevenueAreaChart({ data3m, data6m, data12m, className, onMesClick }: RevenueAreaChartProps) {
   const [period, setPeriod] = useState<Periodo>('6');
   const data = { '3': data3m, '6': data6m, '12': data12m }[period];
 
@@ -91,7 +93,15 @@ export function RevenueAreaChart({ data3m, data6m, data12m, className }: Revenue
 
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 8, left: -8, bottom: 0 }}>
+          <AreaChart
+            data={data}
+            margin={{ top: 10, right: 8, left: -8, bottom: 0 }}
+            className={onMesClick ? 'cursor-pointer' : undefined}
+            onClick={(e: { activeTooltipIndex?: number } | null) => {
+              const ponto = e?.activeTooltipIndex != null ? data[e.activeTooltipIndex] : undefined;
+              if (ponto?.chave) onMesClick?.(ponto.chave);
+            }}
+          >
             <defs>
               <linearGradient id="gradReceita" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={COR_RECEITA} stopOpacity={0.42} />

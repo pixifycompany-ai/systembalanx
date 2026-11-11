@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buscarCandidatas, criarReceita, vincularOuCriarReceita, vincularReceita, type AlvoReceita } from "../_shared/conciliar.ts";
 import { buscarCustomer } from "../_shared/asaas.ts";
+import { assinaturaCompartilhada, hojeSP, sincronizarPausa } from "../_shared/pausa.ts";
 import {
   apagarReceitaSeCriada, conciliarGrupoPorTotal, contratosDaAssinatura, inserirCobranca, isPago, lancarJurosMulta,
   linhasDaFatura, mapStatus, registrarFatura, repartir, STATUS_ABERTO, type LinhaCobranca,
@@ -456,6 +457,38 @@ serve(async (req) => {
       }
       // A assinatura continua existindo no Asaas (apenas deixou de ser rastreada aqui).
       return json({ ok: true, removidas });
+    }
+
+    // ===== PAUSAR / REATIVAR CONTRATO (assinatura no Asaas) =====
+    // Pausa: grava o período; a assinatura é suspensa (INACTIVE) quando a pausa
+    // começa — hoje, ou pelo cron diário se a data for futura — e as cobranças
+    // aguardando que caem na pausa são canceladas. Reativar: volta a ACTIVE e o
+    // trigger do contrato regera as receitas.
+    if (action === "pausar-contrato" || action === "reativar-contrato") {
+      const { contrato_id } = body;
+      const { data: contrato } = await admin.from("contratos").select("*").eq("id", contrato_id).maybeSingle();
+      if (!contrato) return json({ error: "Contrato não encontrado." }, 404);
+      const { data: podeVer } = await supabase.from("contratos").select("id").eq("id", contrato_id).maybeSingle();
+      if (!podeVer) return json({ error: "Contrato não encontrado." }, 404);
+      const hoje = hojeSP();
+
+      if (action === "reativar-contrato") {
+        const r = await sincronizarPausa(admin, cfg as any, { ...contrato, pausado_desde: null, pausado_ate: null }, hoje);
+        if (r.acao === "nada") await admin.from("contratos").update({ pausado_desde: null, pausado_ate: null, asaas_pausado: false }).eq("id", contrato_id);
+        return json({ ok: true });
+      }
+
+      const desde = String(body.desde || hoje).slice(0, 10);
+      const ate = body.ate ? String(body.ate).slice(0, 10) : null;
+      if (ate && ate < desde) return json({ error: "A data final da pausa é antes do início." }, 400);
+      if (await assinaturaCompartilhada(admin, contrato)) {
+        return json({ error: "Este contrato divide a assinatura do Asaas com outro contrato. Para pausar só ele, ajuste o valor da assinatura." }, 400);
+      }
+      // A pausa substitui o "não gerar receitas": ao reativar, a janela volta a ser lançada.
+      const { error: upErr } = await admin.from("contratos").update({ pausado_desde: desde, pausado_ate: ate, gerar_receitas: true }).eq("id", contrato_id);
+      if (upErr) return json({ error: upErr.message }, 400);
+      const r = await sincronizarPausa(admin, cfg as any, { ...contrato, pausado_desde: desde, pausado_ate: ate }, hoje);
+      return json({ ok: true, canceladas: r.canceladas, asaasSuspenso: r.acao === "pausou" || (contrato.asaas_pausado && desde <= hoje) });
     }
 
     // ===== ENCERRAR CONTRATO: cancela as cobranças AGUARDANDO (pendentes) e

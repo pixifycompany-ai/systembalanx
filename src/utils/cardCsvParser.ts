@@ -113,6 +113,7 @@ export function parseCardCsv(text: string): { rows: ParsedCardRow[]; warning?: s
   }
 
   const rows: ParsedCardRow[] = [];
+  const sinais: number[] = []; // sinal original de cada linha (para separar estornos)
   let current: { dateIdx: number; descIdx: number; amountIdx: number; parcelaIdx: number } | null = null;
   const samples: string[] = [];
 
@@ -154,6 +155,22 @@ export function parseCardCsv(text: string): { rows: ParsedCardRow[]; warning?: s
       valor: Math.abs(amount),
       parcela: parcelaRaw || undefined,
     });
+    sinais.push(Math.sign(amount));
+  }
+
+  // Compras vêm todas com o mesmo sinal (positivo no Nubank, negativo em outros
+  // bancos). Linhas com o sinal contrário são créditos (estorno, pagamento da
+  // fatura) e não viram despesa.
+  const positivos = sinais.filter((x) => x > 0).length;
+  const negativos = sinais.filter((x) => x < 0).length;
+  const sinalCompra = positivos >= negativos ? 1 : -1;
+  const creditos = rows.filter((_, i) => sinais[i] === -sinalCompra).length;
+  if (creditos > 0) {
+    const compras = rows.filter((_, i) => sinais[i] !== -sinalCompra).map((r, i) => ({ ...r, index: i }));
+    return {
+      rows: compras,
+      warning: `${creditos} linha(s) de crédito (estorno ou pagamento da fatura) ficaram de fora.`,
+    };
   }
 
   if (rows.length === 0) {

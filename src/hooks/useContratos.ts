@@ -16,6 +16,10 @@ export interface ContratoDB {
   status: 'ativo' | 'cancelado' | 'encerrado';
   data_inativacao: string | null;
   asaas_subscription_id?: string | null;
+  // Pausa: sem receitas (e sem cobrança no Asaas) entre as datas; ate nulo = até reativar.
+  pausado_desde?: string | null;
+  pausado_ate?: string | null;
+  asaas_pausado?: boolean;
   created_at: string;
   updated_at: string;
   cliente?: ClienteDB | null;

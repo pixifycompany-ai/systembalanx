@@ -123,6 +123,8 @@ export interface MRRHistorico {
 
 export interface FaturamentoVsDespesas {
   mes: string;
+  /** yyyy-MM — para abrir o fluxo de caixa do mês ao clicar no gráfico. */
+  chave?: string;
   receita: number;
   despesa: number;
 }

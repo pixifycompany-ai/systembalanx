@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { useContas, type ContaDB, type ContaFormData } from '@/hooks/useContas';
 import { useFaturas, type FaturaDB } from '@/hooks/useFaturas';
 import { formatCurrency } from '@/utils/formatters';
-import { Plus, Pencil, Trash2, Building2, Archive, ArchiveRestore } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building2, Archive, ArchiveRestore, Scale } from 'lucide-react';
 import { BuildingLibraryIcon, CreditCardIcon, HomeIcon } from '@heroicons/react/24/outline';
 import { HeroStatCard } from '@/components/shared/HeroStatCard';
 import { SectionCard } from '@/components/shared/SectionCard';
@@ -27,6 +27,7 @@ import { FaturaDetailDialog } from '@/components/cartoes/FaturaDetailDialog';
 import { PagarFaturaDialog } from '@/components/cartoes/PagarFaturaDialog';
 import { CartaoCsvImportDialog } from '@/components/cartoes/CartaoCsvImportDialog';
 import { getFaturaAtual } from '@/utils/faturaCalculator';
+import { ConferirSaldoSheet } from '@/components/contas/ConferirSaldoSheet';
 
 const CONTA_TIPOS = [
   { value: 'corrente', label: 'Corrente' },
@@ -70,6 +71,8 @@ export default function Contas() {
   const [formData, setFormData] = useState<ContaFormData>(defaultFormData);
   const [archiveConfirm, setArchiveConfirm] = useState<ContaDB | null>(null);
   const [verArquivadas, setVerArquivadas] = useState(false);
+  // Conferir saldo com o banco (null = fechado; '' = sem conta escolhida)
+  const [conferirConta, setConferirConta] = useState<string | null>(null);
 
   // Cartão state
   const [isCartaoFormOpen, setIsCartaoFormOpen] = useState(false);
@@ -196,9 +199,16 @@ export default function Contas() {
         title={tab === 'contas' ? 'Contas' : 'Cartões'}
         actions={
           tab === 'contas' ? (
-            <Button onClick={() => handleOpenForm()} aria-label="Nova Conta Bancária">
-              <Plus className="h-4 w-4" />Nova conta
-            </Button>
+            <div className="flex items-center gap-2">
+              {bankAccounts.length > 0 && (
+                <Button variant="outline" onClick={() => setConferirConta('')} aria-label="Conferir saldo com o banco">
+                  <Scale className="h-4 w-4" /><span className="hidden sm:inline">Conferir com o banco</span>
+                </Button>
+              )}
+              <Button onClick={() => handleOpenForm()} aria-label="Nova Conta Bancária">
+                <Plus className="h-4 w-4" />Nova conta
+              </Button>
+            </div>
           ) : (
             <Button onClick={novoCartao} aria-label="Novo Cartão de Crédito">
               <Plus className="h-4 w-4" />Novo cartão
@@ -273,7 +283,11 @@ export default function Contas() {
                   <span className="text-[12px] text-foreground-muted">
                     Saldo inicial <span className="tabular-nums text-foreground">{formatCurrency(conta.saldo_inicial)}</span>
                   </span>
-                  {!conta.ativa && <StatusBadge status="inativo" />}
+                  {!conta.ativa ? <StatusBadge status="inativo" /> : (
+                    <button type="button" onClick={() => setConferirConta(conta.id)} className="inline-flex items-center gap-1 text-[12px] font-medium text-foreground-muted hover:text-foreground">
+                      <Scale className="h-3.5 w-3.5" /> Conferir com o banco
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -412,6 +426,14 @@ export default function Contas() {
           )}
         </TabsContent>
       </Tabs>
+
+      <ConferirSaldoSheet
+        open={conferirConta !== null}
+        onOpenChange={(v) => { if (!v) setConferirConta(null); }}
+        contas={bankAccounts}
+        contaInicial={conferirConta || null}
+        onAjustado={() => refetch()}
+      />
 
       {/* Conta bancária dialog */}
       <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>

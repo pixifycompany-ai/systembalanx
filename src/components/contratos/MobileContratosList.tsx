@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { Plus, Calendar } from 'lucide-react';
 import { InitialsAvatar, SECTION_LABEL_CLS } from '@/components/cobrancas/formParts';
+import { estadoPausa } from '@/lib/pausaContrato';
 
 interface Contrato {
   id: string;
@@ -15,6 +16,8 @@ interface Contrato {
   data_fim?: string | null;
   recorrencia: string;
   status: 'ativo' | 'cancelado' | 'encerrado';
+  pausado_desde?: string | null;
+  pausado_ate?: string | null;
   cliente?: { nome: string } | null;
 }
 
@@ -79,7 +82,7 @@ export function MobileContratosList({ contratos, isLoading, onEdit, onNew, rende
                 <span className="font-heading text-[15px] font-semibold tabular-nums tracking-[-0.02em] text-[hsl(var(--success-fg))]">
                   {formatCurrency(Number(c.valor))}
                 </span>
-                <StatusBadge status={c.status} />
+                <StatusBadge status={c.status === 'ativo' && estadoPausa(c) === 'pausado' ? 'pausado' : c.status} />
               </div>
             </div>
             <div className="mt-2 flex items-center gap-2 pl-[52px]">

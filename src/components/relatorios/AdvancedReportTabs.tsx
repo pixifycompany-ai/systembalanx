@@ -59,11 +59,15 @@ function TableCard({
 }
 
 /** Linha da lista mobile: título/subtítulo à esquerda, valor/selo à direita. */
-function Row({ title, subtitle, value, aside, lead }: {
-  title: ReactNode; subtitle?: ReactNode; value: ReactNode; aside?: ReactNode; lead?: ReactNode;
+function Row({ title, subtitle, value, aside, lead, onClick }: {
+  title: ReactNode; subtitle?: ReactNode; value: ReactNode; aside?: ReactNode; lead?: ReactNode; onClick?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 border-t border-border px-4 py-3">
+    <div
+      className={cn('flex items-center gap-3 border-t border-border px-4 py-3', onClick && 'cursor-pointer active:bg-surface-2')}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+    >
       {lead}
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-foreground">{title}</p>
@@ -81,8 +85,12 @@ function Row({ title, subtitle, value, aside, lead }: {
 const HeadRow = ({ children }: { children: ReactNode }) => (
   <TableRow className="border-t border-border hover:bg-transparent [&>th:first-child]:pl-6 [&>th:last-child]:pr-6">{children}</TableRow>
 );
-const BodyRow = ({ children, className }: { children: ReactNode; className?: string }) => (
-  <TableRow className={cn('border-border [&>td:first-child]:pl-6 [&>td:last-child]:pr-6', className)}>{children}</TableRow>
+const BodyRow = ({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) => (
+  <TableRow
+    className={cn('border-border [&>td:first-child]:pl-6 [&>td:last-child]:pr-6', onClick && 'cursor-pointer', className)}
+    onClick={onClick}
+    title={onClick ? 'Ver lançamentos' : undefined}
+  >{children}</TableRow>
 );
 
 const RANGES = [
@@ -146,7 +154,7 @@ const ClasseBadge = ({ classe }: { classe: string }) => (
   </span>
 );
 
-export function TopClientsTab({ data }: { data: AdvancedReports['topClients'] }) {
+export function TopClientsTab({ data, onRowClick }: { data: AdvancedReports['topClients']; onRowClick?: (c: AdvancedReports['topClients'][number]) => void }) {
   const rows = data.slice(0, 20);
   return (
     <TableCard
@@ -161,6 +169,7 @@ export function TopClientsTab({ data }: { data: AdvancedReports['topClients'] })
           title={c.nome}
           subtitle={`${pct(c.share)} do total · ${pct(c.cumulative)} acum.`}
           value={brl(c.total)}
+          onClick={onRowClick && (() => onRowClick(c))}
         />
       ))}
       desktop={
@@ -176,7 +185,7 @@ export function TopClientsTab({ data }: { data: AdvancedReports['topClients'] })
           </TableHeader>
           <TableBody>
             {rows.map((c) => (
-              <BodyRow key={c.id}>
+              <BodyRow key={c.id} onClick={onRowClick && (() => onRowClick(c))}>
                 <TableCell className="font-medium">{c.nome}</TableCell>
                 <TableCell className={cn('text-right', VALUE)}>{brl(c.total)}</TableCell>
                 <TableCell className="text-right tabular-nums text-foreground-muted">{pct(c.share)}</TableCell>
@@ -191,7 +200,7 @@ export function TopClientsTab({ data }: { data: AdvancedReports['topClients'] })
   );
 }
 
-export function CategoryTab({ data, title }: { data: AdvancedReports['receitaPorCategoria']; title: string }) {
+export function CategoryTab({ data, title, onRowClick }: { data: AdvancedReports['receitaPorCategoria']; title: string; onRowClick?: (c: AdvancedReports['receitaPorCategoria'][number]) => void }) {
   const info = title.toLowerCase().includes('receita')
     ? 'Soma das receitas por categoria no período selecionado. % = participação no total de receitas.'
     : 'Soma das despesas por categoria no período selecionado (exclui faturas de cartão espelhadas). % = participação no total de despesas.';
@@ -204,7 +213,7 @@ export function CategoryTab({ data, title }: { data: AdvancedReports['receitaPor
       info={info}
       empty={data.length === 0 && 'Sem dados'}
       mobile={data.map((c) => (
-        <div key={c.id} className="border-t border-border px-4 py-3">
+        <div key={c.id} className={cn('border-t border-border px-4 py-3', onRowClick && 'cursor-pointer active:bg-surface-2')} onClick={onRowClick && (() => onRowClick(c))} role={onRowClick ? 'button' : undefined}>
           <div className="flex items-center gap-2.5">
             <Dot cor={c.cor} />
             <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{c.nome}</span>
@@ -229,7 +238,7 @@ export function CategoryTab({ data, title }: { data: AdvancedReports['receitaPor
           </TableHeader>
           <TableBody>
             {data.map((c) => (
-              <BodyRow key={c.id}>
+              <BodyRow key={c.id} onClick={onRowClick && (() => onRowClick(c))}>
                 <TableCell className="font-medium">
                   <span className="inline-flex items-center gap-2.5"><Dot cor={c.cor} />{c.nome}</span>
                 </TableCell>

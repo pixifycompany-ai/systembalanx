@@ -52,6 +52,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { ContractImportDialog } from '@/components/import/ContractImportDialog';
 import { useContratoAditivos, type AditivoFormData } from '@/hooks/useContratoAditivos';
 import { DatePickerField } from '@/components/shared/DatePickerField';
+import { PausaContrato } from '@/components/contratos/PausaContrato';
+import { estadoPausa } from '@/lib/pausaContrato';
 import { findPossibleDuplicate, findDuplicateGroups, type DuplicateMatch, type DuplicateGroup } from '@/utils/contractDuplicates';
 import { isContratoAtivoHoje, getValorMensalEquivalente } from '@/utils/contractUtils';
 import { AlertTriangle, Search } from 'lucide-react';
@@ -849,7 +851,7 @@ export default function Contratos() {
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-foreground-muted">{formatDate(contrato.data_inicio)}</TableCell>
                     <TableCell>
-                      <StatusBadge status={contrato.status} />
+                      <StatusBadge status={contrato.status === 'ativo' && estadoPausa(contrato) === 'pausado' ? 'pausado' : contrato.status} />
                     </TableCell>
                     <TableCell>
                       <ContratoCobrancaCell
@@ -1159,6 +1161,13 @@ export default function Contratos() {
                   </div>
                 )}
               </FormSection>
+
+              {/* ===== Pausa (só na edição de contrato ativo e recorrente) ===== */}
+              {(() => {
+                const atual = editingContratoId ? contratos.find(c => c.id === editingContratoId) : undefined;
+                if (!atual || atual.status !== 'ativo' || atual.recorrencia === 'unico') return null;
+                return <PausaContrato key={`${atual.id}-${atual.pausado_desde}-${atual.pausado_ate}`} contrato={atual} onChange={() => refetchContratos()} />;
+              })()}
 
               {/* ===== Criar cobrança no Asaas junto com o contrato (só na criação, recorrente) ===== */}
               {!editingContrato && formData.recorrencia !== 'unico' && (

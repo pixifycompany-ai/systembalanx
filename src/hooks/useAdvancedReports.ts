@@ -19,7 +19,7 @@ const monthKey = (d: Date) => {
 };
 const fromIso = (s: string | null | undefined) => (s ? parseISO(s) : null);
 
-function periodWindow(period: PeriodFilter, customStart?: Date, customEnd?: Date) {
+export function periodWindow(period: PeriodFilter, customStart?: Date, customEnd?: Date) {
   const today = new Date();
   switch (period) {
     case 'month': return { start: startOfMonth(today), end: endOfMonth(today) };

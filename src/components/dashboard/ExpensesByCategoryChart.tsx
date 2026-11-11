@@ -6,16 +6,21 @@ export interface CategoryExpense {
   categoria: string;
   valor: number;
   cor: string;
+  /** null = "Sem categoria". */
+  categoria_id?: string | null;
 }
 
 interface ExpensesByCategoryChartProps {
   data: CategoryExpense[];
   title?: string;
+  /** Clique numa fatia ou na legenda: abre os lançamentos da categoria. */
+  onCategoriaClick?: (item: CategoryExpense) => void;
 }
 
 export function ExpensesByCategoryChart({ 
   data, 
-  title = 'Despesas por Categoria' 
+  title = 'Despesas por Categoria',
+  onCategoriaClick,
 }: ExpensesByCategoryChartProps) {
   const total = data.reduce((sum, item) => sum + item.valor, 0);
 
@@ -75,13 +80,19 @@ export function ExpensesByCategoryChart({
     return (
       <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1.5">
         {payload.map((entry, index) => (
-          <div key={index} className="flex items-center gap-1.5 text-[12px]">
-            <div
+          <button
+            key={index}
+            type="button"
+            disabled={!onCategoriaClick}
+            onClick={() => { const item = data.find((d) => d.categoria === entry.value); if (item) onCategoriaClick?.(item); }}
+            className="flex items-center gap-1.5 text-[12px] enabled:hover:underline"
+          >
+            <span
               className="h-2 w-2 rounded-full"
               style={{ backgroundColor: entry.color || 'hsl(var(--foreground-muted))' }}
             />
             <span className="text-foreground-muted">{entry.value}</span>
-          </div>
+          </button>
         ))}
       </div>
     );
@@ -121,6 +132,8 @@ export function ExpensesByCategoryChart({
               innerRadius={40}
               dataKey="valor"
               nameKey="categoria"
+              className={onCategoriaClick ? 'cursor-pointer' : undefined}
+              onClick={(entry: { payload?: CategoryExpense }) => { if (entry?.payload) onCategoriaClick?.(entry.payload); }}
             >
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.cor} />

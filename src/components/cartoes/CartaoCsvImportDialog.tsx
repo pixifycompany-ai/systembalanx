@@ -86,11 +86,13 @@ export function CartaoCsvImportDialog({
       try {
         const text = await file.text();
         const { rows: parsed, warning } = parseCardCsv(text);
-        if (warning || parsed.length === 0) {
+        if (parsed.length === 0) {
           setError(warning || 'Não foi possível extrair lançamentos do CSV.');
           setStep('upload');
           return;
         }
+        // Aviso que não impede a importação (ex.: estornos deixados de fora).
+        if (warning) toast({ title: 'Atenção', description: warning });
 
         // AI enrichment
         const catInput = despesaCategorias.map(c => ({ id: c.id, nome: c.nome }));
@@ -125,7 +127,7 @@ export function CartaoCsvImportDialog({
         setStep('upload');
       }
     },
-    [despesaCategorias]
+    [despesaCategorias, toast]
   );
 
   const handleDrop = (e: React.DragEvent) => {

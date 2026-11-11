@@ -46,3 +46,10 @@ verify_jwt = false
 
 [functions.resend-webhook]
 verify_jwt = false
+
+# Chamadas externas (webhook do Asaas e cron com CRON_SECRET): sem JWT do Supabase.
+[functions.asaas-cobranca-webhook]
+verify_jwt = false
+
+[functions.cobranca-auto-disparar]
+verify_jwt = false

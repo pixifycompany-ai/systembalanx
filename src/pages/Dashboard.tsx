@@ -461,6 +461,7 @@ export default function Dashboard() {
             value={resumo.lucro_mensal}
             delta={variacaoPct(resumo.lucro_mensal, resumo.lucro_mensal_anterior)}
             hint={`Margem ${String(resumo.lucro_mensal_percentual).replace('.', ',')}% · ${hintComparacao}`}
+            onClick={() => navigate('/fluxo-caixa?status=recebido,pago&base=efetivacao')}
           />
         </div>
 
@@ -471,6 +472,7 @@ export default function Dashboard() {
             data3m={revenueData3m}
             data6m={revenueData6m}
             data12m={revenueData12m}
+            onMesClick={(mes) => navigate(`/fluxo-caixa?mes=${mes}&status=recebido,pago&base=efetivacao`)}
           />
           <div className="h-[420px] xl:col-span-2">
             <AIAdvisorWidget fill variant="navy" />
@@ -501,8 +503,15 @@ export default function Dashboard() {
 
         {/* Despesas por categoria + Ranking de clientes */}
         <div className="grid gap-6 lg:grid-cols-2">
-          <ExpensesByCategoryChart data={expensesByCategory} />
-          <TopClientsTable clients={top_clientes} title="Ranking de clientes" />
+          <ExpensesByCategoryChart
+            data={expensesByCategory}
+            onCategoriaClick={(c) => navigate(`/fluxo-caixa?tipo=saida&status=pago&base=efetivacao&categoria=${c.categoria_id || '__sem_categoria__'}`)}
+          />
+          <TopClientsTable
+            clients={top_clientes}
+            title="Ranking de clientes"
+            onClienteClick={(c) => navigate(`/fluxo-caixa?tipo=entrada&mes=all&search=${encodeURIComponent(c.cliente)}`)}
+          />
         </div>
       </div>
 

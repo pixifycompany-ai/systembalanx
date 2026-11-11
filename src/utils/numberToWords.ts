@@ -43,11 +43,13 @@ export function numberToWords(value: number): string {
   }
 
   const parts: string[] = [];
+  const qtds: number[] = [];
   let remaining = inteiro;
 
   for (const grupo of grupos) {
     const qtd = Math.floor(remaining / grupo.valor);
     if (qtd > 0) {
+      qtds.push(qtd);
       const palavras = groupToWords(qtd);
       if (grupo.valor === 1) {
         parts.push(palavras);
@@ -59,13 +61,18 @@ export function numberToWords(value: number): string {
     }
   }
 
-  let resultado = parts.join(' e ');
+  // "e" só antes do último grupo quando ele é menor que 100 ou centena redonda
+  // ("mil e cem", "mil e vinte"); senão, espaço ("mil duzentos e trinta e quatro").
+  const ultimo = qtds[qtds.length - 1];
+  let resultado = parts.length > 1
+    ? `${parts.slice(0, -1).join(' ')}${ultimo < 100 || ultimo % 100 === 0 ? ' e ' : ' '}${parts[parts.length - 1]}`
+    : parts.join('');
 
-  // "reais"
+  // "reais" — milhão/bilhão redondo leva "de" ("um milhão de reais").
   if (inteiro === 1) {
     resultado += ' real';
   } else {
-    resultado += ' reais';
+    resultado += inteiro >= 1_000_000 && inteiro % 1_000_000 === 0 ? ' de reais' : ' reais';
   }
 
   // centavos

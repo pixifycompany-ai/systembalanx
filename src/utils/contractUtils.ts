@@ -1,4 +1,4 @@
-import { parseISO, differenceInMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { parseISO, differenceInMonths, startOfMonth, endOfMonth, startOfDay, format } from 'date-fns';
 
 export interface ContratoBase {
   id: string;
@@ -9,6 +9,8 @@ export interface ContratoBase {
   status: string;
   valor: number;
   recorrencia: string;
+  pausado_desde?: string | null;
+  pausado_ate?: string | null;
 }
 
 export interface AditivoBase {
@@ -44,7 +46,16 @@ export function isContratoAtivoNoPeriodo(
 ): boolean {
   const inicio = parseISO(contrato.data_inicio);
   const fimEfetivo = getDataFimEfetiva(contrato);
+  if (pausaCobre(contrato, periodoInicio, periodoFim)) return false;
   return inicio <= periodoFim && (!fimEfetivo || fimEfetivo >= periodoInicio);
+}
+
+/** Pausa (pausado_desde..pausado_ate; sem fim = até reativar) cobre o período inteiro. */
+export function pausaCobre(contrato: Pick<ContratoBase, 'pausado_desde' | 'pausado_ate'>, de: Date, ate: Date): boolean {
+  if (!contrato.pausado_desde) return false;
+  const p0 = parseISO(contrato.pausado_desde);
+  const p1 = contrato.pausado_ate ? parseISO(contrato.pausado_ate) : null;
+  return p0 <= startOfDay(de) && (!p1 || p1 >= startOfDay(ate));
 }
 
 /**
@@ -53,10 +64,12 @@ export function isContratoAtivoNoPeriodo(
  */
 export function isContratoAtivoHoje(contrato: ContratoBase): boolean {
   if (contrato.status !== 'ativo') return false;
-  const today = new Date();
+  // Compara por dia: o contrato vale até o fim do último dia (data_fim às 00:00).
+  const today = startOfDay(new Date());
   const inicio = parseISO(contrato.data_inicio);
   const fimEfetivo = getDataFimEfetiva(contrato);
-  return inicio <= today && (!fimEfetivo || fimEfetivo >= today);
+  if (pausaCobre(contrato, today, today)) return false;
+  return inicio <= today && (!fimEfetivo || startOfDay(fimEfetivo) >= today);
 }
 
 /**
@@ -87,7 +100,8 @@ export function getValorVigenteNaData(
   const contratoAditivos = aditivos.filter(a => a.contrato_id === contrato.id);
   if (contratoAditivos.length === 0) return Number(contrato.valor);
 
-  const dataStr = data.toISOString().split('T')[0];
+  // Data local (toISOString é UTC: depois das 21h já seria o dia seguinte).
+  const dataStr = format(data, 'yyyy-MM-dd');
   const aplicaveis = contratoAditivos
     .filter(a => a.data_vigencia <= dataStr)
     .sort((a, b) => b.data_vigencia.localeCompare(a.data_vigencia));

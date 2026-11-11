@@ -15,7 +15,8 @@ export function formatCurrency(value: number): string {
  */
 export function formatDate(date: string | Date): string {
   if (!date) return '-';
-  const d = typeof date === 'string' ? new Date(date + 'T00:00:00') : date;
+  // "yyyy-MM-dd" é dia local; timestamp completo usa só a parte da data.
+  const d = typeof date === 'string' ? new Date(date.slice(0, 10) + 'T00:00:00') : date;
   return d.toLocaleDateString('pt-BR');
 }
 
@@ -23,7 +24,9 @@ export function formatDate(date: string | Date): string {
  * Format date to ISO string (YYYY-MM-DD)
  */
 export function formatDateISO(date: Date): string {
-  return date.toISOString().split('T')[0];
+  // Dia local (toISOString é UTC e vira o dia seguinte depois das 21h).
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
 }
 
 /**
@@ -105,7 +108,7 @@ export function onlyDigits(value: string): string {
  * Format number as percentage
  */
 export function formatPercentage(value: number, decimals = 1): string {
-  return `${value.toFixed(decimals)}%`;
+  return `${value.toFixed(decimals).replace('.', ',')}%`;
 }
 
 /**
@@ -119,15 +122,12 @@ export function formatNumber(value: number): string {
  * Abbreviate large currency values (K, M, B)
  */
 export function formatCurrencyShort(value: number): string {
-  if (value >= 1_000_000_000) {
-    return `R$ ${(value / 1_000_000_000).toFixed(1)}B`;
-  }
-  if (value >= 1_000_000) {
-    return `R$ ${(value / 1_000_000).toFixed(1)}M`;
-  }
-  if (value >= 1_000) {
-    return `R$ ${(value / 1_000).toFixed(1)}K`;
-  }
+  const abs = Math.abs(value);
+  const sinal = value < 0 ? '-' : '';
+  const curto = (n: number, sufixo: string) => `${sinal}R$ ${n.toFixed(1).replace('.', ',').replace(/,0$/, '')}${sufixo}`;
+  if (abs >= 1_000_000_000) return curto(abs / 1_000_000_000, 'B');
+  if (abs >= 1_000_000) return curto(abs / 1_000_000, 'M');
+  if (abs >= 1_000) return curto(abs / 1_000, 'K');
   return formatCurrency(value);
 }
 
@@ -157,7 +157,10 @@ export function parseBRDate(dateStr: string): Date | null {
   if (!dateStr) return null;
   const [day, month, year] = dateStr.split('/').map(Number);
   if (!day || !month || !year) return null;
-  return new Date(year, month - 1, day);
+  const d = new Date(year, month - 1, day);
+  // Data que não existe (31/02) "transborda" para o mês seguinte: inválida.
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  return d;
 }
 
 /**
@@ -165,16 +168,18 @@ export function parseBRDate(dateStr: string): Date | null {
  */
 export function calculatePercentageChange(current: number, previous: number): number {
   if (previous === 0) return current > 0 ? 100 : 0;
-  return ((current - previous) / previous) * 100;
+  // Base negativa (prejuízo): sair de -100 para -50 é melhora (+50%).
+  return ((current - previous) / Math.abs(previous)) * 100;
 }
 
 /**
  * Get relative time description
  */
 export function getRelativeTime(date: string | Date): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  const now = new Date();
-  const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  // Conta por dia do calendário (local), não por blocos de 24h.
+  const d = typeof date === 'string' ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(date) ? date + 'T00:00:00' : date) : date;
+  const dia = (x: Date) => Date.UTC(x.getFullYear(), x.getMonth(), x.getDate());
+  const diffDays = Math.round((dia(new Date()) - dia(d)) / (1000 * 60 * 60 * 24));
   
   if (diffDays === 0) return 'Hoje';
   if (diffDays === 1) return 'Ontem';

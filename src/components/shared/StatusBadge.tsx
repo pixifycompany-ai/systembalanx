@@ -42,6 +42,8 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   ativo: { label: 'Ativo', className: OK },
   inativo: { label: 'Inativo', className: NEUTRAL },
   suspenso: { label: 'Suspenso', className: WARN },
+  pausado: { label: 'Pausado', className: WARN },
+  encerrado: { label: 'Encerrado', className: NEUTRAL },
   concluido: { label: 'Concluído', className: INFO },
 
   // Contract Types

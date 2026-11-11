@@ -14,8 +14,10 @@ export function calcularCompetenciaFatura(
   const compra = typeof dataCompra === 'string' ? parseISO(dataCompra) : dataCompra;
   const dia = compra.getDate();
   const baseMes = startOfMonth(compra);
+  // Fechamento em dia que o mês não tem (ex.: 31 em fevereiro) cai no último dia.
+  const fechamentoNoMes = Math.min(diaFechamento, getDaysInMonth(compra));
   // Compras feitas no dia do fechamento ou depois entram na fatura do próximo mês
-  return dia >= diaFechamento ? addMonths(baseMes, 1) : baseMes;
+  return dia >= fechamentoNoMes ? addMonths(baseMes, 1) : baseMes;
 }
 
 /**
@@ -31,21 +33,21 @@ function clampDia(ano: number, mes0: number, dia: number): Date {
  * A partir da competência (mês da fatura) e dos dias de fechamento/vencimento,
  * calcula data de fechamento e data de vencimento daquela fatura.
  *
- * Convenção (regra do negócio):
- *  - Fechamento ocorre no mês ANTERIOR à competência (dia `diaFechamento`).
- *  - Vencimento ocorre no mês SEGUINTE à competência (dia `diaVencimento`).
- *
- * Ex.: competência 05/2026, fech. 28 → fechou em 28/04, vence em 10/06.
+ * Competência 05/2026 com fechamento 28 = compras de 28/04 a 27/05.
+ *  - Fechamento: no mês da competência (28/05), dia seguinte à última compra.
+ *  - Vencimento: o primeiro `diaVencimento` depois do fechamento — no mês
+ *    seguinte quando vence num dia menor/igual ao do fechamento (fecha 28,
+ *    vence 10 → 10/06); no mesmo mês quando vence depois (fecha 3, vence 10 →
+ *    competência 05 fecha 03/05 e vence 10/05).
  */
 export function calcularDatasFatura(
   competencia: Date,
   diaFechamento: number,
   diaVencimento: number
 ): { data_fechamento: Date; data_vencimento: Date } {
-  const mesAnterior = addMonths(competencia, -1);
-  const mesPosterior = addMonths(competencia, 1);
-  const data_fechamento = clampDia(mesAnterior.getFullYear(), mesAnterior.getMonth(), diaFechamento);
-  const data_vencimento = clampDia(mesPosterior.getFullYear(), mesPosterior.getMonth(), diaVencimento);
+  const data_fechamento = clampDia(competencia.getFullYear(), competencia.getMonth(), diaFechamento);
+  const mesVenc = diaVencimento > data_fechamento.getDate() ? competencia : addMonths(competencia, 1);
+  const data_vencimento = clampDia(mesVenc.getFullYear(), mesVenc.getMonth(), diaVencimento);
   return { data_fechamento, data_vencimento };
 }
 
@@ -60,27 +62,28 @@ export function calcularDatasFaturaComAnchor(
   diaFechamento: number,
   anchor: Date
 ): { data_fechamento: Date; data_vencimento: Date } {
-  // Regra de negócio: vencimento ocorre no mês SEGUINTE à competência.
-  // Portanto, o "Próximo vencimento" (anchor) pertence à competência do
-  // mês imediatamente anterior à sua própria data.
-  const anchorCompetencia = addMonths(startOfMonth(anchor), -1);
+  // A anchor (um vencimento real) pertence à competência que fecha antes dela:
+  // vence depois do dia de fechamento → mesma competência do mês da anchor;
+  // senão → competência do mês anterior (fecha 26, vence 10/07 → competência 06).
+  const anchorCompetencia = anchor.getDate() > diaFechamento
+    ? startOfMonth(anchor)
+    : addMonths(startOfMonth(anchor), -1);
   const monthsDiff =
     (competencia.getFullYear() - anchorCompetencia.getFullYear()) * 12 +
     (competencia.getMonth() - anchorCompetencia.getMonth());
   const venc = addMonths(anchor, monthsDiff);
   const data_vencimento = clampDia(venc.getFullYear(), venc.getMonth(), anchor.getDate());
-  const mesAnterior = addMonths(competencia, -1);
-  const data_fechamento = clampDia(mesAnterior.getFullYear(), mesAnterior.getMonth(), diaFechamento);
+  const data_fechamento = clampDia(competencia.getFullYear(), competencia.getMonth(), diaFechamento);
   return { data_fechamento, data_vencimento };
 }
 
 /**
- * Melhor dia para comprar no cartão: véspera do fechamento, garantindo o
- * prazo máximo até o vencimento. Se o fechamento é dia 1, melhor dia é 31.
+ * Melhor dia para comprar no cartão: o próprio dia do fechamento — a compra já
+ * entra na fatura seguinte e ganha o prazo máximo até o vencimento.
  */
 export function melhorDiaDeCompra(diaFechamento: number): number {
-  if (!diaFechamento || diaFechamento <= 1) return 31;
-  return diaFechamento - 1;
+  if (!diaFechamento || diaFechamento < 1) return 1;
+  return Math.min(diaFechamento, 31);
 }
 
 export function rotuloCompetencia(competencia: Date | string): string {

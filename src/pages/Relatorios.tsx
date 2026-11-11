@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 import { CalendarDays, Check, ChevronDown } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -16,7 +18,7 @@ import {
   OpKPIsTab, ProjectionTab, TaxesTab,
 } from '@/components/relatorios/AdvancedReportTabs';
 import { useRelatorios, type PeriodFilter, type ComparativoFilter } from '@/hooks/useRelatorios';
-import { useAdvancedReports } from '@/hooks/useAdvancedReports';
+import { useAdvancedReports, periodWindow } from '@/hooks/useAdvancedReports';
 import { SkeletonChart } from '@/components/shared/LoadingSpinner';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
@@ -72,6 +74,16 @@ export default function Relatorios() {
   const { reports, isLoading: loadingAdv } = useAdvancedReports(period, cStart, cEnd);
 
   const periodLabel = PERIODOS.find((p) => p.value === period)?.label ?? 'Período';
+
+  // Clique numa linha: abre no fluxo de caixa os lançamentos que formam o número
+  // (mesmo período e mesma data dos relatórios: competência).
+  const navigate = useNavigate();
+  const janela = periodWindow(period, cStart, cEnd);
+  const verLancamentos = (extra: Record<string, string>) => {
+    const q = new URLSearchParams({ base: 'competencia', de: format(janela.start, 'yyyy-MM-dd'), ate: format(janela.end, 'yyyy-MM-dd'), ...extra });
+    navigate(`/fluxo-caixa?${q.toString()}`);
+  };
+  const SEM_CAT = '__sem_categoria__';
 
   return (
     <main className="container max-w-full py-3 md:py-6">
@@ -156,9 +168,9 @@ export default function Relatorios() {
           </TabsContent>
 
           <TabsContent value="mrr" className="mt-4 md:mt-6"><MRRTab data={reports.mrr} /></TabsContent>
-          <TabsContent value="abc" className="mt-4 md:mt-6"><TopClientsTab data={reports.topClients} /></TabsContent>
-          <TabsContent value="rec-cat" className="mt-4 md:mt-6"><CategoryTab data={reports.receitaPorCategoria} title="Receita por Categoria" /></TabsContent>
-          <TabsContent value="desp-cat" className="mt-4 md:mt-6"><CategoryTab data={reports.despesaPorCategoria} title="Despesas por Categoria" /></TabsContent>
+          <TabsContent value="abc" className="mt-4 md:mt-6"><TopClientsTab data={reports.topClients} onRowClick={(c) => verLancamentos({ tipo: 'entrada', search: c.nome })} /></TabsContent>
+          <TabsContent value="rec-cat" className="mt-4 md:mt-6"><CategoryTab data={reports.receitaPorCategoria} title="Receita por Categoria" onRowClick={(c) => verLancamentos({ tipo: 'entrada', categoria: c.id === 'sem' ? SEM_CAT : c.id })} /></TabsContent>
+          <TabsContent value="desp-cat" className="mt-4 md:mt-6"><CategoryTab data={reports.despesaPorCategoria} title="Despesas por Categoria" onRowClick={(c) => verLancamentos({ tipo: 'saida', categoria: c.id === 'sem' ? SEM_CAT : c.id })} /></TabsContent>
           <TabsContent value="aging-rec" className="mt-4 md:mt-6"><AgingTab data={reports.agingRecebiveis} title="Aging — Contas a Receber" /></TabsContent>
           <TabsContent value="aging-pag" className="mt-4 md:mt-6"><AgingTab data={reports.agingPagar} title="Aging — Contas a Pagar" /></TabsContent>
           <TabsContent value="burn" className="mt-4 md:mt-6"><BurnRunwayTab data={reports.burnRunway} /></TabsContent>

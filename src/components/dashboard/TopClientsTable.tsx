@@ -6,9 +6,10 @@ import { SectionCard } from '@/components/shared/SectionCard';
 interface TopClientsTableProps {
   clients: TopCliente[];
   title?: string;
+  onClienteClick?: (c: TopCliente) => void;
 }
 
-export function TopClientsTable({ clients, title = 'Top Clientes' }: TopClientsTableProps) {
+export function TopClientsTable({ clients, title = 'Top Clientes', onClienteClick }: TopClientsTableProps) {
   const maxValue = Math.max(...clients.map(c => c.receita_total));
 
   return (
@@ -18,9 +19,12 @@ export function TopClientsTable({ clients, title = 'Top Clientes' }: TopClientsT
           const percentage = (client.receita_total / maxValue) * 100;
 
           return (
-            <div
+            <button
+              type="button"
               key={client.cliente_id}
-              className="flex items-center gap-3 border-b border-border py-3 last:border-b-0"
+              disabled={!onClienteClick}
+              onClick={() => onClienteClick?.(client)}
+              className="flex w-full items-center gap-3 border-b border-border py-3 text-left last:border-b-0 enabled:hover:opacity-80"
             >
               {/* Posição no ranking */}
               <span
@@ -46,7 +50,7 @@ export function TopClientsTable({ clients, title = 'Top Clientes' }: TopClientsT
               <span className="ml-2 shrink-0 font-heading text-sm font-semibold tabular-nums text-foreground">
                 {formatCurrency(client.receita_total)}
               </span>
-            </div>
+            </button>
           );
         })}
       </div>

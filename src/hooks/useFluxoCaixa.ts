@@ -77,6 +77,8 @@ export interface ReceitaFormData {
   data_recebimento?: string;
   status: 'pendente' | 'recebido' | 'atrasado';
   forma_pagamento?: string;
+  /** Série recorrente criada junta ("(1/12)", "(2/12)"…). */
+  recurrence_group_id?: string;
 }
 
 export interface DespesaFormData {
@@ -92,6 +94,7 @@ export interface DespesaFormData {
   status: 'pendente' | 'pago' | 'atrasado';
   tipo: 'fixa' | 'variavel';
   forma_pagamento?: string;
+  recurrence_group_id?: string;
 }
 
 interface UseFluxoCaixaReturn {
@@ -411,6 +414,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
           data_recebimento: formData.data_recebimento || null,
           status: formData.status,
           forma_pagamento: formData.forma_pagamento || null,
+          recurrence_group_id: formData.recurrence_group_id || null,
         })
         .select('*, cliente:clientes(id, nome), categoria:categorias(id, nome, cor)')
         .single();
@@ -568,6 +572,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
           tipo: formData.tipo,
           forma_pagamento: formData.forma_pagamento || null,
           fatura_id: faturaId,
+          recurrence_group_id: formData.recurrence_group_id || null,
         } as never)
         .select('*, categoria:categorias(id, nome, cor), cliente:clientes(id, nome)')
         .single();

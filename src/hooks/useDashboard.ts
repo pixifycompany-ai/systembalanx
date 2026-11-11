@@ -209,9 +209,10 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
   // marcada como paga) é distribuído pelas categorias dos itens daquela fatura,
   // pra mostrar pra onde o dinheiro foi sem contar o cartão em dobro.
   const expensesByCategory: CategoryExpense[] = [];
-  const despesasPorCategoria: Record<string, { valor: number; cor: string }> = {};
-  const somaCat = (nome: string, cor: string, valor: number) => {
-    if (!despesasPorCategoria[nome]) despesasPorCategoria[nome] = { valor: 0, cor };
+  const despesasPorCategoria: Record<string, { valor: number; cor: string; id: string | null }> = {};
+  const somaCat = (cat: { id?: string; nome: string; cor: string } | null, valor: number) => {
+    const nome = cat?.nome || 'Sem categoria';
+    if (!despesasPorCategoria[nome]) despesasPorCategoria[nome] = { valor: 0, cor: cat?.cor || '#6B7280', id: cat?.id ?? null };
     despesasPorCategoria[nome].valor += valor;
   };
   const faturaPorDespesa = new Map<string, string>(); // despesa (pagamento/sombra) -> fatura
@@ -240,12 +241,10 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
       if (faturaId && totalItens > 0) {
         // Rateia o pagamento da fatura pela participação de cada item.
         for (const i of itens) {
-          const cat = i.categoria as { nome: string; cor: string } | null;
-          somaCat(cat?.nome || 'Sem categoria', cat?.cor || '#6B7280', valor * (Number(i.valor) / totalItens));
+          somaCat(i.categoria as { id?: string; nome: string; cor: string } | null, valor * (Number(i.valor) / totalItens));
         }
       } else {
-        const cat = d.categoria as { nome: string; cor: string } | null;
-        somaCat(cat?.nome || 'Sem categoria', cat?.cor || '#6B7280', valor);
+        somaCat(d.categoria as { id?: string; nome: string; cor: string } | null, valor);
       }
     });
 
@@ -254,6 +253,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
       categoria,
       valor: Math.round(data.valor * 100) / 100,
       cor: data.cor,
+      categoria_id: data.id,
     });
   });
 
@@ -363,7 +363,7 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
         })
         .reduce((sum, d) => sum + Number(d.valor), 0);
 
-      result.push({ mes: mesNome.charAt(0).toUpperCase() + mesNome.slice(1), receita: receitaMes, despesa: despesaMes });
+      result.push({ mes: mesNome.charAt(0).toUpperCase() + mesNome.slice(1), chave: format(monthDate, 'yyyy-MM'), receita: receitaMes, despesa: despesaMes });
     }
     return result;
   }

@@ -9,6 +9,7 @@ import { HexWatermark } from '@/components/shared/NavySurface';
 import { useState } from 'react';
 import { AnexosDespesa } from './AnexosDespesa';
 import { CobrancaDoLancamento } from './CobrancaDoLancamento';
+import { EstenderRecorrencia } from './EstenderRecorrencia';
 
 interface Row {
   label: string;
@@ -34,6 +35,8 @@ interface TransactionDetailSheetProps {
   onPagarFatura?: (t: TransacaoUnificada) => void;
   /** Vínculo com cobrança mudou (valor/vencimento do lançamento podem mudar). */
   onCobrancaChange?: () => void;
+  /** Série recorrente ganhou lançamentos novos. */
+  onSerieChange?: () => void;
 }
 
 const statusLabel: Record<string, string> = {
@@ -54,6 +57,7 @@ export function TransactionDetailSheet({
   onAnexosChange,
   onPagarFatura,
   onCobrancaChange,
+  onSerieChange,
 }: TransactionDetailSheetProps) {
   const [temCobranca, setTemCobranca] = useState(false);
   if (!t) return null;
@@ -148,6 +152,8 @@ export function TransactionDetailSheet({
               Gerar cobrança no Asaas
             </button>
           )}
+
+          <EstenderRecorrencia key={`rec-${t.id}`} lancamento={t} onChange={onSerieChange} />
 
           {/* Footer */}
           <div className="flex gap-2.5 pt-1">

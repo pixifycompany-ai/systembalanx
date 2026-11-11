@@ -4,6 +4,7 @@ import { montarEmailCobranca, enviarEmailResend, preencherEmailTpl, EMAIL_ASSUNT
 import { buscarBoletoUrl, temBoleto } from "../_shared/asaas.ts";
 import { anexoDaNota } from "../_shared/notas.ts";
 import { frasePrazo } from "../_shared/prazo.ts";
+import { sincronizarPausa } from "../_shared/pausa.ts";
 
 // Worker do cron: roda 1x/dia, encontra cobranças que casam com a regra de
 // auto-envio (global ou exceção do contrato) e dispara pelo WhatsApp (Pixify),
@@ -90,6 +91,33 @@ serve(async (req) => {
   if (!secret || got !== secret) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // Pausas de contrato com assinatura no Asaas: começa as que chegaram na data
+  // (suspende a assinatura e cancela as cobranças aguardando do período) e
+  // reativa as que terminaram. Roda antes do disparo, para não cobrar quem pausou.
+  const pausas = { pausou: 0, reativou: 0, erros: 0 };
+  {
+    const { data: emPausa } = await admin.from("contratos").select("*")
+      .or("pausado_desde.not.is.null,asaas_pausado.eq.true").not("asaas_subscription_id", "is", null);
+    const cfgsPausa = new Map<string, { asaas_api_key: string; asaas_env: string | null } | null>();
+    for (const c of emPausa || []) {
+      try {
+        if (!cfgsPausa.has(c.user_id)) {
+          const { data } = await admin.from("cobranca_config").select("asaas_api_key, asaas_env").eq("user_id", c.user_id).maybeSingle();
+          cfgsPausa.set(c.user_id, data?.asaas_api_key ? data : null);
+        }
+        const cfgP = cfgsPausa.get(c.user_id);
+        if (!cfgP) continue;
+        const r = await sincronizarPausa(admin, cfgP, c);
+        if (r.acao === "pausou") pausas.pausou++;
+        if (r.acao === "reativou") pausas.reativou++;
+      } catch (e) {
+        pausas.erros++;
+        console.error("pausa contrato erro", c.id, e instanceof Error ? e.message : e);
+      }
+    }
+  }
+
   const apiKey = Deno.env.get("WHATSAPP_API_KEY");
   const sid = Deno.env.get("WHATSAPP_SID") || "90d5bea1c485ebc40a7bbb5ba33ab2db";
   if (!apiKey) return new Response(JSON.stringify({ error: "WHATSAPP_API_KEY ausente" }), { status: 500 });
@@ -293,7 +321,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ ok: true, hoje, total: faturas.size, enviados, enviadosEmail, pulados, faltaNf, erros }), {
+  return new Response(JSON.stringify({ ok: true, hoje, total: faturas.size, enviados, enviadosEmail, pulados, faltaNf, erros, pausas }), {
     status: 200, headers: { "Content-Type": "application/json" },
   });
 });

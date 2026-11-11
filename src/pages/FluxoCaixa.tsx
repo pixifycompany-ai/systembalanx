@@ -39,7 +39,7 @@ import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
 import { HeroStatCard } from '@/components/shared/HeroStatCard';
-import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { TipoTransacao, TransacaoUnificada } from '@/types/fluxoCaixa';
 import { cn } from '@/lib/utils';
@@ -144,28 +144,38 @@ export default function FluxoCaixa() {
   // Preset "próximos vencimentos" (vindo do dashboard): venc=prox7 | hoje
   const vencParam = searchParams.get('venc');
   const _hojeRange = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+  // ?de=yyyy-MM-dd&ate=yyyy-MM-dd: período vindo dos relatórios.
+  const deParam = searchParams.get('de');
+  const ateParam = searchParams.get('ate');
   const initialRange = vencParam === 'prox7'
     ? { de: _hojeRange, ate: addDays(_hojeRange, 7) }
     : vencParam === 'hoje'
       ? { de: _hojeRange, ate: _hojeRange }
-      : null;
+      : deParam && ateParam && /^\d{4}-\d{2}-\d{2}$/.test(deParam) && /^\d{4}-\d{2}-\d{2}$/.test(ateParam)
+        ? { de: parseISO(deParam), ate: endOfDay(parseISO(ateParam)) }
+        : null;
   const initialStatus = searchParams.get('status')?.split(',').filter(Boolean)
     || (vencParam ? ['pendente', 'atrasado'] : []);
   // Data usada no filtro de mês/período: vencimento (padrão) ou a data em que o dinheiro
   // entrou/saiu (recebimento/pagamento), usada pelos cards "recebidas/pagas no mês" do início.
-  const [dataBase, setDataBase] = useState<'vencimento' | 'efetivacao'>(
-    searchParams.get('base') === 'efetivacao' ? 'efetivacao' : 'vencimento',
-  );
+  // 'competencia' vem dos relatórios (DRE/categorias contam pela competência).
+  const [dataBase, setDataBase] = useState<'vencimento' | 'efetivacao' | 'competencia'>(() => {
+    const b = searchParams.get('base');
+    return b === 'efetivacao' || b === 'competencia' ? b : 'vencimento';
+  });
 
   // Filters - default to current month
   const currentMonth = format(new Date(), 'yyyy-MM');
   const [tipoFilter, setTipoFilter] = useState<TipoTransacao>(initialTipo);
   const [statusFilter, setStatusFilter] = useState<string[]>(initialStatus);
-  const [monthFilter, setMonthFilter] = useState<string>(currentMonth);
+  // ?mes=yyyy-MM (ou 'all'), ?conta=<id>, ?categoria=<id>[,<id>] — usados pelos números
+  // clicáveis do início, dos relatórios e da conferência de saldo.
+  const mesParam = searchParams.get('mes');
+  const [monthFilter, setMonthFilter] = useState<string>(mesParam && /^(\d{4}-\d{2}|all)$/.test(mesParam) ? mesParam : currentMonth);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
-  const [contaFilter, setContaFilter] = useState<string>('all');
+  const [contaFilter, setContaFilter] = useState<string>(searchParams.get('conta') || 'all');
   // Categorias selecionadas (ids). SEM_CATEGORIA = lançamentos sem categoria.
-  const [categoriaFilter, setCategoriaFilter] = useState<string[]>([]);
+  const [categoriaFilter, setCategoriaFilter] = useState<string[]>(searchParams.get('categoria')?.split(',').filter(Boolean) || []);
   const singleAccountId = contaFilter !== 'all' ? contaFilter : null;
   const { data: runningBalance } = useAccountRunningBalance(singleAccountId);
 
@@ -302,6 +312,7 @@ export default function FluxoCaixa() {
   // Ao trocar de aba, descarta categorias que não pertencem a ela.
   useEffect(() => {
     const validas = new Set(categoriaGrupos.flatMap(g => g.itens.map(c => c.id)));
+    if (!validas.size) return; // categorias ainda carregando: não descarta o filtro vindo do link
     setCategoriaFilter(prev => {
       const next = prev.filter(id => id === SEM_CATEGORIA || validas.has(id));
       return next.length === prev.length ? prev : next;
@@ -330,7 +341,7 @@ export default function FluxoCaixa() {
       
       let matchesDate = true;
       // Por recebimento/pagamento: sem essa data (ainda em aberto) não entra no período.
-      const dataRef = dataBase === 'efetivacao' ? t.data_efetivacao : t.data_vencimento;
+      const dataRef = dataBase === 'efetivacao' ? t.data_efetivacao : dataBase === 'competencia' ? t.data_competencia : t.data_vencimento;
       const filtrandoData = (dateFilterMode === 'month' && monthFilter !== 'all') || (dateFilterMode === 'range' && !!dateRangeStart && !!dateRangeEnd);
       if (filtrandoData && !dataRef) {
         matchesDate = dataBase === 'vencimento';
@@ -616,8 +627,8 @@ export default function FluxoCaixa() {
           data_competencia: calculateNextDate(formEntrada.data_competencia, entradaFrequency, i),
           data_vencimento: calculateNextDate(formEntrada.data_vencimento, entradaFrequency, i),
           descricao: `${formEntrada.descricao} (${i + 1}/${entradaRepeatTimes})`,
+          recurrence_group_id: groupId,
         };
-        // Pass recurrence_group_id via the insert (handled by supabase directly)
         const r = await createReceita(data);
         if (!r) { success = false; break; }
       }
@@ -684,6 +695,7 @@ export default function FluxoCaixa() {
           data_competencia: calculateNextDate(formSaida.data_competencia, saidaFrequency, i),
           data_vencimento: calculateNextDate(formSaida.data_vencimento, saidaFrequency, i),
           descricao: `${formSaida.descricao} (${i + 1}/${saidaRepeatTimes})`,
+          recurrence_group_id: groupId,
         };
         const r = await createDespesa(data);
         if (!r) { success = false; break; }
@@ -1349,9 +1361,9 @@ export default function FluxoCaixa() {
               <Button variant="outline" size="sm" className="h-9 shrink-0 gap-2 px-4 text-[13px]">
                 <SlidersHorizontal className="h-4 w-4" />
                 Mais filtros
-                {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase === 'efetivacao') && (
+                {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase !== 'vencimento') && (
                   <span className="ml-0.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-semibold text-background">
-                    {statusFilter.length + categoriaFilter.length + (dateFilterMode === 'range' ? 1 : 0) + (dataBase === 'efetivacao' ? 1 : 0)}
+                    {statusFilter.length + categoriaFilter.length + (dateFilterMode === 'range' ? 1 : 0) + (dataBase !== 'vencimento' ? 1 : 0)}
                   </span>
                 )}
               </Button>
@@ -1426,7 +1438,7 @@ export default function FluxoCaixa() {
             </PopoverContent>
           </Popover>
 
-          {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase === 'efetivacao') && (
+          {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase !== 'vencimento') && (
             <Button variant="ghost" size="sm" className="h-9 text-[13px] text-foreground-muted" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDateFilterMode('month'); setDateRangeStart(undefined); setDateRangeEnd(undefined); setDataBase('vencimento'); }}>
               <X className="mr-1 h-3.5 w-3.5" /> Limpar filtros
             </Button>
@@ -1434,7 +1446,7 @@ export default function FluxoCaixa() {
         </div>
 
         {/* Chips de filtros aplicados (mais filtros) */}
-        {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase === 'efetivacao') && (
+        {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase !== 'vencimento') && (
           <div className="mb-4 hidden flex-wrap items-center gap-2 md:flex">
             {categoriaFilter.map(id => {
               const cat = id === SEM_CATEGORIA ? null : categoriaNomePorId.get(id);
@@ -1450,11 +1462,11 @@ export default function FluxoCaixa() {
                 />
               );
             })}
-            {dataBase === 'efetivacao' && (
+            {dataBase !== 'vencimento' && (
               <FilterPill
                 active
                 label="Data"
-                value={tipoFilter === 'entrada' ? 'de recebimento' : tipoFilter === 'saida' ? 'de pagamento' : 'de recebimento/pagamento'}
+                value={dataBase === 'competencia' ? 'de competência' : tipoFilter === 'entrada' ? 'de recebimento' : tipoFilter === 'saida' ? 'de pagamento' : 'de recebimento/pagamento'}
                 onClear={() => setDataBase('vencimento')}
               />
             )}
@@ -2374,6 +2386,7 @@ export default function FluxoCaixa() {
               onGerarCobranca={podeGerarCobranca(detailItem) ? (t) => setCobrancaFor(t) : undefined}
               onAnexosChange={() => { refetchFluxo(); }}
               onCobrancaChange={() => { refetchFluxo(); }}
+              onSerieChange={() => { refetchFluxo(); }}
               onPagarFatura={ehFaturaCartao(detailItem) && detailItem.status !== 'pago' ? (t) => abrirPagarFatura(t.id) : undefined}
             />
           );

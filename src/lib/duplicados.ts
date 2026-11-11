@@ -23,7 +23,7 @@ export function gruposDuplicados<T extends ItemDuplicavel>(itens: T[], cobrancaD
   for (const item of itens) {
     if (!item.data_vencimento) continue;
     const mes = format(parseISO(item.data_vencimento), 'yyyy-MM');
-    const chave = `${item.valor}-${item.fornecedor_cliente.toLowerCase().trim()}-${mes}`;
+    const chave = `${item.tipo}-${item.valor}-${item.fornecedor_cliente.toLowerCase().trim()}-${mes}`;
     mapa.set(chave, [...(mapa.get(chave) || []), item]);
   }
   const conflitam = (a: T, b: T) => {
