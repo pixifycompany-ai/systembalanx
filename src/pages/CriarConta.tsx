@@ -74,6 +74,7 @@ export default function CriarConta() {
 
   return (
     <AuthShell
+      foto="sofa"
       title={<>Comece agora, <span className="font-serif italic font-normal tracking-normal">sem planilha.</span></>}
     >
       {confirmarEmail ? (

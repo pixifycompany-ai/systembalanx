@@ -13,6 +13,8 @@ import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW, NAVY_TONE } from '@/components/shared/navyTokens';
 import { HexWatermark } from '@/components/shared/NavySurface';
+import { FotoBanner } from '@/components/shared/FotoBanner';
+import fotoCafeteria from '@/assets/brand/assinatura-cafeteria.webp';
 
 const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 
@@ -93,6 +95,19 @@ export default function Assinatura() {
           title={<>Plano <span className="font-serif italic font-normal tracking-normal">{PLAN.nome}</span></>}
         />
         <p className="mb-5 text-[14px] leading-relaxed text-foreground-muted md:mb-6">{PLAN.descricao}</p>
+
+        {!cortesia && !assinaturaAtiva && (
+          <FotoBanner
+            className="mb-5 md:mb-6"
+            foto={fotoCafeteria}
+            fotoPos="object-center"
+            eyebrow="Pague menos. Use tudo."
+            titulo="Seu caixa sob controle."
+            texto={precoMensal < 30
+              ? 'Tudo liberado, sem limites, por menos de R$ 1 por dia.'
+              : 'Um plano só, tudo liberado e sem limites.'}
+          />
+        )}
 
         {cortesia ? (
           <div className="mb-5 flex items-center gap-3 rounded-[20px] border border-border bg-surface p-4">

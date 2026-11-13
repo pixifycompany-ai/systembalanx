@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useFinancialAdvisor } from '@/hooks/useFinancialAdvisor';
 import { PropostaLancamentos } from '@/components/iara/PropostaLancamentos';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
+import { FotoBanner } from '@/components/shared/FotoBanner';
+import fotoIara from '@/assets/brand/iara-sala-vidro.webp';
 
 const SUGESTOES = [
   'O que tenho a pagar essa semana?',
@@ -152,6 +154,16 @@ export default function Iara() {
 
         {/* Mensagens */}
         <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3.5 py-4 [-webkit-overflow-scrolling:touch] md:px-6 md:py-5">
+          {/* Boas-vindas: só antes da primeira pergunta */}
+          {messages.length <= 1 && (
+            <FotoBanner
+              foto={fotoIara}
+              fotoPos="object-center"
+              eyebrow="IARA · sua IA financeira"
+              titulo="Pergunte. A IARA responde."
+              texto="Caixa, clientes, metas e gastos, com os seus números."
+            />
+          )}
           {messages.map((m) => (
             <div key={m.id} className={cn('flex flex-col gap-1', m.role === 'user' ? 'items-end' : 'items-start')}>
               <div className={cn('flex w-full items-end gap-2.5', m.role === 'user' && 'flex-row-reverse')}>

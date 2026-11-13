@@ -1,11 +1,29 @@
 import type { ReactNode } from 'react';
 import { PixifyLogo } from '@/components/shared/PixifyLogo';
-import loginPhoto from '@/assets/brand/login-personagem.webp';
+import fotoEscritorio from '@/assets/brand/login-escritorio.webp';
+import fotoSofa from '@/assets/brand/cadastro-sofa.webp';
+
+// Personagens das telas de entrada (mesmas fotos das campanhas da BALANX).
+const FOTOS = {
+  escritorio: {
+    src: fotoEscritorio,
+    alt: 'Empreendedor de braços cruzados sorrindo num escritório escuro com luz azul ao fundo',
+    // mobile: faixa no topo, rosto à direita do centro
+    pos: 'object-[62%_22%] md:object-center',
+  },
+  sofa: {
+    src: fotoSofa,
+    alt: 'Empreendedora sorrindo no sofá de casa com o laptop no colo, à noite',
+    pos: 'object-[72%_58%] md:object-[center_60%]',
+  },
+} as const;
 
 interface AuthShellProps {
   /** Manchete sobre a foto (ex.: "Seu financeiro, no bolso."). */
   title: ReactNode;
   children: ReactNode;
+  /** Personagem da foto de fundo. Padrão: escritório (login). */
+  foto?: keyof typeof FOTOS;
 }
 
 /**
@@ -14,17 +32,14 @@ interface AuthShellProps {
  * Desktop: conteúdo à esquerda (o personagem fica à direita da foto).
  * Mobile: foto numa faixa no topo, título e cartão logo abaixo (em fluxo).
  */
-export function AuthShell({ title, children }: AuthShellProps) {
+export function AuthShell({ title, children, foto = 'escritorio' }: AuthShellProps) {
+  const f = FOTOS[foto];
   return (
     <div className="relative min-h-[100dvh] w-full overflow-x-hidden bg-[#070B14] md:overflow-hidden">
       {/* Foto: faixa no topo (mobile) / tela cheia (desktop). No mobile o conteúdo vem
           DEPOIS da foto, em fluxo normal — formulário maior nunca cobre o rosto. */}
       <div className="relative h-[34vh] min-h-[220px] md:absolute md:inset-0 md:h-auto">
-        <img
-          src={loginPhoto}
-          alt="Empreendedor sorrindo para a câmera com o celular na mão numa avenida ao entardecer"
-          className="h-full w-full object-cover object-[56%_18%] md:object-[30%_center]"
-        />
+        <img src={f.src} alt={f.alt} className={`h-full w-full object-cover ${f.pos}`} />
         <div
           aria-hidden
           className="absolute inset-0 md:hidden"

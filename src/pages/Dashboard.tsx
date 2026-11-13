@@ -14,7 +14,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { Sparkle } from '@/components/shared/Sparkle';
-import promoBanner from '@/assets/brand/home-personagem.webp';
+import promoBanner from '@/assets/brand/home-resumo-rua.webp';
 
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { HexWatermark } from '@/components/shared/NavySurface';
