@@ -13,10 +13,10 @@
   <meta property="og:url" content="https://balanx.com.br/" />
   <meta property="og:title" content="BALANX — Gestão financeira com IA para autônomos, PMEs e agências" />
   <meta property="og:description" content="Fluxo de caixa, contratos recorrentes, cartões e previsão de caixa. A IARA responde suas dúvidas em português. Para autônomos, PMEs e agências. Teste 14 dias grátis." />
-  <meta property="og:image" content="https://balanx.com.br/assets/og3.jpg" />
+  <meta property="og:image" content="https://balanx.com.br/assets/og4.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta name="twitter:image" content="https://balanx.com.br/assets/og3.jpg" />
+  <meta name="twitter:image" content="https://balanx.com.br/assets/og4.jpg" />
   <meta property="og:locale" content="pt_BR" />
   <meta name="twitter:card" content="summary_large_image" />
 
@@ -98,7 +98,7 @@
 
       <div class="hero__art">
         <figure class="hero__photo">
-          <img src="/assets/img1.webp?v=6" alt="Empreendedor sorrindo para a câmera com o celular na mão numa avenida ao entardecer" width="2000" height="1117" fetchpriority="high" decoding="async" />
+          <img src="/assets/hero-escritorio.webp?v=1" alt="Empreendedor de braços cruzados sorrindo num escritório escuro, com luz azul ao fundo" width="1200" height="1490" fetchpriority="high" decoding="async" />
         </figure>
 
         <!-- Cartão de saldo (navy, igual ao app) -->
@@ -278,7 +278,11 @@
     <!-- ===== SHOWCASE ===== -->
     <section class="showcase reveal">
       <div class="showcase__frame">
-        <img src="/assets/img2.webp?v=1" alt="Empreendedor sorrindo para a câmera numa avenida ao entardecer" loading="lazy" decoding="async" width="2000" height="1117" />
+        <picture>
+          <!-- celular: o texto fica embaixo, então a pessoa precisa estar no alto da foto -->
+          <source media="(max-width: 680px)" srcset="/assets/showcase-rua.webp?v=1" width="1000" height="1241" />
+          <img src="/assets/showcase-sofa.webp?v=1" alt="Empreendedora sorrindo no sofá de casa com o laptop no colo, à noite" loading="lazy" decoding="async" width="2000" height="1125" />
+        </picture>
         <div class="showcase__overlay">
           <h2>No bolso, na mesa, <span class="serif">sempre no controle.</span></h2>
           <p>Rápido no celular e completo no desktop, com tema claro e escuro. Seus números onde você estiver.</p>
