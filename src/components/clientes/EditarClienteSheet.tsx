@@ -107,7 +107,7 @@ export function EditarClienteSheet({ open, onOpenChange, cliente, onSalvar }: Pr
                 </div>
                 <div className="space-y-2">
                   <Label>Telefone (WhatsApp)</Label>
-                  <Input value={form.telefone || ''} onChange={(e) => set({ telefone: e.target.value })} placeholder="(11) ..." />
+                  <Input type="tel" inputMode="tel" autoComplete="tel" value={form.telefone || ''} onChange={(e) => set({ telefone: e.target.value })} placeholder="(11) ..." />
                 </div>
               </div>
 

@@ -1358,7 +1358,7 @@ export default function Cobrancas() {
             <FormSection label="Destinatário">
               <div className="space-y-1.5">
                 <Label className="text-[12px] text-foreground-muted">Telefone (com DDD)</Label>
-                <Input value={waTel} onChange={(e) => setWaTel(e.target.value)} placeholder="(11) 99999-9999" />
+                <Input type="tel" inputMode="tel" value={waTel} onChange={(e) => setWaTel(e.target.value)} placeholder="(11) 99999-9999" />
               </div>
             </FormSection>
             <FormSection label="Mensagem">

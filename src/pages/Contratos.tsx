@@ -1464,7 +1464,7 @@ export default function Contratos() {
               <FormSection label="Destinatário">
                 <div className="space-y-1.5">
                   <Label>WhatsApp do cliente</Label>
-                  <Input value={whatsappTel} onChange={(e) => setWhatsappTel(e.target.value)} placeholder="(65) 99902-0102" />
+                  <Input type="tel" inputMode="tel" value={whatsappTel} onChange={(e) => setWhatsappTel(e.target.value)} placeholder="(65) 99902-0102" />
                   <p className="text-[11.5px] text-foreground-muted">Vem do cadastro do cliente. Enviamos com DDI+DDD, sem o nono dígito.</p>
                 </div>
               </FormSection>

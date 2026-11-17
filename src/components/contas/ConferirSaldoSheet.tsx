@@ -36,6 +36,8 @@ export function ConferirSaldoSheet({ open, onOpenChange, contas, contaInicial, o
   const [contaId, setContaId] = useState<string>('');
   const [data, setData] = useState(hoje);
   const [valorTxt, setValorTxt] = useState('');
+  // Teclado numérico do celular não tem "−": o sinal vem deste botão.
+  const [negativo, setNegativo] = useState(false);
   const [busy, setBusy] = useState(false);
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [historico, setHistorico] = useState<ConferenciaSalva[]>([]);
@@ -54,7 +56,7 @@ export function ConferirSaldoSheet({ open, onOpenChange, contas, contaInicial, o
     if (open && contaId) historicoConferencias(contaId).then(setHistorico);
   }, [open, contaId]);
 
-  const saldoBanco = parseValorBR(valorTxt);
+  const saldoBanco = (negativo ? -1 : 1) * Math.abs(parseValorBR(valorTxt));
   const conta = useMemo(() => contas.find((c) => c.id === contaId), [contas, contaId]);
 
   const conferir = async () => {
@@ -129,19 +131,31 @@ export function ConferirSaldoSheet({ open, onOpenChange, contas, contaInicial, o
             <DatePickerField label="Data do extrato" value={data} onChange={(d) => { setData(d); setResultado(null); }} />
             <div className="space-y-1.5">
               <Label htmlFor="saldo-banco">Saldo no banco</Label>
-              <Input
-                id="saldo-banco"
-                inputMode="decimal"
-                placeholder="0,00"
-                value={valorTxt}
-                onChange={(e) => { setValorTxt(e.target.value); setResultado(null); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') conferir(); }}
-                className="h-11 tabular-nums"
-              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setNegativo((v) => !v); setResultado(null); }}
+                  aria-pressed={negativo}
+                  aria-label={negativo ? 'Saldo negativo (toque para positivo)' : 'Saldo positivo (toque para negativo)'}
+                  className={cn('h-11 w-11 shrink-0 rounded-xl border text-[18px] font-semibold tabular-nums transition-colors',
+                    negativo ? 'border-danger-fg bg-danger-bg text-danger-fg' : 'border-border bg-surface-2 text-foreground-muted')}
+                >
+                  {negativo ? '−' : '+'}
+                </button>
+                <Input
+                  id="saldo-banco"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={valorTxt}
+                  onChange={(e) => { setValorTxt(e.target.value.replace(/-/g, '')); setResultado(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') conferir(); }}
+                  className="h-11 tabular-nums"
+                />
+              </div>
             </div>
           </div>
           <p className="-mt-3 text-[11.5px] text-foreground-muted">
-            Use o saldo do fim do dia no extrato. Para saldo negativo, digite com sinal de menos.
+            Use o saldo do fim do dia no extrato. Conta no negativo? Toque no + para virar −.
           </p>
 
           <Button className="w-full" size="lg" onClick={conferir} disabled={busy || !contaId || !Number.isFinite(saldoBanco)}>

@@ -595,6 +595,9 @@ export default function Clientes() {
                   <Label htmlFor="telefone">Telefone</Label>
                   <Input
                     id="telefone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
                     value={formData.telefone || ''}
                     onChange={(e) => setFormData((p) => ({ ...p, telefone: e.target.value.replace(/\D/g, '') }))}
                     placeholder="(11) …"
