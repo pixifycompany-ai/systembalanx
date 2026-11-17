@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { ItemLancamento } from '@/lib/lancarItens';
+import type { AcaoIara } from '@/lib/acoesIara';
 
 /** Lançamento proposto pela IARA (card de confirmação). Superset de ItemLancamento. */
 export type PropostaLancamento = ItemLancamento & { cliente_nome?: string | null };
@@ -11,16 +12,29 @@ export interface ChatMessage {
   timestamp: Date;
   /** Prévia de lançamentos para a pessoa confirmar e criar. */
   lancamentos?: PropostaLancamento[];
+  /** Prévia de cliente / contrato / cobrança para confirmar. */
+  acoes?: AcaoIara[];
+  /** Nomes dos arquivos enviados junto (mensagem do usuário). */
+  anexos?: string[];
+}
+
+/** Arquivo anexado a uma pergunta (imagem ou PDF), lido pela IARA. */
+export interface AnexoIara {
+  nome: string;
+  tipo: string;
+  base64: string;
 }
 
 interface UseFinancialAdvisorReturn {
   messages: ChatMessage[];
   isLoading: boolean;
   error: string | null;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, anexos?: AnexoIara[]) => Promise<void>;
   clearChat: () => void;
   /** Remove o card de prévia de uma mensagem (após criar/cancelar). */
   clearLancamentos: (messageId: string) => void;
+  /** Remove o card de ações (cliente/contrato/cobrança) de uma mensagem. */
+  clearAcoes: (messageId: string) => void;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/financial-advisor`;
@@ -37,14 +51,16 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim()) return;
+  const sendMessage = useCallback(async (content: string, anexos: AnexoIara[] = []) => {
+    if (!content.trim() && !anexos.length) return;
+    const texto = content.trim() || 'Leia o arquivo anexado.';
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: content.trim(),
+      content: texto,
       timestamp: new Date(),
+      anexos: anexos.length ? anexos.map((a) => a.nome) : undefined,
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -80,8 +96,10 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
         body: JSON.stringify({
           messages: messages
             .filter(m => m.id !== 'welcome')
-            .map(m => ({ role: m.role, content: m.content }))
-            .concat([{ role: 'user', content: content.trim() }]),
+            // Arquivos de perguntas antigas não vão de novo: só o aviso de que existiram.
+            .map(m => ({ role: m.role, content: m.anexos?.length ? `${m.content}\n[anexo enviado antes: ${m.anexos.join(', ')}]` : m.content }))
+            .concat([{ role: 'user', content: texto }]),
+          anexos,
         }),
       });
 
@@ -139,6 +157,12 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
                 m.id === assistantMessageId ? { ...m, lancamentos: lancs } : m
               ));
             }
+            if (Array.isArray(parsed.acoes) && parsed.acoes.length) {
+              const acoes = parsed.acoes as AcaoIara[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, acoes } : m
+              ));
+            }
           } catch {
             // Incomplete JSON, put back in buffer
             buffer = line + '\n' + buffer;
@@ -171,6 +195,12 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
                 m.id === assistantMessageId ? { ...m, lancamentos: lancs } : m
               ));
             }
+            if (Array.isArray(parsed.acoes) && parsed.acoes.length) {
+              const acoes = parsed.acoes as AcaoIara[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, acoes } : m
+              ));
+            }
           } catch { /* ignore */ }
         }
       }
@@ -195,6 +225,12 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
     ));
   }, []);
 
+  const clearAcoes = useCallback((messageId: string) => {
+    setMessages(prev => prev.map(m =>
+      m.id === messageId ? { ...m, acoes: undefined } : m
+    ));
+  }, []);
+
   const clearChat = useCallback(() => {
     setMessages([{
       id: 'welcome',
@@ -212,5 +248,6 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
     sendMessage,
     clearChat,
     clearLancamentos,
+    clearAcoes,
   };
 }

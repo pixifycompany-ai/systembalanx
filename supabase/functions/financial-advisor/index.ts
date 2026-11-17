@@ -11,8 +11,16 @@ interface Message {
   content: string;
 }
 
+interface Anexo {
+  nome: string;
+  tipo: string;   // mime
+  base64: string; // sem o prefixo data:
+}
+
 interface RequestBody {
   messages: Message[];
+  /** Arquivos da ÚLTIMA mensagem do usuário (imagem ou PDF), para a IARA ler. */
+  anexos?: Anexo[];
   period?: "current_month" | "last_3_months" | "last_6_months" | "current_year"; // legado: ignorado
 }
 
@@ -118,7 +126,7 @@ serve(async (req) => {
       }
     } catch (_e) { /* fail open */ }
 
-    const { messages }: RequestBody = await req.json();
+    const { messages, anexos }: RequestBody = await req.json();
     // A IARA enxerga TODOS os lançamentos da conta: o panorama inicial é sempre o mês
     // atual e qualquer outro período (o que a pessoa disser na pergunta) vai pelas ferramentas.
     const { startDate, endDate, periodLabel } = getPeriodDates("current_month");
@@ -156,7 +164,7 @@ serve(async (req) => {
       safe<any>(supabase.from("contratos").select("*, cliente:clientes(nome)").eq("status", "ativo")),
       safe<any>(supabase.from("contas").select("*").eq("ativa", true)),
       safe<any>(supabase.from("transferencias").select("*")),
-      safe<any>(supabase.from("clientes").select("id, nome, status")),
+      safe<any>(supabase.from("clientes").select("id, nome, status, cpf_cnpj, email, telefone")),
       safe<any>(supabase.from("metas").select("*")),
       safe<any>(supabase.from("cartao_faturas").select("*")),
       safe<any>(supabase.from("categorias").select("id, nome, tipo")),
@@ -387,6 +395,14 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Você pode chamar mais de uma ferramenta antes de responder (ex.: saldo_e_contas + projecao_fluxo para dizer se vai faltar caixa).
 - Se a pessoa não disser o período, responda com o período do contexto ("${periodLabel}") e diga qual período usou. Sempre deixe claro o intervalo que os números cobrem.
 
+## Cobranças, clientes e contratos — você também CRIA (sempre com confirmação)
+- COBRAR um cliente ("cobra 1.500 da Sabor Maria dia 25 no Pix", "gera um boleto de 800 pro João", "manda um link de pagamento") → **preparar_cobranca**. Ao confirmar, o sistema cria a cobrança no Asaas e o lançamento "a receber" já vinculado. Precisa de cliente, valor e vencimento: se faltar algum, PERGUNTE antes de chamar (não invente data). "Em 3x" → parcelas: 3 (mensais a partir do vencimento). Forma não dita = qualquer.
+- CADASTRAR CLIENTE ("cadastra o cliente X", um CNPJ solto, cartão CNPJ, contrato social, print ou PDF com dados de empresa/pessoa) → **preparar_cliente**. Com CNPJ, o sistema busca sozinho os dados públicos da Receita — basta passar o CNPJ (e o nome, se souber). Leia anexos com atenção: copie CPF/CNPJ, e-mail e telefone exatamente como aparecem.
+- CRIAR CONTRATO ("fecha um contrato de 2.000 por mês com a X, vence dia 10", ou o PDF de um contrato) → **preparar_contrato**. Precisa de cliente, valor, recorrência e dia de vencimento; pergunte o que faltar. Pergunte também se quer "cobrar no Asaas todo mês automaticamente" (cobrar_no_asaas) quando a pessoa não disser.
+- Cliente que ainda não existe: se o pedido for cobrança ou contrato e o cliente não estiver cadastrado, chame preparar_cliente JUNTO (com os dados que tiver) — no card o cliente é criado primeiro e a cobrança/contrato usa ele.
+- Você NUNCA cria nada direto: as ferramentas montam um card e a pessoa confirma com um toque. Depois de chamar, responda curto: o que vai ser criado (cliente, valor, vencimento/recorrência) e "confira e toque em Confirmar". Não diga que já foi criado.
+- Mande os valores em reais e datas no formato brasileiro na resposta (ex.: R$ 1.500,00 · 25/11/2026).
+
 ## Lançar (criar receitas/despesas) — você também REGISTRA, não só consulta
 - Quando a pessoa pedir para LANÇAR/REGISTRAR/ADICIONAR/ANOTAR um gasto, conta, receita, compra no cartão, pagamento, parcelamento ou algo recorrente (ex.: "lança 320 de energia hoje", "coloca 1.200 do aluguel todo mês", "comprei um notebook 3000 em 10x no cartão Nubank", "recebi 500 do cliente X"), use a ferramenta **preparar_lancamentos**. Você NÃO grava direto: ela monta uma PRÉVIA que a pessoa confirma na tela com um toque.
 - Extraia o máximo que der da fala: tipo (despesa/receita), descrição curta, valor, data (padrão: hoje), categoria, conta ou cartão, forma de pagamento, fornecedor (despesa) ou cliente (receita), nº de parcelas (cartão) e se é recorrente (frequência + repetições).
@@ -466,6 +482,45 @@ ${contexto}`;
           },
           required: ["lancamentos"],
         },
+      } },
+      { type: "function", function: {
+        name: "preparar_cobranca",
+        description: "Prepara uma PRÉVIA de COBRANÇA no Asaas (link de Pix/boleto/cartão) para a pessoa confirmar. Ao confirmar, o sistema cria a cobrança no Asaas E o lançamento 'a receber' vinculado no financeiro. Use quando pedirem para cobrar, gerar cobrança/boleto/Pix/link de pagamento para um cliente. Precisa de cliente, valor e vencimento — se faltar algum, PERGUNTE antes. NÃO cria sozinha.",
+        parameters: { type: "object", properties: {
+          cliente: { type: "string", description: "nome do cliente (como cadastrado)" },
+          valor: { type: "number", description: "valor TOTAL em reais" },
+          vencimento: { ...D, description: "YYYY-MM-DD do (primeiro) vencimento" },
+          descricao: { type: "string", description: "o que está sendo cobrado (ex.: 'Gestão de redes — novembro')" },
+          forma: { type: "string", enum: ["pix", "boleto", "cartao", "qualquer"], description: "padrão: qualquer (o cliente escolhe)" },
+          parcelas: { type: "number", description: "nº de parcelas mensais (>=2) se parcelado; o valor é dividido igualmente" },
+          conta: { type: "string", description: "conta onde o dinheiro cai (opcional)" },
+        }, required: ["cliente", "valor", "vencimento"] },
+      } },
+      { type: "function", function: {
+        name: "preparar_cliente",
+        description: "Prepara uma PRÉVIA de CADASTRO DE CLIENTE para a pessoa confirmar. Use quando pedirem para cadastrar/criar/adicionar cliente, ou quando mandarem dados de um cliente (texto, cartão CNPJ, contrato social, print, PDF). Se vier um CNPJ, o sistema completa sozinho com os dados públicos da Receita (razão social, endereço, e-mail e telefone). NÃO cria sozinho.",
+        parameters: { type: "object", properties: {
+          nome: { type: "string", description: "nome do cliente ou nome fantasia (vazio se só tiver o CNPJ)" },
+          cpf_cnpj: { type: "string", description: "CPF ou CNPJ (com ou sem pontuação)" },
+          email: { type: "string" },
+          telefone: { type: "string", description: "com DDD" },
+          endereco: { type: "string" },
+        } },
+      } },
+      { type: "function", function: {
+        name: "preparar_contrato",
+        description: "Prepara uma PRÉVIA de CONTRATO recorrente (ou único) para a pessoa confirmar. Ao confirmar, o sistema cria o contrato e já lança as receitas dos próximos 12 meses; opcionalmente cria a assinatura no Asaas para cobrar todo mês. Use quando pedirem para criar/cadastrar contrato, mensalidade, plano ou serviço recorrente de um cliente, ou quando mandarem o PDF de um contrato. Precisa de cliente, valor, recorrência e dia de vencimento — pergunte o que faltar. NÃO cria sozinho.",
+        parameters: { type: "object", properties: {
+          cliente: { type: "string", description: "nome do cliente (como cadastrado ou como no documento)" },
+          descricao: { type: "string", description: "serviço contratado" },
+          valor: { type: "number", description: "valor por cobrança (ex.: mensalidade)" },
+          recorrencia: { type: "string", enum: ["mensal", "trimestral", "semestral", "anual", "semanal", "quinzenal", "unico"] },
+          dia_vencimento: { type: "number", description: "dia do mês do vencimento (1 a 31)" },
+          data_inicio: { ...D, description: "início (padrão hoje)" },
+          data_fim: { ...D, description: "fim, se tiver" },
+          cobrar_no_asaas: { type: "boolean", description: "true = criar assinatura no Asaas junto (cobra todo mês sozinho)" },
+          forma: { type: "string", enum: ["pix", "boleto", "cartao", "qualquer"] },
+        }, required: ["cliente", "valor", "recorrencia"] },
       } },
     ];
 
@@ -1110,6 +1165,149 @@ ${contexto}`;
       });
     }
 
+    // ---- Ações (cobrança, cliente, contrato): prévias que a pessoa confirma na tela ----
+    const acoes: any[] = [];
+    const soDigitos = (v: unknown) => String(v ?? "").replace(/\D/g, "");
+    const novoId = () => crypto.randomUUID();
+    const achaCliente = (nome?: string, doc?: string): any | null => {
+      const d = soDigitos(doc);
+      if (d.length >= 11) {
+        const porDoc = (clientes || []).find((c: any) => soDigitos(c.cpf_cnpj) === d);
+        if (porDoc) return porDoc;
+      }
+      if (!nome) return null;
+      const n = norm(nome);
+      if (!n) return null;
+      return (clientes || []).find((c: any) => norm(c.nome) === n)
+        || (clientes || []).find((c: any) => norm(c.nome).includes(n) || (n.length >= 5 && n.includes(norm(c.nome))))
+        || null;
+    };
+    const FORMA_ASAAS: Record<string, string> = { pix: "PIX", boleto: "BOLETO", cartao: "CREDIT_CARD", qualquer: "UNDEFINED" };
+    const dataOk = (v: unknown) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+    const addMesesISO = (iso: string, n: number) => {
+      const [y, m, d] = iso.split("-").map(Number);
+      const ultimo = new Date(Date.UTC(y, m - 1 + n + 1, 0)).getUTCDate();
+      return new Date(Date.UTC(y, m - 1 + n, Math.min(d, ultimo))).toISOString().slice(0, 10);
+    };
+    // Asaas conectado? (sem ler a chave: só a coluna liberada)
+    let asaasConectado: boolean | null = null;
+    const temAsaas = async () => {
+      if (asaasConectado === null) {
+        const { data } = await supabase.from("cobranca_config").select("asaas_account_name, asaas_env").eq("user_id", user.id).maybeSingle();
+        asaasConectado = !!data;
+      }
+      return asaasConectado;
+    };
+
+    async function prepararCobranca(a: any): Promise<string> {
+      const valor = Math.round(Number(a?.valor) * 100) / 100;
+      const venc = dataOk(a?.vencimento);
+      if (!(valor > 0) || !venc) return JSON.stringify({ erro: "Preciso do valor e da data de vencimento (YYYY-MM-DD)." });
+      if (venc < hojeISO) return JSON.stringify({ erro: `O vencimento ${venc} já passou. Pergunte uma data a partir de hoje (${hojeISO}).` });
+      const cli = achaCliente(a?.cliente);
+      const conta = achaConta(a?.conta);
+      const n = Math.min(24, Math.max(1, Math.floor(Number(a?.parcelas) || 1)));
+      const forma = FORMA_ASAAS[a?.forma] || "UNDEFINED";
+      const base = Math.floor((valor / n) * 100) / 100;
+      const parcelas = n > 1 ? Array.from({ length: n }, (_, i) => ({
+        valor: i === n - 1 ? Math.round((valor - base * (n - 1)) * 100) / 100 : base,
+        vencimento: addMesesISO(venc, i),
+      })) : null;
+      const conectado = await temAsaas();
+      acoes.push({
+        id: novoId(), tipo: "cobranca",
+        cliente_id: cli?.id ?? null, cliente_nome: cli?.nome ?? String(a?.cliente || "").slice(0, 120),
+        valor, vencimento: venc, descricao: String(a?.descricao || "Cobrança").slice(0, 140),
+        forma, parcelas, conta_id: conta && conta.tipo !== "cartao_credito" ? conta.id : null,
+        conta_nome: conta && conta.tipo !== "cartao_credito" ? conta.nome : null,
+      });
+      return JSON.stringify({
+        ok: true, cliente_encontrado: !!cli, cliente: cli?.nome ?? a?.cliente, valor, vencimento: venc,
+        parcelas: parcelas?.length ?? 1, asaas_conectado: conectado,
+        obs: [
+          !cli ? "Cliente NÃO está cadastrado: diga isso e ofereça cadastrar (preparar_cliente) — a cobrança só pode ser criada depois." : "",
+          !conectado ? "A conta Asaas não está conectada: avise que precisa conectar em Meu Perfil antes de confirmar." : "",
+          "A pessoa confirma no card abaixo da sua mensagem.",
+        ].filter(Boolean).join(" "),
+      });
+    }
+
+    async function consultarCnpj(cnpj: string): Promise<any | null> {
+      try {
+        const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, { headers: { "User-Agent": "balanx-app" } });
+        if (!r.ok) return null;
+        return await r.json();
+      } catch { return null; }
+    }
+    const telBR = (ddd?: string) => (ddd ? soDigitos(ddd) : "") || null;
+
+    async function prepararCliente(a: any): Promise<string> {
+      let doc = soDigitos(a?.cpf_cnpj);
+      if (doc && doc.length !== 11 && doc.length !== 14) return JSON.stringify({ erro: "CPF precisa de 11 dígitos e CNPJ de 14. Confirme o número." });
+      let nome = String(a?.nome || "").trim();
+      let email = String(a?.email || "").trim() || null;
+      let telefone = soDigitos(a?.telefone) || null;
+      let endereco = String(a?.endereco || "").trim() || null;
+      let receita: any = null;
+      if (doc.length === 14) {
+        receita = await consultarCnpj(doc);
+        if (receita) {
+          nome = nome || receita.nome_fantasia || receita.razao_social || "";
+          email = email || (receita.email ? String(receita.email).toLowerCase() : null);
+          telefone = telefone || telBR(receita.ddd_telefone_1);
+          endereco = endereco || [
+            [receita.descricao_tipo_de_logradouro, receita.logradouro].filter(Boolean).join(" "),
+            receita.numero, receita.complemento, receita.bairro,
+            receita.municipio && receita.uf ? `${receita.municipio}/${receita.uf}` : receita.municipio, receita.cep,
+          ].filter((x: any) => x && String(x).trim()).join(", ") || null;
+        }
+      }
+      if (!nome) return JSON.stringify({ erro: doc.length === 14 ? "Não achei esse CNPJ na Receita. Peça o nome do cliente." : "Preciso pelo menos do nome do cliente." });
+      const existente = achaCliente(nome, doc);
+      acoes.push({
+        id: novoId(), tipo: "cliente",
+        nome: nome.slice(0, 160), cpf_cnpj: doc || null, pessoa: doc.length === 11 ? "PF" : "PJ",
+        email, telefone, endereco: endereco ? endereco.slice(0, 300) : null,
+        razao_social: receita?.razao_social || null, situacao: receita?.descricao_situacao_cadastral || null,
+        existente: existente ? { id: existente.id, nome: existente.nome } : null,
+      });
+      return JSON.stringify({
+        ok: true, nome, cpf_cnpj: doc || null, email, telefone, endereco,
+        dados_da_receita: !!receita, razao_social: receita?.razao_social, situacao_cadastral: receita?.descricao_situacao_cadastral,
+        ja_cadastrado: existente ? existente.nome : null,
+        obs: existente ? "Já existe um cliente parecido: avise e pergunte se é o mesmo antes de criar outro." : "A pessoa confirma no card abaixo da sua mensagem.",
+      });
+    }
+
+    const RECORR_OK = new Set(["mensal", "trimestral", "semestral", "anual", "semanal", "quinzenal", "unico"]);
+    async function prepararContrato(a: any): Promise<string> {
+      const valor = Math.round(Number(a?.valor) * 100) / 100;
+      const recorrencia = RECORR_OK.has(a?.recorrencia) ? a.recorrencia : null;
+      if (!(valor > 0) || !recorrencia) return JSON.stringify({ erro: "Preciso do valor e da recorrência (mensal, anual…)." });
+      const inicio = dataOk(a?.data_inicio) || hojeISO;
+      const fim = dataOk(a?.data_fim);
+      if (fim && fim < inicio) return JSON.stringify({ erro: "A data de fim é antes do início." });
+      const dia = recorrencia === "unico" ? null : Math.min(31, Math.max(1, Math.floor(Number(a?.dia_vencimento) || Number(inicio.slice(8, 10)))));
+      const cli = achaCliente(a?.cliente);
+      const conectado = a?.cobrar_no_asaas ? await temAsaas() : null;
+      acoes.push({
+        id: novoId(), tipo: "contrato",
+        cliente_id: cli?.id ?? null, cliente_nome: cli?.nome ?? String(a?.cliente || "").slice(0, 120),
+        descricao: String(a?.descricao || "Contrato").slice(0, 140), valor, recorrencia, dia_vencimento: dia,
+        data_inicio: inicio, data_fim: fim, cobrar_no_asaas: !!a?.cobrar_no_asaas && recorrencia !== "unico",
+        forma: FORMA_ASAAS[a?.forma] || "UNDEFINED",
+      });
+      return JSON.stringify({
+        ok: true, cliente_encontrado: !!cli, cliente: cli?.nome ?? a?.cliente, valor, recorrencia, dia_vencimento: dia,
+        data_inicio: inicio, data_fim: fim, cobrar_no_asaas: !!a?.cobrar_no_asaas, asaas_conectado: conectado,
+        obs: [
+          !cli ? "Cliente NÃO está cadastrado: prepare também o cadastro (preparar_cliente) — no card, o cliente é criado antes do contrato." : "",
+          a?.cobrar_no_asaas && conectado === false ? "Asaas não conectado: o contrato é criado, mas a assinatura no Asaas não." : "",
+          "Ao confirmar, as receitas dos próximos 12 meses entram sozinhas no financeiro.",
+        ].filter(Boolean).join(" "),
+      });
+    }
+
     // ---- Provedor (compatível com API da OpenAI) + loop de ferramentas ----
     const apiKey = Deno.env.get("OPENAI_API_KEY") || Deno.env.get("IARA_API_KEY");
     if (!apiKey) {
@@ -1126,10 +1324,24 @@ ${contexto}`;
       body: JSON.stringify({ model, messages: msgs, tools: TOOLS, tool_choice: "auto", temperature: 0.3 }),
     });
 
-    const convo: any[] = [{ role: "system", content: systemPrompt }, ...messages];
+    const historico: any[] = messages.map((m) => ({ role: m.role, content: m.content }));
+    const arquivos = (Array.isArray(anexos) ? anexos : []).filter((f) => f?.base64 && f?.tipo).slice(0, 3);
+    if (arquivos.length && historico.length && historico[historico.length - 1].role === "user") {
+      const ultima = historico[historico.length - 1];
+      const partes: any[] = [{ type: "text", text: ultima.content || "Leia o(s) arquivo(s) anexado(s)." }];
+      for (const f of arquivos) {
+        if (f.tipo === "application/pdf") {
+          partes.push({ type: "file", file: { filename: f.nome || "documento.pdf", file_data: `data:application/pdf;base64,${f.base64}` } });
+        } else if (/^image\/(png|jpe?g|webp|gif)$/.test(f.tipo)) {
+          partes.push({ type: "image_url", image_url: { url: `data:${f.tipo};base64,${f.base64}` } });
+        }
+      }
+      ultima.content = partes;
+    }
+    const convo: any[] = [{ role: "system", content: systemPrompt }, ...historico];
     let finalText = "";
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 6; i++) {
       const resp = await callAI(convo);
       if (!resp.ok) {
         if (resp.status === 429) {
@@ -1169,6 +1381,9 @@ ${contexto}`;
             else if (tc.function.name === "parcelas_comprometidas") result = await toolParcelasComprometidas(args.meses);
             else if (tc.function.name === "categorias_vs_media") result = await toolCategoriasVsMedia(args.inicio, args.fim, args.meses_base);
             else if (tc.function.name === "preparar_lancamentos") result = prepararLancamentos(args.lancamentos);
+            else if (tc.function.name === "preparar_cobranca") result = await prepararCobranca(args);
+            else if (tc.function.name === "preparar_cliente") result = await prepararCliente(args);
+            else if (tc.function.name === "preparar_contrato") result = await prepararContrato(args);
           } catch (e) {
             result = JSON.stringify({ erro: e instanceof Error ? e.message : "falha na consulta" });
           }
@@ -1193,6 +1408,8 @@ ${contexto}`;
           const lancs = propostas.map(({ _conta_nome, _cartao, ...rest }) => rest);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ lancamentos: lancs })}\n\n`));
         }
+        // Prévia de cobrança / cliente / contrato (card com botão de confirmar).
+        if (acoes.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ acoes })}\n\n`));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       },

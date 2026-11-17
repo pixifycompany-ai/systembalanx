@@ -1,19 +1,32 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, ChevronLeft, RefreshCw, ShieldCheck, Loader2, Mic } from 'lucide-react';
+import { Send, ChevronLeft, RefreshCw, ShieldCheck, Loader2, Mic, Paperclip, FileText, X } from 'lucide-react';
 import { UserIcon } from '@heroicons/react/24/solid';
 import { Sparkle } from '@/components/shared/Sparkle';
 import { IaraMarkdown } from '@/components/iara/IaraMarkdown';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useFinancialAdvisor } from '@/hooks/useFinancialAdvisor';
+import { useFinancialAdvisor, type AnexoIara } from '@/hooks/useFinancialAdvisor';
 import { PropostaLancamentos } from '@/components/iara/PropostaLancamentos';
+import { PropostaAcoes } from '@/components/iara/PropostaAcoes';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { FotoBanner } from '@/components/shared/FotoBanner';
 import fotoIara from '@/assets/brand/iara-sala-vidro.webp';
 
+// Anexos: imagem (cartão CNPJ, print) ou PDF (contrato, contrato social), até 3 por pergunta.
+const TIPOS_ANEXO = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
+const MAX_ANEXO_MB = 8;
+const lerBase64 = (f: File) => new Promise<string>((ok, erro) => {
+  const r = new FileReader();
+  r.onload = () => ok(String(r.result).split(',')[1] || '');
+  r.onerror = () => erro(r.error);
+  r.readAsDataURL(f);
+});
+
 const SUGESTOES = [
+  'Gerar uma cobrança',
+  'Cadastrar cliente pelo CNPJ',
   'O que tenho a pagar essa semana?',
   'Quanto recebi do dia 1 ao 15?',
   'O que vence hoje e amanhã?',
@@ -25,7 +38,9 @@ const SUGESTOES = [
 
 export default function Iara() {
   const navigate = useNavigate();
-  const { messages, isLoading, sendMessage, clearChat, clearLancamentos } = useFinancialAdvisor();
+  const { messages, isLoading, sendMessage, clearChat, clearLancamentos, clearAcoes } = useFinancialAdvisor();
+  const [anexos, setAnexos] = useState<AnexoIara[]>([]);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState('');
   const [listening, setListening] = useState(false); // gravando
   const [transcribing, setTranscribing] = useState(false);
@@ -106,9 +121,28 @@ export default function Iara() {
   }, [messages, isLoading]);
 
   const submit = (text: string) => {
-    if (!text.trim() || isLoading) return;
-    sendMessage(text);
+    if ((!text.trim() && !anexos.length) || isLoading) return;
+    sendMessage(text, anexos);
     setInput('');
+    setAnexos([]);
+  };
+
+  const anexar = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const novos: AnexoIara[] = [];
+    for (const f of Array.from(files)) {
+      if (!TIPOS_ANEXO.includes(f.type)) {
+        toast({ title: 'Arquivo não aceito', description: `${f.name}: envie imagem (PNG, JPG) ou PDF.`, variant: 'destructive' });
+        continue;
+      }
+      if (f.size > MAX_ANEXO_MB * 1024 * 1024) {
+        toast({ title: 'Arquivo grande demais', description: `${f.name}: até ${MAX_ANEXO_MB} MB.`, variant: 'destructive' });
+        continue;
+      }
+      novos.push({ nome: f.name, tipo: f.type, base64: await lerBase64(f) });
+    }
+    setAnexos((prev) => [...prev, ...novos].slice(0, 3));
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   const lastIsUser = messages[messages.length - 1]?.role === 'user';
@@ -159,7 +193,7 @@ export default function Iara() {
             <FotoBanner
               foto={fotoIara}
               fotoPos="object-center"
-              eyebrow="IARA · sua IA financeira"
+              eyebrow="Sua IA financeira"
               titulo="Pergunte. A IARA responde."
               texto="Caixa, clientes, metas e gastos, com os seus números."
             />
@@ -188,10 +222,20 @@ export default function Iara() {
                   {m.role === 'assistant' ? (
                     <IaraMarkdown content={m.content || '…'} />
                   ) : (
-                    <p className="whitespace-pre-wrap">{m.content}</p>
+                    <>
+                      <p className="whitespace-pre-wrap">{m.content}</p>
+                      {m.anexos?.map((n) => (
+                        <span key={n} className="mt-1.5 flex items-center gap-1.5 text-[12px] opacity-85"><FileText className="h-3.5 w-3.5" />{n}</span>
+                      ))}
+                    </>
                   )}
                 </div>
               </div>
+              {m.role === 'assistant' && m.acoes && m.acoes.length > 0 && (
+                <div className="w-full pl-[42px]">
+                  <PropostaAcoes acoes={m.acoes} onResolved={() => clearAcoes(m.id)} />
+                </div>
+              )}
               {m.role === 'assistant' && m.lancamentos && m.lancamentos.length > 0 && (
                 <div className="w-full pl-[42px]">
                   <PropostaLancamentos lancamentos={m.lancamentos} onResolved={() => clearLancamentos(m.id)} />
@@ -230,13 +274,37 @@ export default function Iara() {
           onSubmit={(e) => { e.preventDefault(); submit(input); }}
           className="px-3.5 pb-3.5 pt-1 md:px-6 md:pb-5"
         >
-          <div className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1.5 pl-4 pr-1.5 focus-within:ring-2 focus-within:ring-ring">
+          {anexos.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {anexos.map((a, i) => (
+                <span key={`${a.nome}-${i}`} className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-[12.5px] text-foreground">
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span className="truncate">{a.nome}</span>
+                  <button type="button" aria-label={`Remover ${a.nome}`} onClick={() => setAnexos((p) => p.filter((_, k) => k !== i))} className="text-foreground-muted hover:text-foreground">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <input ref={fileRef} type="file" accept={TIPOS_ANEXO.join(',')} multiple className="hidden" onChange={(e) => anexar(e.target.files)} />
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2 py-1.5 pl-1.5 pr-1.5 focus-within:ring-2 focus-within:ring-ring">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={isLoading || anexos.length >= 3}
+              aria-label="Anexar imagem ou PDF"
+              title="Anexar imagem ou PDF (cartão CNPJ, contrato…)"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground-muted transition-colors hover:bg-surface hover:text-foreground disabled:opacity-50"
+            >
+              <Paperclip className="h-5 w-5" />
+            </button>
             <label htmlFor="iara-input" className="sr-only">Pergunte à IARA</label>
             <input
               id="iara-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Pergunte sobre seu caixa, metas, clientes…"
+              placeholder="Pergunte, cobre um cliente, mande um CNPJ…"
               disabled={isLoading}
               className="h-10 min-w-0 flex-1 bg-transparent text-[14px] text-foreground outline-none placeholder:text-foreground-muted"
             />
@@ -257,7 +325,7 @@ export default function Iara() {
             </button>
             <button
               type="submit"
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || (!input.trim() && !anexos.length)}
               aria-label="Enviar"
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-50"
             >

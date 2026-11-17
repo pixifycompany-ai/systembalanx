@@ -175,12 +175,10 @@ Retorne APENAS o JSON, sem markdown ou explicação.`;
             role: 'user',
             content: [
               { type: 'text', text: prompt },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mediaType};base64,${file_content}`,
-                },
-              },
+              // PDF vai como arquivo (image_url só aceita imagem).
+              mediaType === 'application/pdf'
+                ? { type: 'file', file: { filename: 'contrato.pdf', file_data: `data:application/pdf;base64,${file_content}` } }
+                : { type: 'image_url', image_url: { url: `data:${mediaType};base64,${file_content}` } },
             ],
           },
         ],
