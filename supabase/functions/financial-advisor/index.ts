@@ -405,7 +405,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - ALTERAR cobrança ("muda o vencimento da cobrança da X para dia 30", "a cobrança do João agora é 900") → **alterar_cobranca**. CANCELAR/EXCLUIR uma cobrança → **cancelar_cobranca** (só aquele mês, mesmo se for assinatura; para parar de cobrar todo mês, oriente encerrar ou pausar o contrato).
 - ALTERAR despesa/conta a pagar ("passa o aluguel para dia 15", "a conta de luz veio 280") → **alterar_despesa**. EXCLUIR despesa lançada errada/duplicada → **excluir_despesa**.
 - "Os pagamentos de hoje caíram?", "o Fulano pagou?", "o que entrou hoje?" → **agenda_vencimentos** do dia (ou do período dito; para um cliente sem data, buscar_lancamento/detalhe_cliente). Responda separando: ✅ recebidos/pagos (com a data) e ⏳ ainda em aberto. Para cada recebimento em aberto use o campo "cobranca": com cobrança no Asaas, a baixa é automática quando o cliente paga (Pix na hora; boleto costuma compensar em 1–2 dias úteis), então "aguardando pagamento" = o cliente ainda não pagou; "sem cobrança no Asaas" = depende de baixa manual — sugira conferir o extrato (Contas → Conferir com o banco) e dar baixa. Nunca afirme que algo foi pago se o status não for recebido/pago.
-- AGENDA: marcar reunião/visita/ligação com data ("marca reunião com a Sabor Maria quinta às 10h") → **preparar_compromisso**. Algo a fazer / lembrete ("me lembra de emitir a NF dia 25", "anota: ligar pro contador") → **preparar_tarefa**. "O que tenho amanhã / essa semana", "tarefas pendentes" → **listar_agenda**. Converta dia da semana em data usando as âncoras de data do contexto.
+- AGENDA: marcar reunião/visita/ligação com data ("marca reunião com a Sabor Maria quinta às 10h") → **preparar_compromisso**. Algo a fazer / lembrete ("me lembra de emitir a NF dia 25", "anota: ligar pro contador") → **preparar_tarefa**. "O que tenho amanhã / essa semana", "estou livre?", "tarefas pendentes" → **listar_agenda** (inclui a agenda pessoal do Google, se ligada). "Já fiz X" / "conclui a tarefa X" → **concluir_tarefa** (desfazer: true para reabrir). Remarcar, renomear, mudar horário/data/notas/lista → **alterar_agenda**. Cancelar/apagar compromisso ou tarefa → **excluir_agenda**. Eventos pessoais do Google são só leitura: não dá para mudar nem apagar pela IARA — diga isso. Converta dia da semana em data usando as âncoras de data do contexto. Você é também a assistente pessoal da pessoa: ao falar da agenda, seja direta e organize por dia/horário.
 - Nessas quatro, se a ferramenta devolver "precisa_escolher", mostre as opções numeradas e pergunte qual — não escolha por conta própria. Só mexe em itens EM ABERTO (pago não altera nem exclui pela IARA).
 
 ## Lançar (criar receitas/despesas) — você também REGISTRA, não só consulta
@@ -553,8 +553,45 @@ ${contexto}`;
       } },
       { type: "function", function: {
         name: "listar_agenda",
-        description: "Compromissos de um período e tarefas em aberto. Use para 'o que tenho amanhã', 'minha agenda da semana', 'quais tarefas estão pendentes'.",
+        description: "Compromissos do BALANX no período, tarefas em aberto e — se a pessoa ligou 'mostrar minha agenda pessoal' — os eventos da agenda pessoal do Google (só leitura). Use para 'o que tenho amanhã', 'minha agenda da semana', 'estou livre quinta à tarde?', 'quais tarefas estão pendentes'.",
         parameters: { type: "object", properties: { inicio: D, fim: D }, required: ["inicio", "fim"] },
+      } },
+      { type: "function", function: {
+        name: "concluir_tarefa",
+        description: "Prepara MARCAR uma tarefa como FEITA (ou desfazer: reabrir). Ex.: 'já emiti a NF da Sabor Maria', 'conclui a tarefa de ligar pro contador', 'desmarca a tarefa X'. A pessoa confirma num card; sincroniza com o Google Tarefas. Se houver mais de uma parecida, PERGUNTE qual.",
+        parameters: { type: "object", properties: {
+          titulo: { type: "string", description: "título ou parte dele" },
+          data: { ...D, description: "data limite atual, se a pessoa disser (ajuda a achar)" },
+          desfazer: { type: "boolean", description: "true = reabrir uma tarefa já concluída" },
+        }, required: ["titulo"] },
+      } },
+      { type: "function", function: {
+        name: "alterar_agenda",
+        description: "Prepara a ALTERAÇÃO de um COMPROMISSO ou TAREFA do BALANX: título, data, horário, dia inteiro, notas, cliente, lembrete ou lista do Google Tarefas. Ex.: 'passa a reunião da Sabor Maria para sexta às 15h', 'muda a tarefa X para dia 30', 'renomeia...'. Só muda o que for passado. Se houver mais de um item parecido, PERGUNTE qual. Eventos pessoais do Google (cinza) NÃO podem ser alterados.",
+        parameters: { type: "object", properties: {
+          titulo: { type: "string", description: "título atual (ou parte)" },
+          tipo: { type: "string", enum: ["compromisso", "tarefa"], description: "se a pessoa deixar claro" },
+          data: { ...D, description: "data atual do item, se a pessoa disser (ajuda a achar)" },
+          novo_titulo: { type: "string" },
+          nova_data: { ...D },
+          nova_hora_inicio: { type: "string", description: "HH:MM (compromisso)" },
+          nova_hora_fim: { type: "string", description: "HH:MM (compromisso)" },
+          dia_inteiro: { type: "boolean", description: "true = virar compromisso de dia inteiro" },
+          remover_data: { type: "boolean", description: "tarefa: tirar a data limite" },
+          notas: { type: "string", description: "novo texto das notas" },
+          cliente: { type: "string" },
+          lembrete_min: { type: "number", description: "compromisso: minutos antes" },
+          lista: { type: "string", description: "tarefa: mover para esta lista do Google Tarefas" },
+        }, required: ["titulo"] },
+      } },
+      { type: "function", function: {
+        name: "excluir_agenda",
+        description: "Prepara a EXCLUSÃO de um COMPROMISSO ou TAREFA do BALANX (some também do Google Agenda/Tarefas). Ex.: 'cancela a reunião de quinta', 'apaga a tarefa X'. Se houver mais de um parecido, PERGUNTE qual. Eventos pessoais do Google NÃO podem ser apagados.",
+        parameters: { type: "object", properties: {
+          titulo: { type: "string" },
+          tipo: { type: "string", enum: ["compromisso", "tarefa"] },
+          data: { ...D, description: "data do item, se a pessoa disser" },
+        }, required: ["titulo"] },
       } },
       { type: "function", function: {
         name: "alterar_cobranca",
@@ -1514,12 +1551,151 @@ ${contexto}`;
         supabase.from("agenda_itens").select("titulo, data, concluida, cliente:clientes(nome)").eq("tipo", "tarefa").eq("concluida", false).limit(100),
       ]);
       const fmtH = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+      const pessoal = await agendaPessoalGoogle(ini, fimP);
       return JSON.stringify({
+        ...(pessoal ? { agenda_pessoal_google: pessoal.sort((x, y) => (x.dia + x.hora).localeCompare(y.dia + y.hora)),
+          obs_pessoal: "Eventos da agenda pessoal do Google: só leitura (a IARA não altera nem apaga). Considere-os ao dizer se a pessoa está livre." } : {}),
         compromissos: ((comp.data || []) as any[]).map((c) => ({ titulo: c.titulo, dia: c.data || new Date(c.inicio).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
           hora: c.inicio && !c.dia_inteiro ? `${fmtH(c.inicio)}${c.fim ? `–${fmtH(c.fim)}` : ""}` : "dia inteiro", cliente: c.cliente?.nome || null }))
           .sort((x, y) => (x.dia + x.hora).localeCompare(y.dia + y.hora)),
         tarefas_em_aberto: ((tar.data || []) as any[]).map((t) => ({ titulo: t.titulo, ate: t.data, cliente: t.cliente?.nome || null })),
       });
+    }
+
+    // ---- Agenda: concluir / alterar / excluir ----
+    const FUSO_SP = "America/Sao_Paulo";
+    const diaSP = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: FUSO_SP });
+    const horaSP = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: FUSO_SP });
+    const dataBR = (iso: string | null) => iso ? iso.split("-").reverse().join("/") : "";
+    const diaDoItem = (x: any): string | null => x.data || (x.inicio ? diaSP(x.inicio) : null);
+    const quandoItem = (x: any): string => {
+      if (x.tipo === "tarefa") return x.data ? `até ${dataBR(x.data)}` : "sem data";
+      if (x.inicio && !x.dia_inteiro) return `${dataBR(diaSP(x.inicio))} ${horaSP(x.inicio)}${x.fim ? `–${horaSP(x.fim)}` : ""}`;
+      return `${dataBR(x.data)} · dia inteiro`;
+    };
+    let cacheAgenda: any[] | null = null;
+    async function itensAgenda(): Promise<any[]> {
+      if (cacheAgenda) return cacheAgenda;
+      const desde = new Date(Date.now() - 60 * 86400000).toLocaleDateString("en-CA", { timeZone: FUSO_SP });
+      const { data } = await supabase.from("agenda_itens")
+        .select("id, tipo, titulo, data, inicio, fim, dia_inteiro, concluida, notas, lembrete_min, cliente_id, cliente:clientes(nome)")
+        .or(`tipo.eq.tarefa,data.gte.${desde},inicio.gte.${desde}T00:00:00-03:00`)
+        .order("updated_at", { ascending: false }).limit(500);
+      cacheAgenda = (data || []) as any[];
+      return cacheAgenda;
+    }
+    async function achaItensAgenda(a: any, tipo?: string): Promise<any[]> {
+      const q = norm(a?.titulo || "");
+      if (!q) return [];
+      const palavras = q.split(/\s+/).filter((w) => w.length >= 3);
+      let r = (await itensAgenda()).filter((x) => !tipo || x.tipo === tipo);
+      const exatos = r.filter((x) => norm(x.titulo) === q);
+      r = exatos.length ? exatos : r.filter((x) => {
+        const t = norm(x.titulo);
+        return t.includes(q) || (q.length >= 5 && q.includes(t)) || (palavras.length > 1 && palavras.every((w) => t.includes(w)));
+      });
+      const d = dataOk(a?.data);
+      if (d) { const rd = r.filter((x) => diaDoItem(x) === d); if (rd.length) r = rd; }
+      return r;
+    }
+    const perguntarQualItem = (r: any[]) => JSON.stringify({
+      precisa_escolher: true,
+      opcoes: r.slice(0, 8).map((x) => ({ tipo: x.tipo, titulo: x.titulo, quando: quandoItem(x), concluida: x.tipo === "tarefa" ? x.concluida : undefined })),
+      obs: `Achei ${r.length} itens parecidos. Liste-os (tipo · título · quando) e PERGUNTE qual; depois chame de novo com o título completo e/ou a data dele.`,
+    });
+
+    async function concluirTarefa(a: any): Promise<string> {
+      const desfazer = a?.desfazer === true;
+      let r = await achaItensAgenda(a, "tarefa");
+      if (!r.length) return JSON.stringify({ erro: "Não achei tarefa com esse título. Use listar_agenda ou pergunte o nome." });
+      const noEstado = r.filter((x) => x.concluida === desfazer); // as que ainda podem mudar
+      if (noEstado.length) r = noEstado;
+      else return JSON.stringify({ erro: desfazer ? "Essa tarefa já está em aberto." : "Essa tarefa já está concluída." });
+      if (r.length > 1) return perguntarQualItem(r);
+      const t = r[0];
+      acoes.push({ id: novoId(), tipo: "concluir_tarefa", item_id: t.id, titulo: t.titulo, quando: quandoItem(t), concluida: !desfazer });
+      return JSON.stringify({ ok: true, tarefa: t.titulo, vai_ficar: desfazer ? "em aberto" : "concluída", obs: "A pessoa confirma no card; o Google Tarefas acompanha." });
+    }
+
+    async function alterarAgenda(a: any): Promise<string> {
+      const r = await achaItensAgenda(a, a?.tipo);
+      if (!r.length) return JSON.stringify({ erro: "Não achei compromisso ou tarefa com esse título no BALANX. Eventos pessoais do Google não podem ser alterados pela IARA." });
+      if (r.length > 1) return perguntarQualItem(r);
+      const it = r[0];
+      const patch: Record<string, unknown> = {};
+      const mudancas: { campo: string; de: string; para: string }[] = [];
+      const novoTit = String(a?.novo_titulo || "").trim().slice(0, 200);
+      if (novoTit && novoTit !== it.titulo) { patch.titulo = novoTit; mudancas.push({ campo: "título", de: it.titulo, para: novoTit }); }
+      const quandoAntes = quandoItem(it);
+      if (it.tipo === "tarefa") {
+        const nd = dataOk(a?.nova_data);
+        if (a?.remover_data === true && it.data) patch.data = null;
+        else if (nd && nd !== it.data) patch.data = nd;
+      } else {
+        const diaAtual = diaDoItem(it) as string;
+        const nd = dataOk(a?.nova_data) || diaAtual;
+        const hi = horaOk(a?.nova_hora_inicio), hf = horaOk(a?.nova_hora_fim);
+        const comHora = !!it.inicio && !it.dia_inteiro;
+        if (a?.dia_inteiro === true && !hi) {
+          if (comHora || nd !== diaAtual) Object.assign(patch, { dia_inteiro: true, data: nd, inicio: null, fim: null });
+        } else if (hi || hf || comHora) {
+          const hIni = hi || (comHora ? horaSP(it.inicio) : "09:00");
+          const dur = comHora && it.fim ? new Date(it.fim).getTime() - new Date(it.inicio).getTime() : 3600000;
+          const ini = new Date(`${nd}T${hIni}:00-03:00`);
+          let fim = hf ? new Date(`${nd}T${hf}:00-03:00`) : new Date(ini.getTime() + dur);
+          if (fim.getTime() <= ini.getTime()) fim = new Date(ini.getTime() + 3600000);
+          if (!comHora || ini.toISOString() !== new Date(it.inicio).toISOString() || fim.toISOString() !== new Date(it.fim || it.inicio).toISOString())
+            Object.assign(patch, { dia_inteiro: false, data: null, inicio: ini.toISOString(), fim: fim.toISOString() });
+        } else if (nd !== diaAtual) patch.data = nd;
+        if (a?.lembrete_min !== undefined && a?.lembrete_min !== null && Number.isFinite(Number(a.lembrete_min))) {
+          const lm = Math.max(0, Math.round(Number(a.lembrete_min)));
+          if (lm !== it.lembrete_min) { patch.lembrete_min = lm; mudancas.push({ campo: "lembrete", de: it.lembrete_min != null ? `${it.lembrete_min} min` : "padrão", para: `${lm} min` }); }
+        }
+      }
+      if ("data" in patch || "inicio" in patch) {
+        const quandoDepois = quandoItem({ ...it, ...patch });
+        if (quandoDepois !== quandoAntes) mudancas.push({ campo: it.tipo === "tarefa" ? "prazo" : "quando", de: quandoAntes, para: quandoDepois });
+      }
+      if (typeof a?.notas === "string") { patch.notas = a.notas.slice(0, 1000) || null; mudancas.push({ campo: "notas", de: it.notas || "—", para: a.notas.slice(0, 80) || "—" }); }
+      if (a?.cliente) {
+        const cli = achaCliente(a.cliente);
+        if (!cli) return JSON.stringify({ erro: `Não achei o cliente "${a.cliente}".` });
+        if (cli.id !== it.cliente_id) { patch.cliente_id = cli.id; mudancas.push({ campo: "cliente", de: it.cliente?.nome || "—", para: cli.nome }); }
+      }
+      const lista = it.tipo === "tarefa" && a?.lista ? String(a.lista).slice(0, 80) : null;
+      if (lista) mudancas.push({ campo: "lista", de: "atual", para: lista });
+      if (!mudancas.length) return JSON.stringify({ erro: "Não entendi o que mudar (ou já está assim). Pergunte o novo título, data ou horário." });
+      acoes.push({ id: novoId(), tipo: "alterar_agenda", item_id: it.id, item_tipo: it.tipo, titulo: it.titulo, patch, mudancas, lista_nome: lista });
+      return JSON.stringify({ ok: true, item: { tipo: it.tipo, titulo: it.titulo, quando: quandoAntes }, mudancas, obs: "A pessoa confirma no card; o Google acompanha." });
+    }
+
+    async function excluirAgenda(a: any): Promise<string> {
+      const r = await achaItensAgenda(a, a?.tipo);
+      if (!r.length) return JSON.stringify({ erro: "Não achei compromisso ou tarefa com esse título no BALANX. Eventos pessoais do Google não podem ser apagados pela IARA." });
+      if (r.length > 1) return perguntarQualItem(r);
+      const it = r[0];
+      acoes.push({ id: novoId(), tipo: "excluir_agenda", item_id: it.id, item_tipo: it.tipo, titulo: it.titulo, quando: quandoItem(it) });
+      return JSON.stringify({ ok: true, item: { tipo: it.tipo, titulo: it.titulo, quando: quandoItem(it) }, obs: "Some também do Google. A pessoa confirma no card." });
+    }
+
+    /** Agenda pessoal do Google (só leitura), quando a pessoa ligou essa opção. */
+    async function agendaPessoalGoogle(ini: string, fimP: string): Promise<any[] | null> {
+      const { data: integ } = await supabase.from("google_integracoes").select("opcoes, escopos").maybeSingle();
+      if (!integ || !(integ as any).opcoes?.pessoal || !String((integ as any).escopos || "").includes("calendar.events.readonly")) return null;
+      try {
+        const r = await fetch(`${supabaseUrl}/functions/v1/google-sync`, {
+          method: "POST",
+          headers: { Authorization: authHeader!, apikey: supabaseAnonKey, "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "agenda-pessoal", inicio: ini, fim: fimP }),
+        });
+        if (!r.ok) return null;
+        const j = await r.json();
+        return ((j?.eventos || []) as any[]).map((e) => ({
+          titulo: e.titulo,
+          dia: e.dia_inteiro ? String(e.inicio).slice(0, 10) : diaSP(e.inicio),
+          hora: e.dia_inteiro ? "dia inteiro" : `${horaSP(e.inicio)}${e.fim ? `–${horaSP(e.fim)}` : ""}`,
+        }));
+      } catch { return null; }
     }
 
     // ---- Provedor (compatível com API da OpenAI) + loop de ferramentas ----
@@ -1601,6 +1777,9 @@ ${contexto}`;
             else if (tc.function.name === "preparar_compromisso") result = prepararCompromisso(args);
             else if (tc.function.name === "preparar_tarefa") result = prepararTarefa(args);
             else if (tc.function.name === "listar_agenda") result = await listarAgenda(args.inicio, args.fim);
+            else if (tc.function.name === "concluir_tarefa") result = await concluirTarefa(args);
+            else if (tc.function.name === "alterar_agenda") result = await alterarAgenda(args);
+            else if (tc.function.name === "excluir_agenda") result = await excluirAgenda(args);
             else if (tc.function.name === "alterar_cobranca") result = await alterarCobranca(args);
             else if (tc.function.name === "cancelar_cobranca") result = await cancelarCobranca(args);
             else if (tc.function.name === "alterar_despesa") result = await alterarDespesa(args);

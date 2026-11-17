@@ -58,9 +58,28 @@ export interface AcaoTarefa {
   /** Nome da lista do Google Tarefas que a pessoa disse (vazio = padrão). */
   lista_nome?: string | null;
 }
+export interface AcaoConcluirTarefa {
+  id: string; tipo: 'concluir_tarefa';
+  item_id: string; titulo: string; quando: string; concluida: boolean;
+}
+export interface AcaoAlterarAgenda {
+  id: string; tipo: 'alterar_agenda';
+  item_id: string; item_tipo: 'compromisso' | 'tarefa'; titulo: string;
+  /** Colunas de agenda_itens já calculadas pela IARA (título, data, início/fim, notas, cliente, lembrete). */
+  patch: Record<string, unknown>;
+  mudancas: { campo: string; de: string; para: string }[];
+  lista_nome: string | null;
+}
+export interface AcaoExcluirAgenda {
+  id: string; tipo: 'excluir_agenda';
+  item_id: string; item_tipo: 'compromisso' | 'tarefa'; titulo: string; quando: string;
+}
 export type AcaoIara = AcaoCliente | AcaoContrato | AcaoCobranca
   | AcaoAlterarCobranca | AcaoCancelarCobranca | AcaoAlterarDespesa | AcaoExcluirDespesa
-  | AcaoCompromisso | AcaoTarefa;
+  | AcaoCompromisso | AcaoTarefa | AcaoConcluirTarefa | AcaoAlterarAgenda | AcaoExcluirAgenda;
+
+/** Só estas colunas podem vir da IARA num alterar_agenda. */
+const CAMPOS_AGENDA = ['titulo', 'data', 'inicio', 'fim', 'dia_inteiro', 'notas', 'cliente_id', 'lembrete_min'] as const;
 
 const hojeISO = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 
@@ -197,6 +216,35 @@ export async function executarAcoes(acoes: AcaoIara[], usarExistente: Record<str
       res.push({ id: a.id, ok: true, mensagem: a.tipo === 'compromisso' ? `Compromisso "${a.titulo}" na agenda.` : `Tarefa "${a.titulo}" criada.` });
     } catch (e) {
       res.push({ id: a.id, ok: false, mensagem: `${a.tipo === 'compromisso' ? 'Compromisso' : 'Tarefa'}: ${e instanceof Error ? e.message : 'não deu certo'}` });
+    }
+  }
+  // Concluir / alterar / excluir itens da agenda.
+  for (const a of acoes) {
+    if (a.tipo !== 'concluir_tarefa' && a.tipo !== 'alterar_agenda' && a.tipo !== 'excluir_agenda') continue;
+    const nome = a.tipo === 'concluir_tarefa' ? 'Tarefa' : a.item_tipo === 'tarefa' ? 'Tarefa' : 'Compromisso';
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tabela = (supabase as any).from('agenda_itens');
+      let r: { data: unknown[] | null; error: unknown };
+      if (a.tipo === 'concluir_tarefa') {
+        r = await tabela.update({ concluida: a.concluida }).eq('id', a.item_id).eq('tipo', 'tarefa').select('id');
+      } else if (a.tipo === 'excluir_agenda') {
+        r = await tabela.delete().eq('id', a.item_id).select('id');
+      } else {
+        const upd: Record<string, unknown> = {};
+        for (const k of CAMPOS_AGENDA) if (k in a.patch) upd[k] = a.patch[k];
+        if (a.item_tipo === 'tarefa' && a.lista_nome) upd.google_tasklist_id = await listaPeloNome(a.lista_nome);
+        r = await tabela.update(upd).eq('id', a.item_id).select('id');
+      }
+      if (r.error) throw r.error;
+      if (!r.data?.length) throw new Error('não encontrei mais esse item');
+      mexeuAgenda = true;
+      res.push({ id: a.id, ok: true, mensagem:
+        a.tipo === 'concluir_tarefa' ? (a.concluida ? `Tarefa "${a.titulo}" concluída.` : `Tarefa "${a.titulo}" reaberta.`)
+        : a.tipo === 'excluir_agenda' ? `${nome} "${a.titulo}" excluído${nome === 'Tarefa' ? 'a' : ''}.`
+        : `${nome} "${a.titulo}" alterad${nome === 'Tarefa' ? 'a' : 'o'}.` });
+    } catch (e) {
+      res.push({ id: a.id, ok: false, mensagem: `${nome}: ${e instanceof Error ? e.message : 'não deu certo'}` });
     }
   }
   if (mexeuAgenda) sincronizarGoogleEmSegundoPlano();

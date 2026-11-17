@@ -1,7 +1,7 @@
 // Card de confirmação das ações que a IARA preparou: cliente, contrato e cobrança.
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, ExternalLink, FileSignature, Loader2, Receipt, UserPlus, X, AlertTriangle, CalendarClock, Trash2, ArrowRight, CalendarPlus, ListTodo } from 'lucide-react';
+import { Check, Copy, ExternalLink, FileSignature, Loader2, Receipt, UserPlus, X, AlertTriangle, CalendarClock, Trash2, ArrowRight, CalendarPlus, ListTodo, CheckCircle2, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCPFCNPJ, formatCurrency, formatDate, formatPhone } from '@/utils/formatters';
 import { useToast } from '@/hooks/use-toast';
@@ -46,6 +46,51 @@ function Item({ a, usarExistente, setUsarExistente }: { a: AcaoIara; usarExisten
           {comp && a.lembrete_min != null && <Chip>lembrete {a.lembrete_min >= 1440 ? `${Math.round(a.lembrete_min / 1440)} dia(s)` : a.lembrete_min >= 60 ? `${Math.round(a.lembrete_min / 60)} h` : `${a.lembrete_min} min`} antes</Chip>}
         </div>
         {a.notas && <p className="mt-1 text-[11.5px] text-foreground-muted">{a.notas}</p>}
+      </div>
+    );
+  }
+  if (a.tipo === 'concluir_tarefa') {
+    return (
+      <div className="border-b border-border px-3 py-2.5 last:border-b-0">
+        <div className="flex items-center gap-2">
+          {a.concluida ? <CheckCircle2 className="h-4 w-4 shrink-0 text-success-fg" /> : <RotateCcw className="h-4 w-4 shrink-0 text-primary" />}
+          <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-foreground">
+            {a.concluida ? 'Concluir tarefa' : 'Reabrir tarefa'} · {a.titulo}
+          </span>
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-1"><Chip>{a.quando}</Chip></div>
+      </div>
+    );
+  }
+  if (a.tipo === 'alterar_agenda') {
+    return (
+      <div className="border-b border-border px-3 py-2.5 last:border-b-0">
+        <div className="flex items-center gap-2">
+          {a.item_tipo === 'tarefa' ? <ListTodo className="h-4 w-4 shrink-0 text-primary" /> : <CalendarClock className="h-4 w-4 shrink-0 text-primary" />}
+          <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-foreground">
+            Alterar {a.item_tipo === 'tarefa' ? 'tarefa' : 'compromisso'} · {a.titulo}
+          </span>
+        </div>
+        <div className="mt-1.5 flex flex-col items-start gap-1">
+          {a.mudancas.map((m) => (
+            <span key={m.campo} className="flex flex-wrap items-center gap-1 text-[11px] text-foreground-muted">
+              {m.campo}: <Mudanca de={m.de} para={m.para} />
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (a.tipo === 'excluir_agenda') {
+    return (
+      <div className="border-b border-border px-3 py-2.5 last:border-b-0">
+        <div className="flex items-center gap-2">
+          <Trash2 className="h-4 w-4 shrink-0 text-danger-fg" />
+          <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-foreground">
+            Excluir {a.item_tipo === 'tarefa' ? 'tarefa' : 'compromisso'} · {a.titulo}
+          </span>
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-1"><Chip>{a.quando}</Chip><Chip>sai também do Google</Chip></div>
       </div>
     );
   }
@@ -209,7 +254,7 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
   }
 
   const n = acoes.length;
-  const soRemove = acoes.every((a) => a.tipo === 'cancelar_cobranca' || a.tipo === 'excluir_despesa');
+  const soRemove = acoes.every((a) => a.tipo === 'cancelar_cobranca' || a.tipo === 'excluir_despesa' || a.tipo === 'excluir_agenda');
   return (
     <div className="mt-2.5 rounded-[20px] border border-border bg-surface p-3">
       <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Prévia · confira antes de confirmar</div>
@@ -220,7 +265,7 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
         ))}
       </div>
       <p className="px-1 pt-2.5 text-[11px] leading-[1.45] text-foreground-muted">
-        {soRemove ? 'Isso não dá para desfazer.' : 'Cobranças e assinaturas mudam de verdade no Asaas.'} Para ajustar algo, é só me dizer (ex.: "muda o vencimento para dia 30").
+        {soRemove ? 'Isso não dá para desfazer.' : acoes.every((a) => ['compromisso', 'tarefa', 'concluir_tarefa', 'alterar_agenda'].includes(a.tipo)) ? 'Vale também para o Google Agenda e Tarefas, se estiver conectado.' : 'Cobranças e assinaturas mudam de verdade no Asaas.'} Para ajustar algo, é só me dizer (ex.: "muda o vencimento para dia 30").
       </p>
       <div className="mt-2.5 flex gap-2">
         <button onClick={onResolved} aria-label="Descartar" disabled={salvando}
