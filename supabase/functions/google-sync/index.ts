@@ -103,7 +103,7 @@ async function enviarFinanceiro(admin: any, integ: any, token: string) {
   // Pago, apagado ou fora da janela: sai da agenda.
   for (const [k, m] of atual) {
     if (vistos.has(k)) continue;
-    await gapi(token, `${CAL}/calendars/${cal}/events/${encodeURIComponent(m.event_id)}`, { method: "DELETE" });
+    if (!(await apagarEvento(token, `${CAL}/calendars/${cal}/events/${encodeURIComponent(m.event_id)}`))) continue;
     await admin.from("google_eventos").delete().eq("user_id", integ.user_id).eq("origem", m.origem).eq("origem_id", m.origem_id);
     removidos++;
   }
@@ -268,13 +268,60 @@ async function limparDuplicados(admin: any, integ: any, token: string) {
     pageToken = r.json.nextPageToken || null;
     if (!pageToken) break;
   }
-  for (let i = 0; i < apagar.length; i += 10) {
-    await Promise.all(apagar.slice(i, i + 10).map((id) => gapi(token, `${CAL}/calendars/${cal}/events/${encodeURIComponent(id)}`, { method: "DELETE" })));
+  for (const id of apagar) {
+    await apagarEvento(token, `${CAL}/calendars/${cal}/events/${encodeURIComponent(id)}`);
+    await espera(120);
   }
   await admin.from("google_eventos").delete().eq("user_id", integ.user_id);
   integ.opcoes = { ...(integ.opcoes || {}), _ids_v2: true };
   await admin.from("google_integracoes").update({ opcoes: integ.opcoes, sync_token: null }).eq("user_id", integ.user_id);
   integ.sync_token = null;
+}
+
+const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** DELETE com nova tentativa quando o Google pede calma (403/429/5xx). 404/410 = já foi. */
+async function apagarEvento(token: string, url: string): Promise<boolean> {
+  for (let i = 0; i < 5; i++) {
+    const r = await gapi(token, url, { method: "DELETE" });
+    if (r.ok || r.status === 404 || r.status === 410) return true;
+    if (r.status === 403 || r.status === 429 || r.status >= 500) { await espera(400 * 2 ** i); continue; }
+    return false;
+  }
+  return false;
+}
+
+/**
+ * Faxina a cada sincronização: na agenda BALANX, todo evento marcado como do BALANX
+ * que não está na lista do que deveria existir sai (cópias de rodadas antigas,
+ * itens pagos/apagados). Um por vez e dentro do prazo; o resto fica para a próxima.
+ */
+async function reconciliarAgenda(admin: any, integ: any, token: string, prazo: number) {
+  if (!integ.calendar_id) return { apagados: 0, pendentes: 0 };
+  const cal = encodeURIComponent(integ.calendar_id);
+  const [{ data: mapa }, { data: comps }] = await Promise.all([
+    admin.from("google_eventos").select("event_id").eq("user_id", integ.user_id),
+    admin.from("agenda_itens").select("google_event_id").eq("user_id", integ.user_id).not("google_event_id", "is", null),
+  ]);
+  const esperados = new Set<string>([...(mapa || []).map((m: any) => m.event_id), ...(comps || []).map((c: any) => c.google_event_id)]);
+  const sobras: string[] = [];
+  let pageToken: string | null = null;
+  for (let i = 0; i < 40; i++) {
+    const p = new URLSearchParams({ privateExtendedProperty: "balanx=1", maxResults: "2500", showDeleted: "false" });
+    if (pageToken) p.set("pageToken", pageToken);
+    const r = await gapi(token, `${CAL}/calendars/${cal}/events?${p}`);
+    if (!r.ok) break;
+    for (const ev of r.json.items || []) if (!esperados.has(ev.id)) sobras.push(ev.id);
+    pageToken = r.json.nextPageToken || null;
+    if (!pageToken) break;
+  }
+  let apagados = 0;
+  for (const id of sobras) {
+    if (Date.now() > prazo) break;
+    if (await apagarEvento(token, `${CAL}/calendars/${cal}/events/${encodeURIComponent(id)}`)) apagados++;
+    await espera(120);
+  }
+  return { apagados, pendentes: sobras.length - apagados };
 }
 
 /** Itens apagados no BALANX: apaga no Google. */
@@ -295,6 +342,7 @@ async function sincronizarUm(admin: any, integ: any) {
     .eq("user_id", integ.user_id).or(`sincronizando_ate.is.null,sincronizando_ate.lt.${agora}`).select("user_id");
   if (!pegou?.length) return { ok: true, em_andamento: true };
   try {
+    const prazo = Date.now() + 110_000;
     const token = await tokenValido(admin, integ);
     await limparDuplicados(admin, integ, token);
     await limparApagados(admin, integ, token);
@@ -302,8 +350,9 @@ async function sincronizarUm(admin: any, integ: any) {
     const comp = integ.calendar_id && integ.opcoes?.compromissos !== false ? await enviarCompromissos(admin, integ, token) : 0;
     const fin = integ.calendar_id ? await enviarFinanceiro(admin, integ, token) : { enviados: 0, removidos: 0 };
     const tar = await sincronizarTarefas(admin, integ, token);
+    const faxina = await reconciliarAgenda(admin, integ, token, prazo);
     await admin.from("google_integracoes").update({ ultima_sync: new Date().toISOString(), ultimo_erro: null, sincronizando_ate: null }).eq("user_id", integ.user_id);
-    return { ok: true, recebidos, compromissos: comp, ...fin, tarefas: tar };
+    return { ok: true, recebidos, compromissos: comp, ...fin, tarefas: tar, faxina };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "erro";
     await admin.from("google_integracoes").update({ ultimo_erro: msg, sincronizando_ate: null }).eq("user_id", integ.user_id);
