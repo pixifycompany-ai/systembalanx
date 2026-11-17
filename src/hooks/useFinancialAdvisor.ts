@@ -35,6 +35,17 @@ interface UseFinancialAdvisorReturn {
   clearLancamentos: (messageId: string) => void;
   /** Remove o card de ações (cliente/contrato/cobrança) de uma mensagem. */
   clearAcoes: (messageId: string) => void;
+  /** Mostra no chat uma conversa feita fora dele (ex.: pelo Atalho do iPhone), com os cards a confirmar. */
+  adicionarConversa: (c: ConversaExterna) => void;
+}
+
+export interface ConversaExterna {
+  id: string;
+  pergunta: string;
+  resposta: string;
+  acoes?: AcaoIara[] | null;
+  lancamentos?: PropostaLancamento[] | null;
+  quando: Date;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/financial-advisor`;
@@ -231,6 +242,15 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
     ));
   }, []);
 
+  const adicionarConversa = useCallback((c: ConversaExterna) => {
+    setMessages(prev => prev.some(m => m.id === `ext-a-${c.id}`) ? prev : [
+      ...prev,
+      { id: `ext-u-${c.id}`, role: 'user', content: c.pergunta, timestamp: c.quando },
+      { id: `ext-a-${c.id}`, role: 'assistant', content: c.resposta, timestamp: c.quando,
+        acoes: c.acoes?.length ? c.acoes : undefined, lancamentos: c.lancamentos?.length ? c.lancamentos : undefined },
+    ]);
+  }, []);
+
   const clearChat = useCallback(() => {
     setMessages([{
       id: 'welcome',
@@ -249,5 +269,6 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
     clearChat,
     clearLancamentos,
     clearAcoes,
+    adicionarConversa,
   };
 }

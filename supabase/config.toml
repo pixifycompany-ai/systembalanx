@@ -57,3 +57,6 @@ verify_jwt = false
 # Chamada pelo cron (x-cron-secret) e pelo app (confere o JWT por dentro).
 [functions.google-sync]
 verify_jwt = false
+
+[functions.iara-atalho]
+verify_jwt = false

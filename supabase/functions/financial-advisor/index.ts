@@ -22,6 +22,8 @@ interface RequestBody {
   /** Arquivos da ÚLTIMA mensagem do usuário (imagem ou PDF), para a IARA ler. */
   anexos?: Anexo[];
   period?: "current_month" | "last_3_months" | "last_6_months" | "current_year"; // legado: ignorado
+  /** "voz" = pergunta veio do Atalho do iPhone e a resposta será lida em voz alta. */
+  canal?: "voz";
 }
 
 function getPeriodDates(period: string): { startDate: string; endDate: string; periodLabel: string } {
@@ -126,7 +128,7 @@ serve(async (req) => {
       }
     } catch (_e) { /* fail open */ }
 
-    const { messages, anexos }: RequestBody = await req.json();
+    const { messages, anexos, canal }: RequestBody = await req.json();
     // A IARA enxerga TODOS os lançamentos da conta: o panorama inicial é sempre o mês
     // atual e qualquer outro período (o que a pessoa disser na pergunta) vai pelas ferramentas.
     const { startDate, endDate, periodLabel } = getPeriodDates("current_month");
@@ -1728,7 +1730,11 @@ ${contexto}`;
       }
       ultima.content = partes;
     }
-    const convo: any[] = [{ role: "system", content: systemPrompt }, ...historico];
+    const VOZ = `
+
+## CANAL DE VOZ (Atalho do iPhone)
+A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curtas; sem markdown, listas, tabelas ou emojis; valores por extenso natural ("2 mil e 350 reais" ou "R$ 2.350"); datas como "dia 25"; vá direto ao ponto. Se preparou uma ação (cobrança, tarefa, lançamento…), diga em uma frase o que preparou — NÃO diga que já foi feito: a pessoa ainda confirma no app.`;
+    const convo: any[] = [{ role: "system", content: canal === "voz" ? systemPrompt + VOZ : systemPrompt }, ...historico];
     let finalText = "";
 
     for (let i = 0; i < 6; i++) {

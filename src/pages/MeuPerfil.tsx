@@ -16,7 +16,8 @@ import { Loader2, ShieldCheck } from 'lucide-react';
 import { MfaManager } from '@/components/auth/MfaManager';
 import { GoogleAgendaPainel } from '@/components/perfil/GoogleAgendaPainel';
 import { statusGoogle } from '@/lib/googleAgenda';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Smartphone } from 'lucide-react';
+import { AtalhoIphonePainel } from '@/components/perfil/AtalhoIphonePainel';
 import {
   EnvelopeIcon, LockClosedIcon, BellAlertIcon, PaperAirplaneIcon,
   ChevronRightIcon, ArrowRightOnRectangleIcon, CameraIcon, ArrowPathIcon,
@@ -26,7 +27,7 @@ import { cn } from '@/lib/utils';
 import { useTenant } from '@/contexts/TenantContext';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 
-type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas' | 'google';
+type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas' | 'google' | 'atalho';
 
 export default function MeuPerfil() {
   const { user, signOut } = useAuth();
@@ -394,6 +395,13 @@ export default function MeuPerfil() {
             onClick={() => setSheet('google')}
             chevron
           />
+          <SetRow
+            icon={<Smartphone className="h-[18px] w-[18px]" />}
+            title="Atalho do iPhone"
+            sub="Toque 2x atrás do celular e fale com a IARA"
+            onClick={() => setSheet('atalho')}
+            chevron
+          />
         </SetGroup>
 
         {/* Sessão */}
@@ -607,6 +615,11 @@ export default function MeuPerfil() {
       {/* Sheet: Google Agenda e Tarefas */}
       <DetailSheet open={sheet === 'google'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Integrações" title="Google Agenda e Tarefas">
         <GoogleAgendaPainel onChange={carregarGoogle} />
+      </DetailSheet>
+
+      {/* Sheet: Atalho do iPhone (IARA por voz) */}
+      <DetailSheet open={sheet === 'atalho'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Integrações" title="Atalho do iPhone">
+        <AtalhoIphonePainel />
       </DetailSheet>
 
       {/* Sheet: 2FA (MFA TOTP) */}

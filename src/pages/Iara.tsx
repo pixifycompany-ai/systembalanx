@@ -38,7 +38,27 @@ const SUGESTOES = [
 
 export default function Iara() {
   const navigate = useNavigate();
-  const { messages, isLoading, sendMessage, clearChat, clearLancamentos, clearAcoes } = useFinancialAdvisor();
+  const { messages, isLoading, sendMessage, clearChat, clearLancamentos, clearAcoes, adicionarConversa } = useFinancialAdvisor();
+
+  // O que a IARA preparou pelo Atalho do iPhone (últimas 24 h, ainda não visto) entra
+  // no chat com os cards para confirmar. A notificação abre /iara?pendente=<id>.
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      const desde = new Date(Date.now() - 86400000).toISOString();
+      const id = new URLSearchParams(window.location.search).get('pendente');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      let q = db.from('iara_pendentes').select('id, pergunta, resposta, acoes, lancamentos, created_at').order('created_at');
+      q = id ? q.eq('id', id) : q.is('visto_em', null).gte('created_at', desde);
+      const { data } = await q;
+      if (!vivo || !data?.length) return;
+      for (const p of data) adicionarConversa({ id: p.id, pergunta: p.pergunta, resposta: p.resposta, acoes: p.acoes, lancamentos: p.lancamentos, quando: new Date(p.created_at) });
+      await db.from('iara_pendentes').update({ visto_em: new Date().toISOString() }).in('id', data.map((p: { id: string }) => p.id));
+      if (id) window.history.replaceState(null, '', '/iara');
+    })().catch(() => {});
+    return () => { vivo = false; };
+  }, [adicionarConversa]);
   const [anexos, setAnexos] = useState<AnexoIara[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState('');
