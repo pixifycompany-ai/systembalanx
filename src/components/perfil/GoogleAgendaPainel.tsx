@@ -1,13 +1,14 @@
 // Meu Perfil → Integrações → Google Agenda e Tarefas.
 import { useEffect, useState } from 'react';
 import { Loader2, RefreshCw, Unplug } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { formatDate } from '@/utils/formatters';
 import {
-  conectarGoogle, desconectarGoogle, salvarOpcoesGoogle, sincronizarGoogle, statusGoogle,
-  type IntegracaoGoogle, type OpcoesGoogle,
+  conectarGoogle, desconectarGoogle, listasTarefasGoogle, salvarOpcoesGoogle, sincronizarGoogle, statusGoogle,
+  type IntegracaoGoogle, type ListaTarefas, type OpcoesGoogle,
 } from '@/lib/googleAgenda';
 
 const OPCOES: { k: keyof OpcoesGoogle; titulo: string; sub: string }[] = [
@@ -27,6 +28,11 @@ const quando = (iso: string) => {
 export function GoogleAgendaPainel({ onChange }: { onChange?: () => void }) {
   const [integ, setInteg] = useState<IntegracaoGoogle | null | undefined>(undefined);
   const [busy, setBusy] = useState<'' | 'conectar' | 'sync' | 'sair'>('');
+  const [listas, setListas] = useState<ListaTarefas[] | null>(null);
+  useEffect(() => {
+    if (!integ?.tasklist_id) return;
+    listasTarefasGoogle().then((r) => setListas(r.listas || [])).catch(() => setListas([]));
+  }, [integ?.tasklist_id]);
 
   const carregar = () => statusGoogle().then((s) => { setInteg(s); onChange?.(); }).catch(() => setInteg(null));
   useEffect(() => { carregar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -51,6 +57,14 @@ export function GoogleAgendaPainel({ onChange }: { onChange?: () => void }) {
     try { await desconectarGoogle(); toast.success('Google desconectado'); await carregar(); }
     catch (e) { toast.error('Erro', { description: e instanceof Error ? e.message : '' }); }
     finally { setBusy(''); }
+  };
+  const salvarListas = async (ids: string[], padrao: string) => {
+    if (!integ || !listas) return;
+    const nomes = Object.fromEntries(listas.map((l) => [l.id, l.titulo]));
+    const opcoes = { ...integ.opcoes, listas: ids, lista_padrao: padrao, listas_nomes: nomes };
+    setInteg({ ...integ, opcoes });
+    try { await salvarOpcoesGoogle(opcoes); sincronizarGoogle().catch(() => {}); }
+    catch (e) { toast.error('Não salvou', { description: e instanceof Error ? e.message : '' }); }
   };
   const mudar = async (k: keyof OpcoesGoogle, v: boolean) => {
     if (!integ) return;
@@ -108,6 +122,40 @@ export function GoogleAgendaPainel({ onChange }: { onChange?: () => void }) {
           );
         })}
       </div>
+      {!semTarefas && integ.opcoes?.tarefas !== false && (
+        <div className="space-y-2">
+          <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Listas do Google Tarefas</p>
+          {listas === null ? (
+            <div className="flex items-center gap-2 px-1 text-[13px] text-foreground-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando suas listas…</div>
+          ) : (
+            <div className="overflow-hidden rounded-[18px] border border-border">
+              {listas.map((l) => {
+                const ids = [...new Set([integ.tasklist_id!, ...(integ.opcoes?.listas || [])])];
+                const marcada = l.balanx || ids.includes(l.id);
+                const padrao = (integ.opcoes?.lista_padrao && ids.includes(integ.opcoes.lista_padrao) ? integ.opcoes.lista_padrao : integ.tasklist_id) === l.id;
+                return (
+                  <div key={l.id} className="flex items-center gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
+                    <input type="checkbox" className="h-4 w-4" checked={marcada} disabled={l.balanx}
+                      aria-label={`Sincronizar ${l.titulo}`}
+                      onChange={(e) => {
+                        const novo = e.target.checked ? [...ids, l.id] : ids.filter((x) => x !== l.id);
+                        salvarListas(novo, padrao && !e.target.checked ? integ.tasklist_id! : (integ.opcoes?.lista_padrao || integ.tasklist_id!));
+                      }} />
+                    <span className="min-w-0 flex-1 truncate text-[14px] text-foreground">{l.titulo}{l.balanx && <span className="text-foreground-muted"> · criada pelo BALANX</span>}</span>
+                    {marcada && (
+                      <button type="button" onClick={() => salvarListas(ids, l.id)}
+                        className={cn('shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-semibold', padrao ? 'bg-primary text-primary-foreground' : 'border border-border text-foreground-muted hover:text-foreground')}>
+                        {padrao ? 'Padrão' : 'Tornar padrão'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p className="px-1 text-[11.5px] text-foreground-muted">As tarefas das listas marcadas aparecem no Calendário do BALANX. Tarefas novas vão para a lista padrão, ou para a que você escolher ao criar.</p>
+        </div>
+      )}
       <div className="flex gap-2">
         <Button variant="outline" className="flex-1" onClick={sincronizar} disabled={!!busy}>
           {busy === 'sync' ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />} Sincronizar agora

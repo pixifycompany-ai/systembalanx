@@ -14,6 +14,7 @@ import { SheetHeading, NATIVE_SELECT_CLS } from '@/components/cobrancas/formPart
 import { cn } from '@/lib/utils';
 import { useClientes } from '@/hooks/useClientes';
 import type { AgendaItem, NovoAgendaItem } from '@/hooks/useAgenda';
+import { listasEscolhidas, statusGoogle } from '@/lib/googleAgenda';
 
 const LEMBRETES = [
   { v: '', l: 'Padrão do Google' }, { v: '0', l: 'Na hora' }, { v: '10', l: '10 min antes' },
@@ -45,6 +46,16 @@ export function AgendaItemSheet({ aberto, onOpenChange, item, tipoNovo, dataNova
   const [clienteId, setClienteId] = useState('');
   const [notas, setNotas] = useState('');
   const [busy, setBusy] = useState(false);
+  const [lista, setLista] = useState('');
+  const [listas, setListas] = useState<{ id: string; nome: string }[]>([]);
+  useEffect(() => {
+    if (!aberto) return;
+    statusGoogle().then((s) => {
+      const ls = listasEscolhidas(s);
+      setListas(ls);
+      setLista(item?.google_tasklist_id || ls[0]?.id || '');
+    }).catch(() => setListas([]));
+  }, [aberto, item]);
 
   useEffect(() => {
     if (!aberto) return;
@@ -65,7 +76,8 @@ export function AgendaItemSheet({ aberto, onOpenChange, item, tipoNovo, dataNova
     if (tipo === 'compromisso' && !data) { toast.error('Escolha a data'); return; }
     let dados: NovoAgendaItem;
     if (tipo === 'tarefa') {
-      dados = { tipo, titulo: titulo.trim(), notas: notas.trim() || null, data: data || null, inicio: null, fim: null, dia_inteiro: false, cliente_id: clienteId || null };
+      dados = { tipo, titulo: titulo.trim(), notas: notas.trim() || null, data: data || null, inicio: null, fim: null, dia_inteiro: false, cliente_id: clienteId || null,
+        ...(listas.length ? { google_tasklist_id: lista || null } : {}) };
     } else if (diaInteiro) {
       dados = { tipo, titulo: titulo.trim(), notas: notas.trim() || null, data, inicio: null, fim: null, dia_inteiro: true, lembrete_min: lembrete === '' ? null : Number(lembrete), cliente_id: clienteId || null };
     } else {
@@ -129,6 +141,14 @@ export function AgendaItemSheet({ aberto, onOpenChange, item, tipoNovo, dataNova
                 </select>
               </div>
             </>
+          )}
+          {tipo === 'tarefa' && listas.length > 1 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="ag-lista">Lista no Google Tarefas</Label>
+              <select id="ag-lista" className={NATIVE_SELECT_CLS} value={lista} onChange={(e) => setLista(e.target.value)}>
+                {listas.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+              </select>
+            </div>
           )}
           <div className="space-y-1.5">
             <Label htmlFor="ag-cliente">Cliente (opcional)</Label>

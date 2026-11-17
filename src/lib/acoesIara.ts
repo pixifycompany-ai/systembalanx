@@ -3,7 +3,7 @@
 // Ordem ao confirmar: clientes → contratos → cobranças (os dois últimos usam o
 // cliente criado no mesmo card quando ele ainda não existia).
 import { supabase } from '@/integrations/supabase/client';
-import { sincronizarGoogleEmSegundoPlano } from '@/lib/googleAgenda';
+import { listasEscolhidas, sincronizarGoogleEmSegundoPlano, statusGoogle } from '@/lib/googleAgenda';
 
 export interface AcaoCliente {
   id: string; tipo: 'cliente';
@@ -55,6 +55,8 @@ export interface AcaoCompromisso {
 export interface AcaoTarefa {
   id: string; tipo: 'tarefa';
   titulo: string; data: string | null; cliente_id: string | null; cliente_nome: string | null; notas: string | null;
+  /** Nome da lista do Google Tarefas que a pessoa disse (vazio = padrão). */
+  lista_nome?: string | null;
 }
 export type AcaoIara = AcaoCliente | AcaoContrato | AcaoCobranca
   | AcaoAlterarCobranca | AcaoCancelarCobranca | AcaoAlterarDespesa | AcaoExcluirDespesa
@@ -84,6 +86,18 @@ async function asaas(body: Record<string, unknown>) {
   }
   if (data?.error) throw new Error(data.error);
   return data as { ok: boolean; invoiceUrl?: string | null; parcelas?: number };
+}
+
+/** Lista do Google Tarefas pelo nome dito à IARA (vazio/não achou = padrão). */
+async function listaPeloNome(nome?: string | null): Promise<string | null> {
+  const ls = listasEscolhidas(await statusGoogle().catch(() => null));
+  if (!ls.length) return null;
+  if (nome) {
+    const n = norm(nome);
+    const hit = ls.find((l) => norm(l.nome) === n) || ls.find((l) => norm(l.nome).includes(n) || n.includes(norm(l.nome)));
+    if (hit) return hit.id;
+  }
+  return ls[0].id; // padrão
 }
 
 /** Acha o cliente pelo nome (cadastrado agora ou antes). */
@@ -174,7 +188,8 @@ export async function executarAcoes(acoes: AcaoIara[], usarExistente: Record<str
       const linha = a.tipo === 'compromisso'
         ? { tipo: 'compromisso', titulo: a.titulo, data: a.data, inicio: a.inicio, fim: a.fim, dia_inteiro: a.dia_inteiro,
             lembrete_min: a.lembrete_min, notas: a.notas, cliente_id: clienteId }
-        : { tipo: 'tarefa', titulo: a.titulo, data: a.data, notas: a.notas, cliente_id: clienteId };
+        : { tipo: 'tarefa', titulo: a.titulo, data: a.data, notas: a.notas, cliente_id: clienteId,
+            google_tasklist_id: await listaPeloNome(a.lista_nome) };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase as any).from('agenda_itens').insert(linha);
       if (error) throw error;

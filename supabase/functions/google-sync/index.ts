@@ -199,47 +199,87 @@ async function receberEventos(admin: any, integ: any, token: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Tarefas ⇄ Google Tasks
+// Tarefas ⇄ Google Tasks (uma ou mais listas)
 // ---------------------------------------------------------------------------
-async function sincronizarTarefas(admin: any, integ: any, token: string) {
-  if (!integ.tasklist_id || integ.opcoes?.tarefas === false) return { enviadas: 0, recebidas: 0 };
-  const lista = `${TASKS}/lists/${encodeURIComponent(integ.tasklist_id)}/tasks`;
-  const inicioSync = new Date().toISOString();
-  let enviadas = 0, recebidas = 0;
+/** Listas sincronizadas (opcoes.listas) — a "BALANX" sempre entra — e a padrão. */
+function listasDaConexao(integ: any): { listas: string[]; padrao: string | null } {
+  const escolhidas: string[] = Array.isArray(integ.opcoes?.listas) ? integ.opcoes.listas.filter(Boolean) : [];
+  const listas = [...new Set([...(integ.tasklist_id ? [integ.tasklist_id] : []), ...escolhidas])];
+  const padrao = listas.includes(integ.opcoes?.lista_padrao) ? integ.opcoes.lista_padrao : (integ.tasklist_id || listas[0] || null);
+  return { listas, padrao };
+}
 
-  // Volta primeiro (o que mudou lá desde a última vez)
-  const p = new URLSearchParams({ showCompleted: "true", showHidden: "true", showDeleted: "true", maxResults: "100" });
-  if (integ.tasks_sync_em) p.set("updatedMin", new Date(new Date(integ.tasks_sync_em).getTime() - 60_000).toISOString());
-  const r = await gapi(token, `${lista}?${p}`);
-  for (const t of (r.ok ? r.json.items : []) || []) {
-    const { data: item } = await admin.from("agenda_itens").select("*").eq("google_task_id", t.id).eq("user_id", integ.user_id).maybeSingle();
-    if (t.deleted) { if (item) { await admin.from("agenda_itens").delete().eq("id", item.id); recebidas++; } continue; }
-    const dados = { titulo: String(t.title || "(sem título)").slice(0, 200), notas: t.notes || null,
-      data: t.due ? String(t.due).slice(0, 10) : null, concluida: t.status === "completed" };
-    if (item) {
-      if (item.titulo === dados.titulo && (item.notas || null) === dados.notas && (item.data || null) === dados.data && item.concluida === dados.concluida) continue;
-      if (new Date(item.updated_at) > new Date(t.updated)) continue; // mudou depois aqui: vale o BALANX
-      await admin.from("agenda_itens").update({ ...dados, google_sync_em: new Date(Date.now() + 1000).toISOString() }).eq("id", item.id);
-    } else if (t.title) {
-      await admin.from("agenda_itens").insert({ ...dados, user_id: integ.user_id, tenant_id: integ.tenant_id, tipo: "tarefa",
-        origem: "google", google_task_id: t.id, google_sync_em: new Date(Date.now() + 1000).toISOString() });
+async function sincronizarTarefas(admin: any, integ: any, token: string) {
+  const { listas, padrao } = listasDaConexao(integ);
+  if (!listas.length || integ.opcoes?.tarefas === false) return { enviadas: 0, recebidas: 0 };
+  const marcas: Record<string, string> = { ...(integ.tasks_sync || {}) };
+  // Compatibilidade: a lista BALANX usava tasks_sync_em.
+  if (integ.tasklist_id && !marcas[integ.tasklist_id] && integ.tasks_sync_em) marcas[integ.tasklist_id] = integ.tasks_sync_em;
+  let enviadas = 0, recebidas = 0;
+  const depois = () => new Date(Date.now() + 1000).toISOString();
+
+  // Volta: o que mudou em cada lista desde a última leitura.
+  for (const listaId of listas) {
+    const base = `${TASKS}/lists/${encodeURIComponent(listaId)}/tasks`;
+    const inicioLeitura = new Date().toISOString();
+    const primeira = !marcas[listaId];
+    let pageToken: string | null = null;
+    for (let pg = 0; pg < 20; pg++) {
+      // 1ª leitura de uma lista: só as em aberto (não traz o histórico de concluídas).
+      const p = new URLSearchParams({ maxResults: "100", showCompleted: primeira ? "false" : "true", showHidden: primeira ? "false" : "true", showDeleted: primeira ? "false" : "true" });
+      if (!primeira) p.set("updatedMin", new Date(new Date(marcas[listaId]).getTime() - 60_000).toISOString());
+      if (pageToken) p.set("pageToken", pageToken);
+      const r = await gapi(token, `${base}?${p}`);
+      if (!r.ok) break;
+      for (const t of r.json.items || []) {
+        const { data: item } = await admin.from("agenda_itens").select("*").eq("google_task_id", t.id).eq("user_id", integ.user_id).maybeSingle();
+        if (t.deleted) { if (item) { await admin.from("agenda_itens").delete().eq("id", item.id); recebidas++; } continue; }
+        const dados = { titulo: String(t.title || "(sem título)").slice(0, 200), notas: t.notes || null,
+          data: t.due ? String(t.due).slice(0, 10) : null, concluida: t.status === "completed", google_tasklist_id: listaId, google_tasklist_sync: listaId };
+        if (item) {
+          if (item.titulo === dados.titulo && (item.notas || null) === dados.notas && (item.data || null) === dados.data
+            && item.concluida === dados.concluida && item.google_tasklist_id === listaId) continue;
+          if (new Date(item.updated_at) > new Date(t.updated)) continue; // mudou depois aqui: vale o BALANX
+          await admin.from("agenda_itens").update({ ...dados, google_sync_em: depois() }).eq("id", item.id);
+        } else if (t.title) {
+          await admin.from("agenda_itens").insert({ ...dados, user_id: integ.user_id, tenant_id: integ.tenant_id, tipo: "tarefa",
+            origem: "google", google_task_id: t.id, google_sync_em: depois() });
+        }
+        recebidas++;
+      }
+      pageToken = r.json.nextPageToken || null;
+      if (!pageToken) break;
     }
-    recebidas++;
+    marcas[listaId] = inicioLeitura;
   }
 
-  // Ida: tarefas criadas/mudadas aqui
+  // Ida: tarefas criadas/mudadas aqui (as de listas não sincronizadas ficam paradas).
   const { data } = await admin.from("agenda_itens").select("*").eq("user_id", integ.user_id).eq("tipo", "tarefa");
   for (const t of data || []) {
     if (t.google_task_id && t.google_sync_em && new Date(t.updated_at) <= new Date(t.google_sync_em)) continue;
+    const destino = t.google_tasklist_id && listas.includes(t.google_tasklist_id) ? t.google_tasklist_id
+      : t.google_tasklist_id ? null : padrao;
+    if (!destino) continue;
     const corpo: any = { title: t.titulo, notes: t.notas || "", status: t.concluida ? "completed" : "needsAction",
       due: t.data ? `${t.data}T00:00:00.000Z` : null };
-    let res = t.google_task_id ? await gapi(token, `${lista}/${encodeURIComponent(t.google_task_id)}`, { method: "PATCH", body: JSON.stringify(corpo) }) : null;
-    if (!res || !res.ok) res = await gapi(token, lista, { method: "POST", body: JSON.stringify(corpo) });
+    const listaUrl = `${TASKS}/lists/${encodeURIComponent(destino)}/tasks`;
+    let res: any = null;
+    // Já existe na mesma lista → atualiza; mudou de lista → cria na nova e apaga na antiga.
+    const listaAntiga = (t.google_tasklist_sync as string | null) || (t.google_task_id ? integ.tasklist_id : null);
+    if (t.google_task_id && listaAntiga === destino) {
+      res = await gapi(token, `${listaUrl}/${encodeURIComponent(t.google_task_id)}`, { method: "PATCH", body: JSON.stringify(corpo) });
+    }
+    if (!res || !res.ok) {
+      res = await gapi(token, listaUrl, { method: "POST", body: JSON.stringify(corpo) });
+      if (res.ok && t.google_task_id && listaAntiga && listaAntiga !== destino) {
+        await gapi(token, `${TASKS}/lists/${encodeURIComponent(listaAntiga)}/tasks/${encodeURIComponent(t.google_task_id)}`, { method: "DELETE" });
+      }
+    }
     if (!res.ok) continue;
-    await admin.from("agenda_itens").update({ google_task_id: res.json.id, google_sync_em: new Date().toISOString() }).eq("id", t.id);
+    await admin.from("agenda_itens").update({ google_task_id: res.json.id, google_tasklist_id: destino, google_tasklist_sync: destino, google_sync_em: depois() }).eq("id", t.id);
     enviadas++;
   }
-  await admin.from("google_integracoes").update({ tasks_sync_em: inicioSync }).eq("user_id", integ.user_id);
+  await admin.from("google_integracoes").update({ tasks_sync: marcas }).eq("user_id", integ.user_id);
   return { enviadas, recebidas };
 }
 
@@ -329,7 +369,8 @@ async function limparApagados(admin: any, integ: any, token: string) {
   const { data } = await admin.from("agenda_apagados").select("*").eq("user_id", integ.user_id).limit(200);
   for (const a of data || []) {
     if (a.google_event_id && integ.calendar_id) await gapi(token, `${CAL}/calendars/${encodeURIComponent(integ.calendar_id)}/events/${encodeURIComponent(a.google_event_id)}`, { method: "DELETE" });
-    if (a.google_task_id && integ.tasklist_id) await gapi(token, `${TASKS}/lists/${encodeURIComponent(integ.tasklist_id)}/tasks/${encodeURIComponent(a.google_task_id)}`, { method: "DELETE" });
+    const lista = a.google_tasklist_id || integ.tasklist_id;
+    if (a.google_task_id && lista) await gapi(token, `${TASKS}/lists/${encodeURIComponent(lista)}/tasks/${encodeURIComponent(a.google_task_id)}`, { method: "DELETE" });
     await admin.from("agenda_apagados").delete().eq("id", a.id);
   }
 }
@@ -385,6 +426,17 @@ serve(async (req) => {
   if (!user) return json({ error: "Unauthorized" }, 401);
   const { data: integ } = await admin.from("google_integracoes").select("*").eq("user_id", user.id).maybeSingle();
   if (!integ) return json({ error: "Google Agenda não conectado." }, 400);
+
+  if (body.action === "listas") {
+    try {
+      const token = await tokenValido(admin, integ);
+      const r = await gapi(token, `${TASKS}/users/@me/lists?maxResults=100`);
+      if (!r.ok) return json({ listas: [] });
+      return json({ listas: (r.json.items || []).map((l: any) => ({ id: l.id, titulo: l.title, balanx: l.id === integ.tasklist_id })) });
+    } catch (e) {
+      return json({ error: e instanceof Error ? e.message : "erro" }, 400);
+    }
+  }
 
   if (body.action === "agenda-pessoal") {
     if (!String(integ.escopos || "").includes("calendar.events.readonly")) return json({ eventos: [], sem_permissao: true });

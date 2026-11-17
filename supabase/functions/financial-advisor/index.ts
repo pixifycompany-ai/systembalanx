@@ -404,6 +404,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Mande os valores em reais e datas no formato brasileiro na resposta (ex.: R$ 1.500,00 · 25/11/2026).
 - ALTERAR cobrança ("muda o vencimento da cobrança da X para dia 30", "a cobrança do João agora é 900") → **alterar_cobranca**. CANCELAR/EXCLUIR uma cobrança → **cancelar_cobranca** (só aquele mês, mesmo se for assinatura; para parar de cobrar todo mês, oriente encerrar ou pausar o contrato).
 - ALTERAR despesa/conta a pagar ("passa o aluguel para dia 15", "a conta de luz veio 280") → **alterar_despesa**. EXCLUIR despesa lançada errada/duplicada → **excluir_despesa**.
+- "Os pagamentos de hoje caíram?", "o Fulano pagou?", "o que entrou hoje?" → **agenda_vencimentos** do dia (ou do período dito; para um cliente sem data, buscar_lancamento/detalhe_cliente). Responda separando: ✅ recebidos/pagos (com a data) e ⏳ ainda em aberto. Para cada recebimento em aberto use o campo "cobranca": com cobrança no Asaas, a baixa é automática quando o cliente paga (Pix na hora; boleto costuma compensar em 1–2 dias úteis), então "aguardando pagamento" = o cliente ainda não pagou; "sem cobrança no Asaas" = depende de baixa manual — sugira conferir o extrato (Contas → Conferir com o banco) e dar baixa. Nunca afirme que algo foi pago se o status não for recebido/pago.
 - AGENDA: marcar reunião/visita/ligação com data ("marca reunião com a Sabor Maria quinta às 10h") → **preparar_compromisso**. Algo a fazer / lembrete ("me lembra de emitir a NF dia 25", "anota: ligar pro contador") → **preparar_tarefa**. "O que tenho amanhã / essa semana", "tarefas pendentes" → **listar_agenda**. Converta dia da semana em data usando as âncoras de data do contexto.
 - Nessas quatro, se a ferramenta devolver "precisa_escolher", mostre as opções numeradas e pergunte qual — não escolha por conta própria. Só mexe em itens EM ABERTO (pago não altera nem exclui pela IARA).
 
@@ -547,6 +548,7 @@ ${contexto}`;
           data: { ...D, description: "data limite (opcional)" },
           cliente: { type: "string" },
           notas: { type: "string" },
+          lista: { type: "string", description: "nome da lista do Google Tarefas, se a pessoa disser (ex.: 'Pessoal', 'Minhas tarefas')" },
         }, required: ["titulo"] },
       } },
       { type: "function", function: {
@@ -1201,14 +1203,22 @@ ${contexto}`;
       const wantDesp = tipo !== "receita";
       const [rec, desp] = await Promise.all([
         wantRec ? safe<any>(supabase.from("receitas")
-          .select("descricao,valor,status,data_vencimento,data_recebimento,forma_pagamento,cliente:clientes(nome),categoria:categorias(nome),conta:contas(nome)")
+          .select("id,descricao,valor,status,data_vencimento,data_recebimento,forma_pagamento,cliente:clientes(nome),categoria:categorias(nome),conta:contas(nome)")
           .gte("data_vencimento", inicio).lte("data_vencimento", fim)) : Promise.resolve([]),
         wantDesp ? safe<any>(supabase.from("despesas")
           .select("descricao,fornecedor,valor,status,data_vencimento,data_pagamento,forma_pagamento,parcela_num,parcela_total,categoria:categorias(nome),conta:contas(nome),cliente:clientes(nome)")
           .gte("data_vencimento", inicio).lte("data_vencimento", fim).is("fatura_id", null)) : Promise.resolve([]), // cartão aparece como a fatura (sombra), não item a item
       ]);
+      // Recebimentos com cobrança no Asaas: dão baixa sozinhos quando o cliente paga.
+      const idsRec = rec.map((r: any) => r.id).filter(Boolean);
+      const cobs = idsRec.length ? await safe<any>(supabase.from("cobrancas").select("receita_id,status,forma_pagamento,data_pagamento")
+        .in("receita_id", idsRec.slice(0, 300)).not("status", "in", "(cancelado,estornado)")) : [];
+      const cobDe = new Map<string, any>(cobs.map((c: any) => [c.receita_id, c]));
+      const situacaoCob = (c: any) => !c ? "sem cobrança no Asaas (baixa manual)"
+        : c.status === "pago" ? `paga no Asaas${c.data_pagamento ? ` em ${c.data_pagamento}` : ""}`
+        : c.status === "vencido" ? "cobrança do Asaas vencida, ainda não paga" : "cobrança do Asaas aguardando pagamento";
       let itens = [
-        ...rec.map(r => ({ data: r.data_vencimento, tipo: "receita", descricao: r.descricao || r.cliente?.nome || "Receita", cliente: r.cliente?.nome || null, categoria: r.categoria?.nome || null, conta: r.conta?.nome || null, forma: r.forma_pagamento || null, valor: Number(r.valor || 0), status: r.status, quitado_em: r.data_recebimento || null })),
+        ...rec.map(r => ({ data: r.data_vencimento, tipo: "receita", descricao: r.descricao || r.cliente?.nome || "Receita", cliente: r.cliente?.nome || null, categoria: r.categoria?.nome || null, conta: r.conta?.nome || null, forma: r.forma_pagamento || null, valor: Number(r.valor || 0), status: r.status, quitado_em: r.data_recebimento || null, cobranca: situacaoCob(cobDe.get(r.id)) })),
         ...desp.map(d => ({ data: d.data_vencimento, tipo: "despesa", descricao: d.fornecedor === "[fatura]" ? (d.descricao || "Fatura do cartão") : (d.descricao || d.categoria?.nome || "Despesa"), fornecedor: d.fornecedor === "[fatura]" ? "Fatura do cartão" : limpaFornecedor(d.fornecedor), cliente: d.cliente?.nome || null, categoria: d.categoria?.nome || null, conta: d.conta?.nome || null, forma: d.forma_pagamento || null, parcela: parcelaTxt(d), valor: Number(d.valor || 0), status: d.status, quitado_em: d.data_pagamento || null })),
       ];
       if (status) itens = itens.filter(i => i.status === status);
@@ -1493,8 +1503,9 @@ ${contexto}`;
       if (!titulo) return JSON.stringify({ erro: "Qual é a tarefa?" });
       const cli = a?.cliente ? achaCliente(a.cliente) : null;
       acoes.push({ id: novoId(), tipo: "tarefa", titulo, data: dataOk(a?.data), cliente_id: cli?.id ?? null,
-        cliente_nome: cli?.nome ?? (a?.cliente || null), notas: a?.notas ? String(a.notas).slice(0, 1000) : null });
-      return JSON.stringify({ ok: true, titulo, data: dataOk(a?.data), obs: "A pessoa confirma no card." });
+        cliente_nome: cli?.nome ?? (a?.cliente || null), notas: a?.notas ? String(a.notas).slice(0, 1000) : null,
+        lista_nome: a?.lista ? String(a.lista).slice(0, 80) : null });
+      return JSON.stringify({ ok: true, titulo, data: dataOk(a?.data), lista: a?.lista || "padrão", obs: "A pessoa confirma no card." });
     }
     async function listarAgenda(ini: string, fimP: string): Promise<string> {
       const [comp, tar] = await Promise.all([

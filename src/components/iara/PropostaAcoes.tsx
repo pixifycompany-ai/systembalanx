@@ -42,6 +42,7 @@ function Item({ a, usarExistente, setUsarExistente }: { a: AcaoIara; usarExisten
             ? <Chip>{formatDate(a.dia)}{a.hora_inicio ? ` · ${a.hora_inicio}${a.hora_fim ? `–${a.hora_fim}` : ''}` : ' · dia inteiro'}</Chip>
             : a.data ? <Chip>até {formatDate(a.data)}</Chip> : <Chip>sem data</Chip>}
           {a.cliente_nome && <Chip>{a.cliente_nome}</Chip>}
+          {!comp && a.lista_nome && <Chip>lista {a.lista_nome}</Chip>}
           {comp && a.lembrete_min != null && <Chip>lembrete {a.lembrete_min >= 1440 ? `${Math.round(a.lembrete_min / 1440)} dia(s)` : a.lembrete_min >= 60 ? `${Math.round(a.lembrete_min / 60)} h` : `${a.lembrete_min} min`} antes</Chip>}
         </div>
         {a.notas && <p className="mt-1 text-[11.5px] text-foreground-muted">{a.notas}</p>}

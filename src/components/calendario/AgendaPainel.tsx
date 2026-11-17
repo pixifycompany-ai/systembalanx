@@ -8,7 +8,7 @@ import { SectionCard } from '@/components/shared/SectionCard';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
 import { useAgenda, diaDoItem, type AgendaItem } from '@/hooks/useAgenda';
-import { agendaPessoal, statusGoogle, type EventoPessoal } from '@/lib/googleAgenda';
+import { agendaPessoal, listasEscolhidas, statusGoogle, type EventoPessoal } from '@/lib/googleAgenda';
 import { AgendaItemSheet } from './AgendaItemSheet';
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -19,12 +19,15 @@ export function AgendaPainel({ inicio, fim }: { inicio: string; fim: string }) {
   const [sheet, setSheet] = useState<{ item: AgendaItem | null; tipo: 'compromisso' | 'tarefa' } | null>(null);
   const [pessoais, setPessoais] = useState<EventoPessoal[]>([]);
   const [conectado, setConectado] = useState<boolean | null>(null);
+  const [nomesListas, setNomesListas] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let vivo = true;
     statusGoogle().then((s) => {
       if (!vivo) return;
       setConectado(!!s);
+      const ls = listasEscolhidas(s);
+      setNomesListas(ls.length > 1 ? Object.fromEntries(ls.map((l) => [l.id, l.nome])) : {});
       if (s?.opcoes?.pessoal) agendaPessoal(inicio, fim).then((r) => vivo && setPessoais(r.eventos || [])).catch(() => {});
       else setPessoais([]);
     }).catch(() => setConectado(false));
@@ -118,9 +121,9 @@ export function AgendaPainel({ inicio, fim }: { inicio: string; fim: string }) {
                   </button>
                   <button onClick={() => setSheet({ item: t, tipo: 'tarefa' })} className="min-w-0 flex-1 text-left">
                     <span className={cn('block text-[13.5px]', t.concluida ? 'text-foreground-muted line-through' : 'text-foreground')}>{t.titulo}</span>
-                    {(t.data || t.cliente?.nome) && (
+                    {(t.data || t.cliente?.nome || (t.google_tasklist_id && nomesListas[t.google_tasklist_id])) && (
                       <span className={cn('block text-[11.5px]', atrasada ? 'text-danger-fg' : 'text-foreground-muted')}>
-                        {[t.data ? `até ${formatDate(t.data)}` : null, t.cliente?.nome].filter(Boolean).join(' · ')}
+                        {[t.data ? `até ${formatDate(t.data)}` : null, t.cliente?.nome, t.google_tasklist_id ? nomesListas[t.google_tasklist_id] : null].filter(Boolean).join(' · ')}
                       </span>
                     )}
                   </button>
