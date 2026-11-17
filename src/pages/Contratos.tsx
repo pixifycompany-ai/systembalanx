@@ -53,6 +53,7 @@ import { ContractImportDialog } from '@/components/import/ContractImportDialog';
 import { useContratoAditivos, type AditivoFormData } from '@/hooks/useContratoAditivos';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { PausaContrato } from '@/components/contratos/PausaContrato';
+import { CancelarCobrancaDialog } from '@/components/cobrancas/CancelarCobrancaDialog';
 import { estadoPausa } from '@/lib/pausaContrato';
 import { findPossibleDuplicate, findDuplicateGroups, type DuplicateMatch, type DuplicateGroup } from '@/utils/contractDuplicates';
 import { isContratoAtivoHoje, getValorMensalEquivalente } from '@/utils/contractUtils';
@@ -123,6 +124,8 @@ export default function Contratos() {
     encerrarContratoCobrancas,
     reajustarAssinatura,
     cancelar: cancelarCobranca,
+    cancelarSoEsta: cancelarSoEstaCobranca,
+    removerDoHistorico: removerCobrancaDoHistorico,
     excluir: excluirCobranca,
     sincronizar: sincronizarCobrancas,
     receberManual: receberManualCobranca,
@@ -215,6 +218,7 @@ export default function Contratos() {
   
   // Aditivos state
   const [editingContratoId, setEditingContratoId] = useState<string | undefined>(undefined);
+  const [cancelandoCob, setCancelandoCob] = useState<{ cob: Cobranca; nome: string } | null>(null);
   const { aditivos, isLoading: aditivosLoading, createAditivo, deleteAditivo } = useContratoAditivos(editingContratoId);
   const [showAditivoForm, setShowAditivoForm] = useState(false);
   const [aditivoData, setAditivoData] = useState<{ valor_novo: string; data_vigencia: string; motivo: string }>({
@@ -776,8 +780,7 @@ export default function Contratos() {
                 onListarAssinaturas={() => listarAssinaturas(c.cliente_id)}
                 onVincular={async (subId, contaId) => { await vincularAssinatura(c.id, subId, contaId); refetchContratos(); }}
                 onDesvincular={() => setDesvincularAlvo({ id: c.id, nome: c.cliente?.nome || c.descricao || 'contrato' })}
-                onCancelar={() => { const cb = cobrancaDoContrato(c.id); if (cb) cancelarCobranca(cb.id); }}
-                onExcluir={() => { const cb = cobrancaDoContrato(c.id); if (cb) excluirCobranca(cb.id); }}
+                onCancelar={() => { const cb = cobrancaDoContrato(c.id); if (cb) setCancelandoCob({ cob: cb, nome: c.cliente?.nome || c.cliente_nome || '' }); }}
                 onSincronizar={() => sincronizarCobrancas(c.id)}
                 onReceberManual={() => { const cb = cobrancaDoContrato(c.id); if (cb) receberManualCobranca(cb.id); }}
                 onWhatsapp={() => openWhatsapp(cobrancaDoContrato(c.id))}
@@ -866,8 +869,7 @@ export default function Contratos() {
                         onListarAssinaturas={() => listarAssinaturas(contrato.cliente_id)}
                         onVincular={async (subId, contaId) => { await vincularAssinatura(contrato.id, subId, contaId); refetchContratos(); }}
                         onDesvincular={() => setDesvincularAlvo({ id: contrato.id, nome: contrato.cliente?.nome || contrato.descricao || 'contrato' })}
-                        onCancelar={() => { const c = cobrancaDoContrato(contrato.id); if (c) cancelarCobranca(c.id); }}
-                        onExcluir={() => { const c = cobrancaDoContrato(contrato.id); if (c) excluirCobranca(c.id); }}
+                        onCancelar={() => { const c = cobrancaDoContrato(contrato.id); if (c) setCancelandoCob({ cob: c, nome: contrato.cliente?.nome || '' }); }}
                         onSincronizar={() => sincronizarCobrancas(contrato.id)}
                         onReceberManual={() => { const c = cobrancaDoContrato(contrato.id); if (c) receberManualCobranca(c.id); }}
                         onWhatsapp={() => openWhatsapp(cobrancaDoContrato(contrato.id))}
@@ -1426,6 +1428,15 @@ export default function Contratos() {
           }] : undefined}
         />
 
+        <CancelarCobrancaDialog
+          cobranca={cancelandoCob?.cob ?? null}
+          clienteNome={cancelandoCob?.nome}
+          onOpenChange={(o) => { if (!o) setCancelandoCob(null); }}
+          onCancelarSoEsta={cancelarSoEstaCobranca}
+          onCancelar={cancelarCobranca}
+          onExcluir={excluirCobranca}
+          onRemoverDoHistorico={removerCobrancaDoHistorico}
+        />
         <EditarClienteSheet
           open={editarClienteOpen}
           onOpenChange={setEditarClienteOpen}

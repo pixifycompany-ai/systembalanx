@@ -41,6 +41,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { VinculoPickerSheet } from '@/components/cobrancas/VinculoPickerSheet';
 import { desvincularCobranca, opcoesReceitas, vincularCobrancaReceita } from '@/lib/vinculoCobranca';
+import { CancelarCobrancaDialog } from '@/components/cobrancas/CancelarCobrancaDialog';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
   XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Repeat, Receipt, Wallet, CreditCard,
@@ -108,13 +109,15 @@ export default function Cobrancas() {
   const isMobile = useIsMobile();
   const {
     cobrancas, loading, busyId,
-    criarAvulsa, criarAvulsaParcelada, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail,
+    criarAvulsa, criarAvulsaParcelada, cancelar, cancelarSoEsta, removerDoHistorico, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail,
     anexarNotas, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg, emailCfg,
     fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload,
   } = useCobrancas();
   const [conciliarOpen, setConciliarOpen] = useState(false);
   // Vínculo manual cobrança ↔ lançamento (só cobrança de uma linha; fatura agrupada usa a conciliação)
   const [vinculoCob, setVinculoCob] = useState<FaturaView | null>(null);
+  // Cancelar/remover: abre a escolha (só esta, encerrar assinatura, histórico).
+  const [cancelando, setCancelando] = useState<FaturaView | null>(null);
   const desvincular = async (cob: FaturaView) => {
     if (!window.confirm('Desvincular o lançamento desta cobrança? O lançamento continua no fluxo de caixa.')) return;
     try {
@@ -660,12 +663,16 @@ export default function Cobrancas() {
           <button onClick={() => sincronizar(cob.contrato_id || undefined)} className={MENU_ITEM}>
             <RefreshCw className="h-4 w-4 text-foreground-muted" /> Sincronizar status
           </button>
-          <button onClick={() => cancelar(cob.id)} className={MENU_ITEM}>
-            <XCircle className="h-4 w-4 text-foreground-muted" /> Cancelar cobrança
-          </button>
-          <button onClick={() => excluir(cob.id)} className={MENU_ITEM_DANGER}>
-            <Trash2 className="h-4 w-4" /> Excluir cobrança
-          </button>
+          {cob.status !== 'cancelado' && cob.status !== 'estornado' ? (
+            <button onClick={() => setCancelando(cob)} className={MENU_ITEM_DANGER}>
+              {cob.status === 'pago' ? <Trash2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+              {cob.status === 'pago' ? 'Remover da lista…' : 'Cancelar cobrança…'}
+            </button>
+          ) : (
+            <button onClick={() => excluir(cob.id)} className={MENU_ITEM_DANGER}>
+              <Trash2 className="h-4 w-4" /> Apagar do histórico
+            </button>
+          )}
         </PopoverContent>
       </Popover>
     );
@@ -1170,6 +1177,15 @@ export default function Cobrancas() {
         </SheetContent>
       </Sheet>
 
+      <CancelarCobrancaDialog
+        cobranca={cancelando}
+        clienteNome={cancelando?.cliente_id ? clienteById.get(cancelando.cliente_id)?.nome : cancelando?.asaas_customer_nome || undefined}
+        onOpenChange={(o) => { if (!o) setCancelando(null); }}
+        onCancelarSoEsta={cancelarSoEsta}
+        onCancelar={cancelar}
+        onExcluir={excluir}
+        onRemoverDoHistorico={removerDoHistorico}
+      />
       <VinculoPickerSheet
         open={!!vinculoCob}
         onOpenChange={(o) => { if (!o) setVinculoCob(null); }}

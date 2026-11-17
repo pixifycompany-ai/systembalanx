@@ -370,6 +370,39 @@ export function useCobrancas() {
     }
   };
 
+  /** Cancela só esta cobrança; se for de assinatura, a assinatura continua. */
+  const cancelarSoEsta = async (cobranca_id: string) => {
+    setBusyId(cobranca_id);
+    try {
+      const d = (await invoke({ action: 'cancelar-parcela', cobranca_id })) as { de_assinatura?: boolean };
+      toast.success(d?.de_assinatura ? 'Cobrança deste mês cancelada. A assinatura continua.' : 'Cobrança cancelada (também no Asaas).');
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao cancelar');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  /** Cobrança PAGA: tira só da lista (sem mexer no Asaas nem no recebimento). */
+  const removerDoHistorico = async (cobranca_id: string) => {
+    const cob = cobrancas.find((c) => c.id === cobranca_id);
+    if (!cob) return;
+    setBusyId(cobranca_id);
+    try {
+      let q = supabase.from('cobrancas').delete();
+      q = cob.asaas_payment_id ? q.eq('asaas_payment_id', cob.asaas_payment_id) : q.eq('id', cob.id);
+      const { error } = await q;
+      if (error) throw error;
+      toast.success('Cobrança removida da lista. O recebimento continua no financeiro.');
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao remover');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const excluir = async (cobranca_id: string) => {
     setBusyId(cobranca_id);
     try {
@@ -650,7 +683,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, criarAvulsaParcelada, listarAssinaturas, vincularAssinatura, desvincularAssinatura, encerrarContratoCobrancas, reajustarAssinatura, cancelar, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNotas, removerNota, setExigirNf, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, criarAvulsaParcelada, listarAssinaturas, vincularAssinatura, desvincularAssinatura, encerrarContratoCobrancas, reajustarAssinatura, cancelar, cancelarSoEsta, removerDoHistorico, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNotas, removerNota, setExigirNf, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

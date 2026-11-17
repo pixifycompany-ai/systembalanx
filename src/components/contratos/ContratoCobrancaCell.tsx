@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, ExternalLink, RefreshCw, XCircle, Trash2, Zap, Link2, Unlink, ChevronLeft, MessageCircle, HandCoins, Layers, CheckCircle2 } from 'lucide-react';
+import { Loader2, ExternalLink, RefreshCw, XCircle, Zap, Link2, Unlink, ChevronLeft, MessageCircle, HandCoins, Layers, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
 import { COBRANCA_STATUS_LABEL, type Cobranca, type AsaasAssinatura } from '@/hooks/useCobrancas';
@@ -32,8 +32,10 @@ interface Props {
   onCobrar: (forma: string, contaId: string | null, extra: { multa_percent: number; juros_percent: number }) => void;
   onListarAssinaturas: () => Promise<AsaasAssinatura[]>;
   onVincular: (subId: string, contaId: string | null) => void;
+  /** Abre a escolha de cancelamento (só esta / encerrar assinatura / histórico). */
   onCancelar: () => void;
-  onExcluir: () => void;
+  /** @deprecated a exclusão agora passa pela escolha de onCancelar */
+  onExcluir?: () => void;
   onSincronizar: () => void;
   onWhatsapp: () => void;
   onReceberManual: () => void;
@@ -209,17 +211,14 @@ export function ContratoCobrancaCell({ contratoId, cobranca, busy, contas, onCob
         <button onClick={onSincronizar} className={MENU_ITEM}>
           <RefreshCw className="h-4 w-4 text-foreground-muted" /> Sincronizar status
         </button>
-        <button onClick={onCancelar} className={MENU_ITEM}>
-          <XCircle className="h-4 w-4 text-foreground-muted" /> Cancelar cobrança
+        <button onClick={onCancelar} className={cn(MENU_ITEM, 'text-danger-fg hover:bg-danger-bg')}>
+          <XCircle className="h-4 w-4" /> {cobranca.status === 'pago' ? 'Remover da lista…' : 'Cancelar cobrança…'}
         </button>
         {onDesvincular && cobranca.asaas_subscription_id && (
           <button onClick={onDesvincular} className={MENU_ITEM}>
             <Unlink className="h-4 w-4 text-foreground-muted" /> Desvincular do Asaas
           </button>
         )}
-        <button onClick={onExcluir} className={cn(MENU_ITEM, 'text-danger-fg hover:bg-danger-bg')}>
-          <Trash2 className="h-4 w-4" /> Excluir cobrança
-        </button>
       </PopoverContent>
     </Popover>
   );
