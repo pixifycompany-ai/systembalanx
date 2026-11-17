@@ -14,6 +14,9 @@ import { BalanxLoader } from '@/components/shared/BalanxLoader';
 import { toast } from 'sonner';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { MfaManager } from '@/components/auth/MfaManager';
+import { GoogleAgendaPainel } from '@/components/perfil/GoogleAgendaPainel';
+import { statusGoogle } from '@/lib/googleAgenda';
+import { CalendarDays } from 'lucide-react';
 import {
   EnvelopeIcon, LockClosedIcon, BellAlertIcon, PaperAirplaneIcon,
   ChevronRightIcon, ArrowRightOnRectangleIcon, CameraIcon, ArrowPathIcon,
@@ -23,7 +26,7 @@ import { cn } from '@/lib/utils';
 import { useTenant } from '@/contexts/TenantContext';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 
-type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas';
+type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas' | 'google';
 
 export default function MeuPerfil() {
   const { user, signOut } = useAuth();
@@ -162,6 +165,13 @@ export default function MeuPerfil() {
     else toast.success('Mensagem padrão salva');
   };
   useEffect(() => { loadAsaasStatus(); }, []);
+  // Google Agenda: status na linha do menu; ?integracao=google abre o painel (volta do Google).
+  const [googleEmail, setGoogleEmail] = useState<string | null | undefined>(undefined);
+  const carregarGoogle = () => statusGoogle().then((s) => setGoogleEmail(s ? (s.email || 'conectado') : null)).catch(() => setGoogleEmail(null));
+  useEffect(() => {
+    carregarGoogle();
+    if (new URLSearchParams(window.location.search).get('integracao') === 'google') setSheet('google');
+  }, []);
 
   const handleConectarAsaas = async () => {
     if (!asaasKey.trim()) return;
@@ -374,6 +384,18 @@ export default function MeuPerfil() {
           />
         </SetGroup>
 
+        {/* Grupo: integrações */}
+        <SetGroup title="Integrações">
+          <SetRow
+            icon={<CalendarDays className="h-[18px] w-[18px]" />}
+            title="Google Agenda e Tarefas"
+            sub={googleEmail ? `Conectado · ${googleEmail}` : 'Vencimentos, compromissos e tarefas no seu Google'}
+            right={googleEmail ? <CheckCircleIcon className="h-5 w-5 text-[hsl(var(--success-fg))]" /> : undefined}
+            onClick={() => setSheet('google')}
+            chevron
+          />
+        </SetGroup>
+
         {/* Sessão */}
         <div className="space-y-3">
           <Button
@@ -580,6 +602,11 @@ export default function MeuPerfil() {
             {savingPassword && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Alterar senha
           </Button>
         </div>
+      </DetailSheet>
+
+      {/* Sheet: Google Agenda e Tarefas */}
+      <DetailSheet open={sheet === 'google'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Integrações" title="Google Agenda e Tarefas">
+        <GoogleAgendaPainel onChange={carregarGoogle} />
       </DetailSheet>
 
       {/* Sheet: 2FA (MFA TOTP) */}

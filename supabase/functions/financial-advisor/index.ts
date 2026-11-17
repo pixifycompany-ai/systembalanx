@@ -404,6 +404,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Mande os valores em reais e datas no formato brasileiro na resposta (ex.: R$ 1.500,00 · 25/11/2026).
 - ALTERAR cobrança ("muda o vencimento da cobrança da X para dia 30", "a cobrança do João agora é 900") → **alterar_cobranca**. CANCELAR/EXCLUIR uma cobrança → **cancelar_cobranca** (só aquele mês, mesmo se for assinatura; para parar de cobrar todo mês, oriente encerrar ou pausar o contrato).
 - ALTERAR despesa/conta a pagar ("passa o aluguel para dia 15", "a conta de luz veio 280") → **alterar_despesa**. EXCLUIR despesa lançada errada/duplicada → **excluir_despesa**.
+- AGENDA: marcar reunião/visita/ligação com data ("marca reunião com a Sabor Maria quinta às 10h") → **preparar_compromisso**. Algo a fazer / lembrete ("me lembra de emitir a NF dia 25", "anota: ligar pro contador") → **preparar_tarefa**. "O que tenho amanhã / essa semana", "tarefas pendentes" → **listar_agenda**. Converta dia da semana em data usando as âncoras de data do contexto.
 - Nessas quatro, se a ferramenta devolver "precisa_escolher", mostre as opções numeradas e pergunte qual — não escolha por conta própria. Só mexe em itens EM ABERTO (pago não altera nem exclui pela IARA).
 
 ## Lançar (criar receitas/despesas) — você também REGISTRA, não só consulta
@@ -524,6 +525,34 @@ ${contexto}`;
           cobrar_no_asaas: { type: "boolean", description: "true = criar assinatura no Asaas junto (cobra todo mês sozinho)" },
           forma: { type: "string", enum: ["pix", "boleto", "cartao", "qualquer"] },
         }, required: ["cliente", "valor", "recorrencia"] },
+      } },
+      { type: "function", function: {
+        name: "preparar_compromisso",
+        description: "Prepara um COMPROMISSO na agenda (reunião, visita, ligação marcada) para a pessoa confirmar. Vai para o Calendário do BALANX e, se o Google estiver conectado, para o Google Agenda. Precisa de título e data; hora é opcional (sem hora = dia inteiro).",
+        parameters: { type: "object", properties: {
+          titulo: { type: "string" },
+          data: { ...D },
+          hora_inicio: { type: "string", description: "HH:MM (24h), opcional" },
+          hora_fim: { type: "string", description: "HH:MM, opcional (padrão: 1 hora depois)" },
+          cliente: { type: "string", description: "cliente relacionado (opcional)" },
+          lembrete_min: { type: "number", description: "minutos antes para lembrar (ex.: 30, 60, 1440)" },
+          notas: { type: "string" },
+        }, required: ["titulo", "data"] },
+      } },
+      { type: "function", function: {
+        name: "preparar_tarefa",
+        description: "Prepara uma TAREFA/lembrete (algo a fazer: emitir NF, ligar para alguém, renovar contrato) para a pessoa confirmar. Vai para a lista de tarefas do BALANX e, se conectado, para o Google Tarefas. Data limite é opcional.",
+        parameters: { type: "object", properties: {
+          titulo: { type: "string" },
+          data: { ...D, description: "data limite (opcional)" },
+          cliente: { type: "string" },
+          notas: { type: "string" },
+        }, required: ["titulo"] },
+      } },
+      { type: "function", function: {
+        name: "listar_agenda",
+        description: "Compromissos de um período e tarefas em aberto. Use para 'o que tenho amanhã', 'minha agenda da semana', 'quais tarefas estão pendentes'.",
+        parameters: { type: "object", properties: { inicio: D, fim: D }, required: ["inicio", "fim"] },
       } },
       { type: "function", function: {
         name: "alterar_cobranca",
@@ -1438,6 +1467,50 @@ ${contexto}`;
       return JSON.stringify({ ok: true, despesa: { fornecedor: d.quem, descricao: d.descricao, valor: d.valor, vencimento: d.vencimento } });
     }
 
+    // ---- Agenda: compromissos e tarefas ----
+    const horaOk = (v: unknown) => typeof v === "string" && /^\d{1,2}:\d{2}$/.test(v) ? v.padStart(5, "0") : null;
+    function prepararCompromisso(a: any): string {
+      const data = dataOk(a?.data);
+      const titulo = String(a?.titulo || "").trim().slice(0, 200);
+      if (!titulo || !data) return JSON.stringify({ erro: "Preciso do título e da data do compromisso." });
+      const hi = horaOk(a?.hora_inicio), hf = horaOk(a?.hora_fim);
+      let inicio: string | null = null, fim: string | null = null;
+      if (hi) {
+        inicio = new Date(`${data}T${hi}:00-03:00`).toISOString();
+        const f = hf ? new Date(`${data}T${hf}:00-03:00`) : null;
+        fim = f && f.getTime() > new Date(inicio).getTime() ? f.toISOString() : new Date(new Date(inicio).getTime() + 3600000).toISOString();
+      }
+      const cli = a?.cliente ? achaCliente(a.cliente) : null;
+      acoes.push({ id: novoId(), tipo: "compromisso", titulo, data: hi ? null : data, inicio, fim, dia_inteiro: !hi,
+        hora_inicio: hi, hora_fim: hi ? (hf || null) : null, dia: data,
+        cliente_id: cli?.id ?? null, cliente_nome: cli?.nome ?? (a?.cliente || null),
+        lembrete_min: Number.isFinite(Number(a?.lembrete_min)) && a?.lembrete_min !== undefined ? Math.max(0, Math.round(Number(a.lembrete_min))) : null,
+        notas: a?.notas ? String(a.notas).slice(0, 1000) : null });
+      return JSON.stringify({ ok: true, titulo, data, hora: hi, cliente: cli?.nome ?? a?.cliente ?? null, obs: "A pessoa confirma no card." });
+    }
+    function prepararTarefa(a: any): string {
+      const titulo = String(a?.titulo || "").trim().slice(0, 200);
+      if (!titulo) return JSON.stringify({ erro: "Qual é a tarefa?" });
+      const cli = a?.cliente ? achaCliente(a.cliente) : null;
+      acoes.push({ id: novoId(), tipo: "tarefa", titulo, data: dataOk(a?.data), cliente_id: cli?.id ?? null,
+        cliente_nome: cli?.nome ?? (a?.cliente || null), notas: a?.notas ? String(a.notas).slice(0, 1000) : null });
+      return JSON.stringify({ ok: true, titulo, data: dataOk(a?.data), obs: "A pessoa confirma no card." });
+    }
+    async function listarAgenda(ini: string, fimP: string): Promise<string> {
+      const [comp, tar] = await Promise.all([
+        supabase.from("agenda_itens").select("titulo, data, inicio, fim, dia_inteiro, cliente:clientes(nome)").eq("tipo", "compromisso")
+          .or(`and(data.gte.${ini},data.lte.${fimP}),and(inicio.gte.${ini}T00:00:00-03:00,inicio.lte.${fimP}T23:59:59-03:00)`).limit(100),
+        supabase.from("agenda_itens").select("titulo, data, concluida, cliente:clientes(nome)").eq("tipo", "tarefa").eq("concluida", false).limit(100),
+      ]);
+      const fmtH = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+      return JSON.stringify({
+        compromissos: ((comp.data || []) as any[]).map((c) => ({ titulo: c.titulo, dia: c.data || new Date(c.inicio).toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
+          hora: c.inicio && !c.dia_inteiro ? `${fmtH(c.inicio)}${c.fim ? `–${fmtH(c.fim)}` : ""}` : "dia inteiro", cliente: c.cliente?.nome || null }))
+          .sort((x, y) => (x.dia + x.hora).localeCompare(y.dia + y.hora)),
+        tarefas_em_aberto: ((tar.data || []) as any[]).map((t) => ({ titulo: t.titulo, ate: t.data, cliente: t.cliente?.nome || null })),
+      });
+    }
+
     // ---- Provedor (compatível com API da OpenAI) + loop de ferramentas ----
     const apiKey = Deno.env.get("OPENAI_API_KEY") || Deno.env.get("IARA_API_KEY");
     if (!apiKey) {
@@ -1514,6 +1587,9 @@ ${contexto}`;
             else if (tc.function.name === "preparar_cobranca") result = await prepararCobranca(args);
             else if (tc.function.name === "preparar_cliente") result = await prepararCliente(args);
             else if (tc.function.name === "preparar_contrato") result = await prepararContrato(args);
+            else if (tc.function.name === "preparar_compromisso") result = prepararCompromisso(args);
+            else if (tc.function.name === "preparar_tarefa") result = prepararTarefa(args);
+            else if (tc.function.name === "listar_agenda") result = await listarAgenda(args.inicio, args.fim);
             else if (tc.function.name === "alterar_cobranca") result = await alterarCobranca(args);
             else if (tc.function.name === "cancelar_cobranca") result = await cancelarCobranca(args);
             else if (tc.function.name === "alterar_despesa") result = await alterarDespesa(args);

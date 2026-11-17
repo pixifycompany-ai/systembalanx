@@ -3,6 +3,7 @@
 // Ordem ao confirmar: clientes → contratos → cobranças (os dois últimos usam o
 // cliente criado no mesmo card quando ele ainda não existia).
 import { supabase } from '@/integrations/supabase/client';
+import { sincronizarGoogleEmSegundoPlano } from '@/lib/googleAgenda';
 
 export interface AcaoCliente {
   id: string; tipo: 'cliente';
@@ -45,8 +46,19 @@ export interface AcaoExcluirDespesa {
   id: string; tipo: 'excluir_despesa';
   despesa_id: string; fornecedor: string; descricao: string; valor: number; vencimento: string;
 }
+export interface AcaoCompromisso {
+  id: string; tipo: 'compromisso';
+  titulo: string; dia: string; data: string | null; inicio: string | null; fim: string | null; dia_inteiro: boolean;
+  hora_inicio: string | null; hora_fim: string | null;
+  cliente_id: string | null; cliente_nome: string | null; lembrete_min: number | null; notas: string | null;
+}
+export interface AcaoTarefa {
+  id: string; tipo: 'tarefa';
+  titulo: string; data: string | null; cliente_id: string | null; cliente_nome: string | null; notas: string | null;
+}
 export type AcaoIara = AcaoCliente | AcaoContrato | AcaoCobranca
-  | AcaoAlterarCobranca | AcaoCancelarCobranca | AcaoAlterarDespesa | AcaoExcluirDespesa;
+  | AcaoAlterarCobranca | AcaoCancelarCobranca | AcaoAlterarDespesa | AcaoExcluirDespesa
+  | AcaoCompromisso | AcaoTarefa;
 
 const hojeISO = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 
@@ -153,6 +165,27 @@ export async function executarAcoes(acoes: AcaoIara[], usarExistente: Record<str
       res.push({ id: a.id, ok: false, mensagem: `Cobrança: ${e instanceof Error ? e.message : 'erro ao criar'}` });
     }
   }
+  // Compromissos e tarefas (agenda); depois sincroniza com o Google, se conectado.
+  let mexeuAgenda = false;
+  for (const a of acoes) {
+    if (a.tipo !== 'compromisso' && a.tipo !== 'tarefa') continue;
+    try {
+      const clienteId = a.cliente_id || (a.cliente_nome ? await idDoCliente(a.cliente_nome, criados) : null);
+      const linha = a.tipo === 'compromisso'
+        ? { tipo: 'compromisso', titulo: a.titulo, data: a.data, inicio: a.inicio, fim: a.fim, dia_inteiro: a.dia_inteiro,
+            lembrete_min: a.lembrete_min, notas: a.notas, cliente_id: clienteId }
+        : { tipo: 'tarefa', titulo: a.titulo, data: a.data, notas: a.notas, cliente_id: clienteId };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any).from('agenda_itens').insert(linha);
+      if (error) throw error;
+      mexeuAgenda = true;
+      res.push({ id: a.id, ok: true, mensagem: a.tipo === 'compromisso' ? `Compromisso "${a.titulo}" na agenda.` : `Tarefa "${a.titulo}" criada.` });
+    } catch (e) {
+      res.push({ id: a.id, ok: false, mensagem: `${a.tipo === 'compromisso' ? 'Compromisso' : 'Tarefa'}: ${e instanceof Error ? e.message : 'não deu certo'}` });
+    }
+  }
+  if (mexeuAgenda) sincronizarGoogleEmSegundoPlano();
+
   // Alterações e exclusões (depois das criações).
   for (const a of acoes) {
     try {

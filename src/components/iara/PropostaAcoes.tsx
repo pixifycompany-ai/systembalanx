@@ -1,7 +1,7 @@
 // Card de confirmação das ações que a IARA preparou: cliente, contrato e cobrança.
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, ExternalLink, FileSignature, Loader2, Receipt, UserPlus, X, AlertTriangle, CalendarClock, Trash2, ArrowRight } from 'lucide-react';
+import { Check, Copy, ExternalLink, FileSignature, Loader2, Receipt, UserPlus, X, AlertTriangle, CalendarClock, Trash2, ArrowRight, CalendarPlus, ListTodo } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCPFCNPJ, formatCurrency, formatDate, formatPhone } from '@/utils/formatters';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +29,25 @@ function Mudanca({ de, para }: { de: string; para: string }) {
 }
 
 function Item({ a, usarExistente, setUsarExistente }: { a: AcaoIara; usarExistente: boolean; setUsarExistente: (v: boolean) => void }) {
+  if (a.tipo === 'compromisso' || a.tipo === 'tarefa') {
+    const comp = a.tipo === 'compromisso';
+    return (
+      <div className="border-b border-border px-3 py-2.5 last:border-b-0">
+        <div className="flex items-center gap-2">
+          {comp ? <CalendarPlus className="h-4 w-4 shrink-0 text-primary" /> : <ListTodo className="h-4 w-4 shrink-0 text-primary" />}
+          <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-foreground">{comp ? 'Compromisso' : 'Tarefa'} · {a.titulo}</span>
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {comp
+            ? <Chip>{formatDate(a.dia)}{a.hora_inicio ? ` · ${a.hora_inicio}${a.hora_fim ? `–${a.hora_fim}` : ''}` : ' · dia inteiro'}</Chip>
+            : a.data ? <Chip>até {formatDate(a.data)}</Chip> : <Chip>sem data</Chip>}
+          {a.cliente_nome && <Chip>{a.cliente_nome}</Chip>}
+          {comp && a.lembrete_min != null && <Chip>lembrete {a.lembrete_min >= 1440 ? `${Math.round(a.lembrete_min / 1440)} dia(s)` : a.lembrete_min >= 60 ? `${Math.round(a.lembrete_min / 60)} h` : `${a.lembrete_min} min`} antes</Chip>}
+        </div>
+        {a.notas && <p className="mt-1 text-[11.5px] text-foreground-muted">{a.notas}</p>}
+      </div>
+    );
+  }
   if (a.tipo === 'alterar_cobranca' || a.tipo === 'alterar_despesa') {
     const ehCob = a.tipo === 'alterar_cobranca';
     const quem = ehCob ? a.cliente_nome : a.fornecedor;

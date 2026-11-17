@@ -8,7 +8,8 @@ import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { WeeklyForecast, itemMatches, type CalFiltro } from '@/components/calendario/WeeklyForecast';
 
-import { useCalendario, type CalendarioModo, type DayTransactions } from '@/hooks/useCalendario';
+import { useCalendario, getRange, type CalendarioModo, type DayTransactions } from '@/hooks/useCalendario';
+import { AgendaPainel } from '@/components/calendario/AgendaPainel';
 import { SkeletonChart } from '@/components/shared/LoadingSpinner';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +79,7 @@ export default function Calendario() {
   const dayKey = format(refDate, 'yyyy-MM-dd');
 
   const showSide = modo === 'mes' || modo === 'semana';
+  const faixa = getRange(modo, refDate);
 
   return (
     <main className="container max-w-full py-3 md:py-6">
@@ -141,17 +143,21 @@ export default function Calendario() {
               />
             )}
             {modo === 'hoje' && (
-              <DayView
-                refDate={refDate}
-                day={filteredDays[dayKey] || null}
-                onPrev={handlePrev}
-                onNext={handleNext}
-              />
+              <div className="space-y-4 md:space-y-6">
+                <DayView
+                  refDate={refDate}
+                  day={filteredDays[dayKey] || null}
+                  onPrev={handlePrev}
+                  onNext={handleNext}
+                />
+                <AgendaPainel inicio={faixa.start} fim={faixa.end} />
+              </div>
             )}
           </div>
 
           {showSide && (
             <div className="min-w-0 space-y-4 md:space-y-6">
+              <AgendaPainel inicio={faixa.start} fim={faixa.end} />
               <WeeklyForecast days={days} filtros={filtros} />
               {modo === 'mes' && <TopDespesasChart data={topDespesas} total={totalDespesas} />}
             </div>

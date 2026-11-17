@@ -41,7 +41,7 @@ interface CalendarioData {
   totalDespesas: number;
 }
 
-function getRange(modo: CalendarioModo, ref: Date): { start: string; end: string } {
+export function getRange(modo: CalendarioModo, ref: Date): { start: string; end: string } {
   if (modo === 'hoje') {
     const d = format(ref, 'yyyy-MM-dd');
     return { start: d, end: d };
