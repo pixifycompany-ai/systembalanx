@@ -19,6 +19,22 @@ const APP = "https://app.balanx.com.br";
 const hojeSP = () => new Date().toLocaleDateString("en-CA", { timeZone: FUSO });
 const somaDias = (iso: string, n: number) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const brl = (v: number) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+// Id de evento fixo por item (Google aceita ids próprios em base32hex: 0-9 e a-v).
+// Se duas sincronizações tentarem criar o mesmo evento, a segunda recebe 409.
+async function idEvento(origem: string, id: string) {
+  const b = new Uint8Array(await crypto.subtle.digest("SHA-1", new TextEncoder().encode(`${origem}:${id}`)));
+  const alfa = "0123456789abcdefghijklmnopqrstuv";
+  let bits = 0, val = 0, out = "";
+  for (const x of b) { val = (val << 8) | x; bits += 8; while (bits >= 5) { out += alfa[(val >>> (bits - 5)) & 31]; bits -= 5; } }
+  return `b0${out}`;
+}
+/** Cria com id fixo; se já existir (409), atualiza. */
+async function gravarEvento(token: string, cal: string, id: string, evento: any) {
+  const corpo = { ...evento, id, status: "confirmed" };
+  let r = await gapi(token, `${CAL}/calendars/${cal}/events`, { method: "POST", body: JSON.stringify(corpo) });
+  if (r.status === 409) r = await gapi(token, `${CAL}/calendars/${cal}/events/${id}`, { method: "PUT", body: JSON.stringify(corpo) });
+  return r;
+}
 async function sha(s: string) {
   const b = new Uint8Array(await crypto.subtle.digest("SHA-1", new TextEncoder().encode(s)));
   return Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
@@ -79,10 +95,7 @@ async function enviarFinanceiro(admin: any, integ: any, token: string) {
     const hash = await sha(JSON.stringify(d.evento));
     const m = atual.get(k);
     if (m && m.hash === hash) continue;
-    let r = m
-      ? await gapi(token, `${CAL}/calendars/${cal}/events/${encodeURIComponent(m.event_id)}`, { method: "PUT", body: JSON.stringify(d.evento) })
-      : null;
-    if (!r || !r.ok) r = await gapi(token, `${CAL}/calendars/${cal}/events`, { method: "POST", body: JSON.stringify(d.evento) });
+    const r = await gravarEvento(token, cal, await idEvento(d.origem, d.id), d.evento);
     if (!r.ok) continue;
     await admin.from("google_eventos").upsert({ user_id: integ.user_id, origem: d.origem, origem_id: d.id, event_id: r.json.id, hash });
     enviados++;
@@ -124,8 +137,10 @@ async function enviarCompromissos(admin: any, integ: any, token: string) {
   for (const c of data || []) {
     if (c.google_event_id && c.google_sync_em && new Date(c.updated_at) <= new Date(c.google_sync_em)) continue;
     const ev = compromissoParaEvento(c);
-    let r = c.google_event_id ? await gapi(token, `${CAL}/calendars/${cal}/events/${encodeURIComponent(c.google_event_id)}`, { method: "PUT", body: JSON.stringify(ev) }) : null;
-    if (!r || !r.ok) r = await gapi(token, `${CAL}/calendars/${cal}/events`, { method: "POST", body: JSON.stringify(ev) });
+    // Veio do Google (id dele) → atualiza esse; criado aqui → id fixo.
+    const r = c.origem === "google" && c.google_event_id
+      ? await gapi(token, `${CAL}/calendars/${cal}/events/${encodeURIComponent(c.google_event_id)}`, { method: "PUT", body: JSON.stringify(ev) })
+      : await gravarEvento(token, cal, await idEvento("compromisso", c.id), ev);
     if (!r.ok) continue;
     await admin.from("agenda_itens").update({ google_event_id: r.json.id, google_sync_em: new Date().toISOString() }).eq("id", c.id);
     n++;
@@ -228,6 +243,40 @@ async function sincronizarTarefas(admin: any, integ: any, token: string) {
   return { enviadas, recebidas };
 }
 
+/**
+ * Limpeza única: apaga da agenda BALANX os eventos do BALANX criados antes do id fixo
+ * (as cópias duplicadas) e zera o mapa; a ida recria cada um uma vez só.
+ */
+async function limparDuplicados(admin: any, integ: any, token: string) {
+  if (integ.opcoes?._ids_v2 || !integ.calendar_id) return;
+  const cal = encodeURIComponent(integ.calendar_id);
+  // Desvincula os compromissos antes (a volta não pode ler o "apagado" como exclusão).
+  await admin.from("agenda_itens").update({ google_event_id: null, google_sync_em: null })
+    .eq("user_id", integ.user_id).eq("origem", "balanx").not("google_event_id", "is", null);
+  const apagar: string[] = [];
+  let pageToken: string | null = null;
+  for (let i = 0; i < 40; i++) {
+    const p = new URLSearchParams({ privateExtendedProperty: "balanx=1", maxResults: "250", showDeleted: "false" });
+    if (pageToken) p.set("pageToken", pageToken);
+    const r = await gapi(token, `${CAL}/calendars/${cal}/events?${p}`);
+    if (!r.ok) throw new Error(`listar eventos: ${r.status}`);
+    for (const ev of r.json.items || []) {
+      const pr = ev.extendedProperties?.private || {};
+      if (!pr.origem || !pr.origem_id) continue;
+      if (ev.id !== await idEvento(pr.origem, pr.origem_id)) apagar.push(ev.id);
+    }
+    pageToken = r.json.nextPageToken || null;
+    if (!pageToken) break;
+  }
+  for (let i = 0; i < apagar.length; i += 10) {
+    await Promise.all(apagar.slice(i, i + 10).map((id) => gapi(token, `${CAL}/calendars/${cal}/events/${encodeURIComponent(id)}`, { method: "DELETE" })));
+  }
+  await admin.from("google_eventos").delete().eq("user_id", integ.user_id);
+  integ.opcoes = { ...(integ.opcoes || {}), _ids_v2: true };
+  await admin.from("google_integracoes").update({ opcoes: integ.opcoes, sync_token: null }).eq("user_id", integ.user_id);
+  integ.sync_token = null;
+}
+
 /** Itens apagados no BALANX: apaga no Google. */
 async function limparApagados(admin: any, integ: any, token: string) {
   const { data } = await admin.from("agenda_apagados").select("*").eq("user_id", integ.user_id).limit(200);
@@ -239,18 +288,25 @@ async function limparApagados(admin: any, integ: any, token: string) {
 }
 
 async function sincronizarUm(admin: any, integ: any) {
+  // Trava: só uma sincronização por vez (5 min de validade, caso a anterior caia).
+  const agora = new Date().toISOString();
+  const { data: pegou } = await admin.from("google_integracoes")
+    .update({ sincronizando_ate: new Date(Date.now() + 5 * 60_000).toISOString() })
+    .eq("user_id", integ.user_id).or(`sincronizando_ate.is.null,sincronizando_ate.lt.${agora}`).select("user_id");
+  if (!pegou?.length) return { ok: true, em_andamento: true };
   try {
     const token = await tokenValido(admin, integ);
+    await limparDuplicados(admin, integ, token);
     await limparApagados(admin, integ, token);
     const recebidos = integ.calendar_id ? await receberEventos(admin, integ, token) : 0;
     const comp = integ.calendar_id && integ.opcoes?.compromissos !== false ? await enviarCompromissos(admin, integ, token) : 0;
     const fin = integ.calendar_id ? await enviarFinanceiro(admin, integ, token) : { enviados: 0, removidos: 0 };
     const tar = await sincronizarTarefas(admin, integ, token);
-    await admin.from("google_integracoes").update({ ultima_sync: new Date().toISOString(), ultimo_erro: null }).eq("user_id", integ.user_id);
+    await admin.from("google_integracoes").update({ ultima_sync: new Date().toISOString(), ultimo_erro: null, sincronizando_ate: null }).eq("user_id", integ.user_id);
     return { ok: true, recebidos, compromissos: comp, ...fin, tarefas: tar };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "erro";
-    await admin.from("google_integracoes").update({ ultimo_erro: msg }).eq("user_id", integ.user_id);
+    await admin.from("google_integracoes").update({ ultimo_erro: msg, sincronizando_ate: null }).eq("user_id", integ.user_id);
     return { ok: false, erro: msg };
   }
 }
