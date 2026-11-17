@@ -686,6 +686,69 @@ serve(async (req) => {
       return json({ ok: true, updated: true });
     }
 
+    // ===== ALTERAR UMA COBRANÇA (vencimento e/ou valor) — usado pela IARA =====
+    // Atualiza no Asaas e espelha na(s) linha(s) local(is) e nas receitas em aberto
+    // vinculadas. Fatura agrupada (vários contratos): só a data muda (o valor é a soma).
+    if (action === "alterar-cobranca") {
+      const { cobranca_id } = body;
+      const novoVenc = typeof body.vencimento === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.vencimento) ? body.vencimento : null;
+      const novoValor = body.valor != null ? Math.round(Number(body.valor) * 100) / 100 : null;
+      if (!novoVenc && !(novoValor && novoValor > 0)) return json({ error: "Informe o novo vencimento ou o novo valor." }, 400);
+      const { data: cob } = await admin.from("cobrancas").select("*").eq("id", cobranca_id).eq("user_id", user.id).maybeSingle();
+      if (!cob) return json({ error: "Cobrança não encontrada." }, 404);
+      if (!["pendente", "vencido"].includes(cob.status)) return json({ error: "Só dá para alterar cobrança em aberto." }, 400);
+      const hoje = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+      if (novoVenc && novoVenc < hoje) return json({ error: "O novo vencimento não pode ser no passado." }, 400);
+      const linhas = await linhasDaFatura(admin, cob);
+      const agrupada = linhas.length > 1;
+      if (agrupada && novoValor) return json({ error: "Esta fatura junta vários contratos: o valor só muda pelos contratos. A data dá para mudar." }, 400);
+      if (cob.asaas_payment_id) {
+        const payload: Record<string, unknown> = {};
+        if (novoVenc) payload.dueDate = novoVenc;
+        if (novoValor) payload.value = novoValor;
+        const r = await fetch(`${base}/payments/${cob.asaas_payment_id}`, { method: "POST", headers, body: JSON.stringify(payload) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) return json({ error: (j as any)?.errors?.[0]?.description || "O Asaas não aceitou a alteração." }, 400);
+      }
+      for (const linha of linhas) {
+        const upd: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        if (novoVenc) { upd.vencimento = novoVenc; if (linha.status === "vencido") upd.status = "pendente"; }
+        if (novoValor) upd.valor = novoValor;
+        await admin.from("cobrancas").update(upd).eq("id", linha.id);
+        if (linha.receita_id) {
+          const ur: Record<string, unknown> = {};
+          if (novoVenc) { ur.data_vencimento = novoVenc; ur.status = "pendente"; }
+          if (novoValor) ur.valor = novoValor;
+          await admin.from("receitas").update(ur).eq("id", linha.receita_id).in("status", ["pendente", "atrasado"]);
+        }
+      }
+      return json({ ok: true, agrupada });
+    }
+
+    // ===== CANCELAR SÓ ESTA COBRANÇA (sem mexer na assinatura) — usado pela IARA =====
+    // Avulsa: some no Asaas e a receita criada por ela sai. De assinatura: cancela só
+    // este mês; a assinatura segue e o lançamento "a receber" do mês fica (desvinculado),
+    // para a pessoa decidir.
+    if (action === "cancelar-parcela") {
+      const { cobranca_id } = body;
+      const { data: cob } = await admin.from("cobrancas").select("*").eq("id", cobranca_id).eq("user_id", user.id).maybeSingle();
+      if (!cob) return json({ error: "Cobrança não encontrada." }, 404);
+      if (!["pendente", "vencido"].includes(cob.status)) return json({ error: "Só dá para cancelar cobrança em aberto (paga não)." }, 400);
+      if (cob.asaas_payment_id) {
+        const r = await fetch(`${base}/payments/${cob.asaas_payment_id}`, { method: "DELETE", headers });
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          return json({ error: (j as any)?.errors?.[0]?.description || "O Asaas não aceitou o cancelamento." }, 400);
+        }
+      }
+      const deAssinatura = !!cob.asaas_subscription_id;
+      for (const linha of await linhasDaFatura(admin, cob)) {
+        if (!deAssinatura) await apagarReceitaSeCriada(admin, linha);
+        await admin.from("cobrancas").update({ status: "cancelado", receita_id: null, updated_at: new Date().toISOString() }).eq("id", linha.id);
+      }
+      return json({ ok: true, de_assinatura: deAssinatura });
+    }
+
     // ===== CANCELAR / EXCLUIR (some no Asaas também) =====
     if (action === "cancelar" || action === "excluir") {
       const { cobranca_id } = body;

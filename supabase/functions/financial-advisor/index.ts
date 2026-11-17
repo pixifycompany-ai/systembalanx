@@ -402,6 +402,9 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Cliente que ainda não existe: se o pedido for cobrança ou contrato e o cliente não estiver cadastrado, chame preparar_cliente JUNTO (com os dados que tiver) — no card o cliente é criado primeiro e a cobrança/contrato usa ele.
 - Você NUNCA cria nada direto: as ferramentas montam um card e a pessoa confirma com um toque. Depois de chamar, responda curto: o que vai ser criado (cliente, valor, vencimento/recorrência) e "confira e toque em Confirmar". Não diga que já foi criado.
 - Mande os valores em reais e datas no formato brasileiro na resposta (ex.: R$ 1.500,00 · 25/11/2026).
+- ALTERAR cobrança ("muda o vencimento da cobrança da X para dia 30", "a cobrança do João agora é 900") → **alterar_cobranca**. CANCELAR/EXCLUIR uma cobrança → **cancelar_cobranca** (só aquele mês, mesmo se for assinatura; para parar de cobrar todo mês, oriente encerrar ou pausar o contrato).
+- ALTERAR despesa/conta a pagar ("passa o aluguel para dia 15", "a conta de luz veio 280") → **alterar_despesa**. EXCLUIR despesa lançada errada/duplicada → **excluir_despesa**.
+- Nessas quatro, se a ferramenta devolver "precisa_escolher", mostre as opções numeradas e pergunte qual — não escolha por conta própria. Só mexe em itens EM ABERTO (pago não altera nem exclui pela IARA).
 
 ## Lançar (criar receitas/despesas) — você também REGISTRA, não só consulta
 - Quando a pessoa pedir para LANÇAR/REGISTRAR/ADICIONAR/ANOTAR um gasto, conta, receita, compra no cartão, pagamento, parcelamento ou algo recorrente (ex.: "lança 320 de energia hoje", "coloca 1.200 do aluguel todo mês", "comprei um notebook 3000 em 10x no cartão Nubank", "recebi 500 do cliente X"), use a ferramenta **preparar_lancamentos**. Você NÃO grava direto: ela monta uma PRÉVIA que a pessoa confirma na tela com um toque.
@@ -521,6 +524,46 @@ ${contexto}`;
           cobrar_no_asaas: { type: "boolean", description: "true = criar assinatura no Asaas junto (cobra todo mês sozinho)" },
           forma: { type: "string", enum: ["pix", "boleto", "cartao", "qualquer"] },
         }, required: ["cliente", "valor", "recorrencia"] },
+      } },
+      { type: "function", function: {
+        name: "alterar_cobranca",
+        description: "Prepara a ALTERAÇÃO de uma cobrança EM ABERTO (novo vencimento e/ou novo valor), no Asaas e no lançamento a receber vinculado. A pessoa confirma num card. Se houver mais de uma cobrança parecida, a ferramenta devolve a lista: PERGUNTE qual antes de chamar de novo com valor/vencimento para identificar.",
+        parameters: { type: "object", properties: {
+          quem: { type: "string", description: "cliente/fornecedor ou parte da descrição" },
+          valor: { type: "number", description: "valor atual, se a pessoa disser (ajuda a achar)" },
+          vencimento: { ...D, description: "vencimento atual, se a pessoa disser" },
+          novo_vencimento: { ...D, description: "nova data (não pode ser no passado)" },
+          novo_valor: { type: "number" },
+        }, required: ["quem"] },
+      } },
+      { type: "function", function: {
+        name: "cancelar_cobranca",
+        description: "Prepara o CANCELAMENTO de UMA cobrança em aberto (some do Asaas). Se for de assinatura mensal, cancela SÓ aquele mês — a assinatura continua (para encerrar a assinatura, oriente a encerrar ou pausar o contrato). Cobrança paga não cancela. Se houver mais de uma parecida, PERGUNTE qual.",
+        parameters: { type: "object", properties: {
+          quem: { type: "string", description: "cliente/fornecedor ou parte da descrição" },
+          valor: { type: "number", description: "valor atual, se a pessoa disser (ajuda a achar)" },
+          vencimento: { ...D, description: "vencimento atual, se a pessoa disser" },
+        }, required: ["quem"] },
+      } },
+      { type: "function", function: {
+        name: "alterar_despesa",
+        description: "Prepara a ALTERAÇÃO de uma DESPESA/conta a pagar EM ABERTO (novo vencimento e/ou novo valor). A pessoa confirma num card. Se houver mais de uma parecida, PERGUNTE qual. Itens de cartão não (mudam pela fatura).",
+        parameters: { type: "object", properties: {
+          quem: { type: "string", description: "cliente/fornecedor ou parte da descrição" },
+          valor: { type: "number", description: "valor atual, se a pessoa disser (ajuda a achar)" },
+          vencimento: { ...D, description: "vencimento atual, se a pessoa disser" },
+          novo_vencimento: { ...D },
+          novo_valor: { type: "number" },
+        }, required: ["quem"] },
+      } },
+      { type: "function", function: {
+        name: "excluir_despesa",
+        description: "Prepara a EXCLUSÃO de UMA despesa/conta a pagar EM ABERTO (lançada por engano, cancelada, duplicada). Despesa paga não (para não bagunçar o saldo). Se houver mais de uma parecida, PERGUNTE qual.",
+        parameters: { type: "object", properties: {
+          quem: { type: "string", description: "cliente/fornecedor ou parte da descrição" },
+          valor: { type: "number", description: "valor atual, se a pessoa disser (ajuda a achar)" },
+          vencimento: { ...D, description: "vencimento atual, se a pessoa disser" },
+        }, required: ["quem"] },
       } },
     ];
 
@@ -1308,6 +1351,93 @@ ${contexto}`;
       });
     }
 
+    // ---- Alterar/cancelar cobrança e despesa: acha o item e devolve card ou lista ----
+        const dBR = (iso: string) => iso ? iso.split("-").reverse().join("/") : "";
+    // Filtra por quem (cliente/fornecedor/descrição), valor e vencimento informados.
+    function filtrar<T extends { quem: string; descricao: string; valor: number; vencimento: string }>(lista: T[], a: any): T[] {
+      const q = norm(a?.quem || "");
+      let r = lista.filter((x) => !q || norm(x.quem).includes(q) || norm(x.descricao).includes(q) || (q.length >= 5 && q.includes(norm(x.quem))));
+      const v = Number(a?.valor);
+      if (v > 0) { const rv = r.filter((x) => Math.abs(x.valor - v) < 0.01); if (rv.length) r = rv; }
+      const venc = dataOk(a?.vencimento);
+      if (venc) { const rd = r.filter((x) => x.vencimento === venc); if (rd.length) r = rd; }
+      return r.sort((x, y) => x.vencimento.localeCompare(y.vencimento));
+    }
+    const listaParaPerguntar = (r: any[], oQue: string) => JSON.stringify({
+      precisa_escolher: true,
+      opcoes: r.slice(0, 8).map((x) => ({ quem: x.quem, descricao: x.descricao, valor: x.valor, vencimento: x.vencimento })),
+      obs: `Achei ${r.length} ${oQue} parecidas. Liste-as (quem · descrição · ${"valor"} · vencimento) e PERGUNTE qual; depois chame de novo passando valor e/ou vencimento dela.`,
+    });
+
+    async function cobrancasAbertas() {
+      const { data } = await supabase.from("cobrancas")
+        .select("id, descricao, valor, vencimento, status, receita_id, asaas_payment_id, asaas_subscription_id, cliente:clientes(nome)")
+        .in("status", ["pendente", "vencido"]).order("vencimento").limit(500);
+      // Fatura agrupada (vários contratos, mesmo pagamento no Asaas) vira um item só.
+      const porFatura = new Map<string, any>();
+      for (const c of (data || []) as any[]) {
+        const k = c.asaas_payment_id || c.id;
+        const atual = porFatura.get(k);
+        if (atual) { atual.valor = Math.round((atual.valor + Number(c.valor)) * 100) / 100; atual.agrupada = true; continue; }
+        porFatura.set(k, { id: c.id, quem: c.cliente?.nome || "", descricao: c.descricao || "Cobrança", valor: Number(c.valor),
+          vencimento: c.vencimento, status: c.status, agrupada: false, de_assinatura: !!c.asaas_subscription_id });
+      }
+      return [...porFatura.values()];
+    }
+    async function despesasAbertas() {
+      const { data } = await supabase.from("despesas")
+        .select("id, descricao, valor, data_vencimento, status, fornecedor, fatura_id, recurrence_group_id")
+        .in("status", ["pendente", "atrasado"]).is("fatura_id", null).order("data_vencimento").limit(800);
+      return ((data || []) as any[])
+        .filter((d) => d.fornecedor !== "[fatura]" && d.fornecedor !== "[pagamento-fatura]")
+        .map((d) => ({ id: d.id, quem: d.fornecedor || "", descricao: d.descricao || "Despesa", valor: Number(d.valor), vencimento: d.data_vencimento, status: d.status }));
+    }
+
+    async function alterarCobranca(a: any): Promise<string> {
+      const nv = dataOk(a?.novo_vencimento); const nval = Number(a?.novo_valor) > 0 ? Math.round(Number(a.novo_valor) * 100) / 100 : null;
+      if (!nv && !nval) return JSON.stringify({ erro: "Pergunte a nova data de vencimento ou o novo valor." });
+      if (nv && nv < hojeISO) return JSON.stringify({ erro: `A nova data ${dBR(nv)} já passou. Peça uma data a partir de hoje.` });
+      const r = filtrar(await cobrancasAbertas(), a);
+      if (!r.length) return JSON.stringify({ erro: "Não achei cobrança EM ABERTO com isso. Cobrança paga não muda. Pergunte o cliente ou o valor." });
+      if (r.length > 1) return listaParaPerguntar(r, "cobranças em aberto");
+      const c = r[0];
+      if (c.agrupada && nval) return JSON.stringify({ erro: "Essa cobrança junta vários contratos: o valor muda pelos contratos. A data dá para mudar." });
+      acoes.push({ id: novoId(), tipo: "alterar_cobranca", cobranca_id: c.id, cliente_nome: c.quem, descricao: c.descricao,
+        valor_atual: c.valor, vencimento_atual: c.vencimento, novo_valor: nval, novo_vencimento: nv, agrupada: c.agrupada });
+      return JSON.stringify({ ok: true, cobranca: { cliente: c.quem, descricao: c.descricao, valor: c.valor, vencimento: c.vencimento },
+        novo_valor: nval, novo_vencimento: nv, obs: "Muda no Asaas e no lançamento a receber. A pessoa confirma no card." });
+    }
+    async function cancelarCobranca(a: any): Promise<string> {
+      const r = filtrar(await cobrancasAbertas(), a);
+      if (!r.length) return JSON.stringify({ erro: "Não achei cobrança EM ABERTO com isso (paga não cancela)." });
+      if (r.length > 1) return listaParaPerguntar(r, "cobranças em aberto");
+      const c = r[0];
+      acoes.push({ id: novoId(), tipo: "cancelar_cobranca", cobranca_id: c.id, cliente_nome: c.quem, descricao: c.descricao,
+        valor: c.valor, vencimento: c.vencimento, de_assinatura: c.de_assinatura });
+      return JSON.stringify({ ok: true, cobranca: { cliente: c.quem, descricao: c.descricao, valor: c.valor, vencimento: c.vencimento },
+        de_assinatura: c.de_assinatura,
+        obs: c.de_assinatura ? "É de assinatura: cancela só este mês; a assinatura continua. Diga isso." : "Some do Asaas e o lançamento a receber criado por ela sai." });
+    }
+    async function alterarDespesa(a: any): Promise<string> {
+      const nv = dataOk(a?.novo_vencimento); const nval = Number(a?.novo_valor) > 0 ? Math.round(Number(a.novo_valor) * 100) / 100 : null;
+      if (!nv && !nval) return JSON.stringify({ erro: "Pergunte a nova data de vencimento ou o novo valor." });
+      const r = filtrar(await despesasAbertas(), a);
+      if (!r.length) return JSON.stringify({ erro: "Não achei despesa EM ABERTO com isso (paga ou item de cartão não entram)." });
+      if (r.length > 1) return listaParaPerguntar(r, "despesas em aberto");
+      const d = r[0];
+      acoes.push({ id: novoId(), tipo: "alterar_despesa", despesa_id: d.id, fornecedor: d.quem, descricao: d.descricao,
+        valor_atual: d.valor, vencimento_atual: d.vencimento, novo_valor: nval, novo_vencimento: nv });
+      return JSON.stringify({ ok: true, despesa: { fornecedor: d.quem, descricao: d.descricao, valor: d.valor, vencimento: d.vencimento }, novo_valor: nval, novo_vencimento: nv });
+    }
+    async function excluirDespesa(a: any): Promise<string> {
+      const r = filtrar(await despesasAbertas(), a);
+      if (!r.length) return JSON.stringify({ erro: "Não achei despesa EM ABERTO com isso (paga não exclui pela IARA)." });
+      if (r.length > 1) return listaParaPerguntar(r, "despesas em aberto");
+      const d = r[0];
+      acoes.push({ id: novoId(), tipo: "excluir_despesa", despesa_id: d.id, fornecedor: d.quem, descricao: d.descricao, valor: d.valor, vencimento: d.vencimento });
+      return JSON.stringify({ ok: true, despesa: { fornecedor: d.quem, descricao: d.descricao, valor: d.valor, vencimento: d.vencimento } });
+    }
+
     // ---- Provedor (compatível com API da OpenAI) + loop de ferramentas ----
     const apiKey = Deno.env.get("OPENAI_API_KEY") || Deno.env.get("IARA_API_KEY");
     if (!apiKey) {
@@ -1384,6 +1514,10 @@ ${contexto}`;
             else if (tc.function.name === "preparar_cobranca") result = await prepararCobranca(args);
             else if (tc.function.name === "preparar_cliente") result = await prepararCliente(args);
             else if (tc.function.name === "preparar_contrato") result = await prepararContrato(args);
+            else if (tc.function.name === "alterar_cobranca") result = await alterarCobranca(args);
+            else if (tc.function.name === "cancelar_cobranca") result = await cancelarCobranca(args);
+            else if (tc.function.name === "alterar_despesa") result = await alterarDespesa(args);
+            else if (tc.function.name === "excluir_despesa") result = await excluirDespesa(args);
           } catch (e) {
             result = JSON.stringify({ erro: e instanceof Error ? e.message : "falha na consulta" });
           }

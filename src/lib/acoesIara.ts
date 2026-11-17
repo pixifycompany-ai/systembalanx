@@ -24,7 +24,31 @@ export interface AcaoCobranca {
   parcelas: { valor: number; vencimento: string }[] | null;
   conta_id: string | null; conta_nome: string | null;
 }
-export type AcaoIara = AcaoCliente | AcaoContrato | AcaoCobranca;
+export interface AcaoAlterarCobranca {
+  id: string; tipo: 'alterar_cobranca';
+  cobranca_id: string; cliente_nome: string; descricao: string;
+  valor_atual: number; vencimento_atual: string;
+  novo_valor: number | null; novo_vencimento: string | null; agrupada: boolean;
+}
+export interface AcaoCancelarCobranca {
+  id: string; tipo: 'cancelar_cobranca';
+  cobranca_id: string; cliente_nome: string; descricao: string;
+  valor: number; vencimento: string; de_assinatura: boolean;
+}
+export interface AcaoAlterarDespesa {
+  id: string; tipo: 'alterar_despesa';
+  despesa_id: string; fornecedor: string; descricao: string;
+  valor_atual: number; vencimento_atual: string;
+  novo_valor: number | null; novo_vencimento: string | null;
+}
+export interface AcaoExcluirDespesa {
+  id: string; tipo: 'excluir_despesa';
+  despesa_id: string; fornecedor: string; descricao: string; valor: number; vencimento: string;
+}
+export type AcaoIara = AcaoCliente | AcaoContrato | AcaoCobranca
+  | AcaoAlterarCobranca | AcaoCancelarCobranca | AcaoAlterarDespesa | AcaoExcluirDespesa;
+
+const hojeISO = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 
 export interface ResultadoAcao {
   id: string;
@@ -127,6 +151,41 @@ export async function executarAcoes(acoes: AcaoIara[], usarExistente: Record<str
       }
     } catch (e) {
       res.push({ id: a.id, ok: false, mensagem: `Cobrança: ${e instanceof Error ? e.message : 'erro ao criar'}` });
+    }
+  }
+  // Alterações e exclusões (depois das criações).
+  for (const a of acoes) {
+    try {
+      if (a.tipo === 'alterar_cobranca') {
+        await asaas({ action: 'alterar-cobranca', cobranca_id: a.cobranca_id, vencimento: a.novo_vencimento, valor: a.novo_valor });
+        res.push({ id: a.id, ok: true, mensagem: `Cobrança de ${a.cliente_nome} alterada no Asaas e no financeiro.` });
+      } else if (a.tipo === 'cancelar_cobranca') {
+        const r = await asaas({ action: 'cancelar-parcela', cobranca_id: a.cobranca_id }) as { de_assinatura?: boolean };
+        res.push({ id: a.id, ok: true, mensagem: r.de_assinatura
+          ? `Cobrança de ${a.cliente_nome} cancelada só neste mês; a assinatura continua. O lançamento a receber do mês ficou no financeiro, desvinculado: apague ou ajuste se o cliente não vai pagar.`
+          : `Cobrança de ${a.cliente_nome} cancelada no Asaas.` });
+      } else if (a.tipo === 'alterar_despesa') {
+        const upd: Record<string, unknown> = {};
+        if (a.novo_valor) upd.valor = a.novo_valor;
+        if (a.novo_vencimento) {
+          upd.data_vencimento = a.novo_vencimento;
+          upd.status = a.novo_vencimento >= hojeISO() ? 'pendente' : 'atrasado';
+        }
+        const { data, error } = await supabase.from('despesas').update(upd as never).eq('id', a.despesa_id)
+          .in('status', ['pendente', 'atrasado']).select('id');
+        if (error) throw error;
+        if (!data?.length) throw new Error('ela já não está em aberto');
+        res.push({ id: a.id, ok: true, mensagem: `Despesa "${a.descricao}" alterada.` });
+      } else if (a.tipo === 'excluir_despesa') {
+        const { data, error } = await supabase.from('despesas').delete().eq('id', a.despesa_id)
+          .in('status', ['pendente', 'atrasado']).select('id');
+        if (error) throw error;
+        if (!data?.length) throw new Error('ela já não está em aberto');
+        res.push({ id: a.id, ok: true, mensagem: `Despesa "${a.descricao}" excluída.` });
+      }
+    } catch (e) {
+      const oQue = a.tipo.includes('despesa') ? 'Despesa' : 'Cobrança';
+      res.push({ id: a.id, ok: false, mensagem: `${oQue}: ${e instanceof Error ? e.message : 'não deu certo'}` });
     }
   }
   return res;

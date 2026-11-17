@@ -1,7 +1,7 @@
 // Card de confirmação das ações que a IARA preparou: cliente, contrato e cobrança.
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Copy, ExternalLink, FileSignature, Loader2, Receipt, UserPlus, X, AlertTriangle } from 'lucide-react';
+import { Check, Copy, ExternalLink, FileSignature, Loader2, Receipt, UserPlus, X, AlertTriangle, CalendarClock, Trash2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCPFCNPJ, formatCurrency, formatDate, formatPhone } from '@/utils/formatters';
 import { useToast } from '@/hooks/use-toast';
@@ -19,7 +19,60 @@ const Chip = ({ children, tom }: { children: React.ReactNode; tom?: 'info' | 'wa
   </span>
 );
 
+/** "25/11 → 30/11" e "R$ 800 → R$ 900" (só o que muda). */
+function Mudanca({ de, para }: { de: string; para: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-info-bg px-2 py-0.5 text-[11px] font-semibold text-info-fg">
+      <span className="line-through opacity-70">{de}</span><ArrowRight className="h-3 w-3" />{para}
+    </span>
+  );
+}
+
 function Item({ a, usarExistente, setUsarExistente }: { a: AcaoIara; usarExistente: boolean; setUsarExistente: (v: boolean) => void }) {
+  if (a.tipo === 'alterar_cobranca' || a.tipo === 'alterar_despesa') {
+    const ehCob = a.tipo === 'alterar_cobranca';
+    const quem = ehCob ? a.cliente_nome : a.fornecedor;
+    return (
+      <div className="border-b border-border px-3 py-2.5 last:border-b-0">
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
+          <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-foreground">
+            Alterar {ehCob ? 'cobrança' : 'despesa'} · {a.descricao}
+          </span>
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {quem && <Chip>{quem}</Chip>}
+          {a.novo_vencimento
+            ? <Mudanca de={formatDate(a.vencimento_atual)} para={formatDate(a.novo_vencimento)} />
+            : <Chip>vence {formatDate(a.vencimento_atual)}</Chip>}
+          {a.novo_valor
+            ? <Mudanca de={formatCurrency(a.valor_atual)} para={formatCurrency(a.novo_valor)} />
+            : <Chip>{formatCurrency(a.valor_atual)}</Chip>}
+          {ehCob && <Chip>Asaas + lançamento a receber</Chip>}
+        </div>
+      </div>
+    );
+  }
+  if (a.tipo === 'cancelar_cobranca' || a.tipo === 'excluir_despesa') {
+    const ehCob = a.tipo === 'cancelar_cobranca';
+    const quem = ehCob ? a.cliente_nome : a.fornecedor;
+    return (
+      <div className="border-b border-border px-3 py-2.5 last:border-b-0">
+        <div className="flex items-center gap-2">
+          <Trash2 className="h-4 w-4 shrink-0 text-danger-fg" />
+          <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-foreground">
+            {ehCob ? 'Cancelar cobrança' : 'Excluir despesa'} · {a.descricao}
+          </span>
+          <span className="shrink-0 font-heading text-[14px] font-semibold tabular-nums text-danger-fg">{formatCurrency(a.valor)}</span>
+        </div>
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {quem && <Chip>{quem}</Chip>}
+          <Chip>vence {formatDate(a.vencimento)}</Chip>
+          {ehCob && a.de_assinatura && <Chip tom="warn">só este mês · a assinatura continua</Chip>}
+        </div>
+      </div>
+    );
+  }
   if (a.tipo === 'cliente') {
     return (
       <div className="border-b border-border px-3 py-2.5 last:border-b-0">
@@ -128,7 +181,7 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
             )}
           </div>
         ))}
-        {resultado.some((r) => r.ok) && (
+        {resultado.some((r) => r.ok) && acoes.some((a) => a.tipo.includes('cobranca')) && (
           <Link to="/cobrancas" className="inline-block px-1 text-[12px] font-semibold text-primary hover:underline">Ver em Cobranças →</Link>
         )}
       </div>
@@ -136,9 +189,10 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
   }
 
   const n = acoes.length;
+  const soRemove = acoes.every((a) => a.tipo === 'cancelar_cobranca' || a.tipo === 'excluir_despesa');
   return (
     <div className="mt-2.5 rounded-[20px] border border-border bg-surface p-3">
-      <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Prévia · confira antes de criar</div>
+      <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Prévia · confira antes de confirmar</div>
       <div className="overflow-hidden rounded-[16px] border border-border">
         {acoes.map((a) => (
           <Item key={a.id} a={a} usarExistente={usarExistente[a.id] !== false}
@@ -146,7 +200,7 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
         ))}
       </div>
       <p className="px-1 pt-2.5 text-[11px] leading-[1.45] text-foreground-muted">
-        Cobrança e assinatura são criadas de verdade no Asaas. Para ajustar algo, é só me dizer (ex.: "muda o vencimento para dia 30").
+        {soRemove ? 'Isso não dá para desfazer.' : 'Cobranças e assinaturas mudam de verdade no Asaas.'} Para ajustar algo, é só me dizer (ex.: "muda o vencimento para dia 30").
       </p>
       <div className="mt-2.5 flex gap-2">
         <button onClick={onResolved} aria-label="Descartar" disabled={salvando}
@@ -154,9 +208,10 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
           <X className="h-4 w-4" />
         </button>
         <button onClick={confirmar} disabled={salvando}
-          className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-primary px-4 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">
-          {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          {salvando ? 'Criando…' : n === 1 ? 'Confirmar' : `Confirmar ${n} itens`}
+          className={cn('flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[13px] font-semibold transition-colors disabled:opacity-50',
+            soRemove ? 'bg-danger-fg text-white hover:opacity-90' : 'bg-primary text-primary-foreground hover:bg-primary/90')}>
+          {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : soRemove ? <Trash2 className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+          {salvando ? 'Aplicando…' : soRemove ? (n === 1 ? 'Confirmar exclusão' : `Excluir ${n} itens`) : n === 1 ? 'Confirmar' : `Confirmar ${n} itens`}
         </button>
       </div>
     </div>
