@@ -35,8 +35,14 @@ function novaChave() {
   return "iara_" + [...r].map((x) => alfa[x % alfa.length]).join("");
 }
 
+/** Nomes que a voz do iPhone lê errado → grafia que ela pronuncia certo. */
+const PRONUNCIA: [RegExp, string][] = [
+  [/\bpixify\b/gi, "Piquissifai"],
+];
+
 /** Texto para falar: sem markdown, tabelas nem emojis. */
 function paraVoz(t: string) {
+  for (const [re, fala] of PRONUNCIA) t = t.replace(re, fala);
   return t
     .replace(/```[\s\S]*?```/g, "")
     .replace(/^\s*\|.*\|\s*$/gm, "")
