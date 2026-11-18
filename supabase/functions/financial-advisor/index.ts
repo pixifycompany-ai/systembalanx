@@ -275,12 +275,13 @@ serve(async (req) => {
     });
 
     // ---- Aging (top atrasados) ----
+    // Sempre com o CLIENTE/FORNECEDOR de cada item: sem ele a IARA tendia a "adivinhar" de quem era.
     const topAtrasadosRec = receitasAtrasadas
-      .sort((a, b) => Number(b.valor) - Number(a.valor)).slice(0, 5)
-      .map(r => `  • ${r.descricao || r.cliente?.nome || "Receita"} — ${fmt(Number(r.valor))} (venc. ${r.data_vencimento || "?"})`);
+      .sort((a, b) => Number(b.valor) - Number(a.valor)).slice(0, 10)
+      .map(r => `  • cliente: ${r.cliente?.nome || "(sem cliente vinculado)"} — ${r.descricao || "Receita"} — ${fmt(Number(r.valor))} (venc. ${r.data_vencimento || "?"})`);
     const topAtrasadosDesp = despesasAtrasadas
-      .sort((a, b) => Number(b.valor) - Number(a.valor)).slice(0, 5)
-      .map(d => `  • ${d.descricao || d.categoria?.nome || "Despesa"} — ${fmt(Number(d.valor))} (venc. ${d.data_vencimento || "?"})`);
+      .sort((a, b) => Number(b.valor) - Number(a.valor)).slice(0, 10)
+      .map(d => `  • fornecedor: ${(d.fornecedor && !String(d.fornecedor).startsWith("[") ? d.fornecedor : null) || "(sem fornecedor)"} — ${d.descricao || d.categoria?.nome || "Despesa"} — ${fmt(Number(d.valor))} (venc. ${d.data_vencimento || "?"})`);
 
     // ---- Monta o contexto financeiro ----
     const contexto = `
@@ -431,6 +432,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Ao listar LANÇAMENTOS, identifique de quem é: use o FORNECEDOR (despesa) ou o CLIENTE (receita) como nome do item, com a descrição/categoria e o vencimento no detalhe. Ex.: - **Vivo** — R$ 139,90 (Internet · parcela 6/12 · vence 05/11). Se não houver fornecedor/cliente, use a descrição.
 - "Quanto falta receber/pagar" ("esse mês ainda", "resto do mês", "quanto tenho a receber") = PENDENTE + ATRASADO, nunca só o pendente. Para "esse mês"/"esse mês ainda"/"resto do mês" use agenda_vencimentos do MÊS INTEIRO (dia 1 ao último dia), assim os atrasados do mês entram. Responda: 1ª frase com o **total** (pendente + atrasado) e logo abaixo separado: - **No prazo** — R$ X · - **Atrasado** — R$ Y (com os clientes/fornecedores do atrasado). Se vier atrasados_antes_do_periodo, some os do_mesmo_mes ao atrasado e cite em 1 linha à parte os meses_anteriores ("+ R$ Z atrasados de meses anteriores").
 - "O que tenho a pagar/receber" = SÓ o que está pendente ou atrasado (campo 'pendentes'). NUNCA liste itens já pagos/recebidos dentro do "a pagar/receber"; se for útil, cite-os à parte em **Já pagos no período** com o total.
+- QUEM é o cliente/fornecedor de um lançamento: use SÓ o campo cliente/fornecedor que veio no contexto ou na ferramenta (agenda_vencimentos, listar_lancamentos, buscar_lancamento). NUNCA deduza pelo valor, pela descrição ou pela lista de clientes. Se não tiver certeza de qual lançamento é, consulte a ferramenta antes de responder; se o lançamento não tiver cliente vinculado, diga isso.
 - Quando houver vários lançamentos do mesmo fornecedor/cliente, agrupe (use 'pendente_por_quem') e mostre o total de cada um.
 - Separe blocos com um subtítulo curto em negrito quando a resposta tiver mais de uma parte (ex.: **Acima da média**, **Dentro do normal**).
 - Emojis com muita moderação (no máximo 1–2 quando destacam algo importante).
