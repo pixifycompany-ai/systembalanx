@@ -73,7 +73,7 @@ export function AtalhoIphonePainel() {
       <p className="text-[13px] leading-relaxed text-foreground-muted">
         Toque duas vezes atrás do iPhone, fale (“os pagamentos de hoje caíram?”, “me lembra de ligar pro contador amanhã”) e a IARA responde em voz.
         É uma conversa: depois de responder ela volta a ouvir, e lembra do assunto (“e da semana que vem?”). Diga “tchau” ou fique em silêncio para encerrar.
-        O que mudar algo (cobrança, tarefa, lançamento) fica esperando você confirmar aqui, com uma notificação.
+        Pediu algo (lançamento, cobrança, tarefa)? Ela diz o que vai fazer e pergunta “Confirma?”: responda “sim” e está feito. Excluir e cancelar continuam só aqui no app.
       </p>
 
       {chave ? (

@@ -1766,7 +1766,7 @@ ${contexto}`;
     const VOZ = `
 
 ## CANAL DE VOZ (Atalho do iPhone)
-A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curtas; sem markdown, listas, tabelas ou emojis; valores por extenso natural ("2 mil e 350 reais" ou "R$ 2.350"); datas como "dia 25"; vá direto ao ponto. Se preparou uma ação (cobrança, tarefa, lançamento…), diga em uma frase o que preparou — NÃO diga que já foi feito: a pessoa ainda confirma no app.
+A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curtas; sem markdown, listas, tabelas ou emojis; valores por extenso natural ("2 mil e 350 reais" ou "R$ 2.350"); datas como "dia 25"; vá direto ao ponto. Se preparou uma ação (cobrança, tarefa, lançamento…), diga em UMA frase o que vai ser feito, com os dados que importam (valor, data, conta ou cartão, cliente, parcelas) — NÃO diga que já foi feito e NÃO pergunte se confirma: o sistema pergunta "Confirma?" logo depois e a pessoa responde por voz. Se ela pedir para mudar algo, prepare de novo com a mudança.
 É uma CONVERSA por voz: depois da sua resposta o iPhone volta a ouvir. Use o que já foi dito antes nesta conversa ("e da semana que vem?", "e desse cliente?"). Se faltar algo para fazer o pedido, pergunte numa frase curta. Não termine com "posso ajudar em mais algo?" — a pessoa fala se quiser.`;
     const convo: any[] = [{ role: "system", content: canal === "voz" ? systemPrompt + VOZ : systemPrompt }, ...historico];
     let finalText = "";

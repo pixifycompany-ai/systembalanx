@@ -13,6 +13,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { p256 } from "npm:@noble/curves@2.2.0/nist.js";
 import webpush from "npm:web-push@3.6.7";
+import { executarAcoesVoz, salvarLancamentos, soPeloApp, type Ctx } from "../_shared/executarIara.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -113,6 +114,22 @@ const MAX_TURNOS = 12;   // últimas 6 trocas
 const FIM = " [fim]";
 const DESPEDIDA = /^\s*(tchau|até mais|ate mais|até logo|obrigad[oa]|valeu|só isso|so isso|era só isso|pode (parar|encerrar)|encerra[r]?|chega|nada|não|nao)(?:[\s!.,]*(?:iara|tchau))*[\s!.]*$/i;
 const NOVA = /^\s*(nova conversa|outro assunto|começa(r)? de novo|esquece)\b/i;
+// Resposta a "Confirma?" (só vale se houver algo preparado nos últimos minutos).
+const SIM_W = String.raw`(?:sim|confirm[oa]?|confirmado|confirmar|pode(?: sim)?(?: (?:lan[çc]ar|fazer|criar|mandar|seguir|ir|salvar|marcar|cobrar))?|isso(?: mesmo| a[ií])?|ok|okay|beleza|manda(?: ver| bala)?|fechado|positivo|perfeito|faz(?: isso)?|lan[çc]a|lance|salva|bora|claro|uhum|aham)`;
+const NAO_W = String.raw`(?:n[ãa]o|cancela(?:r)?|deixa(?: pra l[áa])?|esquece|nada disso|melhor n[ãa]o|n[ãa]o precisa)`;
+// "sim, pode lançar", "não, cancela": várias palavras de sim (ou de não) seguidas, e nada além.
+const SIM = new RegExp(String.raw`^\s*(?:iara[\s,]+)?${SIM_W}(?:[\s,.!]+${SIM_W})*(?:[\s,]+iara)?[\s!.,]*$`, "i");
+const NAO = new RegExp(String.raw`^\s*(?:iara[\s,]+)?${NAO_W}(?:[\s,.!]+${NAO_W})*(?:[\s,]+iara)?[\s!.,]*$`, "i");
+
+/** O que a IARA preparou há pouco e ainda espera resposta. */
+async function pendenteRecente(userId: string) {
+  const desde = new Date(Date.now() - JANELA_MIN * 60000).toISOString();
+  const { data } = await admin.from("iara_pendentes").select("id, acoes, lancamentos").eq("user_id", userId)
+    .is("visto_em", null).gte("created_at", desde).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  return data as { id: string; acoes: any[] | null; lancamentos: any[] | null } | null;
+}
+const temVoz = (p: { acoes: any[] | null; lancamentos: any[] | null }) =>
+  !!(p.lancamentos?.length || (p.acoes || []).some((a) => !soPeloApp(a)));
 
 async function historico(userId: string): Promise<{ role: string; content: string }[]> {
   const desde = new Date(Date.now() - JANELA_MIN * 60000).toISOString();
@@ -185,6 +202,46 @@ Deno.serve(async (req) => {
     const pergunta = (await lerPergunta(req)).slice(0, 2000).trim();
     if (!pergunta) return texto("Não ouvi nada. Até mais!" + FIM);
     await admin.from("iara_chaves").update({ ultimo_uso: new Date().toISOString() }).eq("user_id", chave.user_id);
+    // Resposta a "Confirma?": executa (sim) ou descarta (não) o que foi preparado.
+    const pend = (SIM.test(pergunta) || NAO.test(pergunta)) ? await pendenteRecente(chave.user_id) : null;
+    if (pend && NAO.test(pergunta)) {
+      const resto = (pend.acoes || []).filter(soPeloApp);
+      if (resto.length) await admin.from("iara_pendentes").update({ acoes: resto, lancamentos: null }).eq("id", pend.id);
+      else await admin.from("iara_pendentes").delete().eq("id", pend.id);
+      await guardarTurnos(chave.user_id, pergunta, "Tudo bem, não fiz nada.");
+      return texto("Tudo bem, não fiz nada.");
+    }
+    if (pend && temVoz(pend)) {
+      let sessaoC: string | null = null;
+      try {
+        sessaoC = await sessaoDoUsuario(chave.user_id);
+        const ctx: Ctx = {
+          db: createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${sessaoC}` } } }),
+          userId: chave.user_id, token: sessaoC, supabaseUrl: SUPABASE_URL, anonKey: ANON_KEY,
+        };
+        // Tira da fila ANTES de executar (não deixa o mesmo card ser confirmado de novo no app).
+        const resto = (pend.acoes || []).filter(soPeloApp);
+        if (resto.length) await admin.from("iara_pendentes").update({ acoes: resto, lancamentos: null }).eq("id", pend.id);
+        else await admin.from("iara_pendentes").delete().eq("id", pend.id);
+        const partes: string[] = [];
+        if (pend.lancamentos?.length) {
+          const r = await salvarLancamentos(ctx, pend.lancamentos);
+          partes.push(r.ok === r.total ? (r.total === 1 ? "Lançamento feito." : `${r.total} lançamentos feitos.`)
+            : `Lancei ${r.ok} de ${r.total}; o resto não deu certo, confira no app.`);
+        }
+        const res = await executarAcoesVoz(ctx, pend.acoes || []);
+        for (const x of res) partes.push(x.mensagem);
+        if (resto.length) partes.push("Exclusão e cancelamento eu deixei para você confirmar no app.");
+        const fala = paraVoz(`Pronto. ${partes.join(" ")}`);
+        await guardarTurnos(chave.user_id, pergunta, fala);
+        return texto(fala);
+      } catch (e) {
+        console.error("iara-atalho confirmar", e);
+        return texto("Não consegui concluir agora. O que eu preparei ficou no app para você confirmar." + FIM, 500);
+      } finally {
+        if (sessaoC) await encerrarSessao(sessaoC);
+      }
+    }
     // "tchau", "obrigado", "só isso"… encerra a conversa (e o Atalho para de ouvir).
     if (DESPEDIDA.test(pergunta)) { await esquecer(chave.user_id); return texto("Até mais!" + FIM); }
     let anteriores = await historico(chave.user_id);
@@ -197,15 +254,24 @@ Deno.serve(async (req) => {
       let fala = paraVoz(resposta) || "Pronto.";
       if (resposta) await guardarTurnos(chave.user_id, pergunta, resposta);
       if (acoes.length || lancamentos.length) {
+        // Um preparo novo substitui o anterior ainda sem resposta (ex.: "muda para amanhã").
+        await admin.from("iara_pendentes").delete().eq("user_id", chave.user_id).is("visto_em", null)
+          .gte("created_at", new Date(Date.now() - JANELA_MIN * 60000).toISOString());
         const { data: p } = await admin.from("iara_pendentes").insert({
           user_id: chave.user_id, pergunta, resposta: resposta || fala,
           acoes: acoes.length ? acoes : null, lancamentos: lancamentos.length ? lancamentos : null,
         }).select("id").single();
-        const url = p?.id ? `/iara?pendente=${p.id}` : "/iara";
-        const n = await avisarNoCelular(chave.user_id, "Preparei o que você pediu. Toque para conferir e confirmar.", url);
-        fala += n
-          ? " Nada foi alterado ainda: te mandei uma notificação para você conferir e confirmar."
-          : " Nada foi alterado ainda: abra a IARA no BALANX para conferir e confirmar.";
+        const porVoz = !!(lancamentos.length || acoes.some((a: any) => !soPeloApp(a)));
+        const soApp = acoes.some((a: any) => soPeloApp(a));
+        if (porVoz) {
+          fala += soApp ? " Confirma? A exclusão ou o cancelamento você confirma no app." : " Confirma?";
+        } else {
+          const url = p?.id ? `/iara?pendente=${p.id}` : "/iara";
+          const n = await avisarNoCelular(chave.user_id, "Preparei o que você pediu. Toque para conferir e confirmar.", url);
+          fala += n
+            ? " Excluir e cancelar só pelo app: te mandei uma notificação para confirmar."
+            : " Excluir e cancelar só pelo app: abra a IARA no BALANX para confirmar.";
+        }
       }
       return texto(fala);
     } catch (e) {
