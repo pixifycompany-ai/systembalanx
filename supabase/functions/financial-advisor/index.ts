@@ -301,12 +301,14 @@ RECEITAS (${periodLabel}):
 - Recebido: ${fmt(totalRecebido)}
 - A receber (pendente): ${fmt(totalReceitaPendente)}
 - Atrasado: ${fmt(totalReceitaAtrasada)} (${receitasAtrasadas.length} título(s))
+- Falta receber (pendente + atrasado): ${fmt(totalReceitaPendente + totalReceitaAtrasada)}
 - Total previsto: ${fmt(totalRecebido + totalReceitaPendente + totalReceitaAtrasada)}
 
 DESPESAS (${periodLabel}):
 - Pago: ${fmt(totalPago)}
 - A pagar (pendente): ${fmt(totalDespesaPendente)}
 - Atrasado: ${fmt(totalDespesaAtrasada)} (${despesasAtrasadas.length} conta(s))
+- Falta pagar (pendente + atrasado): ${fmt(totalDespesaPendente + totalDespesaAtrasada)}
 - Despesa média mensal no período: ${fmt(despesaMediaMensal)}
 - Por categoria (competência, igual ao DRE — itens do cartão contam na categoria deles; pagos e em aberto):
 ${categoriasOrdenadas.length ? categoriasOrdenadas.map(([c, v]) => `  • ${c}: ${fmt(v)}`).join("\n") : "  • (sem despesas)"}
@@ -427,6 +429,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - No máximo 8 itens por lista; se houver mais, resuma o resto em uma linha ("+ 5 categorias somando R$ 900,00"). Exceção: quando a pessoa pedir explicitamente para LISTAR lançamentos, mostre até 20 (e resuma o resto).
 - Para listar lançamentos de um período/categoria/fornecedor use listar_lancamentos (NÃO buscar_lancamento). Mantenha o contexto da conversa: "liste os de outubro" logo após falar de uma categoria = essa categoria em outubro. Nunca diga que não há lançamentos sem ter consultado listar_lancamentos com o período certo.
 - Ao listar LANÇAMENTOS, identifique de quem é: use o FORNECEDOR (despesa) ou o CLIENTE (receita) como nome do item, com a descrição/categoria e o vencimento no detalhe. Ex.: - **Vivo** — R$ 139,90 (Internet · parcela 6/12 · vence 05/11). Se não houver fornecedor/cliente, use a descrição.
+- "Quanto falta receber/pagar" ("esse mês ainda", "resto do mês", "quanto tenho a receber") = PENDENTE + ATRASADO, nunca só o pendente. Para "esse mês"/"esse mês ainda"/"resto do mês" use agenda_vencimentos do MÊS INTEIRO (dia 1 ao último dia), assim os atrasados do mês entram. Responda: 1ª frase com o **total** (pendente + atrasado) e logo abaixo separado: - **No prazo** — R$ X · - **Atrasado** — R$ Y (com os clientes/fornecedores do atrasado). Se vier atrasados_antes_do_periodo, some os do_mesmo_mes ao atrasado e cite em 1 linha à parte os meses_anteriores ("+ R$ Z atrasados de meses anteriores").
 - "O que tenho a pagar/receber" = SÓ o que está pendente ou atrasado (campo 'pendentes'). NUNCA liste itens já pagos/recebidos dentro do "a pagar/receber"; se for útil, cite-os à parte em **Já pagos no período** com o total.
 - Quando houver vários lançamentos do mesmo fornecedor/cliente, agrupe (use 'pendente_por_quem') e mostre o total de cada um.
 - Separe blocos com um subtítulo curto em negrito quando a resposta tiver mais de uma parte (ex.: **Acima da média**, **Dentro do normal**).
@@ -740,11 +743,11 @@ ${contexto}`;
         resultado_apos_distribuicao: lucroDre - distrib,
         despesas_por_categoria: Object.fromEntries(Object.entries(cat).sort((a, b) => b[1] - a[1]).slice(0, 15)),
         // Caixa
-        recebido, a_receber: aReceber, atrasado_a_receber: atrasadoReceber,
-        pago, a_pagar: aPagar, atrasado_a_pagar: atrasadoPagar,
+        recebido, a_receber: aReceber, atrasado_a_receber: atrasadoReceber, falta_receber_total: aReceber + atrasadoReceber,
+        pago, a_pagar: aPagar, atrasado_a_pagar: atrasadoPagar, falta_pagar_total: aPagar + atrasadoPagar,
         lucro: lucroP, lucro_caixa: lucroP, margem_pct: recebido > 0 ? Number(((lucroP / recebido) * 100).toFixed(1)) : 0,
         receita_por_cliente: Object.fromEntries(Object.entries(cli).sort((a, b) => b[1] - a[1]).slice(0, 10)),
-        obs: "despesas_por_categoria e lucro_liquido_dre são por competência (iguais ao DRE; compras no cartão contam na categoria do item, mesmo com fatura em aberto). pago/lucro_caixa são saídas/entradas de caixa.",
+        obs: "despesas_por_categoria e lucro_liquido_dre são por competência (iguais ao DRE; compras no cartão contam na categoria do item, mesmo com fatura em aberto). pago/lucro_caixa são saídas/entradas de caixa. a_receber/a_pagar = só o PENDENTE (no prazo); o atrasado vem à parte. 'Quanto falta receber/pagar' = falta_receber_total/falta_pagar_total (pendente + atrasado) — diga o total e separe os dois.",
       };
     }
 
@@ -1264,10 +1267,35 @@ ${contexto}`;
       itens.sort((a, b) => String(a.data || "").localeCompare(String(b.data || "")));
       // Separa o que AINDA falta (pendente/atrasado) do que já foi quitado no período.
       const quitado = (i: any) => i.status === "pago" || i.status === "recebido";
+      const emAtraso = (i: any) => i.status === "atrasado" || String(i.data || "") < hojeISO;
+      for (const i of itens) if (!quitado(i)) (i as any).situacao = emAtraso(i) ? "atrasado" : "no prazo";
       const pendentes = itens.filter(i => !quitado(i));
       const quitados = itens.filter(quitado);
-      const aReceber = pendentes.filter(i => i.tipo === "receita").reduce((t, i) => t + i.valor, 0);
-      const aPagar = pendentes.filter(i => i.tipo === "despesa").reduce((t, i) => t + i.valor, 0);
+      const soma = (arr: any[]) => arr.reduce((t, i) => t + i.valor, 0);
+      const recAb = pendentes.filter(i => i.tipo === "receita");
+      const despAb = pendentes.filter(i => i.tipo === "despesa");
+      const aReceber = soma(recAb);
+      const aPagar = soma(despAb);
+      // Em atraso com vencimento ANTES do período (ex.: "o que falta receber esse mês ainda"
+      // consultado de hoje em diante): não pode sumir da resposta.
+      const antes = status && status !== "atrasado" ? [] : await (async () => {
+        const [r0, d0] = await Promise.all([
+          wantRec ? safe<any>(supabase.from("receitas").select("descricao,valor,status,data_vencimento,cliente:clientes(nome)")
+            .lt("data_vencimento", inicio).in("status", ["pendente", "atrasado"]).order("data_vencimento").limit(200)) : Promise.resolve([]),
+          wantDesp ? safe<any>(supabase.from("despesas").select("descricao,fornecedor,valor,status,data_vencimento")
+            .lt("data_vencimento", inicio).in("status", ["pendente", "atrasado"]).is("fatura_id", null).order("data_vencimento").limit(200)) : Promise.resolve([]),
+        ]);
+        return [
+          ...r0.map((r: any) => ({ tipo: "receita", data: r.data_vencimento, quem: r.cliente?.nome || r.descricao || "Receita", descricao: r.descricao, valor: Number(r.valor || 0) })),
+          ...d0.map((d: any) => ({ tipo: "despesa", data: d.data_vencimento, quem: d.fornecedor === "[fatura]" ? "Fatura do cartão" : (limpaFornecedor(d.fornecedor) || d.descricao || "Despesa"), descricao: d.descricao, valor: Number(d.valor || 0) })),
+        ].filter(i => i.data < hojeISO);
+      })();
+      const mesIni = `${String(inicio).slice(0, 7)}-01`;
+      const blocoAntes = (t: string) => {
+        const its = antes.filter(i => i.tipo === t);
+        const doMes = its.filter(i => i.data >= mesIni);
+        return { total: soma(its), do_mesmo_mes: soma(doMes), meses_anteriores: soma(its) - soma(doMes), itens: its.slice(0, 15) };
+      };
       // Quem concentra o que falta pagar/receber (fornecedor ou cliente; senão a descrição)
       const porQuem: Record<string, { tipo: string; total: number; itens: number }> = {};
       for (const i of pendentes) {
@@ -1279,10 +1307,13 @@ ${contexto}`;
       return JSON.stringify({
         periodo: { inicio, fim },
         a_receber: aReceber, a_pagar: aPagar, saldo_previsto: aReceber - aPagar,
+        a_receber_separado: { no_prazo: soma(recAb.filter(i => !emAtraso(i))), atrasado: soma(recAb.filter(emAtraso)) },
+        a_pagar_separado: { no_prazo: soma(despAb.filter(i => !emAtraso(i))), atrasado: soma(despAb.filter(emAtraso)) },
+        ...(antes.length ? { atrasados_antes_do_periodo: { receber: blocoAntes("receita"), pagar: blocoAntes("despesa"), obs: "Vencidos ANTES de 'inicio' e ainda em aberto. NÃO estão em a_receber/a_pagar: some quando a pergunta for 'quanto falta receber/pagar' (do mês = do_mesmo_mes; cite meses_anteriores à parte)." } } : {}),
         pendentes: pendentes.slice(0, 40),
         ja_quitados_no_periodo: { total_pago: quitados.filter(i => i.tipo === "despesa").reduce((t, i) => t + i.valor, 0), total_recebido: quitados.filter(i => i.tipo === "receita").reduce((t, i) => t + i.valor, 0), itens: quitados.slice(0, 20) },
         pendente_por_quem: Object.entries(porQuem).map(([k, v]) => ({ quem: k.split(":").slice(1).join(":"), ...v })).sort((a, b) => b.total - a.total).slice(0, 15),
-        obs: "a_pagar/a_receber e 'pendentes' são só o que AINDA falta (pendente/atrasado). 'ja_quitados_no_periodo' é o que já foi pago/recebido nessas datas — não entra no 'a pagar'.",
+        obs: "a_pagar/a_receber e 'pendentes' são só o que AINDA falta (no prazo + atrasado; veja a_receber_separado/a_pagar_separado e o campo 'situacao' de cada item). 'ja_quitados_no_periodo' é o que já foi pago/recebido nessas datas — não entra no 'a pagar'.",
       });
     }
 
