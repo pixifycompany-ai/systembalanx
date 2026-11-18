@@ -65,13 +65,15 @@ export function AtalhoIphonePainel() {
     <>Adicione <b>Ditar Texto</b> (Português do Brasil · parar de ouvir: após pausa).</>,
     <>Adicione <b>Obter Conteúdo do URL</b> com o endereço abaixo. Em “Mostrar Mais”: Método <b>POST</b>; Cabeçalho <b>Authorization</b> = <b>Bearer</b> + espaço + sua chave; Corpo <b>JSON</b> com o campo <b>texto</b> = <i>Texto Ditado</i>.</>,
     <>Adicione <b>Falar Texto</b> com o <i>Conteúdo do URL</i>.</>,
+    <>Para conversar: coloque os passos 2 a 4 dentro de <b>Repetir</b> (20 vezes) e, depois de Falar, <b>Se</b> <i>Conteúdo do URL</i> contém <b>[fim]</b> → <b>Parar Atalho</b>. (O atalho baixado já vem assim.)</>,
   ];
 
   return (
     <div className="space-y-4">
       <p className="text-[13px] leading-relaxed text-foreground-muted">
         Toque duas vezes atrás do iPhone, fale (“os pagamentos de hoje caíram?”, “me lembra de ligar pro contador amanhã”) e a IARA responde em voz.
-        Ela só consulta: o que mudar algo (cobrança, tarefa, lançamento) fica esperando você confirmar aqui, com uma notificação.
+        É uma conversa: depois de responder ela volta a ouvir, e lembra do assunto (“e da semana que vem?”). Diga “tchau” ou fique em silêncio para encerrar.
+        O que mudar algo (cobrança, tarefa, lançamento) fica esperando você confirmar aqui, com uma notificação.
       </p>
 
       {chave ? (
@@ -89,7 +91,7 @@ export function AtalhoIphonePainel() {
       <ol className="space-y-2">
         {[
           <><b>{st.ativa ? 'Gere uma chave nova' : 'Gere sua chave'}</b> no botão abaixo e copie.</>,
-          <>Toque em <b>Baixar atalho</b>, abra no app Atalhos e <b>cole a chave</b> quando ele pedir.</>,
+          <>Toque em <b>Baixar atalho</b>, abra no app Atalhos e <b>cole a chave</b> quando ele pedir. Já tinha o atalho antigo? Apague-o e baixe este (agora ele conversa).</>,
           <>Em <b>Ajustes → Acessibilidade → Toque → Tocar Atrás → Toque Duplo</b>, escolha <b>IARA</b>.</>,
         ].map((p, i) => (
           <li key={i} className="flex gap-2.5 text-[12.5px] leading-snug text-foreground">

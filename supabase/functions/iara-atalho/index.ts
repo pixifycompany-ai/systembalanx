@@ -6,6 +6,8 @@
 //    Por dentro abre uma sessão do próprio usuário e chama a financial-advisor — então
 //    a IARA só enxerga o que a pessoa já enxerga (RLS). Ações que mudam algo NÃO são
 //    aplicadas: viram "pendentes" para confirmar no app (com push, se houver).
+//    É uma CONVERSA: guarda os turnos dos últimos minutos (iara_atalho_turnos) e o
+//    Atalho fica ouvindo de novo até a resposta terminar com " [fim]" (despedida/erro).
 // 2) Pelo app (JWT do usuário): {action: "status" | "gerar" | "revogar"}.
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -104,12 +106,38 @@ async function encerrarSessao(token: string) {
   }).catch(() => {});
 }
 
+// ---- Memória curta da conversa (para continuar o assunto entre uma fala e outra) ----
+const JANELA_MIN = 10;   // conversa "viva" por 10 min desde a última fala
+const MAX_TURNOS = 12;   // últimas 6 trocas
+/** Marca no fim do texto que manda o Atalho parar de ouvir (o Atalho apaga antes de falar). */
+const FIM = " [fim]";
+const DESPEDIDA = /^\s*(tchau|até mais|ate mais|até logo|obrigad[oa]|valeu|só isso|so isso|era só isso|pode (parar|encerrar)|encerra[r]?|chega|nada|não|nao)(?:[\s!.,]*(?:iara|tchau))*[\s!.]*$/i;
+const NOVA = /^\s*(nova conversa|outro assunto|começa(r)? de novo|esquece)\b/i;
+
+async function historico(userId: string): Promise<{ role: string; content: string }[]> {
+  const desde = new Date(Date.now() - JANELA_MIN * 60000).toISOString();
+  const { data } = await admin.from("iara_atalho_turnos").select("papel, conteudo, created_at")
+    .eq("user_id", userId).gte("created_at", desde).order("created_at", { ascending: false }).limit(MAX_TURNOS);
+  return ((data || []) as any[]).reverse().map((t) => ({ role: t.papel, content: t.conteudo }));
+}
+async function guardarTurnos(userId: string, pergunta: string, resposta: string) {
+  await admin.from("iara_atalho_turnos").insert([
+    { user_id: userId, papel: "user", conteudo: pergunta },
+    { user_id: userId, papel: "assistant", conteudo: resposta.slice(0, 4000) },
+  ]);
+  // Faxina: o que passou de 1 dia não serve mais.
+  await admin.from("iara_atalho_turnos").delete().eq("user_id", userId).lt("created_at", new Date(Date.now() - 86400000).toISOString());
+}
+async function esquecer(userId: string) {
+  await admin.from("iara_atalho_turnos").delete().eq("user_id", userId);
+}
+
 /** Chama a IARA (financial-advisor) e junta a resposta do stream. */
-async function perguntarIara(token: string, pergunta: string) {
+async function perguntarIara(token: string, pergunta: string, anteriores: { role: string; content: string }[] = []) {
   const r = await fetch(`${SUPABASE_URL}/functions/v1/financial-advisor`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, apikey: ANON_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ messages: [{ role: "user", content: pergunta }], canal: "voz" }),
+    body: JSON.stringify({ messages: [...anteriores, { role: "user", content: pergunta }], canal: "voz" }),
   });
   if (!r.ok) {
     let msg = "A IARA não respondeu agora.";
@@ -153,16 +181,21 @@ Deno.serve(async (req) => {
   // ---------- 1) Chamada do Atalho ----------
   if (token.startsWith("iara_")) {
     const { data: chave } = await admin.from("iara_chaves").select("user_id").eq("hash", await sha256(token)).maybeSingle();
-    if (!chave) return texto("Essa chave do atalho não vale mais. Gere outra no BALANX, em Meu Perfil, Atalho do iPhone.", 401);
+    if (!chave) return texto("Essa chave do atalho não vale mais. Gere outra no BALANX, em Meu Perfil, Atalho do iPhone." + FIM, 401);
     const pergunta = (await lerPergunta(req)).slice(0, 2000).trim();
-    if (!pergunta) return texto("Não ouvi nada. Tente de novo.");
+    if (!pergunta) return texto("Não ouvi nada. Até mais!" + FIM);
     await admin.from("iara_chaves").update({ ultimo_uso: new Date().toISOString() }).eq("user_id", chave.user_id);
+    // "tchau", "obrigado", "só isso"… encerra a conversa (e o Atalho para de ouvir).
+    if (DESPEDIDA.test(pergunta)) { await esquecer(chave.user_id); return texto("Até mais!" + FIM); }
+    let anteriores = await historico(chave.user_id);
+    if (NOVA.test(pergunta)) { await esquecer(chave.user_id); anteriores = []; }
 
     let sessao: string | null = null;
     try {
       sessao = await sessaoDoUsuario(chave.user_id);
-      const { resposta, acoes, lancamentos } = await perguntarIara(sessao, pergunta);
+      const { resposta, acoes, lancamentos } = await perguntarIara(sessao, pergunta, anteriores);
       let fala = paraVoz(resposta) || "Pronto.";
+      if (resposta) await guardarTurnos(chave.user_id, pergunta, resposta);
       if (acoes.length || lancamentos.length) {
         const { data: p } = await admin.from("iara_pendentes").insert({
           user_id: chave.user_id, pergunta, resposta: resposta || fala,
@@ -177,7 +210,7 @@ Deno.serve(async (req) => {
       return texto(fala);
     } catch (e) {
       console.error("iara-atalho", e);
-      return texto("Não consegui falar com a IARA agora. Tente de novo em instantes.", 500);
+      return texto("Não consegui falar com a IARA agora. Tente de novo em instantes." + FIM, 500);
     } finally {
       if (sessao) await encerrarSessao(sessao);
     }

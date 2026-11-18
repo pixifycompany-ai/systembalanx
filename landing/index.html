@@ -26,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&family=Inter+Tight:wght@300..600&family=Instrument+Serif:ital@0;1&display=swap">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&family=Inter+Tight:wght@300..600&family=Instrument+Serif:ital@0;1&display=swap"></noscript>
-  <link rel="stylesheet" href="/styles.css?v=13" />
+  <link rel="stylesheet" href="/styles.css?v=14" />
 
   <!-- SEO estruturado -->
   <script type="application/ld+json">
@@ -109,9 +109,9 @@
         <a class="mod" href="#caixa"><span class="mod__ico"><svg class="ico"><use href="#i-caixa"/></svg></span><span><b>Fluxo de caixa</b><small>Entradas, saídas e o saldo previsto.</small></span></a>
         <a class="mod" href="#cobrancas"><span class="mod__ico"><svg class="ico"><use href="#i-cobranca"/></svg></span><span><b>Cobranças</b><small>Pix e boleto que se cobram sozinhos.</small></span></a>
         <a class="mod" href="#contratos"><span class="mod__ico"><svg class="ico"><use href="#i-contrato"/></svg></span><span><b>Contratos</b><small>Mensalidades, parcelas e MRR.</small></span></a>
-        <a class="mod" href="#caixa"><span class="mod__ico"><svg class="ico"><use href="#i-cartao"/></svg></span><span><b>Cartões</b><small>Faturas e parcelas no mês certo.</small></span></a>
+        <a class="mod" href="#cartoes"><span class="mod__ico"><svg class="ico"><use href="#i-cartao"/></svg></span><span><b>Cartões</b><small>Faturas e parcelas no mês certo.</small></span></a>
         <a class="mod" href="#agenda"><span class="mod__ico"><svg class="ico"><use href="#i-agenda"/></svg></span><span><b>Agenda e tarefas</b><small>Compromissos, listas e lembretes.</small></span></a>
-        <a class="mod" href="#painel"><span class="mod__ico"><svg class="ico"><use href="#i-relatorio"/></svg></span><span><b>Relatórios</b><small>DRE, metas e categorias.</small></span></a>
+        <a class="mod" href="#relatorios"><span class="mod__ico"><svg class="ico"><use href="#i-relatorio"/></svg></span><span><b>Relatórios</b><small>DRE, metas e categorias.</small></span></a>
       </div>
       <a class="mega__foot" href="#dia">Veja exemplos de uso <svg class="ico ico--sm"><use href="#i-seta"/></svg></a>
     </div>
@@ -120,10 +120,11 @@
   <div class="mobilemenu" id="mobilemenu" hidden>
     <p class="mobilemenu__label">Produtos</p>
     <a href="#caixa">Fluxo de caixa</a>
+    <a href="#cartoes">Cartões</a>
     <a href="#cobrancas">Cobranças</a>
     <a href="#contratos">Contratos</a>
     <a href="#agenda">Agenda e tarefas</a>
-    <a href="#painel">Relatórios</a>
+    <a href="#relatorios">Relatórios</a>
     <p class="mobilemenu__label">BALANX</p>
     <a href="#dia">Como usar</a>
     <a href="#iara">IARA</a>
@@ -255,7 +256,7 @@
         <a class="link-arrow" href="https://app.balanx.com.br/criar-conta">Começar grátis <svg class="ico ico--sm"><use href="#i-seta"/></svg></a>
         <ul class="pills">
           <li><svg class="ico ico--sm"><use href="#i-caixa"/></svg>Previsão dia a dia</li>
-          <li><svg class="ico ico--sm"><use href="#i-cartao"/></svg>Cartões e faturas</li>
+          <li><svg class="ico ico--sm"><use href="#i-cartao"/></svg>Várias contas</li>
           <li><svg class="ico ico--sm"><use href="#i-check"/></svg>Conferir com o banco</li>
           <li><svg class="ico ico--sm"><use href="#i-voz"/></svg>Lançar por voz</li>
         </ul>
@@ -271,12 +272,6 @@
             <i style="--h:.42"></i><i style="--h:.55"></i><i style="--h:.38"></i><i style="--h:.66"></i><i style="--h:.5"></i><i style="--h:.74"></i><i style="--h:.61"></i><i style="--h:.86"></i><i style="--h:.7"></i><i style="--h:.92"></i><i style="--h:.78"></i><i class="on" style="--h:1"></i>
           </div>
         </div>
-        <div class="viz-card" aria-hidden="true">
-          <span class="viz-card__shine"></span>
-          <div class="viz-card__brand">balanx</div>
-          <div class="viz-card__num">•••• •••• •••• 3907</div>
-          <div class="viz-card__row"><span>FATURA DE DEZEMBRO</span><b>R$ 2.865</b></div>
-        </div>
         <div class="panel panel--list">
           <div class="row"><span><b>Contabilidade</b><small>vence dia 20</small></span><span class="money"><small>R$</small>720<small>,00</small></span></div>
           <div class="row"><span><b>Fatura do cartão</b><small>vence dia 22 · 4 parcelas</small></span><span class="money"><small>R$</small>2.865<small>,00</small></span></div>
@@ -285,8 +280,38 @@
       </div>
     </section>
 
+    <!-- ===== CARTÕES ===== -->
+    <section class="feat feat--rev" id="cartoes">
+      <div class="feat__copy reveal">
+        <span class="tag"><span class="tag__ico"><svg class="ico ico--sm"><use href="#i-cartao"/></svg></span>Cartões</span>
+        <h2>Cada compra na fatura <span class="serif">certa.</span></h2>
+        <p>Compras parceladas caem na fatura do mês certo pelo dia de fechamento. Você vê o que já está comprometido nos próximos meses e paga a fatura debitando a conta.</p>
+        <a class="link-arrow" href="https://app.balanx.com.br/criar-conta">Começar grátis <svg class="ico ico--sm"><use href="#i-seta"/></svg></a>
+        <ul class="pills">
+          <li><svg class="ico ico--sm"><use href="#i-agenda"/></svg>Fechamento automático</li>
+          <li><svg class="ico ico--sm"><use href="#i-relatorio"/></svg>Parcelas futuras</li>
+          <li><svg class="ico ico--sm"><use href="#i-contrato"/></svg>Importar fatura (CSV)</li>
+          <li><svg class="ico ico--sm"><use href="#i-check"/></svg>Pagar fatura pela conta</li>
+        </ul>
+      </div>
+      <div class="feat__art reveal" data-delay="100">
+        <div class="viz-card viz-card--solo" aria-hidden="true">
+          <span class="viz-card__shine"></span>
+          <div class="viz-card__brand">balanx</div>
+          <div class="viz-card__num">•••• •••• •••• 3907</div>
+          <div class="viz-card__row"><span>FATURA DE DEZEMBRO · FECHA DIA 03</span><b>R$ 2.865</b></div>
+        </div>
+        <div class="panel panel--list">
+          <div class="row"><span><b>Notebook</b><small>parcela 3 de 10</small></span><span class="money"><small>R$</small>300<small>,00</small></span></div>
+          <div class="row"><span><b>Passagens</b><small>parcela 2 de 4</small></span><span class="money"><small>R$</small>420<small>,00</small></span></div>
+          <div class="row"><span><b>Software de design</b><small>parcela 1 de 12</small></span><span class="money"><small>R$</small>89<small>,90</small></span></div>
+          <div class="row row--total"><span><b>Já comprometido em janeiro</b><small>8 parcelas</small></span><span class="money"><small>R$</small><span data-count="1964">1.964</span><small>,30</small></span></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ===== COBRANÇAS ===== -->
-    <section class="feat feat--rev" id="cobrancas">
+    <section class="feat" id="cobrancas">
       <div class="feat__copy reveal">
         <span class="tag"><span class="tag__ico"><svg class="ico ico--sm"><use href="#i-cobranca"/></svg></span>Cobranças</span>
         <h2>Você vende. A cobrança <span class="serif">corre atrás.</span></h2>
@@ -316,7 +341,7 @@
     </section>
 
     <!-- ===== CONTRATOS ===== -->
-    <section class="feat" id="contratos">
+    <section class="feat feat--rev" id="contratos">
       <div class="feat__copy reveal">
         <span class="tag"><span class="tag__ico"><svg class="ico ico--sm"><use href="#i-contrato"/></svg></span>Contratos</span>
         <h2>Mensalidade que se gera <span class="serif">sozinha.</span></h2>
@@ -346,7 +371,7 @@
     </section>
 
     <!-- ===== AGENDA E TAREFAS ===== -->
-    <section class="feat feat--rev" id="agenda">
+    <section class="feat" id="agenda">
       <div class="feat__copy reveal">
         <span class="tag"><span class="tag__ico"><svg class="ico ico--sm"><use href="#i-agenda"/></svg></span>Agenda e tarefas</span>
         <h2>Agenda e tarefas, junto do <span class="serif">dinheiro.</span></h2>
@@ -367,6 +392,39 @@
             <div class="ev"><em>14:30</em><span class="ev__bar t-violet-bg"></span><span><b>Ligar para o contador</b><small>Fechamento de novembro</small></span></div>
             <div class="ev ev--task"><em><svg class="ico ico--sm"><use href="#i-tarefa"/></svg></em><span class="ev__bar t-green-bg"></span><span><b>Emitir NF do Estúdio Brisa</b><small>Lista: Financeiro</small></span></div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== RELATÓRIOS ===== -->
+    <section class="feat feat--rev" id="relatorios">
+      <div class="feat__copy reveal">
+        <span class="tag"><span class="tag__ico"><svg class="ico ico--sm"><use href="#i-relatorio"/></svg></span>Relatórios</span>
+        <h2>Decida com número, não com <span class="serif">achismo.</span></h2>
+        <p>DRE por competência, despesas por categoria, top clientes e comparativo entre meses. A IARA aponta o que passou da média antes de virar problema.</p>
+        <a class="link-arrow" href="https://app.balanx.com.br/criar-conta">Começar grátis <svg class="ico ico--sm"><use href="#i-seta"/></svg></a>
+        <ul class="pills">
+          <li><svg class="ico ico--sm"><use href="#i-relatorio"/></svg>DRE</li>
+          <li><svg class="ico ico--sm"><use href="#i-alerta"/></svg>Acima da média</li>
+          <li><svg class="ico ico--sm"><use href="#i-moeda"/></svg>Distribuição de lucros</li>
+          <li><svg class="ico ico--sm"><use href="#i-check"/></svg>Metas</li>
+        </ul>
+      </div>
+      <div class="feat__art reveal" data-delay="100">
+        <div class="panel">
+          <div class="panel__top"><span class="muted">DRE · novembro</span><span class="badge badge--pos">margem 35%</span></div>
+          <div class="dre">
+            <div class="dre__row"><span>Receita</span><b>R$ 51.870</b></div>
+            <div class="dre__row"><span>Despesas</span><b class="neg">− R$ 33.460</b></div>
+            <div class="dre__row dre__row--total"><span>Lucro líquido</span><b><span data-count="18410">18.410</span></b></div>
+            <div class="dre__row"><span>Distribuição de lucros</span><b class="muted">− R$ 9.000</b></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel__top"><span class="muted">Acima da média dos últimos 3 meses</span></div>
+          <div class="cat"><span>Marketing</span><i style="--w:.62"></i><b class="neg">+35%</b></div>
+          <div class="cat"><span>Ferramentas</span><i style="--w:.38"></i><b class="neg">+18%</b></div>
+          <div class="cat"><span>Equipe</span><i style="--w:.12"></i><b>+4%</b></div>
         </div>
       </div>
     </section>
@@ -543,7 +601,7 @@
         <p class="footer__claim">Menos planilha.<br />Mais tempo para o que importa.</p>
       </div>
       <nav class="footer__cols" aria-label="Rodapé">
-        <div><p>Produtos</p><a href="#caixa">Fluxo de caixa</a><a href="#cobrancas">Cobranças</a><a href="#contratos">Contratos</a><a href="#agenda">Agenda e tarefas</a></div>
+        <div><p>Produtos</p><a href="#caixa">Fluxo de caixa</a><a href="#cartoes">Cartões</a><a href="#cobrancas">Cobranças</a><a href="#contratos">Contratos</a><a href="#agenda">Agenda e tarefas</a><a href="#relatorios">Relatórios</a></div>
         <div><p>BALANX</p><a href="#dia">Como usar</a><a href="#precos">Preços</a><a href="#faq">Dúvidas</a><a href="https://app.balanx.com.br/login">Entrar</a></div>
         <div><p>Legal</p><a href="/privacidade.html">Privacidade</a><a href="/termos.html">Termos</a></div>
       </nav>

@@ -316,6 +316,17 @@ small{font-size:inherit}
 .viz-card__row{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px}
 .viz-card__row span{font-size:9.5px;letter-spacing:.1em;color:rgba(255,255,255,.7)}
 .viz-card__row b{font-size:15px}
+.viz-card--solo{align-self:center;width:min(340px,100%);margin:6px 0 4px;transform:rotate(-2deg);padding:22px 24px}
+.viz-card--solo .viz-card__num{margin-top:34px}
+.dre{margin-top:10px}
+.dre__row{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-top:1px solid var(--border);font-size:15px}
+.dre__row b{font-weight:400;font-variant-numeric:tabular-nums}
+.dre__row--total span{color:var(--fg)}
+.dre__row--total b{font-family:var(--font-display);font-size:30px;letter-spacing:-.03em}
+.dre__row--total b::before{content:"R$ ";font-size:.6em;color:var(--muted)}
+.neg{color:var(--neg)}
+/* âncoras do menu: o título fica logo abaixo da barra, sem vão */
+.feat{scroll-margin-top:-50px}
 .bars--live i{animation:eq 2.6s ease-in-out infinite}
 .bars--live i:nth-child(2n){animation-delay:.2s}.bars--live i:nth-child(3n){animation-delay:.45s}.bars--live i:nth-child(4n){animation-delay:.65s}
 @keyframes eq{50%{transform:scaleY(.72)}}
