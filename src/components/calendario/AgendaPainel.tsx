@@ -2,7 +2,7 @@
 // opção ligada, mostra também a agenda pessoal (só leitura, em cinza).
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarClock, CheckCircle2, Circle, Plus } from 'lucide-react';
+import { CalendarClock, CheckCircle2, ChevronRight, Circle, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { cn } from '@/lib/utils';
@@ -53,11 +53,35 @@ export function AgendaPainel({ inicio, fim }: { inicio: string; fim: string }) {
   }, [compromissos, pessoais]);
 
   const abertas = tarefas.filter((t) => !t.concluida);
-  const feitas = tarefas.filter((t) => t.concluida);
+  // Concluídas: como no Google Tarefas, saem da lista e ficam numa seção recolhida (mais recentes primeiro).
+  const feitas = tarefas.filter((t) => t.concluida)
+    .sort((a, b) => String(b.concluida_em || '').localeCompare(String(a.concluida_em || '')));
+  const [verFeitas, setVerFeitas] = useState(false);
   const hoje = new Date().toLocaleDateString('en-CA');
 
   const marcar = async (t: AgendaItem) => {
     try { await alternarConcluida(t); } catch (e) { toast.error('Não salvou', { description: e instanceof Error ? e.message : '' }); }
+  };
+
+  const linhaTarefa = (t: AgendaItem) => {
+    const atrasada = !t.concluida && t.data && t.data < hoje;
+    return (
+      <li key={t.id} className="flex items-start gap-2.5 border-b border-border py-2 last:border-b-0">
+        <button onClick={() => marcar(t)} aria-label={t.concluida ? 'Marcar como não feita' : 'Marcar como feita'} className="mt-0.5 shrink-0">
+          {t.concluida ? <CheckCircle2 className="h-[18px] w-[18px] text-success-fg" /> : <Circle className="h-[18px] w-[18px] text-foreground-muted" />}
+        </button>
+        <button onClick={() => setSheet({ item: t, tipo: 'tarefa' })} className="min-w-0 flex-1 text-left">
+          <span className={cn('block text-[13.5px]', t.concluida ? 'text-foreground-muted line-through' : 'text-foreground')}>{t.titulo}</span>
+          {t.concluida && t.concluida_em ? (
+            <span className="block text-[11.5px] text-foreground-subtle">feita em {formatDate(t.concluida_em.slice(0, 10))}</span>
+          ) : (t.data || t.cliente?.nome || (t.google_tasklist_id && nomesListas[t.google_tasklist_id])) && (
+            <span className={cn('block text-[11.5px]', atrasada ? 'text-danger-fg' : 'text-foreground-muted')}>
+              {[t.data ? `até ${formatDate(t.data)}` : null, t.cliente?.nome, t.google_tasklist_id ? nomesListas[t.google_tasklist_id] : null].filter(Boolean).join(' · ')}
+            </span>
+          )}
+        </button>
+      </li>
+    );
   };
 
   return (
@@ -111,26 +135,24 @@ export function AgendaPainel({ inicio, fim }: { inicio: string; fim: string }) {
         {tarefas.length === 0 ? (
           <p className="py-2 text-[13px] text-foreground-muted">Nenhuma tarefa. Crie uma ou peça para a IARA.</p>
         ) : (
-          <ul>
-            {[...abertas, ...feitas].map((t) => {
-              const atrasada = !t.concluida && t.data && t.data < hoje;
-              return (
-                <li key={t.id} className="flex items-start gap-2.5 border-b border-border py-2 last:border-b-0">
-                  <button onClick={() => marcar(t)} aria-label={t.concluida ? 'Marcar como não feita' : 'Marcar como feita'} className="mt-0.5 shrink-0">
-                    {t.concluida ? <CheckCircle2 className="h-[18px] w-[18px] text-success-fg" /> : <Circle className="h-[18px] w-[18px] text-foreground-muted" />}
-                  </button>
-                  <button onClick={() => setSheet({ item: t, tipo: 'tarefa' })} className="min-w-0 flex-1 text-left">
-                    <span className={cn('block text-[13.5px]', t.concluida ? 'text-foreground-muted line-through' : 'text-foreground')}>{t.titulo}</span>
-                    {(t.data || t.cliente?.nome || (t.google_tasklist_id && nomesListas[t.google_tasklist_id])) && (
-                      <span className={cn('block text-[11.5px]', atrasada ? 'text-danger-fg' : 'text-foreground-muted')}>
-                        {[t.data ? `até ${formatDate(t.data)}` : null, t.cliente?.nome, t.google_tasklist_id ? nomesListas[t.google_tasklist_id] : null].filter(Boolean).join(' · ')}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            {abertas.length === 0 ? (
+              <p className="py-2 text-[13px] text-foreground-muted">Tudo feito por aqui.</p>
+            ) : (
+              <ul>{abertas.map((t) => linhaTarefa(t))}</ul>
+            )}
+            {feitas.length > 0 && (
+              <div className={cn(abertas.length > 0 && 'mt-1 border-t border-border')}>
+                <button onClick={() => setVerFeitas((v) => !v)} aria-expanded={verFeitas}
+                  className="flex w-full items-center gap-1.5 py-2.5 text-left text-[13px] font-medium text-foreground-muted hover:text-foreground">
+                  <ChevronRight className={cn('h-4 w-4 transition-transform', verFeitas && 'rotate-90')} />
+                  Concluídas ({feitas.length})
+                  <span className="ml-auto text-[11px] font-normal text-foreground-subtle">últimos 30 dias</span>
+                </button>
+                {verFeitas && <ul>{feitas.map((t) => linhaTarefa(t))}</ul>}
+              </div>
+            )}
+          </>
         )}
       </SectionCard>
 

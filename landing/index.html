@@ -24,9 +24,9 @@
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png?v=5" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&family=Inter+Tight:wght@300..600&display=swap">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&family=Inter+Tight:wght@300..600&display=swap"></noscript>
-  <link rel="stylesheet" href="/styles.css?v=12" />
+  <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&family=Inter+Tight:wght@300..600&family=Instrument+Serif:ital@0;1&display=swap">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&family=Inter+Tight:wght@300..600&family=Instrument+Serif:ital@0;1&display=swap"></noscript>
+  <link rel="stylesheet" href="/styles.css?v=13" />
 
   <!-- SEO estruturado -->
   <script type="application/ld+json">
@@ -67,6 +67,11 @@
       <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
       <symbol id="i-envio" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
       <symbol id="i-mais" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20 11.5a8 8 0 0 1-11.6 7.1L4 20l1.4-4.2A8 8 0 1 1 20 11.5z"/></symbol>
+      <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 7l8 6 8-6"/></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="3"/><path d="M11 18.5h2"/></symbol>
+      <symbol id="i-pdf" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 15.5l2 2 4-4.5"/></symbol>
+      <symbol id="i-sino" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
       <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" fill="currentColor" stroke="none"/></symbol>
     </defs>
   </svg>
@@ -133,23 +138,82 @@
   <main>
     <!-- ===== HERO ===== -->
     <section class="hero">
-      <h1 class="hero__title">Seu caixa no lugar.<br />Sua cabeça em paz.</h1>
-      <p class="hero__sub">Fluxo de caixa, cobranças, contratos e cartões num só lugar. E a IARA, sua IA financeira, responde em português sobre os seus números.</p>
-      <div class="hero__actions">
-        <a class="btn btn--dark btn--lg" href="https://app.balanx.com.br/criar-conta">Começar grátis</a>
-        <a class="link-arrow" href="#dia">Veja o que ela resolve <svg class="ico ico--sm"><use href="#i-seta"/></svg></a>
-      </div>
-      <p class="hero__note">14 dias grátis · sem cartão · cancele quando quiser</p>
+      <div class="hero__copy">
+        <span class="chip"><span class="dot"></span> Financeiro com IA — de autônomo a agência</span>
+        <h1 class="hero__title">
+          Seu financeiro,<br />
+          <span class="serif" id="typed">no controle</span><span class="caret" aria-hidden="true"></span>
+        </h1>
+        <p class="hero__sub">Fluxo de caixa, cobranças, contratos e cartões num só lugar. E a <b>IARA</b>, sua IA financeira, responde em português sobre os seus números.</p>
+        <div class="hero__actions">
+          <a class="btn btn--dark btn--lg" href="https://app.balanx.com.br/criar-conta">Começar grátis</a>
+          <a class="link-arrow" href="#dia">Veja o que ela resolve <svg class="ico ico--sm"><use href="#i-seta"/></svg></a>
+        </div>
+        <p class="hero__note">14 dias grátis · sem cartão · cancele quando quiser</p>
 
+        <div class="integra">
+          <p class="integra__label">Conecta com o que você já usa</p>
+          <ul class="integra__list">
+            <li><span class="integra__ico c-asaas"><svg class="ico ico--sm"><use href="#i-cobranca"/></svg></span><span><b>Asaas</b><small>Pix, boleto e cartão</small></span></li>
+            <li><span class="integra__ico c-gcal"><svg class="ico ico--sm"><use href="#i-agenda"/></svg></span><span><b>Google Agenda</b><small>Contas e compromissos</small></span></li>
+            <li><span class="integra__ico c-gtask"><svg class="ico ico--sm"><use href="#i-tarefa"/></svg></span><span><b>Google Tarefas</b><small>Listas sincronizadas</small></span></li>
+            <li><span class="integra__ico c-wpp"><svg class="ico ico--sm"><use href="#i-chat"/></svg></span><span><b>WhatsApp</b><small>Cobrança automática</small></span></li>
+            <li><span class="integra__ico c-mail"><svg class="ico ico--sm"><use href="#i-mail"/></svg></span><span><b>E-mail</b><small>Lembretes e recibos</small></span></li>
+            <li><span class="integra__ico c-ios"><svg class="ico ico--sm"><use href="#i-phone"/></svg></span><span><b>iPhone</b><small>Atalho por voz</small></span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="hero__art">
+        <figure class="hero__photo">
+          <img src="/assets/hero-escritorio.webp?v=1" alt="Empreendedor de braços cruzados sorrindo num escritório escuro, com luz azul ao fundo" width="1200" height="1490" fetchpriority="high" decoding="async" />
+        </figure>
+
+        <!-- Notificação de pagamento (aparece e some) -->
+        <div class="toast" id="heroToast" aria-hidden="true">
+          <span class="toast__ico"><svg class="ico ico--sm"><use href="#i-check"/></svg></span>
+          <span><b id="toastTit">Pix recebido</b><small id="toastSub">Estúdio Brisa · baixa automática</small></span>
+          <em id="toastVal">+R$ 1.500</em>
+        </div>
+
+        <!-- Saldo (navy, igual ao app) -->
+        <div class="mock mock--balance navy">
+          <img class="hexmark" src="/assets/isotipo.svg?v=5" alt="" aria-hidden="true" />
+          <div class="mock__row">
+            <span class="mock__eyebrow">Saldo consolidado</span>
+            <span class="mock__tag">3 contas</span>
+          </div>
+          <div class="mock__value">R$ <span data-count="37215">37.215</span><small>,40</small></div>
+          <div class="mock__kpis">
+            <div><span class="mock__k">Receitas do mês</span><b class="pos">R$ 51.870</b></div>
+            <div class="ar"><span class="mock__k">Despesas do mês</span><b class="neg">R$ 33.460</b></div>
+          </div>
+        </div>
+
+        <!-- Bolha da IARA -->
+        <div class="mock mock--iara" data-float>
+          <span class="chat__ava chat__ava--sm"><svg class="ico ico--xs"><use href="#i-spark"/></svg></span>
+          <div>
+            <div class="iara__name">IARA · agora</div>
+            <div class="iara__bubble">Você tem <b>R$ 6.950</b> a receber essa semana e <b>R$ 2.480</b> a pagar. Saldo projetado: <b class="pos">+R$ 4.470</b>.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PERGUNTE À IARA ===== -->
+    <section class="stage-wrap reveal">
       <div class="hero__stage">
+        <p class="stage__title">Pergunte qualquer coisa <span class="serif">à IARA</span></p>
         <form class="ask" id="askForm" autocomplete="off">
           <svg class="ico ask__plus"><use href="#i-spark"/></svg>
-          <input id="askInput" type="text" placeholder="Pergunte à IARA sobre o BALANX" aria-label="Pergunte à IARA" />
+          <input id="askInput" type="text" placeholder="Ex.: quanto custa? serve para autônomo?" aria-label="Pergunte à IARA" />
           <button class="ask__send" type="submit" aria-label="Perguntar"><svg class="ico ico--sm"><use href="#i-envio"/></svg></button>
         </form>
         <div class="ask__chips">
           <button type="button" data-ask="Quanto custa o BALANX?">Quanto custa?</button>
           <button type="button" data-ask="Como funciona a cobrança automática por WhatsApp?">Cobrança automática</button>
+          <button type="button" data-ask="Como funciona a integração com o Google Agenda?">Google Agenda</button>
           <button type="button" data-ask="Serve para quem é autônomo?">Serve para autônomo?</button>
         </div>
       </div>
@@ -158,7 +222,7 @@
     <!-- ===== UM DIA NORMAL ===== -->
     <section class="section" id="dia">
       <header class="head reveal">
-        <h2>Um dia normal.<br />Com bem menos conta para fazer.</h2>
+        <h2>Um dia normal.<br />Com bem menos <span class="serif">conta para fazer.</span></h2>
         <p>Escolha uma situação do seu dia e veja a conversa virar uma coisa a menos para resolver.</p>
       </header>
 
@@ -186,7 +250,7 @@
     <section class="feat" id="caixa">
       <div class="feat__copy reveal">
         <span class="tag"><span class="tag__ico"><svg class="ico ico--sm"><use href="#i-caixa"/></svg></span>Fluxo de caixa</span>
-        <h2>Seu caixa, sem pontos de interrogação.</h2>
+        <h2>Seu caixa, sem pontos de <span class="serif">interrogação.</span></h2>
         <p>Entradas, saídas, cartões e transferências num extrato único. A previsão mostra o saldo dia a dia e avisa o aperto antes de ele chegar.</p>
         <a class="link-arrow" href="https://app.balanx.com.br/criar-conta">Começar grátis <svg class="ico ico--sm"><use href="#i-seta"/></svg></a>
         <ul class="pills">
@@ -202,10 +266,16 @@
             <span class="muted">Saldo previsto em 30/11</span>
             <span class="badge badge--pos">+12% no mês</span>
           </div>
-          <div class="money money--xl"><small>R$</small>12.380<small>,40</small></div>
-          <div class="bars" aria-hidden="true">
+          <div class="money money--xl"><small>R$</small><span data-count="12380">12.380</span><small>,40</small></div>
+          <div class="bars bars--live" aria-hidden="true">
             <i style="--h:.42"></i><i style="--h:.55"></i><i style="--h:.38"></i><i style="--h:.66"></i><i style="--h:.5"></i><i style="--h:.74"></i><i style="--h:.61"></i><i style="--h:.86"></i><i style="--h:.7"></i><i style="--h:.92"></i><i style="--h:.78"></i><i class="on" style="--h:1"></i>
           </div>
+        </div>
+        <div class="viz-card" aria-hidden="true">
+          <span class="viz-card__shine"></span>
+          <div class="viz-card__brand">balanx</div>
+          <div class="viz-card__num">•••• •••• •••• 3907</div>
+          <div class="viz-card__row"><span>FATURA DE DEZEMBRO</span><b>R$ 2.865</b></div>
         </div>
         <div class="panel panel--list">
           <div class="row"><span><b>Contabilidade</b><small>vence dia 20</small></span><span class="money"><small>R$</small>720<small>,00</small></span></div>
@@ -219,7 +289,7 @@
     <section class="feat feat--rev" id="cobrancas">
       <div class="feat__copy reveal">
         <span class="tag"><span class="tag__ico"><svg class="ico ico--sm"><use href="#i-cobranca"/></svg></span>Cobranças</span>
-        <h2>Você vende. A cobrança corre atrás.</h2>
+        <h2>Você vende. A cobrança <span class="serif">corre atrás.</span></h2>
         <p>Pix, boleto e cartão pelo Asaas. O BALANX avisa o cliente no WhatsApp ou no e-mail antes do vencimento, no dia e todo dia em atraso, e dá baixa sozinho quando ele paga.</p>
         <a class="link-arrow" href="https://app.balanx.com.br/criar-conta">Começar grátis <svg class="ico ico--sm"><use href="#i-seta"/></svg></a>
         <ul class="pills">
@@ -235,7 +305,7 @@
             <span><b>Estúdio Brisa</b><small class="muted"> · Pix ou boleto</small></span>
             <span class="badge badge--pos">Pago</span>
           </div>
-          <div class="money money--xl"><small>R$</small>1.500<small>,00</small></div>
+          <div class="money money--xl"><small>R$</small><span data-count="1500">1.500</span><small>,00</small></div>
           <ol class="steps">
             <li class="done"><i><svg class="ico ico--xs"><use href="#i-check"/></svg></i><span><b>3 dias antes</b><small>Lembrete no WhatsApp</small></span><em>22/11</em></li>
             <li class="done"><i><svg class="ico ico--xs"><use href="#i-check"/></svg></i><span><b>No dia</b><small>Link de pagamento reenviado</small></span><em>25/11</em></li>
@@ -249,7 +319,7 @@
     <section class="feat" id="contratos">
       <div class="feat__copy reveal">
         <span class="tag"><span class="tag__ico"><svg class="ico ico--sm"><use href="#i-contrato"/></svg></span>Contratos</span>
-        <h2>Mensalidade que se gera sozinha.</h2>
+        <h2>Mensalidade que se gera <span class="serif">sozinha.</span></h2>
         <p>Cada cliente com seu contrato, parcelas e vencimentos. O MRR aparece na hora, e a cobrança do mês sai sem você lembrar.</p>
         <a class="link-arrow" href="https://app.balanx.com.br/criar-conta">Começar grátis <svg class="ico ico--sm"><use href="#i-seta"/></svg></a>
         <ul class="pills">
@@ -262,7 +332,7 @@
       <div class="feat__art reveal" data-delay="100">
         <div class="panel">
           <div class="panel__top"><span class="muted">Receita mensal recorrente</span><span class="badge">12 contratos</span></div>
-          <div class="money money--xl"><small>R$</small>9.735<small>,00</small></div>
+          <div class="money money--xl"><small>R$</small><span data-count="9735">9.735</span><small>,00</small></div>
           <div class="ring-row">
             <div class="ring" style="--p:.68"><span><b>68%</b><small>da meta</small></span></div>
             <div class="ring-legend">
@@ -279,7 +349,7 @@
     <section class="feat feat--rev" id="agenda">
       <div class="feat__copy reveal">
         <span class="tag"><span class="tag__ico"><svg class="ico ico--sm"><use href="#i-agenda"/></svg></span>Agenda e tarefas</span>
-        <h2>Agenda e tarefas, junto do dinheiro.</h2>
+        <h2>Agenda e tarefas, junto do <span class="serif">dinheiro.</span></h2>
         <p>Reuniões, lembretes e listas no mesmo lugar, sincronizados com o Google Agenda e o Google Tarefas. Peça à IARA para marcar, remarcar ou concluir.</p>
         <a class="link-arrow" href="https://app.balanx.com.br/criar-conta">Começar grátis <svg class="ico ico--sm"><use href="#i-seta"/></svg></a>
         <ul class="pills">
@@ -304,7 +374,7 @@
     <!-- ===== PAINEL / IARA ===== -->
     <section class="section" id="painel">
       <header class="head reveal">
-        <h2>Você pergunta.<br />Tudo ganha lugar.</h2>
+        <h2>Você pergunta.<br />Tudo ganha <span class="serif">lugar.</span></h2>
         <p>Na IARA para resolver. No painel para enxergar o todo. No celular e no computador, com tema claro e escuro.</p>
       </header>
 
@@ -317,7 +387,7 @@
         <div class="dash__grid">
           <div class="dash__hero">
             <span class="muted">Saldo consolidado · 3 contas</span>
-            <div class="money money--xxl"><small>R$</small>37.215<small>,40</small></div>
+            <div class="money money--xxl"><small>R$</small><span data-count="37215">37.215</span><small>,40</small></div>
             <div class="dash__kpis">
               <div><small>Receitas do mês</small><b class="pos">R$ 51.870</b></div>
               <div><small>Despesas do mês</small><b>R$ 33.460</b></div>
@@ -352,22 +422,45 @@
       </div>
     </section>
 
+    <!-- ===== SHOWCASE ===== -->
+    <section class="showcase reveal">
+      <div class="showcase__frame">
+        <picture>
+          <source media="(max-width: 680px)" srcset="/assets/showcase-rua.webp?v=1" width="1000" height="1241" />
+          <img src="/assets/showcase-sofa.webp?v=1" alt="Empreendedora sorrindo no sofá de casa com o laptop no colo, à noite" loading="lazy" decoding="async" width="2000" height="1125" />
+        </picture>
+        <div class="showcase__overlay">
+          <h2>No bolso, na mesa, <span class="serif">sempre no controle.</span></h2>
+          <p>Rápido no celular e completo no computador, com tema claro e escuro. Avisos no celular quando uma conta vence. Seus números onde você estiver.</p>
+          <a class="btn btn--light" href="https://app.balanx.com.br/criar-conta">Criar minha conta</a>
+        </div>
+      </div>
+    </section>
+
     <!-- ===== E O RESTO ===== -->
     <section class="section" id="mais">
       <header class="head head--left reveal">
-        <h2>E o resto das contas?<br />Também está aqui.</h2>
+        <h2>E o resto das contas?<br />Também <span class="serif">está aqui.</span></h2>
         <p>Toque numa opção e veja o que mais o BALANX faz por você.</p>
       </header>
       <div class="more reveal">
         <div class="more__chips" role="tablist" aria-label="Outros recursos">
           <button class="is-active" data-more="0">Multiusuário</button>
           <button data-more="1">Importar com IA</button>
-          <button data-more="2">Conferir com o banco</button>
-          <button data-more="3">Relatórios e DRE</button>
-          <button data-more="4">Metas</button>
-          <button data-more="5">Atalho do iPhone</button>
-          <button data-more="6">Tema escuro</button>
-          <button data-more="7">Segurança</button>
+          <button data-more="2">Ler contrato em PDF</button>
+          <button data-more="3">Cliente pelo CNPJ</button>
+          <button data-more="4">Categorização automática</button>
+          <button data-more="5">Conferir com o banco</button>
+          <button data-more="6">Várias contas</button>
+          <button data-more="7">Calendário de caixa</button>
+          <button data-more="8">Relatórios e DRE</button>
+          <button data-more="9">Análise vs média</button>
+          <button data-more="10">Metas</button>
+          <button data-more="11">Pendências</button>
+          <button data-more="12">Avisos no celular</button>
+          <button data-more="13">Atalho do iPhone</button>
+          <button data-more="14">Tema escuro</button>
+          <button data-more="15">Segurança</button>
         </div>
         <div class="more__box" id="moreBox" aria-live="polite">
           <b>Multiusuário</b>
@@ -379,7 +472,7 @@
     <!-- ===== PREÇOS ===== -->
     <section class="section" id="precos">
       <header class="head reveal">
-        <h2>Tudo isso.<br />Uma assinatura só.</h2>
+        <h2>Tudo isso.<br />Uma assinatura <span class="serif">só.</span></h2>
         <p>Comece com 14 dias grátis, sem cartão. Cancele quando quiser.</p>
       </header>
 
@@ -415,12 +508,13 @@
     <!-- ===== FAQ ===== -->
     <section class="section faq" id="faq">
       <header class="head reveal">
-        <h2>Tem mais alguma dúvida?</h2>
+        <h2>Tem mais alguma <span class="serif">dúvida?</span></h2>
       </header>
       <div class="faq__list reveal">
         <details><summary>Preciso instalar alguma coisa?<i></i></summary><p>Não. O BALANX roda no navegador do celular e do computador, e dá para adicionar na tela inicial como um app.</p></details>
         <details><summary>Serve para autônomo ou só para empresa?<i></i></summary><p>Serve para os dois. De autônomo e freelancer a pequena empresa e agência: se você trabalha com projetos e mensalidades, o BALANX foi feito para você.</p></details>
         <details><summary>Como funciona a cobrança automática?<i></i></summary><p>Você conecta sua conta Asaas e cria a cobrança (avulsa, parcelada ou do contrato). O BALANX manda o link no WhatsApp ou no e-mail do cliente antes, no dia e, se quiser, todo dia em atraso. Quando ele paga, a baixa entra sozinha no caixa.</p></details>
+        <details><summary>Com o que o BALANX se conecta?<i></i></summary><p>Com o Asaas (Pix, boleto e cartão, com baixa automática), o Google Agenda e o Google Tarefas (contas, compromissos e listas sincronizados nos dois sentidos), o WhatsApp e o e-mail (lembretes de cobrança) e o iPhone (atalho para falar com a IARA).</p></details>
         <details><summary>O que a IARA consegue fazer?<i></i></summary><p>Responder sobre os seus números (qualquer período), lançar gastos por texto ou voz, preparar cobranças, clientes e contratos, e cuidar da agenda e das tarefas. Tudo que muda algo aparece num card para você confirmar.</p></details>
         <details><summary>Como funciona o teste grátis?<i></i></summary><p>São 14 dias com tudo liberado, sem cartão. Se gostar, assina; se não, é só não continuar.</p></details>
         <details><summary>Meus dados ficam seguros?<i></i></summary><p>Cada conta enxerga apenas os próprios dados, com isolamento por usuário e criptografia em trânsito. Você controla quem acessa a sua conta.</p></details>
@@ -430,7 +524,7 @@
     <!-- ===== CTA FINAL ===== -->
     <section class="finalcta reveal">
       <div class="finalcta__card">
-        <h2>Sua próxima pergunta pode<br />aliviar o seu mês.</h2>
+        <h2>Sua próxima pergunta pode<br /><span class="serif">aliviar o seu mês.</span></h2>
         <p>Leva 2 minutos para criar a conta. A IARA cuida do resto.</p>
         <a class="btn btn--dark btn--lg" href="https://app.balanx.com.br/criar-conta">Começar grátis</a>
         <small>14 dias grátis · sem cartão</small>
@@ -495,6 +589,6 @@
     </form>
   </div>
 
-  <script src="/main.js?v=13" defer></script>
+  <script src="/main.js?v=14" defer></script>
 </body>
 </html>

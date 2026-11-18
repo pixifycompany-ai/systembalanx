@@ -16,6 +16,7 @@ export interface AgendaItem {
   lembrete_min: number | null;
   cliente_id: string | null;
   concluida: boolean;
+  concluida_em?: string | null;
   origem: 'balanx' | 'google';
   google_event_id: string | null;
   /** Lista do Google Tarefas (vazio = lista padrão). */
@@ -43,7 +44,7 @@ export function useAgenda(inicio: string, fim: string) {
           .order('inicio', { ascending: true, nullsFirst: true }),
         // Tarefas: as em aberto (todas) + as concluídas nos últimos 7 dias
         db.from('agenda_itens').select('*, cliente:clientes(nome)').eq('tipo', 'tarefa')
-          .or(`concluida.eq.false,concluida_em.gte.${new Date(Date.now() - 7 * 86400000).toISOString()}`)
+          .or(`concluida.eq.false,concluida_em.gte.${new Date(Date.now() - 30 * 86400000).toISOString()}`)
           .order('concluida').order('data', { ascending: true, nullsFirst: false }),
       ]);
       if (comp.error) throw comp.error;

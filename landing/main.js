@@ -43,7 +43,7 @@
   }
 
   // ---- animações decorativas: só enquanto visíveis (economiza CPU/GPU no celular) ----
-  const animados = document.querySelectorAll('.hero__stage');
+  const animados = document.querySelectorAll('.hero__art, .feat__art, .hero__stage');
   if ('IntersectionObserver' in window) {
     const ao = new IntersectionObserver((entries) => {
       entries.forEach((e) => e.target.classList.toggle('anim-on', e.isIntersecting));
@@ -53,6 +53,64 @@
     animados.forEach((el) => el.classList.add('anim-on'));
   }
 
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- efeito de digitação no hero ----
+  const typed = document.getElementById('typed');
+  if (typed && !reduce) {
+    const words = ['no controle', 'previsível', 'sem susto', 'com IA', 'cobrando sozinho'];
+    let wi = 0, ci = words[0].length, deleting = true;
+    const tick = () => {
+      const word = words[wi];
+      ci += deleting ? -1 : 1;
+      typed.textContent = word.slice(0, ci);
+      let delay = deleting ? 45 : 90;
+      if (!deleting && ci === word.length) { delay = 1600; deleting = true; }
+      else if (deleting && ci === 0) { deleting = false; wi = (wi + 1) % words.length; delay = 380; }
+      setTimeout(tick, delay);
+    };
+    setTimeout(tick, 2200);
+  }
+
+  // ---- números que contam até o valor quando aparecem ----
+  const fmtN = (n) => Math.round(n).toLocaleString('pt-BR');
+  const contar = (el) => {
+    const alvo = Number(el.dataset.count); if (!alvo || reduce) return;
+    const t0 = performance.now(), dur = 1400;
+    const passo = (t) => {
+      const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = fmtN(alvo * e);
+      if (k < 1) requestAnimationFrame(passo);
+    };
+    requestAnimationFrame(passo);
+  };
+  const nums = document.querySelectorAll('[data-count]');
+  if ('IntersectionObserver' in window) {
+    const no = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { contar(e.target); no.unobserve(e.target); } }), { threshold: .6 });
+    nums.forEach((n) => no.observe(n));
+  }
+
+  // ---- notificação no hero: pagamentos entrando ----
+  const toast = document.getElementById('heroToast');
+  if (toast && !reduce) {
+    const AVISOS = [
+      ['Pix recebido', 'Estúdio Brisa · baixa automática', '+R$ 1.500'],
+      ['Boleto compensado', 'Café Aurora · mensalidade', '+R$ 2.200'],
+      ['Cobrança enviada', 'Clínica Lírio · WhatsApp', 'R$ 498'],
+      ['Cartão aprovado', 'Oficina Prisma · 3x', '+R$ 750'],
+    ];
+    const [tt, ts, tv] = ['toastTit', 'toastSub', 'toastVal'].map((id) => document.getElementById(id));
+    let ai = 0;
+    const mostrar = () => {
+      const [a, b, c] = AVISOS[ai % AVISOS.length]; ai++;
+      tt.textContent = a; ts.textContent = b; tv.textContent = c;
+      tv.style.color = c.startsWith('+') ? '' : 'var(--muted)';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3200);
+    };
+    setTimeout(() => { mostrar(); setInterval(mostrar, 4600); }, 1400);
+  }
 
   // ---- mega-menu "Produtos" ----
   const prodBtn = document.getElementById('prodBtn');
@@ -92,7 +150,7 @@
   ];
   const chatEl = document.getElementById('dayChat');
   const sits = document.querySelectorAll('.sit');
-  const reduceMo = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduceMo = reduce;
   let cenaTimer = [];
   const bolha = (tipo, html) => {
     const el = document.createElement('div');
@@ -140,10 +198,18 @@
   // ---- "E o resto": chips com descrição ----
   const MAIS = [
     ['Multiusuário', 'Convide sócios, equipe e contador. Cada pessoa entra com o próprio login e você controla o que ela vê.'],
-    ['Importar com IA', 'Mande o extrato, a planilha antiga ou o PDF do banco: a IA lê, sugere categoria e você só confere antes de salvar.'],
+    ['Importar com IA', 'Mande o extrato, a planilha antiga, o CSV da fatura ou o PDF do banco: a IA lê, sugere a categoria e você só confere antes de salvar.'],
+    ['Ler contrato em PDF', 'Envie o contrato em PDF para a IARA: ela lê cliente, valor, vencimento e recorrência e prepara o contrato para você confirmar.'],
+    ['Cliente pelo CNPJ', 'Digite só o CNPJ: o BALANX busca razão social, endereço e contato nos dados públicos da Receita e preenche o cadastro.'],
+    ['Categorização automática', 'Lançamentos novos já chegam com a categoria sugerida pela IA, aprendendo com o que você usa no dia a dia.'],
     ['Conferir com o banco', 'Compare o extrato do banco com o que está lançado e dê baixa no que já entrou ou saiu, sem caçar linha por linha.'],
-    ['Relatórios e DRE', 'DRE por competência, despesas por categoria, top clientes e comparativo entre meses — os mesmos números que a IARA usa.'],
+    ['Várias contas', 'Bancos, carteira e cartões no mesmo lugar, com o saldo consolidado e transferências entre contas.'],
+    ['Calendário de caixa', 'Veja o mês em calendário, com o saldo de cada semana e filtros de a pagar, pago, a receber e recebido.'],
+    ['Relatórios e DRE', 'DRE por competência, despesas por categoria, top clientes, distribuição de lucros e comparativo entre meses.'],
+    ['Análise vs média', 'Descubra quais categorias passaram da média dos últimos meses, antes de virarem um problema.'],
     ['Metas', 'Defina a meta de faturamento do mês e acompanhe quanto falta, no painel e nas respostas da IARA.'],
+    ['Pendências', 'Uma lista do que falta resolver: lançamentos sem categoria, contas vencidas, cobranças sem resposta.'],
+    ['Avisos no celular', 'Notificação no celular quando uma conta vence no dia e quando a IARA prepara algo para você confirmar.'],
     ['Atalho do iPhone', 'Toque duas vezes atrás do iPhone, fale com a IARA e ouça a resposta. O que mudar algo espera sua confirmação no app.'],
     ['Tema escuro', 'Claro de dia, escuro à noite, ou seguindo o celular. No computador e no celular, com a mesma conta.'],
     ['Segurança', 'Cada conta vê só os próprios dados, com isolamento por usuário e criptografia em trânsito. Você decide quem acessa.'],
