@@ -65,13 +65,19 @@ export function AgendaPainel({ inicio, fim }: { inicio: string; fim: string }) {
 
   const linhaTarefa = (t: AgendaItem) => {
     const atrasada = !t.concluida && t.data && t.data < hoje;
+    const paraHoje = !t.concluida && t.data === hoje;
     return (
       <li key={t.id} className="flex items-start gap-2.5 border-b border-border py-2 last:border-b-0">
         <button onClick={() => marcar(t)} aria-label={t.concluida ? 'Marcar como não feita' : 'Marcar como feita'} className="mt-0.5 shrink-0">
           {t.concluida ? <CheckCircle2 className="h-[18px] w-[18px] text-success-fg" /> : <Circle className="h-[18px] w-[18px] text-foreground-muted" />}
         </button>
         <button onClick={() => setSheet({ item: t, tipo: 'tarefa' })} className="min-w-0 flex-1 text-left">
-          <span className={cn('block text-[13.5px]', t.concluida ? 'text-foreground-muted line-through' : 'text-foreground')}>{t.titulo}</span>
+          <span className="flex items-start gap-2">
+            <span className={cn('min-w-0 text-[13.5px]', t.concluida ? 'text-foreground-muted line-through' : 'text-foreground')}>{t.titulo}</span>
+            {paraHoje && (
+              <span className="mt-[1px] shrink-0 rounded-full bg-primary px-2 py-[1px] text-[10.5px] font-semibold uppercase tracking-[0.04em] text-primary-foreground">Hoje</span>
+            )}
+          </span>
           {t.concluida && t.concluida_em ? (
             <span className="block text-[11.5px] text-foreground-subtle">feita em {formatDate(t.concluida_em.slice(0, 10))}</span>
           ) : (t.data || t.cliente?.nome || (t.google_tasklist_id && nomesListas[t.google_tasklist_id])) && (
