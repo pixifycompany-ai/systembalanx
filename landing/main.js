@@ -97,7 +97,7 @@
     const AVISOS = [
       ['Pix recebido', 'Estúdio Brisa · baixa automática', '+R$ 1.500'],
       ['Boleto compensado', 'Café Aurora · mensalidade', '+R$ 2.200'],
-      ['Cobrança enviada', 'Clínica Lírio · WhatsApp', 'R$ 498'],
+      ['Cobrança enviada', 'Clínica Lírio · WhatsApp', 'R$ 1.200'],
       ['Cartão aprovado', 'Oficina Prisma · 3x', '+R$ 750'],
     ];
     const [tt, ts, tv] = ['toastTit', 'toastSub', 'toastVal'].map((id) => document.getElementById(id));
@@ -142,8 +142,8 @@
      ['i', `Sim. Você fecha novembro com ${R('12.380,40')} e o menor saldo é ${R('4.120,00')}, no dia 28.`],
      ['i', `Mesmo se nenhum cliente pagar até lá, ainda sobra ${R('1.900,00')}.`]],
     [['u', 'Quem está me devendo?'],
-     ['i', `Falta receber ${R('9.174,80')} em novembro: ${R('8.426,30')} no prazo e ${R('748,50')} em atraso.`],
-     ['i', 'Em atraso: Clínica Lírio (R$ 498,50, 6 dias) e Oficina Prisma (R$ 250,00, 2 dias). Os dois recebem lembrete todo dia no WhatsApp.']],
+     ['i', `Falta receber ${R('14.630,00')} em novembro: ${R('12.880,00')} no prazo e ${R('1.750,00')} em atraso.`],
+     ['i', 'Em atraso: Clínica Lírio (R$ 1.200,00, 6 dias) e Oficina Prisma (R$ 550,00, 2 dias). Os dois recebem lembrete todo dia no WhatsApp.']],
     [['u', 'Quanto posso retirar de lucro esse mês?'],
      ['i', `O lucro de novembro está em ${R('9.420,00')}.`],
      ['i', `Guardando um mês de despesas no caixa, dá para retirar ${R('5.000,00')} com folga. Quer que eu lance a distribuição?`]],
