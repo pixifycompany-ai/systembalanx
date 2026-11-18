@@ -357,31 +357,31 @@
 
 @layer components {
   /* Typography scale tokens — reduced ~12% for higher density */
-  .text-display { font-size: 2.5rem; line-height: 1.05; font-weight: 500; letter-spacing: -0.02em; }
-  .text-h1 { font-size: 1.75rem; line-height: 1.15; font-weight: 500; letter-spacing: -0.015em; }
-  .text-h2 { font-size: 1.25rem; line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; }
-  .text-h3 { font-size: 1rem; line-height: 1.35; font-weight: 600; }
+  .text-display { font-size: 2.5rem; line-height: 1.05; font-weight: 400; letter-spacing: -0.02em; }
+  .text-h1 { font-size: 1.75rem; line-height: 1.15; font-weight: 400; letter-spacing: -0.015em; }
+  .text-h2 { font-size: 1.25rem; line-height: 1.25; font-weight: 500; letter-spacing: -0.01em; }
+  .text-h3 { font-size: 1rem; line-height: 1.35; font-weight: 500; }
   .text-body { font-size: 0.8125rem; line-height: 1.5; font-weight: 400; }
   .text-body-lg { font-size: 0.875rem; line-height: 1.55; font-weight: 400; }
   .text-metric {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    font-size: 1.75rem; line-height: 1.1; font-weight: 600;
+    font-size: 1.75rem; line-height: 1.1; font-weight: 500;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
   }
   .text-metric-sm {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    font-size: 1.125rem; line-height: 1.2; font-weight: 600;
+    font-size: 1.125rem; line-height: 1.2; font-weight: 500;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.01em;
   }
   .text-num {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    font-size: 0.8125rem; line-height: 1.5; font-weight: 500;
+    font-size: 0.8125rem; line-height: 1.5; font-weight: 450;
     font-variant-numeric: tabular-nums;
   }
   .text-label-xs {
-    font-size: 0.6875rem; line-height: 1.35; font-weight: 500;
+    font-size: 0.6875rem; line-height: 1.35; font-weight: 450;
     text-transform: uppercase; letter-spacing: 0.05em;
     color: hsl(var(--foreground-muted));
   }
@@ -555,7 +555,7 @@
 .sb-nav-item[data-active="true"] {
   /* Item ativo = pílula navy (claro) / pílula clara com texto navy (escuro) */
   color: hsl(var(--sidebar-primary-foreground)) !important;
-  font-weight: 600;
+  font-weight: 500;
   background: hsl(var(--sidebar-primary)) !important;
   box-shadow: none;
 }

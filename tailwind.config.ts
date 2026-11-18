@@ -156,6 +156,13 @@ export default {
         popover: "var(--shadow-popover)",
       },
 
+      // Pesos mais finos em todo o app (Inter variável): medium 450, semibold 500, bold 600.
+      fontWeight: {
+        medium: "450",
+        semibold: "500",
+        bold: "600",
+      },
+
       fontFamily: {
         // Corpo: Inter. Títulos e números grandes: Inter Tight. Detalhe editorial: Instrument Serif.
         sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "system-ui", "sans-serif"],

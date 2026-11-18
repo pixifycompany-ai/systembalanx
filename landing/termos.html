@@ -11,14 +11,16 @@
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg?v=5" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=Instrument+Serif:ital@0;1&display=swap">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=Instrument+Serif:ital@0;1&display=swap"></noscript>
-  <link rel="stylesheet" href="/styles.css?v=10" />
+  <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&family=Inter+Tight:wght@300..600&display=swap">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&family=Inter+Tight:wght@300..600&display=swap"></noscript>
+  <link rel="stylesheet" href="/styles.css?v=12" />
 </head>
 <body>
   <header class="nav">
+    <div class="nav__bar">
     <a class="nav__brand" href="/" aria-label="BALANX — início"><span class="brand-tile"><img src="/assets/isotipo.svg?v=5" alt="" width="16" height="18" /></span><span>balanx</span></a>
-    <div class="nav__cta"><a class="btn btn--primary" href="https://app.balanx.com.br/criar-conta">Começar grátis</a></div>
+    <div class="nav__cta nav__cta--always"><a class="btn btn--dark" href="https://app.balanx.com.br/criar-conta">Começar grátis</a></div>
+    </div>
   </header>
 
   <main class="legal">
@@ -72,7 +74,7 @@
 
   </main>
 
-  <footer class="footer">
+  <footer class="footer footer--simple">
     <div class="footer__brand"><span class="brand-tile"><img src="/assets/isotipo.svg?v=5" alt="" width="14" height="16" /></span><span>balanx</span></div>
     <nav class="footer__links"><a href="/">Início</a><a href="/privacidade.html">Privacidade</a><a href="mailto:contato@pixify.company">Contato</a></nav>
     <p class="footer__legal">© 2026 BALANX · PIXIFY COMPANY · CNPJ 46.669.221/0001-58</p>

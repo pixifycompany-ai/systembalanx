@@ -43,7 +43,7 @@
   }
 
   // ---- animações decorativas: só enquanto visíveis (economiza CPU/GPU no celular) ----
-  const animados = document.querySelectorAll('.bento-card, .hero__art');
+  const animados = document.querySelectorAll('.hero__stage');
   if ('IntersectionObserver' in window) {
     const ao = new IntersectionObserver((entries) => {
       entries.forEach((e) => e.target.classList.toggle('anim-on', e.isIntersecting));
@@ -53,23 +53,112 @@
     animados.forEach((el) => el.classList.add('anim-on'));
   }
 
-  // ---- efeito de digitação no hero ----
-  const typed = document.getElementById('typed');
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (typed && !reduce) {
-    const words = ['no controle', 'previsível', 'sem susto', 'com IA'];
-    let wi = 0, ci = 0, deleting = false;
-    const tick = () => {
-      const word = words[wi];
-      ci += deleting ? -1 : 1;
-      typed.textContent = word.slice(0, ci);
-      let delay = deleting ? 45 : 90;
-      if (!deleting && ci === word.length) { delay = 1500; deleting = true; }
-      else if (deleting && ci === 0) { deleting = false; wi = (wi + 1) % words.length; delay = 380; }
-      setTimeout(tick, delay);
+
+  // ---- mega-menu "Produtos" ----
+  const prodBtn = document.getElementById('prodBtn');
+  const mega = document.getElementById('megamenu');
+  if (prodBtn && mega) {
+    const setMega = (open) => {
+      mega.hidden = !open;
+      prodBtn.setAttribute('aria-expanded', String(open));
     };
-    setTimeout(tick, 900);
+    prodBtn.addEventListener('click', (e) => { e.stopPropagation(); setMega(mega.hidden); });
+    mega.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => setMega(false)));
+    document.addEventListener('click', (e) => { if (!mega.hidden && !mega.contains(e.target)) setMega(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !mega.hidden) { setMega(false); prodBtn.focus(); } });
   }
+
+  // ---- "Um dia normal": conversa por situação ----
+  const R = (n) => `<b>R$ ${n}</b>`;
+  const CENAS = [
+    [['u', 'Bom dia, IARA. O que tenho hoje?'],
+     ['i', `Hoje entram ${R('3.200,00')} (Sabor Maria e Studio Lume) e sai ${R('720,00')} da contabilidade. Seu saldo fecha o dia em ${R('18.940,00')}.`],
+     ['i', 'Às 10h você tem reunião com a Sabor Maria. Quer que eu deixe o contrato dela aberto?']],
+    [['u', 'Cobra 1.500 do Studio Lume dia 25 no Pix'],
+     ['i', 'Preparei a cobrança. Ela vai no WhatsApp do cliente e, se atrasar, eu reenvio todo dia.'],
+     ['card', '<small>Cobrança · Studio Lume · Pix</small><div class="money money--xl" style="font-size:34px"><small>R$</small>1.500<small>,00</small></div><small style="margin-bottom:12px">Vence 25/11 · lembrete 3 dias antes</small><span class="btn btn--dark">Confirmar</span>']],
+    [['audio', '0:04'],
+     ['u', '“Paguei 86 de almoço com cliente no Nubank”'],
+     ['i', `Lancei ${R('86,00')} em <b>Alimentação</b>, no cartão Nubank. Vai para a fatura de dezembro.`]],
+    [['u', 'Vai dar pra pagar as contas até o fim do mês?'],
+     ['i', `Sim. Você fecha novembro com ${R('12.380,40')} e o menor saldo é ${R('4.120,00')}, no dia 28.`],
+     ['i', `Mesmo se nenhum cliente pagar até lá, ainda sobra ${R('1.900,00')}.`]],
+    [['u', 'Quem está me devendo?'],
+     ['i', `Falta receber ${R('9.174,80')} em novembro: ${R('8.426,30')} no prazo e ${R('748,50')} em atraso.`],
+     ['i', 'Em atraso: Clínica Vita (R$ 498,50, 6 dias) e Ateliê Nó (R$ 250,00, 2 dias). Os dois recebem lembrete todo dia no WhatsApp.']],
+    [['u', 'Quanto posso retirar de lucro esse mês?'],
+     ['i', `O lucro de novembro está em ${R('9.420,00')}.`],
+     ['i', `Guardando um mês de despesas no caixa, dá para retirar ${R('5.000,00')} com folga. Quer que eu lance a distribuição?`]],
+  ];
+  const chatEl = document.getElementById('dayChat');
+  const sits = document.querySelectorAll('.sit');
+  const reduceMo = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let cenaTimer = [];
+  const bolha = (tipo, html) => {
+    const el = document.createElement('div');
+    if (tipo === 'card') { el.className = 'msg-card'; el.innerHTML = html; }
+    else if (tipo === 'audio') {
+      el.className = 'msg msg--user msg--audio';
+      el.innerHTML = '<svg class="ico ico--sm"><use href="#i-voz"/></svg><span class="wave">' +
+        [.4, .8, .5, 1, .6, .9, .35, .7, .5, .8, .45, .65].map((h) => `<i style="--h:${h}"></i>`).join('') + `</span><small>${html}</small>`;
+    } else { el.className = `msg msg--${tipo === 'u' ? 'user' : 'iara'}`; el.innerHTML = html; }
+    return el;
+  };
+  const tocarCena = (i) => {
+    if (!chatEl) return;
+    cenaTimer.forEach(clearTimeout); cenaTimer = [];
+    chatEl.innerHTML = '';
+    const passos = CENAS[i] || [];
+    if (reduceMo) { passos.forEach(([t, h]) => chatEl.appendChild(bolha(t, h))); return; }
+    let t = 150;
+    passos.forEach(([tipo, html]) => {
+      if (tipo === 'i' || tipo === 'card') {
+        cenaTimer.push(setTimeout(() => {
+          const d = document.createElement('div'); d.className = 'msg msg--iara msg--typing'; d.dataset.typing = '1';
+          d.innerHTML = '<span></span><span></span><span></span>'; chatEl.appendChild(d);
+        }, t));
+        t += 750;
+      }
+      cenaTimer.push(setTimeout(() => {
+        chatEl.querySelectorAll('[data-typing]').forEach((n) => n.remove());
+        chatEl.appendChild(bolha(tipo, html));
+      }, t));
+      t += tipo === 'u' || tipo === 'audio' ? 550 : 650;
+    });
+  };
+  sits.forEach((b) => b.addEventListener('click', () => {
+    sits.forEach((x) => { const on = x === b; x.classList.toggle('is-active', on); x.setAttribute('aria-selected', String(on)); });
+    tocarCena(Number(b.dataset.sit));
+  }));
+  if (chatEl) {
+    if ('IntersectionObserver' in window) {
+      const co = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { tocarCena(0); co.disconnect(); } }, { threshold: .3 });
+      co.observe(chatEl);
+    } else tocarCena(0);
+  }
+
+  // ---- "E o resto": chips com descrição ----
+  const MAIS = [
+    ['Multiusuário', 'Convide sócios, equipe e contador. Cada pessoa entra com o próprio login e você controla o que ela vê.'],
+    ['Importar com IA', 'Mande o extrato, a planilha antiga ou o PDF do banco: a IA lê, sugere categoria e você só confere antes de salvar.'],
+    ['Conferir com o banco', 'Compare o extrato do banco com o que está lançado e dê baixa no que já entrou ou saiu, sem caçar linha por linha.'],
+    ['Relatórios e DRE', 'DRE por competência, despesas por categoria, top clientes e comparativo entre meses — os mesmos números que a IARA usa.'],
+    ['Metas', 'Defina a meta de faturamento do mês e acompanhe quanto falta, no painel e nas respostas da IARA.'],
+    ['Atalho do iPhone', 'Toque duas vezes atrás do iPhone, fale com a IARA e ouça a resposta. O que mudar algo espera sua confirmação no app.'],
+    ['Tema escuro', 'Claro de dia, escuro à noite, ou seguindo o celular. No computador e no celular, com a mesma conta.'],
+    ['Segurança', 'Cada conta vê só os próprios dados, com isolamento por usuário e criptografia em trânsito. Você decide quem acessa.'],
+  ];
+  const moreBox = document.getElementById('moreBox');
+  const moreBtns = document.querySelectorAll('[data-more]');
+  moreBtns.forEach((b) => b.addEventListener('click', () => {
+    const [t, d] = MAIS[Number(b.dataset.more)] || [];
+    if (!t || !moreBox) return;
+    moreBtns.forEach((x) => x.classList.toggle('is-active', x === b));
+    moreBox.innerHTML = '';
+    const bt = document.createElement('b'); bt.textContent = t;
+    const p = document.createElement('p'); p.textContent = d;
+    moreBox.append(bt, p);
+  }));
 
   // ---- toggle de preço (mensal / anual) ----
   const opts = document.querySelectorAll('.toggle__opt');
@@ -170,6 +259,13 @@
       busy = false;
     }
   };
+
+  // Campo do hero e chips: abrem a IARA já com a pergunta.
+  const perguntar = (t) => { if (!t) return; if (!opened) openPanel(); ask({ text: t }); };
+  const askForm = document.getElementById('askForm');
+  const askInput = document.getElementById('askInput');
+  if (askForm && askInput) askForm.addEventListener('submit', (e) => { e.preventDefault(); const t = askInput.value.trim(); askInput.value = ''; perguntar(t); });
+  document.querySelectorAll('[data-ask]').forEach((b) => b.addEventListener('click', () => perguntar(b.dataset.ask)));
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
