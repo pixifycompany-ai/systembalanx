@@ -137,8 +137,17 @@ small{font-size:inherit}
 .integra__list b{display:block;font-weight:500;font-size:13.5px;line-height:1.25}
 .integra__list small{display:block;font-size:11.5px;color:var(--muted);line-height:1.3}
 .integra__ico{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;flex:none}
-.c-asaas{background:#E6EEFF;color:#1E4FD8}.c-gcal{background:#E8F0FE;color:#1A73E8}.c-gtask{background:#FEF3D7;color:#B06000}
-.c-wpp{background:#E3F7EA;color:#128C4A}.c-mail{background:#F0EBFE;color:#6D4AE0}.c-ios{background:#ECEEF2;color:#0B1226}
+/* logos das integrações (cores oficiais) */
+.logo{width:18px;height:18px;flex:none;fill:currentColor}
+.logo--in{width:11px;height:11px;vertical-align:-1px;margin-right:2px}
+.integra__ico .logo{width:17px;height:17px}
+.c-asaas{background:#0038E5;color:#fff}.c-asaas .logo{width:19px;height:16px}
+.c-gcal{background:#EAF1FE;color:#4285F4}.c-gtask{background:#E8F0FE;color:#2684FC}
+.c-wpp{background:#E5F8EC;color:#25D366}.c-mail{background:#FDECEA;color:#EA4335}.c-ios{background:#EEF0F3;color:#000}
+.c-pix-fg{color:#32BCAD}.c-wpp-fg{color:#25D366}.c-gcal-fg{color:#4285F4}.c-gtask-fg{color:#2684FC}.c-ios-fg{color:#000}.c-asaas-fg{color:#0038E5}
+.pills .logo{width:15px;height:15px}
+.via{display:inline-flex;align-items:center;gap:5px;margin-left:6px;padding-left:10px;border-left:1px solid var(--border);color:var(--subtle)}
+.via .logo{width:14px;height:12px}
 /* arte: foto + cards */
 .hero__art{position:relative;padding:0 0 40px 40px}
 .hero__photo{margin:0;border-radius:32px;overflow:hidden;aspect-ratio:4/5;background:var(--navy)}
