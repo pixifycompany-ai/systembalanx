@@ -42,10 +42,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { VinculoPickerSheet } from '@/components/cobrancas/VinculoPickerSheet';
 import { desvincularCobranca, opcoesReceitas, vincularCobrancaReceita } from '@/lib/vinculoCobranca';
 import { CancelarCobrancaDialog } from '@/components/cobrancas/CancelarCobrancaDialog';
+import { RegraAutoCobranca, REGRA_PADRAO, regraDaCobranca, type RegraAuto } from '@/components/cobrancas/RegraAutoCobranca';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
   XCircle, Trash2, Loader2, ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Repeat, Receipt, Wallet, CreditCard,
-  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound, Users, Mail, CalendarOff, CalendarCheck, Search, AlertTriangle, Check, Link2, Unlink,
+  Paperclip, FileText, ShieldCheck, ShieldOff, Layers, KeyRound, Users, Mail, CalendarOff, CalendarCheck, Search, AlertTriangle, Check, Link2, Unlink, BellRing,
 } from 'lucide-react';
 
 const toneCls: Record<string, string> = {
@@ -110,7 +111,7 @@ export default function Cobrancas() {
   const {
     cobrancas, loading, busyId,
     criarAvulsa, criarAvulsaParcelada, cancelar, cancelarSoEsta, removerDoHistorico, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail,
-    anexarNotas, removerNota, setExigirNf, setEnvioPix, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg, emailCfg,
+    anexarNotas, removerNota, setExigirNf, setEnvioPix, salvarRegra, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg, emailCfg,
     fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload,
   } = useCobrancas();
   const [conciliarOpen, setConciliarOpen] = useState(false);
@@ -139,6 +140,14 @@ export default function Cobrancas() {
   const { contas } = useContas();
 
   const clienteById = useMemo(() => new Map(clientes.map((c) => [c.id, c])), [clientes]);
+  // Contratos ativos (vincular cobrança avulsa/parcelada a um contrato do cliente).
+  const [contratosAtivos, setContratosAtivos] = useState<{ id: string; descricao: string; cliente_id: string | null }[]>([]);
+  useEffect(() => {
+    supabase.from('contratos').select('id, descricao, cliente_id').eq('status', 'ativo').order('descricao')
+      .then(({ data }) => setContratosAtivos((data || []) as { id: string; descricao: string; cliente_id: string | null }[]));
+  }, []);
+  const contratosDo = useCallback((clienteId: string | null | undefined) => contratosAtivos.filter((c) => c.cliente_id && c.cliente_id === clienteId), [contratosAtivos]);
+  const nomeContrato = useCallback((id: string | null | undefined) => (id && contratosAtivos.find((c) => c.id === id)?.descricao) || null, [contratosAtivos]);
   const contaById = useMemo(() => new Map(contas.map((c) => [c.id, c])), [contas]);
 
   const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>('todas');
@@ -426,11 +435,35 @@ export default function Cobrancas() {
     }
   };
 
+  // ===== Regra de envio automático de uma cobrança (e vínculo com contrato) =====
+  const [regraCob, setRegraCob] = useState<FaturaView | null>(null);
+  const [regraVal, setRegraVal] = useState<RegraAuto>(REGRA_PADRAO);
+  const [regraContrato, setRegraContrato] = useState('');
+  const [regraTodas, setRegraTodas] = useState(true);
+  const [regraSaving, setRegraSaving] = useState(false);
+  const irmas = useCallback((c: FaturaView | null) => (c?.grupo_id ? cobrancas.filter((x) => x.grupo_id === c.grupo_id) : []), [cobrancas]);
+  const abrirRegra = (cob: FaturaView) => {
+    setRegraCob(cob); setRegraVal(regraDaCobranca(cob)); setRegraContrato(cob.contrato_id || ''); setRegraTodas(true);
+  };
+  const salvarRegraCob = async () => {
+    if (!regraCob) return;
+    const grupo = irmas(regraCob);
+    const ids = regraTodas && grupo.length > 1 ? grupo.map((x) => x.id) : regraCob.linhas.map((l) => l.id);
+    // Cobrança de assinatura já tem contrato (não troca por aqui).
+    const contrato = regraCob.tipo === 'recorrente' ? undefined : (regraContrato || null);
+    setRegraSaving(true);
+    const ok = await salvarRegra(ids, regraVal, contrato === (regraCob.contrato_id || null) ? undefined : contrato);
+    setRegraSaving(false);
+    if (ok) setRegraCob(null);
+  };
+
   // ===== Nova cobrança avulsa =====
   const [avulsaOpen, setAvulsaOpen] = useState(false);
   const emptyAvulsa = { cliente_id: '', valor: '', vencimento: '', descricao: '', forma: 'UNDEFINED', conta_id: '', multa: '', juros: '' };
   const [avulsa, setAvulsa] = useState(emptyAvulsa);
   const [avulsaSaving, setAvulsaSaving] = useState(false);
+  const [avContrato, setAvContrato] = useState('');
+  const [avRegra, setAvRegra] = useState<RegraAuto>(REGRA_PADRAO);
   // Parcelamento com datas/valores personalizados
   const [parcelar, setParcelar] = useState(false);
   const emptyPc = { total: '', count: 4, intervalo: 30, first: format(new Date(), 'yyyy-MM-dd') };
@@ -449,7 +482,7 @@ export default function Cobrancas() {
     })));
   };
   const somaParcelas = useMemo(() => pcRows.reduce((s, r) => s + (parseFloat(r.valor) || 0), 0), [pcRows]);
-  const abrirAvulsa = () => { setAvulsa(emptyAvulsa); setParcelar(false); setPc(emptyPc); setPcRows([]); setAvulsaOpen(true); };
+  const abrirAvulsa = () => { setAvulsa(emptyAvulsa); setParcelar(false); setPc(emptyPc); setPcRows([]); setAvContrato(''); setAvRegra(REGRA_PADRAO); setAvulsaOpen(true); };
   useActionParam('novo', abrirAvulsa);
   useActionParam('conciliar', () => setConciliarOpen(true));
   const handleCriarAvulsa = async () => {
@@ -464,6 +497,7 @@ export default function Cobrancas() {
         cliente_id: avulsa.cliente_id, descricao: avulsa.descricao || undefined,
         forma_pagamento: avulsa.forma, conta_id: avulsa.conta_id || null, parcelas,
         multa_percent: parseFloat(avulsa.multa) || 0, juros_percent: parseFloat(avulsa.juros) || 0,
+        contrato_id: avContrato || null, regra: avRegra,
       });
       setAvulsaSaving(false);
       if (d) setAvulsaOpen(false);
@@ -480,6 +514,8 @@ export default function Cobrancas() {
       conta_id: avulsa.conta_id || null,
       multa_percent: parseFloat(avulsa.multa) || 0,
       juros_percent: parseFloat(avulsa.juros) || 0,
+      contrato_id: avContrato || null,
+      regra: avRegra,
     });
     setAvulsaSaving(false);
     if (d) setAvulsaOpen(false);
@@ -641,6 +677,10 @@ export default function Cobrancas() {
               {cob.notas.length ? 'Anexar mais notas fiscais' : 'Anexar notas fiscais (PDF)'}
             </button>
           )}
+          <button onClick={() => abrirRegra(cob)} className={MENU_ITEM}>
+            <BellRing className={cn('h-4 w-4', cob.auto_modo ? 'text-primary' : 'text-foreground-muted')} />
+            Regra de envio automático{cob.auto_modo === 'off' ? ' · desligado' : cob.auto_modo === 'custom' ? ' · personalizada' : ''}
+          </button>
           <button onClick={() => setExigirNf(cob.linhas.map((l) => l.id), !cob.exigir_nf)} className={MENU_ITEM}>
             {cob.exigir_nf ? <ShieldOff className="h-4 w-4 text-foreground-muted" /> : <ShieldCheck className="h-4 w-4 text-foreground-muted" />}
             {cob.exigir_nf ? 'Não exigir NF p/ disparar' : 'Exigir NF p/ disparar'}
@@ -1044,7 +1084,7 @@ export default function Cobrancas() {
                 <Label className="sr-only">Cliente</Label>
                 <select
                   value={avulsa.cliente_id}
-                  onChange={(e) => setAvulsa((p) => ({ ...p, cliente_id: e.target.value }))}
+                  onChange={(e) => { setAvulsa((p) => ({ ...p, cliente_id: e.target.value })); setAvContrato(''); }}
                   className={NATIVE_SELECT_CLS}
                 >
                   <option value="">Selecione…</option>
@@ -1123,6 +1163,22 @@ export default function Cobrancas() {
                 <Label className="text-[12px] text-foreground-muted">Descrição</Label>
                 <Input value={avulsa.descricao} onChange={(e) => setAvulsa((p) => ({ ...p, descricao: e.target.value }))} placeholder="Ex.: Serviço avulso setembro" />
               </div>
+              {contratosDo(avulsa.cliente_id).length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-[12px] text-foreground-muted">Vincular a um contrato (opcional)</Label>
+                  <select value={avContrato} onChange={(e) => setAvContrato(e.target.value)} className={NATIVE_SELECT_CLS}>
+                    <option value="">Nenhum — cobrança solta</option>
+                    {contratosDo(avulsa.cliente_id).map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}
+                  </select>
+                  <p className="text-[11px] text-foreground-muted">Vinculada, entra no histórico do contrato e segue a regra de envio, o PIX e a nota fiscal dele.</p>
+                </div>
+              )}
+            </FormSection>
+
+            <FormSection label="Envio automático">
+              <RegraAutoCobranca value={avRegra} onChange={setAvRegra} contratoNome={nomeContrato(avContrato)}
+                canal={avulsa.cliente_id ? clienteById.get(avulsa.cliente_id)?.canal_cobranca || 'whatsapp' : null} />
+              {parcelar && <p className="text-[11px] text-foreground-muted">Vale para todas as parcelas.</p>}
             </FormSection>
 
             <FormSection label="Pagamento">
@@ -1174,6 +1230,39 @@ export default function Cobrancas() {
               </Button>
             </div>
           </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: regra de envio automático */}
+      <Sheet open={!!regraCob} onOpenChange={(o) => { if (!o && !regraSaving) setRegraCob(null); }}>
+        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
+          {regraCob && (
+            <div className="mx-auto w-full max-w-[480px] space-y-5 pb-6 pt-1">
+              <SheetHeading eyebrow="Cobrança" title="Regra de envio automático"
+                subtitle={`${regraCob.descricao || 'Cobrança'} · ${formatCurrency(Number(regraCob.valor))} · vence ${formatDate(regraCob.vencimento)}`} />
+              {regraCob.tipo !== 'recorrente' && contratosDo(regraCob.cliente_id).length > 0 && (
+                <FormSection label="Contrato">
+                  <select value={regraContrato} onChange={(e) => setRegraContrato(e.target.value)} className={NATIVE_SELECT_CLS}>
+                    <option value="">Nenhum — cobrança solta</option>
+                    {contratosDo(regraCob.cliente_id).map((c) => <option key={c.id} value={c.id}>{c.descricao}</option>)}
+                  </select>
+                </FormSection>
+              )}
+              <FormSection label="Quando enviar">
+                <RegraAutoCobranca value={regraVal} onChange={setRegraVal} contratoNome={nomeContrato(regraContrato || regraCob.contrato_id)}
+                  canal={regraCob.cliente_id ? clienteById.get(regraCob.cliente_id)?.canal_cobranca || 'whatsapp' : null} />
+              </FormSection>
+              {irmas(regraCob).length > 1 && (
+                <label className="flex items-center justify-between gap-3 rounded-[20px] border border-border px-3.5 py-3">
+                  <span className="text-[13px] text-foreground">Aplicar a <b>todas as {irmas(regraCob).length} parcelas</b></span>
+                  <Switch checked={regraTodas} onCheckedChange={setRegraTodas} />
+                </label>
+              )}
+              <Button size="lg" className="w-full" onClick={salvarRegraCob} disabled={regraSaving}>
+                {regraSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar
+              </Button>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
 

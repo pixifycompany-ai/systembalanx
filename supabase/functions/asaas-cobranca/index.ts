@@ -5,7 +5,7 @@ import { buscarCustomer } from "../_shared/asaas.ts";
 import { assinaturaCompartilhada, hojeSP, sincronizarPausa } from "../_shared/pausa.ts";
 import {
   apagarReceitaSeCriada, conciliarGrupoPorTotal, contratosDaAssinatura, inserirCobranca, isPago, lancarJurosMulta,
-  linhasDaFatura, mapStatus, registrarFatura, repartir, STATUS_ABERTO, type LinhaCobranca,
+  lerRegra, linhasDaFatura, mapStatus, registrarFatura, repartir, STATUS_ABERTO, type LinhaCobranca,
 } from "../_shared/faturas.ts";
 
 const corsHeaders = {
@@ -122,6 +122,18 @@ serve(async (req) => {
     // Cria a cobrança interna + a receita "a receber" (vincula a já lançada, se houver)
     const registrar = (opts: LinhaCobranca) => inserirCobranca(admin, user.id, opts);
 
+    // Cobrança avulsa/parcelada ligada a um contrato do MESMO cliente: segue a regra
+    // de envio dele (se a cobrança não tiver regra própria) e herda PIX/NF.
+    async function contratoVinculado(contratoId: unknown, clienteId: string | null) {
+      if (!contratoId || typeof contratoId !== "string") return null;
+      const { data } = await admin.from("contratos").select("id, cliente_id, envio_pix, exigir_nf")
+        .eq("id", contratoId).eq("user_id", user!.id).maybeSingle();
+      if (!data) throw new Error("Contrato não encontrado.");
+      if (clienteId && data.cliente_id && data.cliente_id !== clienteId) throw new Error("O contrato é de outro cliente.");
+      return data as { id: string; cliente_id: string | null; envio_pix: boolean | null; exigir_nf: boolean | null };
+    }
+    const regraBody = lerRegra(body.regra);
+
     // Importa TODAS as faturas em aberto de uma assinatura (que o Asaas já gerou)
     // como cobranças + receitas "a receber", sem duplicar. Só as não pagas —
     // as pagas históricas ficam de fora pra não recriar receita já lançada.
@@ -220,6 +232,8 @@ serve(async (req) => {
       const { cliente_id, valor, vencimento, descricao, forma_pagamento, conta_id } = body;
       if (!cliente_id || !valor || !vencimento) return json({ error: "Informe cliente, valor e vencimento." }, 400);
       const forma = (forma_pagamento || "UNDEFINED") as string;
+      let ctv: Awaited<ReturnType<typeof contratoVinculado>>;
+      try { ctv = await contratoVinculado(body.contrato_id, cliente_id); } catch (e) { return json({ error: (e as Error).message }, 400); }
       const customer = await ensureCustomer(cliente_id);
       const payRes = await fetch(`${base}/payments`, {
         method: "POST",
@@ -237,11 +251,12 @@ serve(async (req) => {
       const pay = await payRes.json();
       if (!payRes.ok) return json({ error: pay?.errors?.[0]?.description || "Erro ao criar cobrança no Asaas." }, 400);
       const cob = await registrar({
-        cliente_id, contrato_id: null, conta_id: conta_id || null, tipo: "avulsa",
+        cliente_id, contrato_id: ctv?.id ?? null, conta_id: conta_id || null, tipo: "avulsa",
         asaas_payment_id: pay.id, asaas_subscription_id: null,
         descricao: descricao || "Cobrança", valor: Number(valor), vencimento,
         forma, status: mapStatus(pay.status), invoice_url: pay.invoiceUrl ?? null,
-        envio_pix: !!body.envio_pix,
+        envio_pix: body.envio_pix !== undefined ? !!body.envio_pix : !!ctv?.envio_pix,
+        exigir_nf: !!ctv?.exigir_nf, regra: regraBody,
       });
       return json({ ok: true, cobranca: cob, invoiceUrl: pay.invoiceUrl ?? null });
     }
@@ -262,6 +277,9 @@ serve(async (req) => {
       const N = items.length;
       const forma = (forma_pagamento || "UNDEFINED") as string;
       const desc = (descricao || "Cobrança") as string;
+      let ctv: Awaited<ReturnType<typeof contratoVinculado>>;
+      try { ctv = await contratoVinculado(body.contrato_id, cliente_id); } catch (e) { return json({ error: (e as Error).message }, 400); }
+      const grupo = crypto.randomUUID();
       const customer = await ensureCustomer(cliente_id);
 
       // 1) Cria TODAS as cobranças no Asaas primeiro; se alguma falhar, desfaz as já criadas.
@@ -286,11 +304,12 @@ serve(async (req) => {
       // 2) Registra as cobranças locais + receitas a receber.
       for (const { pay, it, i } of pays) {
         await registrar({
-          cliente_id, contrato_id: null, conta_id: conta_id || null, tipo: "avulsa",
+          cliente_id, contrato_id: ctv?.id ?? null, conta_id: conta_id || null, tipo: "avulsa",
           asaas_payment_id: pay.id, asaas_subscription_id: null,
           descricao: `${desc} (${i + 1}/${N})`, valor: it.valor, vencimento: it.vencimento,
           forma, status: mapStatus(pay.status), invoice_url: pay.invoiceUrl ?? null,
-          envio_pix: !!body.envio_pix,
+          envio_pix: body.envio_pix !== undefined ? !!body.envio_pix : !!ctv?.envio_pix,
+          exigir_nf: !!ctv?.exigir_nf, regra: regraBody, grupo_id: grupo,
         });
       }
       return json({ ok: true, parcelas: N });
@@ -307,8 +326,9 @@ serve(async (req) => {
       if (ids.length > 36) return json({ error: "Máximo de 36 lançamentos por vez." }, 400);
 
       const { data: recs } = await admin.from("receitas")
-        .select("id, cliente_id, descricao, valor, data_vencimento, status, conta_id")
+        .select("id, cliente_id, contrato_id, descricao, valor, data_vencimento, status, conta_id")
         .eq("user_id", user.id).in("id", ids);
+      const grupo = ids.length > 1 ? crypto.randomUUID() : null;
       if (!recs || recs.length !== ids.length) return json({ error: "Lançamento não encontrado." }, 404);
       const { data: jaLigadas } = await admin.from("cobrancas").select("receita_id")
         .eq("user_id", user.id).in("receita_id", ids).not("status", "in", "(cancelado,estornado)");
@@ -353,7 +373,8 @@ serve(async (req) => {
       // 2) Registra as cobranças ligadas às receitas existentes.
       for (const { pay, r, venc } of criadas) {
         await registrar({
-          cliente_id: r.cliente_id, contrato_id: null, conta_id: conta_id || r.conta_id || null, tipo: "avulsa",
+          regra: regraBody, grupo_id: grupo,
+          cliente_id: r.cliente_id, contrato_id: (r as any).contrato_id ?? null, conta_id: conta_id || r.conta_id || null, tipo: "avulsa",
           asaas_payment_id: pay.id, asaas_subscription_id: null,
           descricao: r.descricao || "Cobrança", valor: Number(r.valor), vencimento: venc,
           forma, status: mapStatus(pay.status), invoice_url: pay.invoiceUrl ?? null,

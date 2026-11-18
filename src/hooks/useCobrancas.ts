@@ -50,7 +50,17 @@ export interface Cobranca {
   asaas_customer_nome?: string | null;
   /** Envio no fim de semana por cobrança: null = usa o padrão. */
   enviar_fim_semana?: boolean | null;
+  /** Regra própria de envio automático: null = herda (contrato ou padrão). */
+  auto_modo?: 'off' | 'custom' | null;
+  auto_antes_dias?: number | null;
+  auto_no_dia?: boolean | null;
+  auto_atraso_diario?: boolean | null;
+  /** Parcelas criadas juntas. */
+  grupo_id?: string | null;
 }
+
+/** Regra enviada ao criar/alterar uma cobrança. */
+export interface RegraEnvio { modo: 'padrao' | 'off' | 'custom'; antes_dias: number; no_dia: boolean; atraso_diario: boolean }
 
 // Receita já lançada que pode corresponder a uma cobrança (conciliação)
 export interface CandidataReceita {
@@ -183,7 +193,7 @@ export function useCobrancas() {
     }
   };
 
-  const criarAvulsa = async (payload: { cliente_id: string; valor: number; vencimento: string; descricao?: string; forma_pagamento: string; conta_id?: string | null; multa_percent?: number; juros_percent?: number }) => {
+  const criarAvulsa = async (payload: { cliente_id: string; valor: number; vencimento: string; descricao?: string; forma_pagamento: string; conta_id?: string | null; multa_percent?: number; juros_percent?: number; contrato_id?: string | null; regra?: RegraEnvio }) => {
     setBusyId('avulsa');
     try {
       const d = await invoke({ action: 'criar-avulsa', ...payload });
@@ -202,6 +212,7 @@ export function useCobrancas() {
   const criarAvulsaParcelada = async (payload: {
     cliente_id: string; descricao?: string; forma_pagamento: string; conta_id?: string | null;
     parcelas: { valor: number; vencimento: string }[]; multa_percent?: number; juros_percent?: number;
+    contrato_id?: string | null; regra?: RegraEnvio;
   }) => {
     setBusyId('avulsa');
     try {
@@ -565,6 +576,33 @@ export function useCobrancas() {
   };
 
   // Aceita várias linhas (fatura agrupada: vale para todos os contratos dela).
+  /** Regra de envio automático (e vínculo com contrato) de cobranças — e dos lançamentos delas. */
+  const salvarRegra = async (cobranca_ids: string[], regra: RegraEnvio, contrato_id?: string | null) => {
+    try {
+      const upd: Record<string, unknown> = {
+        auto_modo: regra.modo === 'padrao' ? null : regra.modo,
+        auto_antes_dias: regra.modo === 'custom' ? Math.max(0, regra.antes_dias) : null,
+        auto_no_dia: regra.modo === 'custom' ? regra.no_dia : null,
+        auto_atraso_diario: regra.modo === 'custom' ? regra.atraso_diario : null,
+      };
+      if (contrato_id !== undefined) upd.contrato_id = contrato_id;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { data, error } = await db.from('cobrancas').update(upd).in('id', cobranca_ids).select('receita_id');
+      if (error) throw error;
+      if (contrato_id !== undefined) {
+        const recs = ((data || []) as { receita_id: string | null }[]).map((r) => r.receita_id).filter(Boolean);
+        if (recs.length) await db.from('receitas').update({ contrato_id }).in('id', recs);
+      }
+      toast.success(cobranca_ids.length > 1 ? `Regra salva em ${cobranca_ids.length} cobranças.` : 'Regra de envio salva.');
+      await load();
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao salvar a regra');
+      return false;
+    }
+  };
+
   const setExigirNf = async (cobranca_ids: string | string[], value: boolean) => {
     try {
       const ids = Array.isArray(cobranca_ids) ? cobranca_ids : [cobranca_ids];
@@ -683,7 +721,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, criarAvulsaParcelada, listarAssinaturas, vincularAssinatura, desvincularAssinatura, encerrarContratoCobrancas, reajustarAssinatura, cancelar, cancelarSoEsta, removerDoHistorico, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNotas, removerNota, setExigirNf, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, criarAvulsaParcelada, listarAssinaturas, vincularAssinatura, desvincularAssinatura, encerrarContratoCobrancas, reajustarAssinatura, cancelar, cancelarSoEsta, removerDoHistorico, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNotas, removerNota, setExigirNf, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, salvarRegra, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

@@ -64,7 +64,17 @@ function proxDiaUtilISO(iso: string): string {
 }
 
 // deno-lint-ignore no-explicit-any
-function regraEfetiva(contrato: any, cfg: any): { antes: number; noDia: boolean; atrasoDiario: boolean; atrasoMax: number } | null {
+// Prioridade: regra da própria cobrança > regra do contrato > regra padrão (Meu Perfil).
+function regraEfetiva(cob: any, contrato: any, cfg: any): { antes: number; noDia: boolean; atrasoDiario: boolean; atrasoMax: number } | null {
+  if (cob?.auto_modo === "off") return null;
+  if (cob?.auto_modo === "custom") {
+    return {
+      antes: cob.auto_antes_dias ?? 0,
+      noDia: !!cob.auto_no_dia,
+      atrasoDiario: !!cob.auto_atraso_diario,
+      atrasoMax: cfg?.auto_wpp_atraso_max_dias ?? 0,
+    };
+  }
   const modo = contrato?.cobranca_auto_modo || "padrao";
   if (modo === "off") return null;
   if (modo === "custom") {
@@ -141,7 +151,7 @@ serve(async (req) => {
   };
 
   const { data: cobs } = await admin.from("cobrancas")
-    .select("id, user_id, cliente_id, contrato_id, asaas_payment_id, descricao, valor, vencimento, invoice_url, forma_pagamento, status, exigir_nf, envio_pix, enviar_fim_semana, nota_fiscal_path, nota_fiscal_nome, notas_fiscais, nota_fiscal_enviada, auto_wpp_ultimo_dia, auto_email_ultimo_dia, created_at, clientes(nome, telefone, email, canal_cobranca), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
+    .select("id, user_id, cliente_id, contrato_id, asaas_payment_id, descricao, valor, vencimento, invoice_url, forma_pagamento, status, exigir_nf, envio_pix, enviar_fim_semana, nota_fiscal_path, nota_fiscal_nome, notas_fiscais, nota_fiscal_enviada, auto_wpp_ultimo_dia, auto_email_ultimo_dia, auto_modo, auto_antes_dias, auto_no_dia, auto_atraso_diario, created_at, clientes(nome, telefone, email, canal_cobranca), contratos(cobranca_auto_modo, cobranca_auto_antes_dias, cobranca_auto_no_dia, cobranca_auto_atraso_diario)")
     .in("status", ["pendente", "vencido"])
     .order("created_at", { ascending: true });
 
@@ -162,7 +172,7 @@ serve(async (req) => {
     try {
       const cfg = cfgBy.get(cob.user_id);
       // deno-lint-ignore no-explicit-any
-      const regra = regraEfetiva(cob.contratos as any, cfg);
+      const regra = regraEfetiva(cob, cob.contratos as any, cfg);
       if (!regra) { pulados++; continue; }
 
       // Fim de semana: quando desligado, não dispara sáb/dom e "rola" o lembrete

@@ -51,6 +51,43 @@ export interface LinhaCobranca {
   receita_id?: string | null;
   /** Conta atual dessa receita (só preenche a conta se ela estiver vazia). */
   receita_conta_id?: string | null;
+  /** Regra de envio automático própria (ver RegraAuto). */
+  regra?: RegraAuto | null;
+  /** Parcelas criadas juntas compartilham o grupo. */
+  grupo_id?: string | null;
+}
+
+/** Regra de envio automático por cobrança: null/'padrao' herda do contrato ou da padrão. */
+export interface RegraAuto {
+  modo: "padrao" | "off" | "custom";
+  antes_dias?: number | null;
+  no_dia?: boolean | null;
+  atraso_diario?: boolean | null;
+}
+
+/** Normaliza a regra recebida do app (descarta lixo). */
+export function lerRegra(v: any): RegraAuto | null {
+  if (!v || typeof v !== "object") return null;
+  const modo = v.modo === "off" || v.modo === "custom" ? v.modo : v.modo === "padrao" ? "padrao" : null;
+  if (!modo) return null;
+  if (modo !== "custom") return { modo };
+  return {
+    modo,
+    antes_dias: Math.max(0, Math.min(60, Math.round(Number(v.antes_dias) || 0))),
+    no_dia: !!v.no_dia,
+    atraso_diario: !!v.atraso_diario,
+  };
+}
+
+/** Colunas de cobrancas para a regra (só as que vêm definidas). */
+export function colunasRegra(r: RegraAuto | null | undefined): Record<string, unknown> {
+  if (!r) return {};
+  return {
+    auto_modo: r.modo === "padrao" ? null : r.modo,
+    auto_antes_dias: r.modo === "custom" ? r.antes_dias ?? 0 : null,
+    auto_no_dia: r.modo === "custom" ? !!r.no_dia : null,
+    auto_atraso_diario: r.modo === "custom" ? !!r.atraso_diario : null,
+  };
 }
 
 // Cria a linha de cobrança + a receita a receber (vinculando a já lançada, se houver).
@@ -88,6 +125,8 @@ export async function inserirCobranca(admin: any, userId: string, o: LinhaCobran
     data_pagamento: dataPag,
     asaas_customer_id: o.asaas_customer_id ?? null,
     asaas_customer_nome: o.asaas_customer_nome ?? null,
+    ...colunasRegra(o.regra),
+    ...(o.grupo_id ? { grupo_id: o.grupo_id } : {}),
   }).select("*").single();
   return data;
 }
