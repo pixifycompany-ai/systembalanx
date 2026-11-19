@@ -215,7 +215,7 @@ export default function Contas() {
   return (
     <main className="container py-4 md:py-6">
       <div className="mx-auto max-w-[1180px] space-y-5">
-        <PageHeader eyebrow="Sistema" title="Contas e cartões">
+        <PageHeader eyebrow="Dinheiro" title="Contas e cartões">
           {tab === 'contas' && bankAccounts.length > 0 && (
             <button type="button" onClick={() => setConferirConta('')} aria-label="Conferir saldo com o banco" className={btn.outline}>
               <Scale className="h-4 w-4" /><span className="hidden sm:inline">Conferir com o banco</span>

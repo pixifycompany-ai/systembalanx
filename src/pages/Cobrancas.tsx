@@ -695,7 +695,7 @@ export default function Cobrancas() {
 
   return (
     <main className="container space-y-5 py-4 md:py-6">
-      <PageHeader eyebrow="Gestão · Financeiro" title="Cobranças">
+      <PageHeader eyebrow="Clientes" title="Cobranças">
         <Segmented<'mes' | 'custom' | 'tudo'> size="sm" value={periodoModo} onChange={setPeriodoModo} opts={[['mes', 'Mês'], ['custom', 'Período'], ['tudo', 'Tudo']]} />
         {periodoModo === 'mes' && (
           <div className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">

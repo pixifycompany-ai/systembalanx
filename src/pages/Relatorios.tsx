@@ -205,7 +205,7 @@ export default function Relatorios() {
 
   const conteudo = () => {
     switch (rel) {
-      case 'dre': return <DRETable rows={dreRows} months={months} description="Regime de competência: cada receita e despesa no mês a que pertence (data de competência), paga ou não. Compras no cartão contam na categoria delas. Toque numa linha com seta para ver as categorias." />;
+      case 'dre': return <DRETable rows={dreRows} months={months} title="Mês a mês" description="Compras no cartão contam na categoria delas." />;
       case 'dfc': return <DFCTab period={period} customStart={cStart} customEnd={cEnd} />;
       case 'recdep': return <ReceitasDespesasTab data={recDespResumo} />;
       case 'fluxo': return <FluxoCaixaTab data={fluxoData} />;

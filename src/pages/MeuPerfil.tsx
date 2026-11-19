@@ -343,7 +343,7 @@ export default function MeuPerfil() {
 
   return (
     <div className="mx-auto w-full max-w-[1180px] py-4 md:py-6">
-      <PageHeader eyebrow="Conta" title="Meu perfil" className="mb-5" />
+      <PageHeader eyebrow="Ajustes" title="Meu perfil" className="mb-5" />
 
       {/* Você + plano */}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarPick} />

@@ -24,7 +24,7 @@ export function Segmented<T extends string>({ value, onChange, opts, className, 
     <div className={cn('flex gap-1 rounded-full border border-border bg-surface p-1', className)}>
       {opts.map(([v, r]) => (
         <button key={v} type="button" onClick={() => onChange(v)} aria-pressed={value === v}
-          className={cn('flex-1 whitespace-nowrap rounded-full px-3 transition-colors', size === 'sm' ? 'h-8 text-[13px]' : 'h-9 text-[13px]',
+          className={cn('flex-auto whitespace-nowrap rounded-full px-3 transition-colors', size === 'sm' ? 'h-8 text-[13px]' : 'h-9 text-[13px]',
             value === v ? 'bg-foreground font-medium text-background' : 'text-foreground-muted hover:text-foreground')}>{r}</button>
       ))}
     </div>

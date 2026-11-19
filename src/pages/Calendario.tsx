@@ -127,7 +127,7 @@ export default function Calendario() {
 
   return (
     <main className="container max-w-full space-y-5 py-3 md:py-6">
-      <PageHeader eyebrow="Análise" title="Calendário">
+      <PageHeader eyebrow="Dinheiro" title="Calendário">
         <Segmented<CalendarioModo> size="sm" value={modo} onChange={trocarModo} opts={[['mes', 'Mês'], ['semana', 'Semana'], ['hoje', 'Hoje']]} />
         <div className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">
           <button type="button" onClick={handlePrev} aria-label="Anterior" className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"><ChevronLeft className="h-4 w-4" /></button>

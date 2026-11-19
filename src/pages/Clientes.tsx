@@ -321,7 +321,7 @@ export default function Clientes() {
   return (
     <main className="container py-4 md:py-6">
       <div className="mx-auto max-w-[1180px] space-y-5">
-        <PageHeader eyebrow="Gestão" title="Clientes">
+        <PageHeader eyebrow="Clientes" title="Clientes">
           <button type="button" onClick={handleNew} aria-label="Novo cliente" className={btn.primary}><Plus className="h-4 w-4" /> Novo cliente</button>
         </PageHeader>
 

@@ -74,6 +74,8 @@ function Barras({ itens, onClick }: { itens: { nome: string; valor: number; cor:
   );
 }
 
+const ehDistribuicao = (nome: string) => /distribui[cç][aã]o de lucro/i.test(nome);
+
 export default function Visao() {
   const navigate = useNavigate();
   const {
@@ -158,11 +160,14 @@ export default function Visao() {
   }
   if (resumo.lucro_mensal < 0) {
     leituras.push([<AlertTriangle key="l" className="h-4 w-4 text-danger-fg" />, `O mês está no negativo até agora: saíram ${formatCurrency(Math.abs(resumo.lucro_mensal))} a mais do que entrou.`]);
-  } else if (expensesByCategory.length && totalDesp > 0) {
-    const maior = [...expensesByCategory].sort((a, b) => b.valor - a.valor)[0];
-    const sh = (maior.valor / totalDesp) * 100;
+  } else if (expensesByCategory.some((c) => !ehDistribuicao(c.categoria))) {
+    // Distribuição de lucros é retirada dos sócios, não despesa da operação.
+    const operacionais = expensesByCategory.filter((c) => !ehDistribuicao(c.categoria));
+    const totalOp = operacionais.reduce((s, c) => s + c.valor, 0);
+    const maior = [...operacionais].sort((a, b) => b.valor - a.valor)[0];
+    const sh = totalOp > 0 ? (maior.valor / totalOp) * 100 : 0;
     leituras.push(sh >= 30
-      ? [<AlertTriangle key="c" className="h-4 w-4 text-warning-fg" />, `${maior.categoria} concentra ${pct(sh, 0)} das despesas pagas em ${mesNome} (${formatCurrency(maior.valor)}).`]
+      ? [<AlertTriangle key="c" className="h-4 w-4 text-warning-fg" />, `${maior.categoria} concentra ${pct(sh, 0)} das despesas da operação em ${mesNome} (${formatCurrency(maior.valor)}).`]
       : [<PieChart key="c" className="h-4 w-4 text-primary" />, `As despesas de ${mesNome} estão espalhadas: a maior categoria (${maior.categoria}) é ${pct(sh, 0)} do total.`]);
   }
   if (reports.topClients.length) {

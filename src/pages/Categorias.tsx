@@ -202,7 +202,7 @@ export default function Categorias() {
 
   return (
     <main className="mx-auto w-full max-w-[1180px] space-y-5 py-4 md:py-6">
-      <PageHeader eyebrow="Sistema" title="Categorias">
+      <PageHeader eyebrow="Ajustes" title="Categorias">
         <button type="button" onClick={handleNew} aria-label="Nova categoria" className={btn.primary}>
           <Plus className="h-4 w-4" />Nova categoria
         </button>
@@ -255,7 +255,7 @@ export default function Categorias() {
             </section>
           )}
 
-          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+          <div className="gap-4 lg:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
             {grupos.map((g) => {
               const aberto = !fechados.includes(g.k);
               const totalG = g.itens.reduce((s, c) => s + valorDe(c), 0);

@@ -62,8 +62,12 @@ export function AppSidebar({ onBusca, onNovo }: { onBusca: () => void; onNovo: (
   const badgeDe = (href: string) => (href === '/pendencias' ? totalPendencias : undefined);
   const Sep = () => <div className="mx-auto mb-1.5 h-px w-6 bg-border" />;
 
+  // O body tem overflow-x:hidden, então sticky não prende: a barra é fixed e um
+  // espaçador do mesmo tamanho reserva o lugar dela no layout.
   return (
-    <aside className={cn('sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border bg-surface/70 backdrop-blur transition-[width] duration-200 md:flex', recolhida ? 'w-[76px]' : 'w-[264px]')}>
+    <>
+    <div aria-hidden className={cn('hidden shrink-0 transition-[width] duration-200 md:block', recolhida ? 'w-[76px]' : 'w-[264px]')} />
+    <aside className={cn('fixed inset-y-0 left-0 z-30 hidden h-dvh flex-col border-r border-border bg-surface/95 backdrop-blur transition-[width] duration-200 md:flex', recolhida ? 'w-[76px]' : 'w-[264px]')}>
       <div className={cn('flex items-center gap-2 px-4 pb-3 pt-4', recolhida && 'flex-col px-2')}>
         <PixifyLogo size="sm" iconOnly={recolhida} />
         <button type="button" onClick={() => setRecolhida((v) => !v)} aria-label={recolhida ? 'Expandir menu' : 'Recolher menu'} title={recolhida ? 'Expandir' : 'Recolher'}
@@ -124,5 +128,6 @@ export function AppSidebar({ onBusca, onNovo }: { onBusca: () => void; onNovo: (
         )}
       </div>
     </aside>
+    </>
   );
 }

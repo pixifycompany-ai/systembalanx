@@ -711,7 +711,7 @@ export default function Contratos() {
 
   return (
     <main className="container space-y-5 py-4 md:py-6" onClick={() => setMenuAberto(null)}>
-        <PageHeader eyebrow="Gestão · Recorrência" title="Contratos">
+        <PageHeader eyebrow="Clientes" title="Contratos">
           <button type="button" onClick={() => sincronizarCobrancas()} disabled={cobrLoading} aria-label="Sincronizar cobranças (Asaas)" title="Sincronizar cobranças (Asaas)" className={btn.icon}>
             <RefreshCw className={cn('h-4 w-4', cobrLoading && 'animate-spin')} />
           </button>

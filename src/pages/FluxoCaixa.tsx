@@ -1067,7 +1067,7 @@ export default function FluxoCaixa() {
   return (
     <main className="container max-w-[1180px] space-y-5 py-4 md:py-6">
         {/* Cabeçalho */}
-        <PageHeader eyebrow="Gestão · Financeiro" title="Fluxo de caixa">
+        <PageHeader eyebrow="Dinheiro" title="Fluxo de caixa">
           <div className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">
             <button type="button" aria-label="Mês anterior" onClick={() => navMes(-1)} className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"><ChevronLeft className="h-4 w-4" /></button>
             <button type="button" onClick={() => setFiltersOpen(true)} className="max-w-[170px] truncate whitespace-nowrap px-1 text-[13px] text-foreground first-letter:uppercase">{periodoLabel}</button>
