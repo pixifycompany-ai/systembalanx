@@ -341,7 +341,9 @@ serve(async (req) => {
 
   // Enviar pelo aparelho conectado deixa o número "online" no WhatsApp, e aí o celular do dono
   // para de receber notificação. Depois dos envios, volta a sessão para offline.
-  for (const s of sidsUsados) await ficarOffline(s);
+  // Todas as sessões conectadas, não só as que enviaram hoje: se alguma reconectou
+  // (reinício do servidor, queda de rede) e voltou "online", também volta para offline.
+  for (const s of new Set([...sidsUsados, ...sidBy.values()])) await ficarOffline(s);
   return new Response(JSON.stringify({ ok: true, hoje, total: faturas.size, enviados, enviadosEmail, pulados, faltaNf, erros, pausas, semWhatsapp }), {
     status: 200, headers: { "Content-Type": "application/json" },
   });
