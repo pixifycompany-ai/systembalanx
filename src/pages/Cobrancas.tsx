@@ -32,7 +32,7 @@ import { VinculoPickerSheet } from '@/components/cobrancas/VinculoPickerSheet';
 import { desvincularCobranca, opcoesReceitas, vincularCobrancaReceita } from '@/lib/vinculoCobranca';
 import { CancelarCobrancaDialog } from '@/components/cobrancas/CancelarCobrancaDialog';
 import { RegraAutoCobranca, REGRA_PADRAO, regraDaCobranca, type RegraAuto } from '@/components/cobrancas/RegraAutoCobranca';
-import { Bloco, Campo, Linha, ModalFooter, ModalHeader, ModalShell, PageHeader, Secao, Segmented } from '@/components/reskin/kit';
+import { Bloco, Campo, Linha, MenuAcoes, ModalFooter, ModalHeader, ModalShell, PageHeader, Secao, Segmented } from '@/components/reskin/kit';
 import { btn, campoCls, modalCls } from '@/components/reskin/estilos';
 import {
   RefreshCw, Plus, MoreHorizontal, ExternalLink, MessageCircle, HandCoins,
@@ -693,44 +693,64 @@ export default function Cobrancas() {
   const nomeCob = (c: Cobranca) => (c.cliente_id && clienteById.get(c.cliente_id)?.nome) || c.asaas_customer_nome || '';
   const canceladasQtd = totais.qtd.cancelado;
 
+  // Regras de envio: o mesmo conteúdo serve ao botão do desktop e ao ícone do celular.
+  const regrasConteudo = (
+          <PopoverContent align="end" className="w-80 rounded-2xl border border-border bg-surface p-4">
+      <p className="text-[14px] font-semibold text-foreground">Regras de envio (padrão)</p>
+      <p className="mb-3 text-[12px] text-foreground-muted">Valem para toda cobrança sem regra própria.</p>
+      <div className="flex items-center justify-between gap-3 border-t border-border py-2.5">
+        <span><span className="block text-[13.5px] text-foreground">Enviar no fim de semana</span><span className="block text-[11.5px] text-foreground-muted">Desligado: segura sáb/dom e envia na segunda</span></span>
+        <Switch checked={fimSemanaPadrao} onCheckedChange={setFimSemanaPadrao} aria-label="Enviar no fim de semana (padrão)" />
+      </div>
+      <Link to="/perfil" className="mt-1 flex items-center justify-between border-t border-border pt-2.5 text-[13px] text-primary hover:underline">
+        Lembretes, dias e mensagens <ChevronRight className="h-4 w-4" />
+      </Link>
+    </PopoverContent>
+  );
+
   return (
     <main className="container space-y-5 py-4 md:py-6">
-      <PageHeader eyebrow="Clientes" title="Cobranças">
-        <Segmented<'mes' | 'custom' | 'tudo'> size="sm" value={periodoModo} onChange={setPeriodoModo} opts={[['mes', 'Mês'], ['custom', 'Período'], ['tudo', 'Tudo']]} />
+      <PageHeader
+        eyebrow="Clientes"
+        title="Cobranças"
+        mobileAction={<>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" aria-label="Regras de envio" title="Regras de envio" className={btn.icon}><Settings2 className="h-4 w-4" /></button>
+            </PopoverTrigger>
+            {regrasConteudo}
+          </Popover>
+          <MenuAcoes itens={[
+            { label: 'Nova cobrança', icon: <Plus className="h-4 w-4" />, onClick: abrirAvulsa, destaque: true },
+            { label: 'Sincronizar com o Asaas', icon: <RefreshCw className="h-4 w-4" />, onClick: () => sincronizar(), disabled: loading },
+          ]} />
+        </>}
+      >
+        <Segmented<'mes' | 'custom' | 'tudo'> size="sm" className="max-sm:w-full" value={periodoModo} onChange={setPeriodoModo} opts={[['mes', 'Mês'], ['custom', 'Período'], ['tudo', 'Tudo']]} />
         {periodoModo === 'mes' && (
-          <div className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">
+          <div className="flex items-center justify-between gap-1 rounded-full border border-border bg-surface p-1 max-sm:w-full">
             <button aria-label="Mês anterior" onClick={() => setMesRef(format(addMonths(parseISO(`${mesRef}-01`), -1), 'yyyy-MM'))} className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"><ChevronLeft className="h-4 w-4" /></button>
             <button onClick={() => setMesRef(format(new Date(), 'yyyy-MM'))} title="Voltar para o mês atual" className="whitespace-nowrap px-1 text-[13px] text-foreground">{format(parseISO(`${mesRef}-01`), 'MMMM yyyy', { locale: ptBR })}</button>
             <button aria-label="Próximo mês" onClick={() => setMesRef(format(addMonths(parseISO(`${mesRef}-01`), 1), 'yyyy-MM'))} className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"><ChevronRight className="h-4 w-4" /></button>
           </div>
         )}
         {periodoModo === 'custom' && (
-          <div className="flex items-center gap-2">
-            <Input type="date" value={customDe} onChange={(e) => setCustomDe(e.target.value)} className="h-10 w-[150px] rounded-full bg-surface" />
+          <div className="flex items-center gap-2 max-sm:w-full">
+            <Input type="date" value={customDe} onChange={(e) => setCustomDe(e.target.value)} className="h-10 w-[150px] rounded-full bg-surface max-sm:w-auto max-sm:min-w-0 max-sm:flex-1" />
             <span className="text-xs text-foreground-muted">até</span>
-            <Input type="date" value={customAte} onChange={(e) => setCustomAte(e.target.value)} className="h-10 w-[150px] rounded-full bg-surface" />
+            <Input type="date" value={customAte} onChange={(e) => setCustomAte(e.target.value)} className="h-10 w-[150px] rounded-full bg-surface max-sm:w-auto max-sm:min-w-0 max-sm:flex-1" />
           </div>
         )}
         <Popover>
           <PopoverTrigger asChild>
-            <button className={cn(btn.outline, 'px-3.5')}><Settings2 className="h-4 w-4" /> Regras de envio</button>
+            <button className={cn(btn.outline, 'px-3.5 max-sm:hidden')}><Settings2 className="h-4 w-4" /> Regras de envio</button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 rounded-2xl border border-border bg-surface p-4">
-            <p className="text-[14px] font-semibold text-foreground">Regras de envio (padrão)</p>
-            <p className="mb-3 text-[12px] text-foreground-muted">Valem para toda cobrança sem regra própria.</p>
-            <div className="flex items-center justify-between gap-3 border-t border-border py-2.5">
-              <span><span className="block text-[13.5px] text-foreground">Enviar no fim de semana</span><span className="block text-[11.5px] text-foreground-muted">Desligado: segura sáb/dom e envia na segunda</span></span>
-              <Switch checked={fimSemanaPadrao} onCheckedChange={setFimSemanaPadrao} aria-label="Enviar no fim de semana (padrão)" />
-            </div>
-            <Link to="/perfil" className="mt-1 flex items-center justify-between border-t border-border pt-2.5 text-[13px] text-primary hover:underline">
-              Lembretes, dias e mensagens <ChevronRight className="h-4 w-4" />
-            </Link>
-          </PopoverContent>
+          {regrasConteudo}
         </Popover>
-        <button type="button" onClick={() => sincronizar()} disabled={loading} aria-label="Sincronizar com Asaas" title="Sincronizar com Asaas" className={btn.icon}>
+        <button type="button" onClick={() => sincronizar()} disabled={loading} aria-label="Sincronizar com Asaas" title="Sincronizar com Asaas" className={cn(btn.icon, 'max-sm:hidden')}>
           <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
         </button>
-        <button type="button" onClick={abrirAvulsa} className={btn.primary} aria-label="Nova cobrança avulsa"><Plus className="h-4 w-4" /><span className="sm:hidden">Nova</span><span className="hidden sm:inline">Nova cobrança</span></button>
+        <button type="button" onClick={abrirAvulsa} className={cn(btn.primary, 'max-sm:hidden')} aria-label="Nova cobrança avulsa"><Plus className="h-4 w-4" /><span className="sm:hidden">Nova</span><span className="hidden sm:inline">Nova cobrança</span></button>
       </PageHeader>
 
       <input ref={fileInputRef} type="file" accept="application/pdf" multiple className="hidden" onChange={onFileChosen} />
@@ -793,15 +813,15 @@ export default function Cobrancas() {
 
       {/* Barra: tipo + busca */}
       <div className="flex flex-wrap items-center gap-2">
-        <Segmented<TipoFiltro> size="sm" value={tipoFiltro} onChange={setTipoFiltro} opts={[['todas', 'Todas'], ['recorrente', 'Recorrentes'], ['avulsa', 'Avulsas']]} />
+        <Segmented<TipoFiltro> size="sm" className="max-sm:order-1 max-sm:w-full" value={tipoFiltro} onChange={setTipoFiltro} opts={[['todas', 'Todas'], ['recorrente', 'Recorrentes'], ['avulsa', 'Avulsas']]} />
         {canceladasQtd > 0 && (
           <button type="button" onClick={() => setStatusFiltro(statusFiltro === 'cancelado' ? 'todos' : 'cancelado')} aria-pressed={statusFiltro === 'cancelado'}
-            className={cn('h-10 rounded-full border px-3.5 text-[13px]', statusFiltro === 'cancelado' ? 'border-foreground bg-foreground text-background' : 'border-border bg-surface text-foreground-muted hover:text-foreground')}>
+            className={cn('h-10 shrink-0 rounded-full border px-3.5 text-[13px] max-sm:order-3', statusFiltro === 'cancelado' ? 'border-foreground bg-foreground text-background' : 'border-border bg-surface text-foreground-muted hover:text-foreground')}>
             Canceladas · {canceladasQtd}
           </button>
         )}
-        <label className="ml-auto flex h-10 w-full items-center gap-2 rounded-full border border-border bg-surface px-3.5 sm:w-80">
-          <Search className="h-4 w-4 text-foreground-muted" />
+        <label className="ml-auto flex h-10 items-center gap-2 rounded-full border border-border bg-surface px-3.5 max-sm:order-2 max-sm:ml-0 max-sm:min-w-0 max-sm:flex-1 sm:w-80">
+          <Search className="h-4 w-4 shrink-0 text-foreground-muted" />
           <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente ou descrição" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-foreground-muted" />
         </label>
       </div>

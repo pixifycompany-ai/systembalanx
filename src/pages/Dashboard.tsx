@@ -155,10 +155,10 @@ export default function Dashboard() {
             {greeting()}, <span className="font-serif italic tracking-normal">{primeiroNome}</span>
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 max-sm:w-full">
           {/* Sino só no celular — no desktop o topo já tem um */}
           <span className="md:hidden"><NotificationBell /></span>
-          <span className="inline-flex h-10 items-center rounded-full border border-border bg-surface px-3.5 text-[13px] text-foreground">{metaSubtitle}</span>
+          <span className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-surface px-3.5 text-[13px] text-foreground max-sm:flex-1">{metaSubtitle}</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" className="inline-flex h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-[14px] font-medium text-background hover:opacity-90">

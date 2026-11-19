@@ -43,7 +43,7 @@ import { BarraSelecao } from '@/components/fluxocaixa/BarraSelecao';
 import { TipoIcone } from '@/components/fluxocaixa/TipoIcone';
 import { FORMA_LABEL, serieDe, statusInfo } from '@/components/fluxocaixa/lancamento';
 import { Chips, ContasPick, ExcluirSheet, QuickDatas, ResumoLateral, Stepper, ValorInput } from '@/components/fluxocaixa/formPecas';
-import { Bloco, Campo, ModalFooter, ModalHeader, ModalShell, PageHeader, Secao, Segmented } from '@/components/reskin/kit';
+import { Bloco, Campo, MenuAcoes, ModalFooter, ModalHeader, ModalShell, PageHeader, Secao, Segmented } from '@/components/reskin/kit';
 import { btn, modalCls } from '@/components/reskin/estilos';
 
 // Sorting types
@@ -1067,17 +1067,27 @@ export default function FluxoCaixa() {
   return (
     <main className="container max-w-[1180px] space-y-5 py-4 md:py-6">
         {/* Cabeçalho */}
-        <PageHeader eyebrow="Dinheiro" title="Fluxo de caixa">
-          <div className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">
+        <PageHeader
+          eyebrow="Dinheiro"
+          title="Fluxo de caixa"
+          mobileAction={<MenuAcoes itens={[
+            { label: 'Nova entrada', icon: <Plus className="h-4 w-4 text-success-fg" />, onClick: handleNewEntrada, destaque: true },
+            { label: 'Nova saída', icon: <TrendingDown className="h-4 w-4 text-danger-fg" />, onClick: handleNewSaida },
+            { label: 'Transferir entre contas', icon: <ArrowRightLeft className="h-4 w-4" />, onClick: () => setTransferModalOpen(true), disabled: activeContas.length < 2 },
+            { label: 'Importar extrato ou print', icon: <Upload className="h-4 w-4" />, onClick: () => setImportDialogOpen(true) },
+            { label: 'Relatório do período', icon: <BarChart3 className="h-4 w-4" />, onClick: () => setReportOpen(true) },
+          ]} />}
+        >
+          <div className="flex items-center justify-between gap-1 rounded-full border border-border bg-surface p-1 max-sm:w-full">
             <button type="button" aria-label="Mês anterior" onClick={() => navMes(-1)} className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"><ChevronLeft className="h-4 w-4" /></button>
-            <button type="button" onClick={() => setFiltersOpen(true)} className="max-w-[170px] truncate whitespace-nowrap px-1 text-[13px] text-foreground first-letter:uppercase">{periodoLabel}</button>
+            <button type="button" onClick={() => setFiltersOpen(true)} className="max-w-[170px] truncate whitespace-nowrap px-1 text-[13px] text-foreground first-letter:uppercase max-sm:max-w-none max-sm:flex-1">{periodoLabel}</button>
             <button type="button" aria-label="Próximo mês" onClick={() => navMes(1)} className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"><ChevronRight className="h-4 w-4" /></button>
           </div>
-          <button type="button" onClick={() => setReportOpen(true)} aria-label="Relatório" title="Relatório" className={btn.icon}><BarChart3 className="h-4 w-4" /></button>
-          <button type="button" onClick={() => setImportDialogOpen(true)} aria-label="Importar" title="Importar extrato ou comprovantes" className={btn.icon}><Upload className="h-4 w-4" /></button>
-          <button type="button" onClick={() => setTransferModalOpen(true)} disabled={activeContas.length < 2} aria-label="Transferir" title="Transferir entre contas" className={btn.icon}><ArrowRightLeft className="h-4 w-4" /></button>
-          <button type="button" onClick={handleNewSaida} className={btn.outline}><TrendingDown className="h-4 w-4 text-danger-fg" />Saída</button>
-          <button type="button" onClick={handleNewEntrada} className={btn.primary}><Plus className="h-4 w-4" />Entrada</button>
+          <button type="button" onClick={() => setReportOpen(true)} aria-label="Relatório" title="Relatório" className={cn(btn.icon, 'max-sm:hidden')}><BarChart3 className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setImportDialogOpen(true)} aria-label="Importar" title="Importar extrato ou comprovantes" className={cn(btn.icon, 'max-sm:hidden')}><Upload className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setTransferModalOpen(true)} disabled={activeContas.length < 2} aria-label="Transferir" title="Transferir entre contas" className={cn(btn.icon, 'max-sm:hidden')}><ArrowRightLeft className="h-4 w-4" /></button>
+          <button type="button" onClick={handleNewSaida} className={cn(btn.outline, 'max-sm:hidden')}><TrendingDown className="h-4 w-4 text-danger-fg" />Saída</button>
+          <button type="button" onClick={handleNewEntrada} className={cn(btn.primary, 'max-sm:hidden')}><Plus className="h-4 w-4" />Entrada</button>
         </PageHeader>
 
         {/* Números do período */}
@@ -1093,13 +1103,13 @@ export default function FluxoCaixa() {
         {/* Barra de filtros */}
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Segmented<TipoTransacao> size="sm" value={tipoFilter} onChange={changeTipo} opts={TIPO_OPTIONS.map(o => [o.v, o.l] as [TipoTransacao, string])} />
+            <Segmented<TipoTransacao> size="sm" className="max-sm:w-full" value={tipoFilter} onChange={changeTipo} opts={TIPO_OPTIONS.map(o => [o.v, o.l] as [TipoTransacao, string])} />
             <div className="hidden md:block">
               <Segmented<Situ> size="sm" value={situ ?? ('' as Situ)} onChange={setSitu} opts={SITU_OPTS} />
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" className={cn('inline-flex h-10 max-w-[220px] items-center gap-1.5 rounded-full border bg-surface px-3.5 text-[13px] text-foreground', contaFilter !== 'all' ? 'border-foreground' : 'border-border')}>
+                <button type="button" className={cn('inline-flex h-10 max-w-[220px] items-center gap-1.5 rounded-full border bg-surface px-3.5 text-[13px] text-foreground max-sm:max-w-none max-sm:flex-1 max-sm:justify-between', contaFilter !== 'all' ? 'border-foreground' : 'border-border')}>
                   {contaFilter === 'all' ? 'Todas as contas' : (
                     <span className="flex min-w-0 items-center gap-1.5"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: contaById.get(contaFilter)?.cor }} /><span className="truncate">{contaById.get(contaFilter)?.nome ?? 'Conta'}</span></span>
                   )}

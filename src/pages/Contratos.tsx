@@ -49,7 +49,7 @@ import { CancelarCobrancaDialog } from '@/components/cobrancas/CancelarCobrancaD
 import { estadoPausa } from '@/lib/pausaContrato';
 import { findPossibleDuplicate, findDuplicateGroups, type DuplicateMatch, type DuplicateGroup } from '@/utils/contractDuplicates';
 import { isContratoAtivoHoje, getValorMensalEquivalente } from '@/utils/contractUtils';
-import { Campo, ModalFooter, ModalHeader, ModalShell, PageHeader, Secao, Segmented } from '@/components/reskin/kit';
+import { Campo, MenuAcoes, ModalFooter, ModalHeader, ModalShell, PageHeader, Secao, Segmented } from '@/components/reskin/kit';
 import { btn, campoCls, modalCls } from '@/components/reskin/estilos';
 
 const RECORRENCIA_OPTIONS = [
@@ -711,17 +711,26 @@ export default function Contratos() {
 
   return (
     <main className="container space-y-5 py-4 md:py-6" onClick={() => setMenuAberto(null)}>
-        <PageHeader eyebrow="Clientes" title="Contratos">
-          <button type="button" onClick={() => sincronizarCobrancas()} disabled={cobrLoading} aria-label="Sincronizar cobranças (Asaas)" title="Sincronizar cobranças (Asaas)" className={btn.icon}>
+        <PageHeader
+          eyebrow="Clientes"
+          title="Contratos"
+          mobileAction={<MenuAcoes itens={[
+            { label: 'Novo contrato', icon: <Plus className="h-4 w-4" />, onClick: handleNew, destaque: true },
+            { label: 'Importar contrato (PDF)', icon: <Upload className="h-4 w-4" />, onClick: () => setImportDialogOpen(true) },
+            { label: 'Exportar lista (CSV)', icon: <Download className="h-4 w-4" />, onClick: handleExportLista },
+            { label: 'Sincronizar cobranças', icon: <RefreshCw className="h-4 w-4" />, onClick: () => sincronizarCobrancas(), disabled: cobrLoading },
+          ]} />}
+        >
+          <button type="button" onClick={() => sincronizarCobrancas()} disabled={cobrLoading} aria-label="Sincronizar cobranças (Asaas)" title="Sincronizar cobranças (Asaas)" className={cn(btn.icon, 'max-sm:hidden')}>
             <RefreshCw className={cn('h-4 w-4', cobrLoading && 'animate-spin')} />
           </button>
-          <button type="button" onClick={() => setImportDialogOpen(true)} aria-label="Importar contrato (PDF)" title="Importar contrato (PDF)" className={btn.icon}>
+          <button type="button" onClick={() => setImportDialogOpen(true)} aria-label="Importar contrato (PDF)" title="Importar contrato (PDF)" className={cn(btn.icon, 'max-sm:hidden')}>
             <Upload className="h-4 w-4" />
           </button>
-          <button type="button" onClick={handleExportLista} aria-label="Exportar lista" title="Exportar lista (CSV)" className={btn.icon}>
+          <button type="button" onClick={handleExportLista} aria-label="Exportar lista" title="Exportar lista (CSV)" className={cn(btn.icon, 'max-sm:hidden')}>
             <Download className="h-4 w-4" />
           </button>
-          <button type="button" onClick={handleNew} className={btn.primary} aria-label="Novo Contrato">
+          <button type="button" onClick={handleNew} className={cn(btn.primary, 'max-sm:hidden')} aria-label="Novo Contrato">
             <Plus className="h-4 w-4" /><span className="sm:hidden">Novo</span><span className="hidden sm:inline">Novo contrato</span>
           </button>
         </PageHeader>
@@ -787,11 +796,11 @@ export default function Contratos() {
               <input type="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar cliente ou serviço" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-foreground-muted" />
             </label>
             <div className="relative">
-              <select value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} aria-label="Ordenar" className="h-9 appearance-none rounded-full border border-border bg-surface pl-8 pr-8 text-[13px] text-foreground outline-none">
+              <select value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} aria-label="Ordenar" className="h-9 appearance-none rounded-full border border-border bg-surface pl-8 pr-8 text-[13px] text-foreground outline-none max-sm:w-9 max-sm:px-0 max-sm:text-transparent">
                 <option value="valor">Maior valor</option><option value="proxima">Próxima cobrança</option><option value="cliente">Cliente (A–Z)</option><option value="inicio">Mais recentes</option>
               </select>
               <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground-muted" />
-              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground-muted" />
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground-muted max-sm:hidden" />
             </div>
           </div>
         </div>

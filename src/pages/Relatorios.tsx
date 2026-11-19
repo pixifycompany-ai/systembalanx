@@ -243,7 +243,7 @@ export default function Relatorios() {
 
       <div className="space-y-5">
         <PageHeader eyebrow="Análise" title="Relatórios">
-          <Segmented<PeriodFilter> size="sm" value={period} onChange={setPeriod} opts={PERIODOS} />
+          <Segmented<PeriodFilter> size="sm" className="max-sm:w-full" value={period} onChange={setPeriod} opts={PERIODOS} />
         </PageHeader>
 
         {period === 'custom' && (

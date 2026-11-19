@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Sparkle } from '@/components/shared/Sparkle';
+import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/reskin/kit';
 import { btn } from '@/components/reskin/estilos';
 import { useAnalises } from '@/hooks/useAnalises';
@@ -49,8 +50,8 @@ export default function Analises() {
   return (
     <main className="container overflow-hidden py-3 md:py-6">
       <div className="space-y-5">
-        <PageHeader eyebrow="Análise" title="Análises">
-          <button type="button" onClick={explicar} className={btn.outline}><Sparkle className="h-3.5 w-3.5" />Explicar com a IARA</button>
+        <PageHeader eyebrow="Análise" title="Análises" mobileAction={<button type="button" onClick={explicar} aria-label="Explicar com a IARA" title="Explicar com a IARA" className="grid h-10 w-10 place-items-center rounded-full bg-foreground text-background"><Sparkle className="h-4 w-4" /></button>}>
+          <button type="button" onClick={explicar} className={cn(btn.outline, 'max-sm:hidden')}><Sparkle className="h-3.5 w-3.5" />Explicar com a IARA</button>
         </PageHeader>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">

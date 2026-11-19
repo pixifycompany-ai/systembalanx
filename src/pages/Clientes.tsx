@@ -321,19 +321,19 @@ export default function Clientes() {
   return (
     <main className="container py-4 md:py-6">
       <div className="mx-auto max-w-[1180px] space-y-5">
-        <PageHeader eyebrow="Clientes" title="Clientes">
-          <button type="button" onClick={handleNew} aria-label="Novo cliente" className={btn.primary}><Plus className="h-4 w-4" /> Novo cliente</button>
+        <PageHeader eyebrow="Clientes" title="Clientes" mobileAction={<button type="button" onClick={handleNew} aria-label="Novo cliente" className="grid h-10 w-10 place-items-center rounded-full bg-foreground text-background"><Plus className="h-[18px] w-[18px]" /></button>}>
+          <button type="button" onClick={handleNew} aria-label="Novo cliente" className={cn(btn.primary, 'max-sm:hidden')}><Plus className="h-4 w-4" /> Novo cliente</button>
         </PageHeader>
 
         {/* avisos úteis */}
         {(comAtraso.length > 0 || semContato > 0) && (
           <div className="flex flex-wrap gap-2">
             {comAtraso.length > 0 && (
-              <button type="button" onClick={() => { setOrdem('atraso'); setStatus('todos'); }} className="inline-flex items-center gap-1.5 rounded-full bg-danger-bg px-3 py-1.5 text-[12.5px] text-danger-fg">
+              <button type="button" onClick={() => { setOrdem('atraso'); setStatus('todos'); }} className="inline-flex items-center gap-1.5 rounded-full bg-danger-bg px-3 py-1.5 text-left text-[12.5px] text-danger-fg max-sm:w-full max-sm:rounded-2xl max-sm:py-2.5">
                 <AlertTriangle className="h-3.5 w-3.5" />{comAtraso.length} {comAtraso.length === 1 ? 'cliente com atraso' : 'clientes com atraso'} · {formatCurrency(totalAtraso)}
               </button>
             )}
-            {semContato > 0 && <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-bg px-3 py-1.5 text-[12.5px] text-warning-fg"><Phone className="h-3.5 w-3.5" />{semContato} sem WhatsApp nem e-mail: as cobranças não saem</span>}
+            {semContato > 0 && <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-bg px-3 py-1.5 text-[12.5px] text-warning-fg max-sm:w-full max-sm:rounded-2xl max-sm:py-2.5"><Phone className="h-3.5 w-3.5" />{semContato} sem WhatsApp nem e-mail: as cobranças não saem</span>}
           </div>
         )}
 
@@ -343,13 +343,13 @@ export default function Clientes() {
             <Search className="h-4 w-4 text-foreground-muted" />
             <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome, e-mail, CNPJ ou CPF" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-foreground-muted" />
           </label>
-          <div className="flex gap-1 rounded-full border border-border bg-surface p-1">
+          <div className="flex gap-1 rounded-full border border-border bg-surface p-1 max-sm:w-full">
             {([['ativos', 'Ativos'], ['inativos', 'Inativos'], ['todos', 'Todos']] as const).map(([v, r]) => (
-              <button key={v} type="button" onClick={() => setStatus(v)} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px]', status === v ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground')}>{r}<span className="text-[11px] opacity-70">{contagem[v]}</span></button>
+              <button key={v} type="button" onClick={() => setStatus(v)} className={cn('inline-flex h-8 flex-auto items-center justify-center gap-1.5 rounded-full px-3 text-[13px]', status === v ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground')}>{r}<span className="text-[11px] opacity-70">{contagem[v]}</span></button>
             ))}
           </div>
           {marcasUsadas.length > 1 && (
-            <div className="flex max-w-full gap-1 overflow-x-auto rounded-full border border-border bg-surface p-1 scrollbar-hide">
+            <div className="flex max-w-full gap-1 overflow-x-auto rounded-full border border-border bg-surface p-1 scrollbar-hide max-sm:w-full">
               {(['todas', ...marcasUsadas.map((o) => o.value)] as const).map((m) => (
                 <button key={m} type="button" onClick={() => setMarca(m as EmpresaFonte | 'todas')} className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12.5px]', marca === m ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground')}>
                   {m !== 'todas' && <i className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: corMarca(m) }} />}{m === 'todas' ? 'Todas as marcas' : m}
@@ -357,9 +357,9 @@ export default function Clientes() {
               ))}
             </div>
           )}
-          <div className="ml-auto flex items-center gap-2">
-            <div className="relative">
-              <select aria-label="Ordenar" value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} className="h-10 appearance-none rounded-full border border-border bg-surface pl-8 pr-8 text-[13px] text-foreground outline-none">
+          <div className="ml-auto flex items-center gap-2 max-sm:ml-0 max-sm:w-full">
+            <div className="relative max-sm:flex-1">
+              <select aria-label="Ordenar" value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} className="h-10 appearance-none rounded-full border border-border bg-surface pl-8 pr-8 text-[13px] text-foreground outline-none max-sm:w-full">
                 <option value="nome">Nome (A–Z)</option><option value="mrr">Maior MRR</option><option value="atraso">Em atraso</option>
               </select>
               <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground-muted" />

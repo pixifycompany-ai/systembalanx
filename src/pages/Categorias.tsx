@@ -202,14 +202,15 @@ export default function Categorias() {
 
   return (
     <main className="mx-auto w-full max-w-[1180px] space-y-5 py-4 md:py-6">
-      <PageHeader eyebrow="Ajustes" title="Categorias">
-        <button type="button" onClick={handleNew} aria-label="Nova categoria" className={btn.primary}>
+      <PageHeader eyebrow="Ajustes" title="Categorias" mobileAction={<button type="button" onClick={handleNew} aria-label="Nova categoria" className="grid h-10 w-10 place-items-center rounded-full bg-foreground text-background"><Plus className="h-[18px] w-[18px]" /></button>}>
+        <button type="button" onClick={handleNew} aria-label="Nova categoria" className={cn(btn.primary, 'max-sm:hidden')}>
           <Plus className="h-4 w-4" />Nova categoria
         </button>
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-2">
         <Segmented<Tipo>
+          className="max-sm:w-full"
           value={activeTab}
           onChange={setActiveTab}
           opts={[
@@ -221,7 +222,7 @@ export default function Categorias() {
           <Search className="h-4 w-4 text-foreground-muted" />
           <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar categoria" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-foreground-muted" />
         </label>
-        <p className="ml-auto text-[13px] text-foreground-muted">
+        <p className="ml-auto text-[13px] text-foreground-muted max-sm:ml-0 max-sm:w-full max-sm:px-1">
           <span className="first-letter:uppercase">{mesNome}</span>: <b className="font-semibold tabular-nums text-foreground">{formatCurrency(totalMes)}</b> em {activeTab === 'receita' ? 'receitas' : 'despesas'}
         </p>
       </div>

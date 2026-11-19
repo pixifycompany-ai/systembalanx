@@ -1,20 +1,49 @@
 // Kit visual do reskin (o mesmo usado nos previews aprovados).
 // Peças pequenas e sem estado de negócio: cada tela monta o seu conteúdo com elas.
-import { X } from 'lucide-react';
+import { MoreHorizontal, X } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { HexWatermark } from '@/components/shared/NavySurface';
 import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW } from '@/components/shared/navyTokens';
 
-/** Cabeçalho de página: eyebrow pequeno + título leve grande + ações à direita. */
-export function PageHeader({ eyebrow, title, children, className }: { eyebrow?: React.ReactNode; title: React.ReactNode; children?: React.ReactNode; className?: string }) {
+/**
+ * Cabeçalho de página: eyebrow + título leve grande + ações.
+ * No celular nada pode deixar "vazio" ao lado: `mobileAction` (ex.: ⋯ / ícone) fica
+ * na linha do título, e `children` ocupa a largura inteira na linha de baixo — cada
+ * página marca o que estica (max-sm:w-full / max-sm:flex-1) e o que some (max-sm:hidden).
+ */
+export function PageHeader({ eyebrow, title, children, className, mobileAction }: { eyebrow?: React.ReactNode; title: React.ReactNode; children?: React.ReactNode; className?: string; mobileAction?: React.ReactNode }) {
   return (
-    <div className={cn('flex flex-wrap items-end justify-between gap-4', className)}>
-      <div className="min-w-0">
-        {eyebrow && <p className="text-[13px] text-foreground-muted">{eyebrow}</p>}
-        <h1 className="font-heading text-[38px] font-light leading-none tracking-[-0.04em] text-foreground md:text-[46px]">{title}</h1>
+    <div className={cn('flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between', className)}>
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          {eyebrow && <p className="text-[13px] text-foreground-muted">{eyebrow}</p>}
+          <h1 className="font-heading text-[38px] font-light leading-none tracking-[-0.04em] text-foreground md:text-[46px]">{title}</h1>
+        </div>
+        {mobileAction && <div className="flex shrink-0 items-center gap-2 sm:hidden">{mobileAction}</div>}
       </div>
-      {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
+      {children && <div className="flex flex-wrap items-center gap-2 empty:hidden max-sm:w-full">{children}</div>}
     </div>
+  );
+}
+
+/** Menu ⋯ com ações secundárias (usado no celular, no lugar de vários botões soltos). */
+export function MenuAcoes({ itens, label = 'Mais ações', className }: { itens: { label: string; icon?: React.ReactNode; onClick: () => void; disabled?: boolean; destaque?: boolean }[]; label?: string; className?: string }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" aria-label={label} title={label} className={cn('grid h-10 w-10 place-items-center rounded-full border border-border bg-surface text-foreground hover:bg-surface-2', className)}>
+          <MoreHorizontal className="h-[18px] w-[18px]" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60 rounded-2xl p-1.5">
+        {itens.map((it) => (
+          <DropdownMenuItem key={it.label} disabled={it.disabled} onSelect={() => it.onClick()} className={cn('gap-2.5 rounded-xl py-2.5 text-[14px]', it.destaque && 'font-medium')}>
+            {it.icon}{it.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
