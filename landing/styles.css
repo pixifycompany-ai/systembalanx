@@ -460,7 +460,7 @@ small{font-size:inherit}
 .reveal.is-visible{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){
   .reveal{opacity:1;transform:none;transition:none}
-  .hero__stage::after,.msg,.msg-card,.hero__photo img,[data-float],.mock--balance,.viz-card__shine,.bars--live i,.msg--audio .wave i,.chip .dot,.hero__title .caret{animation:none}
+  .hero__stage::after,.msg,.msg-card,.tmsg,.hero__photo img,[data-float],.mock--balance,.viz-card__shine,.bars--live i,.msg--audio .wave i,.chip .dot,.hero__title .caret{animation:none}
   .integra__list li{animation:none;opacity:1;transform:none}
   .reveal:not(.is-visible) .bars i{transform:none}
 }
@@ -545,47 +545,30 @@ small{font-size:inherit}
   .footer--simple .footer__legal{margin:0}
 }
 
-/* ===================== IARA — chat de pré-venda ===================== */
-.iara-fab{position:fixed;right:20px;bottom:20px;z-index:80;width:58px;height:58px;border:0;cursor:pointer;
-  border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--ink);
-  box-shadow:0 14px 30px -10px rgba(11,18,38,.6);transition:transform .18s ease}
-.iara-fab:hover{transform:scale(1.06)}
-.iara-fab:active{transform:scale(.95)}
-.iara-fab svg{width:24px;height:24px}
-.iara-fab__close{display:none}
-.iara-fab.open .iara-fab__spark{display:none}
-.iara-fab.open .iara-fab__close{display:block}
-.iara-panel{position:fixed;right:20px;bottom:90px;z-index:80;width:min(380px,calc(100vw - 32px));
-  height:min(560px,calc(100dvh - 120px));display:flex;flex-direction:column;overflow:hidden;
-  border-radius:26px;border:1px solid var(--border);background:var(--surface);box-shadow:0 30px 70px -24px rgba(11,18,38,.45);
-  transform-origin:bottom right;animation:iaraIn .22s cubic-bezier(.2,.8,.2,1)}
-.iara-panel[hidden]{display:none!important}
-@keyframes iaraIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
-.iara-panel__head{display:flex;align-items:center;gap:11px;padding:14px;border-bottom:1px solid var(--border)}
-.iara-panel__ava{flex:none;width:36px;height:36px;border-radius:999px;display:grid;place-items:center;color:var(--primary);background:var(--primary-soft)}
-.iara-panel__ava svg{width:18px;height:18px}
-.iara-panel__id{flex:1;min-width:0}
-.iara-panel__name{font-size:15px;font-weight:500}
-.iara-panel__status{font-size:12px;color:var(--pos)}
-.iara-panel__x{flex:none;width:34px;height:34px;border:0;background:var(--surface2);color:var(--fg);cursor:pointer;border-radius:999px;display:grid;place-items:center}
-.iara-panel__x svg{width:16px;height:16px}
-.iara-panel__x:hover{background:var(--border)}
-.iara-panel__msgs{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
-.iara-msg{max-width:86%;padding:10px 14px;font-size:14px;line-height:1.5;border-radius:18px;white-space:pre-wrap;word-wrap:break-word}
-.iara-msg--user{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:6px}
-.iara-msg--bot{align-self:flex-start;background:var(--surface);border:1px solid var(--border);color:var(--fg);border-bottom-left-radius:6px}
-.iara-msg--typing{color:var(--muted);font-style:italic}
-.iara-panel__composer{display:flex;align-items:center;gap:6px;margin:10px;padding:5px 5px 5px 16px;border-radius:999px;border:1px solid var(--border);background:var(--surface2)}
-.iara-panel__composer input{flex:1;min-width:0;height:38px;border:0;background:transparent;color:var(--fg);font-size:16px;outline:none;font-family:inherit}
-.iara-panel__composer input::placeholder{color:var(--subtle)}
-.iara-mic,.iara-sendbtn{flex:none;width:38px;height:38px;border-radius:999px;border:0;background:transparent;color:var(--muted);cursor:pointer;display:grid;place-items:center;transition:.15s}
-.iara-mic svg,.iara-sendbtn svg{width:17px;height:17px}
-.iara-mic:hover{color:var(--fg);background:var(--surface)}
-.iara-mic.rec{background:var(--neg-bg);color:var(--neg);animation:iaraPulse 1s infinite}
+/* ===================== IARA — conversa no bloco "Pergunte à IARA" ===================== */
+.stage__sub{text-align:center;color:var(--muted);font-size:16px;margin:-14px auto 24px;max-width:34em}
+.talk{max-width:680px;margin:0 auto 16px}
+.talk[hidden]{display:none}
+.talk__msgs{display:flex;flex-direction:column;gap:10px;max-height:min(440px,58vh);overflow-y:auto;padding:6px 4px 4px;scroll-behavior:smooth;
+  mask-image:linear-gradient(180deg,transparent 0,#000 18px);-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 18px)}
+.tmsg{max-width:86%;padding:12px 16px;font-size:15px;line-height:1.55;border-radius:20px;white-space:pre-wrap;word-wrap:break-word;animation:msgIn .35s cubic-bezier(.2,.8,.2,1) both}
+.tmsg b{font-weight:500}
+.tmsg--user{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:6px}
+.tmsg--bot{align-self:flex-start;background:rgba(255,255,255,.92);border:1px solid rgba(255,255,255,.95);box-shadow:0 10px 30px -22px rgba(37,52,120,.5);border-bottom-left-radius:6px}
+.tmsg--bot a{color:var(--primary);text-decoration:underline}
+.tmsg--typing{color:var(--muted)}
+.tmsg--typing span{display:inline-block;width:6px;height:6px;margin:0 2px;border-radius:50%;background:var(--subtle);animation:dot 1s infinite}
+.tmsg--typing span:nth-child(2){animation-delay:.15s}.tmsg--typing span:nth-child(3){animation-delay:.3s}
+.tmsg--erro{color:var(--neg)}
+.talk__reset{display:block;margin:10px auto 0;border:0;background:none;color:var(--muted);font-size:13px;cursor:pointer;text-decoration:underline}
+.talk__reset:hover{color:var(--fg)}
+.ask__mic{display:grid;place-items:center;width:42px;height:42px;border-radius:999px;border:0;background:transparent;color:var(--muted);cursor:pointer;flex:none}
+.ask__mic:hover{background:var(--surface2);color:var(--fg)}
+.ask__mic.rec{background:var(--neg-bg);color:var(--neg);animation:iaraPulse 1s infinite}
 @keyframes iaraPulse{50%{opacity:.5}}
-.iara-sendbtn{background:var(--ink);color:#fff}
-.iara-sendbtn:hover{background:var(--ink-h)}
-@media (max-width:680px){.iara-panel{right:10px;left:10px;width:auto;bottom:82px;height:min(70dvh,540px)}}
+.ask.busy .ask__send{opacity:.5;pointer-events:none}
+.stage--conversa .ask__chips{margin-top:14px}
+@media (max-width:620px){.tmsg{font-size:14.5px;max-width:92%}.stage__sub{font-size:15px;margin-top:-12px}}
 
 /* ===================== Cookie consent ===================== */
 .cookie{position:fixed;left:20px;bottom:20px;z-index:90;max-width:380px;padding:18px;border-radius:22px;

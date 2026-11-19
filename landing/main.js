@@ -252,7 +252,7 @@
   opts.forEach((o) => o.addEventListener('click', () => setCycle(o.dataset.cycle)));
 })();
 
-/* ===================== IARA — chat de pré-venda ===================== */
+/* ===================== IARA — conversa no bloco "Pergunte à IARA" ===================== */
 (() => {
   'use strict';
   const SB = 'https://hvwuuxvsoyovkvedifco.supabase.co';
@@ -260,48 +260,48 @@
   const FN = `${SB}/functions/v1/iara-lp`;
   const AUTH = { apikey: KEY, Authorization: `Bearer ${KEY}` };
 
-  const fab = document.getElementById('iaraFab');
-  const panel = document.getElementById('iaraPanel');
-  const closeBtn = document.getElementById('iaraClose');
-  const msgsEl = document.getElementById('iaraMsgs');
-  const form = document.getElementById('iaraForm');
-  const input = document.getElementById('iaraInput');
-  const mic = document.getElementById('iaraMic');
-  if (!fab || !panel) return;
+  const stage = document.getElementById('stage');
+  const talk = document.getElementById('talk');
+  const msgsEl = document.getElementById('talkMsgs');
+  const form = document.getElementById('askForm');
+  const input = document.getElementById('askInput');
+  const mic = document.getElementById('askMic');
+  const reset = document.getElementById('talkReset');
+  if (!stage || !form || !msgsEl) return;
 
-  const history = [];
-  let opened = false;
+  let history = [];
   let busy = false;
 
-  const scroll = () => { msgsEl.scrollTop = msgsEl.scrollHeight; };
-  const addMsg = (role, text) => {
+  const esc = (t) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // Texto seguro com **negrito** e links para o app.
+  const fmt = (t) => esc(t)
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/(https?:\/\/)?(app\.balanx\.com\.br[^\s<),.]*)/g, (_m, _p, u) => `<a href="https://${u}">${u}</a>`);
+  const rolar = () => { msgsEl.scrollTop = msgsEl.scrollHeight; };
+  const abrir = () => {
+    if (talk.hidden) { talk.hidden = false; stage.classList.add('stage--conversa'); }
+  };
+  const addMsg = (role, text, extra) => {
+    abrir();
     const el = document.createElement('div');
-    el.className = `iara-msg iara-msg--${role === 'user' ? 'user' : 'bot'}`;
-    el.textContent = text;
+    el.className = `tmsg tmsg--${role}${extra ? ` ${extra}` : ''}`;
+    if (role === 'bot') el.innerHTML = fmt(text); else el.textContent = text;
     msgsEl.appendChild(el);
-    scroll();
+    rolar();
     return el;
   };
-
-  const openPanel = () => {
-    panel.hidden = false;
-    fab.classList.add('open');
-    opened = true;
-    if (!msgsEl.childElementCount) {
-      addMsg('bot', 'Oi! Sou a IARA 👋 Posso te explicar o que o BALANX faz, preços, como começar… Pergunte por texto ou toque no microfone.');
-    }
-    setTimeout(() => input.focus(), 100);
+  const digitando = () => {
+    const el = addMsg('bot', '', 'tmsg--typing');
+    el.innerHTML = '<span></span><span></span><span></span>';
+    return el;
   };
-  const closePanel = () => { panel.hidden = true; fab.classList.remove('open'); opened = false; };
-  fab.addEventListener('click', () => (opened ? closePanel() : openPanel()));
-  closeBtn.addEventListener('click', closePanel);
+  const setBusy = (v) => { busy = v; form.classList.toggle('busy', v); };
 
   const ask = async ({ text, blob }) => {
     if (busy) return;
-    busy = true;
+    setBusy(true);
     if (text) { addMsg('user', text); history.push({ role: 'user', content: text }); }
-    const typing = addMsg('bot', 'digitando…');
-    typing.classList.add('iara-msg--typing');
+    const typing = digitando();
     try {
       let resp;
       if (blob) {
@@ -312,26 +312,22 @@
       } else {
         resp = await fetch(FN, { method: 'POST', headers: { ...AUTH, 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: history }) });
       }
-      const data = await resp.json();
-      if (blob && data.transcript) { typing.remove(); addMsg('user', data.transcript); history.push({ role: 'user', content: data.transcript }); }
-      if (!resp.ok) throw new Error(data.error || 'Erro');
+      const data = await resp.json().catch(() => ({}));
+      if (blob && data.transcript) {
+        msgsEl.insertBefore(Object.assign(document.createElement('div'), { className: 'tmsg tmsg--user', textContent: data.transcript }), typing);
+        history.push({ role: 'user', content: data.transcript });
+      }
+      if (!resp.ok) throw new Error(data.error || 'Não consegui responder agora. Tente de novo.');
       typing.remove();
       addMsg('bot', data.reply);
       history.push({ role: 'assistant', content: data.reply });
     } catch (e) {
       typing.remove();
-      addMsg('bot', e && e.message ? e.message : 'Ops, não consegui responder agora. Tente de novo em instantes.');
+      addMsg('bot', e && e.message ? e.message : 'Ops, não consegui responder agora. Tente de novo em instantes.', 'tmsg--erro');
     } finally {
-      busy = false;
+      setBusy(false);
     }
   };
-
-  // Campo do hero e chips: abrem a IARA já com a pergunta.
-  const perguntar = (t) => { if (!t) return; if (!opened) openPanel(); ask({ text: t }); };
-  const askForm = document.getElementById('askForm');
-  const askInput = document.getElementById('askInput');
-  if (askForm && askInput) askForm.addEventListener('submit', (e) => { e.preventDefault(); const t = askInput.value.trim(); askInput.value = ''; perguntar(t); });
-  document.querySelectorAll('[data-ask]').forEach((b) => b.addEventListener('click', () => perguntar(b.dataset.ask)));
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -340,18 +336,24 @@
     input.value = '';
     ask({ text: t });
   });
+  document.querySelectorAll('[data-ask]').forEach((b) => b.addEventListener('click', () => {
+    ask({ text: b.dataset.ask });
+    if (window.matchMedia('(max-width: 620px)').matches) stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
+  reset && reset.addEventListener('click', () => {
+    history = []; msgsEl.innerHTML = ''; talk.hidden = true; stage.classList.remove('stage--conversa'); input.focus();
+  });
 
   // ---- Áudio (MediaRecorder) ----
   let rec = null, chunks = [];
-  const stopRec = () => { try { rec && rec.stop(); } catch (_) {} };
-  mic.addEventListener('click', async () => {
-    if (rec && rec.state === 'recording') { stopRec(); return; }
+  mic && mic.addEventListener('click', async () => {
+    if (rec && rec.state === 'recording') { try { rec.stop(); } catch (_) { /* já parou */ } return; }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      addMsg('bot', 'Seu navegador não permite gravar áudio aqui — pode escrever sua pergunta 🙂'); return;
+      addMsg('bot', 'Seu navegador não permite gravar áudio aqui. Pode escrever sua pergunta 🙂'); return;
     }
     let stream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-    catch (_) { addMsg('bot', 'Preciso da permissão do microfone pra ouvir você. Você também pode escrever.'); return; }
+    catch (_) { addMsg('bot', 'Preciso da permissão do microfone para ouvir você. Você também pode escrever.'); return; }
     rec = new MediaRecorder(stream);
     chunks = [];
     rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };

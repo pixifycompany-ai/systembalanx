@@ -26,7 +26,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&family=Inter+Tight:wght@300..600&family=Instrument+Serif:ital@0;1&display=swap">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&family=Inter+Tight:wght@300..600&family=Instrument+Serif:ital@0;1&display=swap"></noscript>
-  <link rel="stylesheet" href="/styles.css?v=15" />
+  <link rel="stylesheet" href="/styles.css?v=16" />
 
   <!-- SEO estruturado -->
   <script type="application/ld+json">
@@ -210,19 +210,26 @@
       </div>
     </section>
 
-    <!-- ===== PERGUNTE À IARA ===== -->
-    <section class="stage-wrap reveal">
-      <div class="hero__stage">
+    <!-- ===== PERGUNTE À IARA (conversa ao vivo, aqui mesmo) ===== -->
+    <section class="stage-wrap reveal" id="pergunte">
+      <div class="hero__stage" id="stage">
         <p class="stage__title">Pergunte qualquer coisa <span class="serif">à IARA</span></p>
+        <p class="stage__sub">Ela responde agora, aqui mesmo: preços, recursos, integrações, como começar.</p>
+        <div class="talk" id="talk" hidden aria-live="polite">
+          <div class="talk__msgs" id="talkMsgs"></div>
+          <button type="button" class="talk__reset" id="talkReset">Nova conversa</button>
+        </div>
         <form class="ask" id="askForm" autocomplete="off">
           <svg class="ico ask__plus"><use href="#i-spark"/></svg>
-          <input id="askInput" type="text" placeholder="Ex.: quanto custa? serve para autônomo?" aria-label="Pergunte à IARA" />
+          <input id="askInput" type="text" placeholder="Ex.: quanto custa? serve para autônomo?" aria-label="Pergunte à IARA" maxlength="600" />
+          <button class="ask__mic" type="button" id="askMic" aria-label="Perguntar por áudio"><svg class="ico ico--sm"><use href="#i-voz"/></svg></button>
           <button class="ask__send" type="submit" aria-label="Perguntar"><svg class="ico ico--sm"><use href="#i-envio"/></svg></button>
         </form>
-        <div class="ask__chips">
+        <div class="ask__chips" id="askChips">
           <button type="button" data-ask="Quanto custa o BALANX?">Quanto custa?</button>
           <button type="button" data-ask="Como funciona a cobrança automática por WhatsApp?">Cobrança automática</button>
-          <button type="button" data-ask="Como funciona a integração com o Google Agenda?">Google Agenda</button>
+          <button type="button" data-ask="Como funciona a integração com o Google Agenda e o Google Tarefas?">Google Agenda</button>
+          <button type="button" data-ask="O que a IARA faz dentro do app?">O que a IARA faz?</button>
           <button type="button" data-ask="Serve para quem é autônomo?">Serve para autônomo?</button>
         </div>
       </div>
@@ -626,35 +633,6 @@
     </div>
   </div>
 
-  <!-- ===== IARA — chat de pré-venda ===== -->
-  <button id="iaraFab" class="iara-fab" aria-label="Falar com a IARA" title="Tire dúvidas com a IARA">
-    <svg class="iara-fab__spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" fill="currentColor"/></svg>
-    <svg class="iara-fab__close" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-  </button>
-
-  <div id="iaraPanel" class="iara-panel" hidden aria-live="polite">
-    <div class="iara-panel__head">
-      <span class="iara-panel__ava"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" fill="currentColor"/></svg></span>
-      <div class="iara-panel__id">
-        <div class="iara-panel__name">IARA</div>
-        <div class="iara-panel__status">tira suas dúvidas sobre o BALANX</div>
-      </div>
-      <button id="iaraClose" class="iara-panel__x" aria-label="Fechar">
-        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-      </button>
-    </div>
-    <div id="iaraMsgs" class="iara-panel__msgs"></div>
-    <form id="iaraForm" class="iara-panel__composer" autocomplete="off">
-      <input id="iaraInput" type="text" placeholder="Pergunte sobre o BALANX…" aria-label="Sua mensagem" />
-      <button type="button" id="iaraMic" class="iara-mic" aria-label="Falar por áudio">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg>
-      </button>
-      <button type="submit" class="iara-sendbtn" aria-label="Enviar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-      </button>
-    </form>
-  </div>
-
-  <script src="/main.js?v=15" defer></script>
+  <script src="/main.js?v=16" defer></script>
 </body>
 </html>
