@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, ChangeEvent, ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, ChangeEvent, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
@@ -16,8 +16,9 @@ import { Loader2, ShieldCheck } from 'lucide-react';
 import { MfaManager } from '@/components/auth/MfaManager';
 import { GoogleAgendaPainel } from '@/components/perfil/GoogleAgendaPainel';
 import { statusGoogle } from '@/lib/googleAgenda';
-import { CalendarDays, Smartphone } from 'lucide-react';
+import { CalendarDays, MessageCircle, Smartphone } from 'lucide-react';
 import { AtalhoIphonePainel } from '@/components/perfil/AtalhoIphonePainel';
+import { WhatsAppPainel } from '@/components/perfil/WhatsAppPainel';
 import {
   EnvelopeIcon, LockClosedIcon, BellAlertIcon, PaperAirplaneIcon,
   ChevronRightIcon, ArrowRightOnRectangleIcon, CameraIcon, ArrowPathIcon,
@@ -27,7 +28,7 @@ import { cn } from '@/lib/utils';
 import { useTenant } from '@/contexts/TenantContext';
 import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 
-type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas' | 'google' | 'atalho';
+type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas' | 'google' | 'atalho' | 'whatsapp';
 
 export default function MeuPerfil() {
   const { user, signOut } = useAuth();
@@ -36,6 +37,15 @@ export default function MeuPerfil() {
   const { activeTenant } = useTenant();
   const fileRef = useRef<HTMLInputElement>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
+  // WhatsApp da empresa (só leitura; quem grava é a função whatsapp-conexao).
+  const [whatsNumero, setWhatsNumero] = useState<string | null>(null);
+  const carregarWhats = useCallback(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any).from('whatsapp_conexoes').select('numero, estado').maybeSingle();
+    const d = String(data?.numero || '').replace(/\D/g, '').replace(/^55/, '');
+    setWhatsNumero(data && data.estado === 'open' ? (d.length >= 10 ? `(${d.slice(0, 2)}) ${d.slice(2, -4)}-${d.slice(-4)}` : d) : null);
+  }, []);
+  useEffect(() => { carregarWhats(); }, [carregarWhats]);
 
   const [nome, setNome] = useState('');
   const [savingNome, setSavingNome] = useState(false);
@@ -383,6 +393,14 @@ export default function MeuPerfil() {
             onClick={() => setSheet('asaas')}
             chevron
           />
+          <SetRow
+            icon={<MessageCircle className="h-[18px] w-[18px]" />}
+            title="WhatsApp da empresa"
+            sub={whatsNumero ? `Conectado · ${whatsNumero}` : 'Cobranças e lembretes saem do seu número'}
+            right={whatsNumero ? <CheckCircleIcon className="h-5 w-5 text-[hsl(var(--success-fg))]" /> : undefined}
+            onClick={() => setSheet('whatsapp')}
+            chevron
+          />
         </SetGroup>
 
         {/* Grupo: integrações */}
@@ -615,6 +633,11 @@ export default function MeuPerfil() {
       {/* Sheet: Google Agenda e Tarefas */}
       <DetailSheet open={sheet === 'google'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Integrações" title="Google Agenda e Tarefas">
         <GoogleAgendaPainel onChange={carregarGoogle} />
+      </DetailSheet>
+
+      {/* Sheet: WhatsApp da empresa */}
+      <DetailSheet open={sheet === 'whatsapp'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Cobrança" title="WhatsApp da empresa">
+        <WhatsAppPainel onChange={carregarWhats} />
       </DetailSheet>
 
       {/* Sheet: Atalho do iPhone (IARA por voz) */}

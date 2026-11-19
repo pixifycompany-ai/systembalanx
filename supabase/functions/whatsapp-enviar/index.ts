@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { ficarOffline } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,7 +42,10 @@ serve(async (req) => {
 
     const apiKey = Deno.env.get("WHATSAPP_API_KEY");
     if (!apiKey) return json({ error: "WHATSAPP_API_KEY não configurado nos secrets da função." }, 500);
-    const sid = Deno.env.get("WHATSAPP_SID") || "90d5bea1c485ebc40a7bbb5ba33ab2db";
+    // WhatsApp PRÓPRIO da empresa (Meu Perfil → WhatsApp). Sem conexão, não envia.
+    const { data: conexao } = await supabase.from("whatsapp_conexoes").select("sid, estado").maybeSingle();
+    const sid = conexao?.sid as string | undefined;
+    if (!sid) return json({ error: "Conecte o WhatsApp da sua empresa em Meu Perfil → WhatsApp para enviar por lá.", sem_whatsapp: true }, 400);
 
     const resp = await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/text`, {
       method: "POST",
@@ -53,7 +57,7 @@ serve(async (req) => {
       console.error("whatsapp send error", resp.status, bodyText);
       const detalhe = bodyText ? ` — ${bodyText.slice(0, 300)}` : "";
       const dica = resp.status === 401
-        ? " (chave do WhatsApp inválida ou sessão do Pixify desconectada)"
+        ? " (o WhatsApp conectado caiu: reconecte em Meu Perfil → WhatsApp)"
         : resp.status === 404
         ? " (sessão do WhatsApp não encontrada — confira o SID)"
         : "";
@@ -81,10 +85,7 @@ serve(async (req) => {
     }
     // Enviar pelo aparelho conectado deixa o número "online" e o celular do dono para de
     // receber notificação: volta a sessão para offline (falha em silêncio).
-    await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/presence`, {
-      method: "POST", headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
-      body: JSON.stringify({ available: false }),
-    }).catch(() => null);
+    await ficarOffline(sid);
     return json({ ok: true, to, docEnviado: docsEnviados > 0, docsEnviados, docsTotal: docs.length });
   } catch (e) {
     console.error("whatsapp-enviar error", e);

@@ -5,14 +5,8 @@ import { buscarBoletoUrl, temBoleto } from "../_shared/asaas.ts";
 import { anexoDaNota } from "../_shared/notas.ts";
 import { frasePrazo } from "../_shared/prazo.ts";
 import { sincronizarPausa } from "../_shared/pausa.ts";
+import { ficarOffline } from "../_shared/whatsapp.ts";
 
-/** Sessão do WhatsApp como "offline" (ver skill astracalls: notificação do celular). Falha em silêncio. */
-async function ficarOffline(sid: string, apiKey: string) {
-  await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/presence`, {
-    method: "POST", headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
-    body: JSON.stringify({ available: false }),
-  }).catch(() => null);
-}
 
 // Worker do cron: roda 1x/dia, encontra cobranças que casam com a regra de
 // auto-envio (global ou exceção do contrato) e dispara pelo WhatsApp (Pixify),
@@ -137,7 +131,10 @@ serve(async (req) => {
   }
 
   const apiKey = Deno.env.get("WHATSAPP_API_KEY");
-  const sid = Deno.env.get("WHATSAPP_SID") || "90d5bea1c485ebc40a7bbb5ba33ab2db";
+  // WhatsApp PRÓPRIO de cada empresa (Meu Perfil → WhatsApp). Sem conexão: não sai WhatsApp.
+  const { data: conexoes } = await admin.from("whatsapp_conexoes").select("user_id, sid");
+  const sidBy = new Map(((conexoes || []) as { user_id: string; sid: string }[]).map((c) => [c.user_id, c.sid]));
+  const sidsUsados = new Set<string>();
   if (!apiKey) return new Response(JSON.stringify({ error: "WHATSAPP_API_KEY ausente" }), { status: 500 });
   // E-mail (Resend) é opcional: se não configurado, o canal de e-mail é só ignorado.
   const resendKey = Deno.env.get("RESEND_API_KEY") || "";
@@ -173,7 +170,7 @@ serve(async (req) => {
     faturas.get(k)!.push(c);
   }
 
-  let enviados = 0, enviadosEmail = 0, pulados = 0, faltaNf = 0, erros = 0;
+  let enviados = 0, enviadosEmail = 0, pulados = 0, faltaNf = 0, erros = 0, semWhatsapp = 0;
 
   for (const linhas of faturas.values()) {
     const cob = linhas[0];
@@ -235,7 +232,10 @@ serve(async (req) => {
       // ---------- WhatsApp ----------
       const jaWppHoje = linhas.some((l) => l.auto_wpp_ultimo_dia === hoje);
       const to = wantWpp ? normalizarWhats(cli?.telefone || "") : null;
-      if (wantWpp && to && !jaWppHoje) {
+      const sid = sidBy.get(cob.user_id);
+      if (wantWpp && to && !jaWppHoje && !sid) semWhatsapp++;
+      if (wantWpp && to && !jaWppHoje && sid) {
+        sidsUsados.add(sid);
         fezAlgumaTentativa = true;
         if (bloqueadoPorNf) { faltaNf++; }
         else {
@@ -341,8 +341,8 @@ serve(async (req) => {
 
   // Enviar pelo aparelho conectado deixa o número "online" no WhatsApp, e aí o celular do dono
   // para de receber notificação. Depois dos envios, volta a sessão para offline.
-  if (enviados > 0 && apiKey) await ficarOffline(sid, apiKey);
-  return new Response(JSON.stringify({ ok: true, hoje, total: faturas.size, enviados, enviadosEmail, pulados, faltaNf, erros, pausas }), {
+  for (const s of sidsUsados) await ficarOffline(s);
+  return new Response(JSON.stringify({ ok: true, hoje, total: faturas.size, enviados, enviadosEmail, pulados, faltaNf, erros, pausas, semWhatsapp }), {
     status: 200, headers: { "Content-Type": "application/json" },
   });
 });
