@@ -21,8 +21,9 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: '/favicon-light.svg',
-      badge: '/favicon-light.svg',
+      // PNG: SVG não aparece como ícone de notificação no Android/Windows.
+      icon: '/icon-192.png?v=5',
+      badge: '/icon-192.png?v=5',
       data: { url: payload.url || '/' },
       tag: payload.tag || 'balanx',
       renotify: true,

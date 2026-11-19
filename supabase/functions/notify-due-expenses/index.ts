@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       : `Total ${brl(total)} — toque para ver`;
 
     const payload = JSON.stringify({
-      title: `PIXIFYNANCE — ${title}`,
+      title, // o iPhone já mostra "from BALANX" embaixo; nome antigo (PIXIFYNANCE) removido
       body,
       url: '/fluxo-caixa?status=pendente',
       tag: `due-${today}`,

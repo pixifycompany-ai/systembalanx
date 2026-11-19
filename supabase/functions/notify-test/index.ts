@@ -69,8 +69,9 @@ Deno.serve(async (req) => {
     }
 
     const payload = JSON.stringify({
-      title: 'PIXIFYNANCE',
-      body: 'Notificação de teste — está funcionando!',
+      // Sem o nome do app no título: o iPhone já mostra "from BALANX" embaixo.
+      title: 'Notificações ligadas',
+      body: 'Teste: está funcionando! Você vai receber os avisos de vencimento e da IARA aqui.',
       url: '/',
       tag: `test-${Date.now()}`,
     });
