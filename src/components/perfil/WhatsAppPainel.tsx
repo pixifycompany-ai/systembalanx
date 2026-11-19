@@ -1,7 +1,8 @@
 // Meu Perfil → WhatsApp: a empresa conecta o PRÓPRIO número. Cobranças e lembretes
-// saem dele. Pareamento por código de 8 caracteres (sem QR), confirmado por polling.
+// saem dele. Padrão: QR Code (renova sozinho a cada ~20 s). Alternativa para quem está
+// no próprio celular: código de 8 caracteres. A conexão é confirmada por polling.
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Copy, Loader2, Unplug } from 'lucide-react';
+import { CheckCircle2, Copy, Loader2, QrCode, RefreshCw, Smartphone, Unplug } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,24 +32,59 @@ export function WhatsAppPainel({ onChange }: { onChange?: () => void }) {
   const [codigo, setCodigo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const timer = useRef<number | null>(null);
+  // QR Code
+  const [modo, setModo] = useState<'inicio' | 'qr' | 'codigo'>('inicio');
+  const [qrSvg, setQrSvg] = useState<string | null>(null);
+  const [qrExpirado, setQrExpirado] = useState(false);
+  const qrVivo = useRef(false); // false = parar o laço (fechou, conectou, trocou de modo)
+  useEffect(() => () => { qrVivo.current = false; }, []);
+
+  const conectou = () => {
+    qrVivo.current = false;
+    setQrSvg(null); setCodigo(null); setModo('inicio');
+    toast.success('WhatsApp conectado!');
+    carregar(); onChange?.();
+  };
+
+  // Laço do QR: pede um pareamento novo e depois vai pegando cada QR renovado até conectar.
+  const mostrarQr = async () => {
+    setModo('qr'); setQrSvg(null); setQrExpirado(false);
+    qrVivo.current = true;
+    let novo = true;
+    let vazias = 0;
+    while (qrVivo.current) {
+      try {
+        const r = await chamar<{ qr_svg?: string; conectado?: boolean; expirado?: boolean }>({ action: 'qr', novo });
+        if (!qrVivo.current) return;
+        if (r.conectado) { conectou(); return; }
+        if (r.qr_svg) { setQrSvg(r.qr_svg); vazias = 0; novo = false; continue; }
+        // Sem QR novo: o WhatsApp encerrou essa rodada de pareamento.
+        vazias++;
+        if (vazias >= 2 || novo) { setQrExpirado(true); qrVivo.current = false; return; }
+      } catch (e) {
+        if (!qrVivo.current) return;
+        toast.error('Não deu para gerar o QR Code', { description: e instanceof Error ? e.message : '' });
+        qrVivo.current = false; setModo('inicio'); return;
+      }
+    }
+  };
+  const cancelarQr = () => { qrVivo.current = false; setQrSvg(null); setQrExpirado(false); setModo('inicio'); };
 
   const carregar = () => chamar<Status>({ action: 'status' }).then((s) => { setSt(s); return s; }).catch(() => { setSt(null); return null; });
   useEffect(() => { carregar(); return () => { if (timer.current) window.clearInterval(timer.current); }; }, []);
 
-  // Enquanto o código está na tela, confere a cada 3 s se o celular já conectou.
+  // Enquanto o código ou o QR está na tela, confere a cada 3 s se o celular já conectou.
   useEffect(() => {
-    if (!codigo) return;
+    if (!codigo && !qrSvg) return;
     timer.current = window.setInterval(async () => {
       const s = await carregar();
       if (s?.conectado) {
         if (timer.current) window.clearInterval(timer.current);
-        setCodigo(null);
-        toast.success('WhatsApp conectado!');
-        onChange?.();
+        conectou();
       }
     }, 3000);
     return () => { if (timer.current) window.clearInterval(timer.current); };
-  }, [codigo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [codigo, !!qrSvg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const conectar = async () => {
     setBusy(true);
@@ -87,6 +123,30 @@ export function WhatsAppPainel({ onChange }: { onChange?: () => void }) {
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Unplug className="mr-2 h-4 w-4" />} Desconectar
           </Button>
         </div>
+      ) : modo === 'qr' ? (
+        <div className="space-y-3">
+          <div className="mx-auto grid aspect-square w-full max-w-[260px] place-items-center rounded-2xl border border-border bg-white p-3">
+            {qrExpirado ? (
+              <div className="space-y-3 text-center">
+                <p className="text-[13px] text-foreground-muted">O QR Code expirou.</p>
+                <Button className="h-10 rounded-full bg-foreground px-4 text-background hover:bg-foreground/90" onClick={mostrarQr}><RefreshCw className="mr-2 h-4 w-4" />Gerar novo</Button>
+              </div>
+            ) : qrSvg ? (
+              <img src={`data:image/svg+xml;utf8,${encodeURIComponent(qrSvg)}`} alt="QR Code para conectar o WhatsApp" className="h-full w-full" style={{ imageRendering: 'pixelated' }} />
+            ) : (
+              <span className="flex items-center gap-2 text-[13px] text-foreground-muted"><Loader2 className="h-4 w-4 animate-spin" />Gerando QR Code…</span>
+            )}
+          </div>
+          <ol className="space-y-1.5 text-[12.5px] leading-snug text-foreground">
+            <li>1. No celular, abra o <b>WhatsApp</b> → <b>Configurações</b> (ou ⋮) → <b>Aparelhos conectados</b>.</li>
+            <li>2. Toque em <b>Conectar aparelho</b> e aponte a câmera para este QR Code.</li>
+          </ol>
+          {qrSvg && !qrExpirado && <p className="flex items-center gap-2 text-[12px] text-foreground-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Esperando a leitura… o código se renova sozinho.</p>}
+          <div className="flex gap-2">
+            <Button variant="ghost" className="flex-1 rounded-full" onClick={cancelarQr}>Cancelar</Button>
+            <Button variant="ghost" className="flex-1 rounded-full" onClick={() => { cancelarQr(); setModo('codigo'); }}><Smartphone className="mr-1.5 h-4 w-4" />Usar código</Button>
+          </div>
+        </div>
       ) : codigo ? (
         <div className="space-y-3">
           <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 text-center">
@@ -104,6 +164,18 @@ export function WhatsAppPainel({ onChange }: { onChange?: () => void }) {
           <p className="flex items-center gap-2 text-[12px] text-foreground-muted"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Esperando o celular confirmar…</p>
           <Button variant="ghost" className="w-full rounded-full" onClick={() => setCodigo(null)}>Cancelar</Button>
         </div>
+      ) : modo === 'inicio' ? (
+        <div className="space-y-3">
+          <Button className="h-11 w-full rounded-full bg-foreground font-medium text-background hover:bg-foreground/90" onClick={mostrarQr}>
+            <QrCode className="mr-2 h-4 w-4" /> Conectar com QR Code
+          </Button>
+          <button type="button" onClick={() => setModo('codigo')} className="w-full text-center text-[12.5px] text-foreground-muted underline-offset-2 hover:text-foreground hover:underline">
+            Está no próprio celular? Conectar com código
+          </button>
+          <p className="text-[11.5px] leading-snug text-foreground-muted">
+            Use o WhatsApp (ou WhatsApp Business) do número que seus clientes já conhecem. Ele continua funcionando normal no seu celular.
+          </p>
+        </div>
       ) : (
         <div className="space-y-3">
           <div>
@@ -113,9 +185,7 @@ export function WhatsAppPainel({ onChange }: { onChange?: () => void }) {
           <Button className="h-11 w-full rounded-full font-medium bg-foreground text-background hover:bg-foreground/90" onClick={conectar} disabled={busy || fone.replace(/\D/g, '').length < 10}>
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Gerar código de conexão
           </Button>
-          <p className="text-[11.5px] leading-snug text-foreground-muted">
-            Use o WhatsApp (ou WhatsApp Business) do número que seus clientes já conhecem. Ele continua funcionando normal no seu celular.
-          </p>
+          <Button variant="ghost" className="w-full rounded-full" onClick={() => setModo('inicio')}>Voltar para o QR Code</Button>
         </div>
       )}
     </div>
