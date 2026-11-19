@@ -135,7 +135,7 @@ export function AgendaItemSheet({ aberto, onOpenChange, item, tipoNovo, dataNova
                     <Switch checked={diaInteiro} onCheckedChange={setDiaInteiro} aria-label="Dia inteiro" />
                   </label>
                   {!diaInteiro && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3 [&>label]:min-w-0">
                       <Campo label="Início"><input type="time" value={hIni} onChange={(e) => setHIni(e.target.value)} className={campoCls} /></Campo>
                       <Campo label="Fim"><input type="time" value={hFim} onChange={(e) => setHFim(e.target.value)} className={campoCls} /></Campo>
                     </div>

@@ -644,3 +644,24 @@ svg.lucide[stroke-width="3"] { stroke-width: 2; }
 svg.lucide[stroke-width="2"]:is(.h-3, .h-3\.5, .w-3, .w-3\.5) { stroke-width: 1.75; }
 /* Heroicons (barra e menu do celular) */
 svg[data-slot="icon"][stroke-width="1.5"] { stroke-width: 1.25; }
+
+/* ===== Campos de data/hora no iPhone =====
+   O Safari do iOS dá largura mínima própria aos inputs date/time (não encolhem no grid,
+   o "Fim" vazava do modal) e centraliza o valor. Aqui eles encolhem como os outros campos
+   e o valor fica alinhado à esquerda, igual ao resto do formulário. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+}
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
