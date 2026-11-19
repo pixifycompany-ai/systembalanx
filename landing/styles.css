@@ -36,10 +36,10 @@ small{font-size:inherit}
 .muted{color:var(--muted)}
 .pos{color:var(--pos)}
 
-/* ícones de traço */
-.ico{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-.ico--sm{width:16px;height:16px}
-.ico--xs{width:12px;height:12px;stroke-width:2.2}
+/* ícones de traço — traço fino, igual à plataforma (Lucide 2 → 1.5; pequenos um pouco mais grossos para não sumirem) */
+.ico{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.ico--sm{width:16px;height:16px;stroke-width:1.5}
+.ico--xs{width:12px;height:12px;stroke-width:1.8}
 
 /* ---------- marca ---------- */
 .brand-tile{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--ink)}

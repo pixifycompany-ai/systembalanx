@@ -73,10 +73,17 @@ const n2 = (v: number) => Math.round(v * 100) / 100;
 /** Linhas do DRE/DFC "achatadas" (categoria abaixo do grupo) para exportar/explicar. */
 function linhasDRE(rows: DRERow[], months: string[]): Linha[] {
   const out: Linha[] = [];
+  // Mesmo total da tabela: saldo inicial = 1º mês, saldo final = último mês, o resto soma.
+  const total = (values: Record<string, number>, label: string) => {
+    const up = label.toUpperCase();
+    if (up.includes('SALDO INICIAL')) return n2(values[months[0]] ?? 0);
+    if (up.includes('SALDO')) return n2(values[months[months.length - 1]] ?? 0);
+    return n2(months.reduce((s, m) => s + (values[m] ?? 0), 0));
+  };
   for (const r of rows) {
-    out.push({ Linha: r.label, ...Object.fromEntries(months.map((m) => [m, n2(r.values[m] ?? 0)])), Total: n2(months.reduce((s, m) => s + (r.values[m] ?? 0), 0)) });
+    out.push({ Linha: r.label, ...Object.fromEntries(months.map((m) => [m, n2(r.values[m] ?? 0)])), Total: total(r.values, r.label) });
     for (const c of r.children ?? []) {
-      out.push({ Linha: `   ${c.label}`, ...Object.fromEntries(months.map((m) => [m, n2(c.values[m] ?? 0)])), Total: n2(months.reduce((s, m) => s + (c.values[m] ?? 0), 0)) });
+      out.push({ Linha: `   ${c.label}`, ...Object.fromEntries(months.map((m) => [m, n2(c.values[m] ?? 0)])), Total: total(c.values, c.label) });
     }
   }
   return out;
@@ -205,11 +212,11 @@ export default function Relatorios() {
 
   const conteudo = () => {
     switch (rel) {
-      case 'dre': return <DRETable rows={dreRows} months={months} title="Mês a mês" description="Compras no cartão contam na categoria delas." />;
+      case 'dre': return <DRETable rows={dreRows} months={months} description="Compras no cartão contam na categoria de cada compra." />;
       case 'dfc': return <DFCTab period={period} customStart={cStart} customEnd={cEnd} />;
       case 'recdep': return <ReceitasDespesasTab data={recDespResumo} />;
       case 'fluxo': return <FluxoCaixaTab data={fluxoData} />;
-      case 'comp': return <ComparativoTab data={comparativo} toolbar={<Segmented<ComparativoFilter> size="sm" className="w-fit max-w-full overflow-x-auto" value={compFilter} onChange={setCompFilter} opts={COMPARATIVOS} />} />;
+      case 'comp': return <ComparativoTab data={comparativo} toolbar={<Segmented<ComparativoFilter> size="sm" className="w-fit max-w-full overflow-x-auto max-sm:w-full" value={compFilter} onChange={setCompFilter} opts={COMPARATIVOS} />} />;
       case 'mrr': return <MRRTab data={reports.mrr} />;
       case 'abc': return <TopClientsTab data={reports.topClients} onRowClick={(c) => verLancamentos({ tipo: 'entrada', search: c.nome })} />;
       case 'rec-cat': return <CategoryTab data={reports.receitaPorCategoria} title="Receita por categoria" onRowClick={(c) => verLancamentos({ tipo: 'entrada', categoria: c.id === 'sem' ? SEM_CAT : c.id })} />;

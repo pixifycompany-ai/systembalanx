@@ -67,8 +67,27 @@ export interface AnalysisData {
   error: string | null;
 }
 
-async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'error'>> {
+/**
+ * Período da tela Análises. 'geral' = o cálculo de sempre (LTV 12 meses, churn 6 meses,
+ * últimas 6 turmas, projeção de 6 meses, rentabilidade desde o início) — é o que a IARA
+ * replica em supabase/functions/_shared/indicadores.ts. Os outros só mudam a JANELA
+ * (quantos meses entram); as fórmulas são as mesmas.
+ */
+export type PeriodoAnalises = 'geral' | '6m' | '12m' | 'ano';
+
+/** Meses de histórico e de projeção de cada período ('geral' = undefined → padrão). */
+export function janelaDoPeriodo(periodo: PeriodoAnalises, hoje = new Date()): { meses?: number; horizonte?: number } {
+  if (periodo === '6m') return { meses: 6, horizonte: 6 };
+  if (periodo === '12m') return { meses: 12, horizonte: 12 };
+  if (periodo === 'ano') return { meses: hoje.getMonth() + 1, horizonte: Math.max(1, 12 - (hoje.getMonth() + 1)) };
+  return {};
+}
+
+async function fetchAnalysisData(periodo: PeriodoAnalises = 'geral'): Promise<Omit<AnalysisData, 'isLoading' | 'error'>> {
   const today = new Date();
+  const { meses: janela, horizonte } = janelaDoPeriodo(periodo, today);
+  // Início da janela (1º dia do mês mais antigo). Sem janela: sem corte.
+  const inicioJanela = janela ? startOfMonth(subMonths(today, janela - 1)) : null;
 
   const [receitasRes, despesasRes, contratosRes, clientesRes, contasRes, aditivosRes] = await Promise.all([
     supabase.from('receitas').select('*, cliente:clientes(id, nome)'),
@@ -93,7 +112,8 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
   // ============ LTV EVOLUTION (last 12 months) - CONTRACT BASED ============
   const ltvEvolution: LTVEvolutionData[] = [];
   
-  for (let i = 11; i >= 0; i--) {
+  const mesesLtv = janela ?? 12;
+  for (let i = mesesLtv - 1; i >= 0; i--) {
     const monthDate = subMonths(today, i);
     const monthStart = startOfMonth(monthDate);
     const monthEnd = endOfMonth(monthDate);
@@ -140,7 +160,9 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
   let totalPerdidos = 0;
   let totalNovos = 0;
 
-  for (let i = 5; i >= 0; i--) {
+  // Pelo menos 2 meses: a taxa usa o último mês COMPLETO (penúltimo da série).
+  const mesesChurn = Math.max(2, janela ?? 6);
+  for (let i = mesesChurn - 1; i >= 0; i--) {
     const monthDate = subMonths(today, i);
     const monthStart = startOfMonth(monthDate);
     const monthEnd = endOfMonth(monthDate);
@@ -212,7 +234,10 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
 
   // Calculate retention for each cohort
   const sortedCohortKeys = Object.keys(cohortsByMonth).sort();
-  const lastCohortKeys = sortedCohortKeys.slice(-6); // Last 6 cohorts
+  // Padrão: últimas 6 turmas. Com período: as turmas que entraram dentro da janela.
+  const lastCohortKeys = inicioJanela
+    ? sortedCohortKeys.filter((k) => k >= format(inicioJanela, 'yyyy-MM')).slice(-12)
+    : sortedCohortKeys.slice(-6); // Last 6 cohorts
 
   lastCohortKeys.forEach(cohortKey => {
     const cohortClientes = cohortsByMonth[cohortKey];
@@ -279,7 +304,7 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
     .filter(c => c.recorrencia !== 'unico' && isContratoAtivoHoje(c as any))
     .reduce((sum, c) => sum + getValorMensalNaData(c as any, allAditivos, today), 0);
 
-  for (let i = 1; i <= 6; i++) {
+  for (let i = 1; i <= (horizonte ?? 6); i++) {
     const monthDate = addMonths(today, i);
     const mesNome = format(monthDate, 'MMM/yy', { locale: ptBR });
 
@@ -301,7 +326,9 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
   const clientProfitability: ClientProfitability[] = [];
   
   // Separate direct (linked) expenses from unlinked expenses
-  const despesasPagas = despesas.filter(d => d.status === 'pago' && !d.fatura_id && !ehDistribuicao(d));
+  // Com período, só entra o que foi pago/recebido dentro da janela (padrão: tudo).
+  const naJanela = (iso: string | null | undefined) => !inicioJanela || (!!iso && parseISO(iso) >= inicioJanela);
+  const despesasPagas = despesas.filter(d => d.status === 'pago' && !d.fatura_id && !ehDistribuicao(d) && naJanela(d.data_pagamento));
   const despesasDiretas: Record<string, number> = {}; // cliente_id -> total
   let despesasNaoVinculadas = 0;
 
@@ -317,7 +344,7 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
   // Revenue per client
   const receitaPorCliente: Record<string, { valor: number; nome: string }> = {};
   receitas.forEach(r => {
-    if (r.cliente_id && r.status === 'recebido') {
+    if (r.cliente_id && r.status === 'recebido' && naJanela(r.data_recebimento)) {
       if (!receitaPorCliente[r.cliente_id]) {
         receitaPorCliente[r.cliente_id] = {
           valor: 0,
@@ -510,11 +537,14 @@ async function fetchAnalysisData(): Promise<Omit<AnalysisData, 'isLoading' | 'er
   };
 }
 
-export function useAnalises(): AnalysisData {
+/** @param periodo janela da tela (padrão 'geral' = mesmo resultado de sempre). */
+export function useAnalises(periodo: PeriodoAnalises = 'geral'): AnalysisData {
   const { data, isLoading, error } = useQuery({
-    queryKey: ['analises'],
-    queryFn: fetchAnalysisData,
+    queryKey: periodo === 'geral' ? ['analises'] : ['analises', periodo],
+    queryFn: () => fetchAnalysisData(periodo),
     staleTime: 60000,
+    // Ao trocar de período, mantém os números na tela até os novos chegarem.
+    placeholderData: (anterior) => anterior,
   });
 
   return {

@@ -4,14 +4,10 @@ import { format } from 'date-fns';
 import { Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { DatePickerField } from '@/components/shared/DatePickerField';
-import { SheetHeading, NATIVE_SELECT_CLS } from '@/components/cobrancas/formParts';
-import { cn } from '@/lib/utils';
+import { Campo, ModalFooter, ModalHeader, ModalShell, Segmented } from '@/components/reskin/kit';
+import { btn, campoCls, modalCls } from '@/components/reskin/estilos';
 import { useClientes } from '@/hooks/useClientes';
 import type { AgendaItem, NovoAgendaItem } from '@/hooks/useAgenda';
 import { listasEscolhidas, statusGoogle } from '@/lib/googleAgenda';
@@ -100,76 +96,73 @@ export function AgendaItemSheet({ aberto, onOpenChange, item, tipoNovo, dataNova
     finally { setBusy(false); }
   };
 
+  const cabecalho = item ? (tipo === 'tarefa' ? 'Editar tarefa' : 'Editar compromisso') : tipo === 'tarefa' ? 'Nova tarefa' : 'Novo compromisso';
+
   return (
     <Sheet open={aberto} onOpenChange={(o) => !busy && onOpenChange(o)}>
-      <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface p-0 sm:mx-auto sm:max-w-[520px]">
-        <SheetTitle className="sr-only">{item ? 'Editar' : 'Novo'} {tipo}</SheetTitle>
-        <SheetHeading className="px-5 pt-1" eyebrow="Agenda" title={item ? (tipo === 'tarefa' ? 'Editar tarefa' : 'Editar compromisso') : tipo === 'tarefa' ? 'Nova tarefa' : 'Novo compromisso'} />
-        <div className="space-y-4 p-5 pt-3">
-          {!item && (
-            <div className="grid grid-cols-2 gap-1 rounded-full border border-border bg-surface-2 p-1">
-              {(['compromisso', 'tarefa'] as const).map((t) => (
-                <button key={t} type="button" onClick={() => setTipo(t)}
-                  className={cn('h-9 rounded-full text-[13px] font-semibold', tipo === t ? 'bg-foreground text-background' : 'text-foreground-muted')}>
-                  {t === 'compromisso' ? 'Compromisso' : 'Tarefa'}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <Label htmlFor="ag-titulo">Título</Label>
-            <Input id="ag-titulo" autoFocus value={titulo} onChange={(e) => setTitulo(e.target.value)}
-              placeholder={tipo === 'tarefa' ? 'Emitir NF da Sabor Maria' : 'Reunião com a Sabor Maria'} />
-          </div>
-          <DatePickerField label={tipo === 'tarefa' ? 'Data limite (opcional)' : 'Data'} value={data} onChange={setData} />
-          {tipo === 'compromisso' && (
-            <>
-              <label className="flex items-center justify-between rounded-2xl border border-border px-3.5 py-2.5">
-                <span className="text-[14px] text-foreground">Dia inteiro</span>
-                <Switch checked={diaInteiro} onCheckedChange={setDiaInteiro} />
-              </label>
-              {!diaInteiro && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5"><Label htmlFor="ag-ini">Início</Label><Input id="ag-ini" type="time" value={hIni} onChange={(e) => setHIni(e.target.value)} /></div>
-                  <div className="space-y-1.5"><Label htmlFor="ag-fim">Fim</Label><Input id="ag-fim" type="time" value={hFim} onChange={(e) => setHFim(e.target.value)} /></div>
-                </div>
-              )}
-              <div className="space-y-1.5">
-                <Label htmlFor="ag-lembrete">Lembrete</Label>
-                <select id="ag-lembrete" className={NATIVE_SELECT_CLS} value={lembrete} onChange={(e) => setLembrete(e.target.value)}>
-                  {LEMBRETES.map((l) => <option key={l.v} value={l.v}>{l.l}</option>)}
-                </select>
-              </div>
-            </>
-          )}
-          {tipo === 'tarefa' && listas.length > 1 && (
-            <div className="space-y-1.5">
-              <Label htmlFor="ag-lista">Lista no Google Tarefas</Label>
-              <select id="ag-lista" className={NATIVE_SELECT_CLS} value={lista} onChange={(e) => setLista(e.target.value)}>
-                {listas.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
-              </select>
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <Label htmlFor="ag-cliente">Cliente (opcional)</Label>
-            <select id="ag-cliente" className={NATIVE_SELECT_CLS} value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
-              <option value="">Nenhum</option>
-              {clientes.filter((c) => c.status === 'ativo' || c.id === clienteId).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="ag-notas">Notas</Label>
-            <Textarea id="ag-notas" rows={3} value={notas} onChange={(e) => setNotas(e.target.value)} />
-          </div>
-          <div className="flex gap-2 pt-1">
-            {item && (
-              <Button variant="ghost" className="text-danger-fg" onClick={excluir} disabled={busy} aria-label="Excluir"><Trash2 className="h-4 w-4" /></Button>
+      <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[560px]')}>
+        <SheetTitle className="sr-only">{cabecalho}</SheetTitle>
+        <ModalShell>
+          <ModalHeader eyebrow="Agenda" title={cabecalho} onClose={() => !busy && onOpenChange(false)} />
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-5">
+            {!item && (
+              <Segmented<'compromisso' | 'tarefa'> className="w-full" value={tipo} onChange={setTipo} opts={[['compromisso', 'Compromisso'], ['tarefa', 'Tarefa']]} />
             )}
-            <Button className="h-11 flex-1 rounded-full font-semibold" onClick={salvar} disabled={busy}>
-              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar
-            </Button>
+            <section className="space-y-3 rounded-[20px] border border-border bg-surface p-4">
+              <Campo label="Título">
+                <input autoFocus value={titulo} onChange={(e) => setTitulo(e.target.value)} className={campoCls}
+                  placeholder={tipo === 'tarefa' ? 'Emitir NF da Sabor Maria' : 'Reunião com a Sabor Maria'} />
+              </Campo>
+              <DatePickerField label={tipo === 'tarefa' ? 'Data limite (opcional)' : 'Data'} value={data} onChange={setData} />
+              {tipo === 'compromisso' && (
+                <>
+                  <label className="flex items-center justify-between gap-3 rounded-2xl bg-surface-2/60 px-3.5 py-3">
+                    <span className="text-[14px] text-foreground">Dia inteiro</span>
+                    <Switch checked={diaInteiro} onCheckedChange={setDiaInteiro} aria-label="Dia inteiro" />
+                  </label>
+                  {!diaInteiro && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Campo label="Início"><input type="time" value={hIni} onChange={(e) => setHIni(e.target.value)} className={campoCls} /></Campo>
+                      <Campo label="Fim"><input type="time" value={hFim} onChange={(e) => setHFim(e.target.value)} className={campoCls} /></Campo>
+                    </div>
+                  )}
+                  <Campo label="Lembrete">
+                    <select className={campoCls} value={lembrete} onChange={(e) => setLembrete(e.target.value)}>
+                      {LEMBRETES.map((l) => <option key={l.v} value={l.v}>{l.l}</option>)}
+                    </select>
+                  </Campo>
+                </>
+              )}
+              {tipo === 'tarefa' && listas.length > 1 && (
+                <Campo label="Lista no Google Tarefas">
+                  <select className={campoCls} value={lista} onChange={(e) => setLista(e.target.value)}>
+                    {listas.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+                  </select>
+                </Campo>
+              )}
+            </section>
+            <section className="space-y-3 rounded-[20px] border border-border bg-surface p-4">
+              <Campo label="Cliente (opcional)">
+                <select className={campoCls} value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
+                  <option value="">Nenhum</option>
+                  {clientes.filter((c) => c.status === 'ativo' || c.id === clienteId).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </Campo>
+              <Campo label="Notas">
+                <textarea rows={3} value={notas} onChange={(e) => setNotas(e.target.value)}
+                  className="w-full resize-none rounded-xl border border-input bg-surface-2 px-3 py-2.5 text-[14px] text-foreground outline-none focus:ring-2 focus:ring-ring" />
+              </Campo>
+            </section>
           </div>
-        </div>
+          <ModalFooter left={item ? (
+            <button type="button" className={btn.danger} onClick={excluir} disabled={busy}><Trash2 className="h-4 w-4" />Excluir</button>
+          ) : undefined}>
+            <button type="button" className={btn.outline} onClick={() => onOpenChange(false)} disabled={busy}>Cancelar</button>
+            <button type="button" className={btn.primary} onClick={salvar} disabled={busy}>
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />} Salvar
+            </button>
+          </ModalFooter>
+        </ModalShell>
       </SheetContent>
     </Sheet>
   );

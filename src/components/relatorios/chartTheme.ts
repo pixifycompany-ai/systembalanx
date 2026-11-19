@@ -23,8 +23,9 @@ export const axisProps = {
 
 /** Grade só horizontal, tracejada, na cor da borda. */
 export const gridProps = {
-  strokeDasharray: '3 3',
+  strokeDasharray: '3 4',
   stroke: CHART.grid,
+  strokeOpacity: 0.6,
   vertical: false,
 };
 

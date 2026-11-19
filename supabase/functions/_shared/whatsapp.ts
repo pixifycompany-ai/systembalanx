@@ -46,3 +46,22 @@ export async function ficarOffline(sid: string) {
 }
 
 export const SEM_WHATSAPP = "Conecte o WhatsApp da sua empresa em Meu Perfil → WhatsApp para enviar por lá.";
+
+/** Registra uma tentativa de envio em public.whatsapp_envios (histórico da cobrança).
+ *  Best-effort: nunca derruba o envio (tabela ausente, erro de rede etc. são ignorados). */
+export async function registrarEnvioWhats(admin: any, linha: {
+  user_id: string; cobranca_id?: string | null; telefone: string;
+  origem: "manual" | "auto"; status: "enviado" | "falhou"; erro?: string | null; documentos?: number;
+}) {
+  try {
+    await admin.from("whatsapp_envios").insert({
+      user_id: linha.user_id,
+      cobranca_id: linha.cobranca_id || null,
+      telefone: linha.telefone,
+      origem: linha.origem,
+      status: linha.status,
+      erro: linha.erro ? String(linha.erro).slice(0, 500) : null,
+      documentos: linha.documentos || 0,
+    });
+  } catch (_e) { /* registro é best-effort */ }
+}

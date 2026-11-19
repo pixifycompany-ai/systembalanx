@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { Loader2, Pause, Play } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
 import { DatePickerField } from '@/components/shared/DatePickerField';
-import { FormSection, InlineNotice } from '@/components/cobrancas/formParts';
+import { btn } from '@/components/reskin/estilos';
+import { cn } from '@/lib/utils';
 import { descreverPausa, estadoPausa, pausarContrato, reativarContrato, type ContratoPausavel } from '@/lib/pausaContrato';
 
 export function PausaContrato({ contrato, onChange }: { contrato: ContratoPausavel; onChange: () => void | Promise<void> }) {
@@ -54,10 +54,14 @@ export function PausaContrato({ contrato, onChange }: { contrato: ContratoPausav
   };
 
   return (
-    <FormSection label="Pausa">
-      {estado && !editando && (
-        <InlineNotice tone="warning">{descreverPausa(contrato, hoje)}.</InlineNotice>
-      )}
+    <div className="space-y-3 rounded-2xl bg-surface-2/60 p-3.5">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface text-foreground-muted"><Pause className="h-4 w-4" /></span>
+        <span className="min-w-0">
+          <span className="block text-[14px] text-foreground">Pausa</span>
+          <span className="block text-[12px] text-foreground-muted">{estado && !editando ? `${descreverPausa(contrato, hoje)}.` : 'Para de gerar receitas por um tempo, sem encerrar o contrato.'}</span>
+        </span>
+      </div>
 
       {editando ? (
         <div className="space-y-3">
@@ -65,33 +69,33 @@ export function PausaContrato({ contrato, onChange }: { contrato: ContratoPausav
             <DatePickerField label="Pausar a partir de" value={desde} onChange={setDesde} />
             <DatePickerField label="Voltar a cobrar em" value={ate} onChange={setAte} />
           </div>
-          <p className="text-[11.5px] text-foreground-muted">
+          <p className="text-[12px] text-foreground-muted">
             Deixe "voltar a cobrar" vazio para pausar até você reativar. No período, o contrato não gera receitas
             {comAsaas ? ' e a assinatura fica suspensa no Asaas' : ''}.
           </p>
           <div className="flex gap-2">
-            <Button type="button" size="sm" onClick={salvar} disabled={busy || !desde}>
-              {busy && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Salvar pausa
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setEditando(false)} disabled={busy}>Cancelar</Button>
+            <button type="button" onClick={() => setEditando(false)} disabled={busy} className={cn(btn.outline, 'h-9 flex-1 text-[13px]')}>Cancelar</button>
+            <button type="button" onClick={salvar} disabled={busy || !desde} className={cn(btn.primary, 'h-9 flex-1 text-[13px]')}>
+              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Salvar pausa
+            </button>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
           {estado ? (
             <>
-              <Button type="button" size="sm" onClick={reativar} disabled={busy}>
-                {busy ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Play className="mr-1.5 h-3.5 w-3.5" />} {estado === 'agendada' ? 'Cancelar pausa' : 'Reativar agora'}
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => setEditando(true)} disabled={busy}>Mudar datas</Button>
+              <button type="button" onClick={reativar} disabled={busy} className={cn(btn.primary, 'h-9 flex-1 text-[13px]')}>
+                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} {estado === 'agendada' ? 'Cancelar pausa' : 'Reativar agora'}
+              </button>
+              <button type="button" onClick={() => setEditando(true)} disabled={busy} className={cn(btn.outline, 'h-9 flex-1 text-[13px]')}>Mudar datas</button>
             </>
           ) : (
-            <Button type="button" size="sm" variant="outline" onClick={() => { setDesde(hoje); setAte(''); setEditando(true); }}>
-              <Pause className="mr-1.5 h-3.5 w-3.5" /> Pausar contrato
-            </Button>
+            <button type="button" onClick={() => { setDesde(hoje); setAte(''); setEditando(true); }} className={cn(btn.outline, 'h-9 w-full text-[13px]')}>
+              <Pause className="h-3.5 w-3.5" /> Pausar contrato
+            </button>
           )}
         </div>
       )}
-    </FormSection>
+    </div>
   );
 }

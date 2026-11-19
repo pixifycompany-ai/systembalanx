@@ -5,14 +5,12 @@ import { formatCurrency } from '@/utils/formatters';
 import type { DRERow } from '@/hooks/useRelatorios';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
-import { SectionCard } from '@/components/shared/SectionCard';
-import { EmptyNote } from './ReportKit';
+import { EmptyNote, PillStrip, RelCard } from './ReportKit';
 
 interface DRETableProps {
   rows: DRERow[];
   months: string[];
-  /** Reuso pelo DFC (caixa): título, subtítulo e regras de linha próprias. */
+  /** Título/subtítulo opcionais (o cabeçalho da página já mostra nome e descrição). */
   title?: string;
   description?: string;
   /** Linha mostrada entre parênteses (saída/dedução). Padrão: regras do DRE. */
@@ -24,132 +22,119 @@ interface DRETableProps {
 const DRE_NEGATIVE = (label: string) =>
   label.includes('DEDUÇ') || label.includes('CUSTO') || label.includes('DESPESA') || label.includes('DISTRIBUIÇÃO');
 
+const TOTAL = '__total__';
+
+/**
+ * Total da linha no período. Linhas de saldo não se somam: saldo inicial = o do
+ * 1º mês, saldo final/de fechamento = o do último mês (usado pelo DFC).
+ */
+function totalDe(values: Record<string, number>, label: string, months: string[]) {
+  const up = label.toUpperCase();
+  if (up.includes('SALDO INICIAL')) return values[months[0]] ?? 0;
+  if (up.includes('SALDO')) return values[months[months.length - 1]] ?? 0;
+  return months.reduce((s, m) => s + (values[m] ?? 0), 0);
+}
+
 export function DRETable({
-  rows, months,
-  title = 'DRE – Demonstrativo de Resultado',
-  description = 'Toque numa linha com seta para ver as categorias que a compõem',
+  rows, months, title, description,
   isNegativeRow = DRE_NEGATIVE,
   bottomLineLabel = 'LÍQUIDO',
 }: DRETableProps) {
   // Linha final (resultado do período) ganha destaque próprio.
   const isBottomLine = (row: DRERow) => row.type === 'result' && row.label.includes(bottomLineLabel);
   const currentMonthLabel = (() => {
-    const now = new Date();
-    const label = format(now, 'MMM yyyy', { locale: ptBR });
+    const label = format(new Date(), 'MMM yyyy', { locale: ptBR });
     return label.charAt(0).toUpperCase() + label.slice(1);
   })();
 
-  // Mobile: select one month at a time. Default to current month if available, else last month.
+  // Celular: um mês por vez (ou o total). Padrão: mês atual, senão o último.
   const defaultMonth = months.includes(currentMonthLabel) ? currentMonthLabel : months[months.length - 1];
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonth);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (!months.includes(selectedMonth) && months.length > 0) {
-      setSelectedMonth(defaultMonth);
-    }
+    if (selectedMonth !== TOTAL && !months.includes(selectedMonth) && months.length > 0) setSelectedMonth(defaultMonth);
   }, [months, selectedMonth, defaultMonth]);
 
   const toggle = (label: string) => setExpanded((e) => ({ ...e, [label]: !e[label] }));
 
   if (rows.length === 0) {
     return (
-      <SectionCard title={title}>
+      <RelCard title={title} sub={description}>
         <EmptyNote>Sem dados para o período selecionado</EmptyNote>
-      </SectionCard>
+      </RelCard>
     );
   }
 
-  const isDeductionRow = isNegativeRow;
-
+  /** Valor formatado: saídas/deduções entre parênteses; zero vira traço. */
   const fmt = (val: number, label: string) => {
-    const showAsNegative = isDeductionRow(label) && val > 0;
-    return val === 0 ? '-' : showAsNegative ? `(${formatCurrency(val)})` : formatCurrency(val);
+    if (val === 0) return '–';
+    if (isNegativeRow(label) && val > 0) return `(${formatCurrency(val)})`;
+    if (val < 0) return `(${formatCurrency(Math.abs(val))})`;
+    return formatCurrency(val);
   };
-
-  /** Cor do valor de uma linha de resultado (positivo verde, negativo vermelho). */
-  const resultTone = (val: number) =>
-    val > 0 ? 'text-[hsl(var(--success-fg))]' : val < 0 ? 'text-[hsl(var(--danger-fg))]' : 'text-foreground-muted';
+  /** Cor: saída/dedução e negativos em vermelho; resultado verde/vermelho. */
+  const tom = (val: number, row: DRERow) => {
+    if (val === 0) return 'text-foreground-subtle';
+    if (row.type === 'result') return val > 0 ? 'text-success-fg' : 'text-danger-fg';
+    if (val < 0 || (isNegativeRow(row.label) && val > 0)) return 'text-danger-fg';
+    return row.type === 'item' ? 'text-foreground-muted' : 'text-foreground';
+  };
+  const valorMob = (values: Record<string, number>, label: string) =>
+    selectedMonth === TOTAL ? totalDe(values, label, months) : (values[selectedMonth] || 0);
 
   return (
-    <SectionCard
-      flush
-      className="animate-fade-in overflow-hidden"
-      title={title}
-      description={description}
-    >
-      {/* Mobile: seletor de mês + coluna única */}
+    <RelCard flush title={title} sub={description} className="animate-fade-in">
+      {/* Celular: um mês por vez (ou o total do período) */}
       <div className="md:hidden">
-        <ScrollPills className="mx-0 px-4 pb-3">
-          {months.map((m) => (
-            <Pill key={m} active={m === selectedMonth} onClick={() => setSelectedMonth(m)}>
-              {m}
-            </Pill>
-          ))}
-        </ScrollPills>
-
-        <div className="border-t border-border [&>div:last-child>div:last-child]:border-b-0">
+        <PillStrip
+          className={cn('px-4 pb-3', !(title || description) && 'pt-4')}
+          value={selectedMonth}
+          onChange={setSelectedMonth}
+          options={[...months.map((m) => ({ value: m, label: m })), { value: TOTAL, label: 'Total' }]}
+        />
+        <div className="border-t border-border">
           {rows.map((row, idx) => {
             const isGroup = row.type === 'group';
             const isResult = row.type === 'result';
             const isItem = row.type === 'item';
             const bottom = isBottomLine(row);
-            const val = row.values[selectedMonth] || 0;
-            const showAsNegative = isDeductionRow(row.label) && val > 0;
+            const val = valorMob(row.values, row.label);
             const hasChildren = !!row.children?.length;
             const isOpen = expanded[row.label];
-
             return (
               <div key={idx}>
                 <div
                   className={cn(
                     'flex min-w-0 items-center justify-between gap-3 border-b border-border px-4',
                     isItem ? 'py-2.5' : 'py-3',
-                    isResult && !bottom && 'bg-surface-2',
-                    bottom && 'bg-foreground/[0.06]',
-                    hasChildren && 'cursor-pointer active:bg-foreground/[0.04]',
+                    isResult && 'bg-primary/[0.05]',
+                    bottom && 'bg-primary/[0.09]',
+                    hasChildren && 'cursor-pointer active:bg-surface-2',
                   )}
                   onClick={hasChildren ? () => toggle(row.label) : undefined}
                 >
                   <span
                     className={cn(
-                      'flex min-w-0 items-center gap-1.5 truncate',
-                      isGroup && 'text-[13px] font-semibold text-foreground',
-                      isResult && 'text-[14px] font-semibold text-foreground',
-                      bottom && 'font-heading text-[15px]',
-                      isItem && 'pl-3 text-[13px] text-foreground-muted',
+                      'flex min-w-0 items-center gap-1.5',
+                      isGroup && 'text-[13px] font-medium text-foreground',
+                      isResult && 'text-[13.5px] font-semibold text-foreground',
+                      isItem && 'pl-3 text-[13px] text-foreground',
                     )}
                   >
-                    {hasChildren && (
-                      <ChevronRight className={cn('h-3.5 w-3.5 shrink-0 text-foreground-muted transition-transform', isOpen && 'rotate-90')} />
-                    )}
-                    {row.icon && <span className="text-foreground-muted">{row.icon}</span>}
+                    {hasChildren ? <ChevronRight className={cn('h-3.5 w-3.5 shrink-0 text-foreground-muted transition-transform', isOpen && 'rotate-90')} /> : <span className="w-3.5 shrink-0" />}
                     <span className="truncate">{row.label}</span>
                   </span>
-                  <span
-                    className={cn(
-                      'shrink-0 text-right tabular-nums',
-                      isItem && 'text-[13px] text-foreground-muted',
-                      isGroup && 'font-heading text-[13px] font-semibold text-foreground',
-                      isResult && cn('font-heading text-[14px] font-semibold', resultTone(val)),
-                      bottom && 'text-[16px]',
-                      showAsNegative && !isResult && 'text-foreground-muted',
-                    )}
-                  >
+                  <span className={cn('shrink-0 text-right text-[13.5px] tabular-nums', (isResult || isGroup) && 'font-heading font-semibold', bottom && 'text-[15px]', tom(val, row))}>
                     {fmt(val, row.label)}
                   </span>
                 </div>
                 {hasChildren && isOpen && row.children!.map((c) => {
-                  const cv = c.values[selectedMonth] || 0;
+                  const cv = valorMob(c.values, c.label);
                   return (
-                    <div key={c.label} className="flex min-w-0 items-center justify-between gap-3 border-b border-border bg-surface-2/60 px-4 py-2">
-                      <span className="flex min-w-0 items-center gap-1.5 truncate pl-7 text-[12px] text-foreground-muted">
-                        <span className="inline-block h-1 w-1 shrink-0 rounded-full bg-foreground-muted" />
-                        <span className="truncate">{c.label}</span>
-                      </span>
-                      <span className="shrink-0 text-right text-[12px] tabular-nums text-foreground-muted">
-                        {cv === 0 ? '-' : formatCurrency(cv)}
-                      </span>
+                    <div key={c.label} className="flex min-w-0 items-center justify-between gap-3 border-b border-border bg-surface-2/40 px-4 py-2">
+                      <span className="min-w-0 truncate pl-9 text-[12.5px] text-foreground-muted">{c.label}</span>
+                      <span className="shrink-0 text-right text-[12.5px] tabular-nums text-foreground-muted">{cv === 0 ? '–' : formatCurrency(cv)}</span>
                     </div>
                   );
                 })}
@@ -159,25 +144,16 @@ export function DRETable({
         </div>
       </div>
 
-      {/* Desktop: tabela horizontal completa */}
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[500px] text-sm">
+      {/* Desktop: meses lado a lado; a coluna da conta fica fixa ao rolar */}
+      <div className={cn('hidden overflow-x-auto md:block', !(title || description) && 'pt-1')}>
+        <table className="w-full min-w-[640px] border-separate border-spacing-0 text-[13px]">
           <thead>
-            <tr className="border-y border-border">
-              <th className="min-w-[240px] px-6 py-3 text-left text-xs font-medium text-foreground-muted">
-                Conta
-              </th>
+            <tr className="text-[12px] text-foreground-muted">
+              <th className="sticky left-0 z-10 min-w-[230px] border-b border-border bg-surface px-5 py-3 text-left font-normal">Valores em R$</th>
               {months.map((m) => (
-                <th
-                  key={m}
-                  className={cn(
-                    'min-w-[110px] px-4 py-3 text-right text-xs font-medium text-foreground-muted last:pr-6',
-                    m === currentMonthLabel && 'bg-foreground/[0.04] text-foreground',
-                  )}
-                >
-                  {m}
-                </th>
+                <th key={m} className={cn('min-w-[112px] whitespace-nowrap border-b border-border px-3 py-3 text-right font-normal', m === currentMonthLabel && 'text-foreground')}>{m}</th>
               ))}
+              <th className="min-w-[124px] border-b border-border bg-surface-2/60 px-4 py-3 pr-5 text-right font-medium text-foreground">Total</th>
             </tr>
           </thead>
           <tbody>
@@ -188,88 +164,58 @@ export function DRETable({
               const bottom = isBottomLine(row);
               const hasChildren = !!row.children?.length;
               const isOpen = expanded[row.label];
-
+              const tot = totalDe(row.values, row.label, months);
+              // Destaque da linha também na célula fixa (que precisa de fundo opaco).
+              const realce = bottom ? 'shadow-[inset_0_0_0_999px_hsl(var(--primary)/0.09)]' : isResult ? 'shadow-[inset_0_0_0_999px_hsl(var(--primary)/0.05)]' : '';
               return (
                 <Fragment key={idx}>
                   <tr
-                    className={cn(
-                      'border-b border-border transition-colors last:border-b-0',
-                      isResult && !bottom && 'bg-surface-2',
-                      bottom && 'bg-foreground/[0.06]',
-                      hasChildren && 'cursor-pointer hover:bg-foreground/[0.03]',
-                    )}
+                    className={cn('group', hasChildren && 'cursor-pointer')}
                     onClick={hasChildren ? () => toggle(row.label) : undefined}
                   >
-                    <td
-                      className={cn(
-                        'px-6',
-                        isItem ? 'py-2.5 pl-10 text-sm text-foreground-muted' : 'py-3',
-                        isGroup && 'text-[13px] font-semibold text-foreground',
-                        isResult && 'text-sm font-semibold text-foreground',
-                        bottom && 'font-heading text-[15px]',
-                      )}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        {hasChildren && (
-                          <ChevronRight className={cn('h-3.5 w-3.5 shrink-0 text-foreground-muted transition-transform', isOpen && 'rotate-90')} />
-                        )}
-                        {row.icon && <span className="text-foreground-muted">{row.icon}</span>}
+                    <td className={cn('sticky left-0 z-10 border-b border-border bg-surface px-5', realce, isItem ? 'py-2.5' : 'py-3', hasChildren && 'group-hover:bg-surface-2')}>
+                      <span className={cn(
+                        'flex items-center gap-1.5 whitespace-nowrap',
+                        isGroup && 'font-medium text-foreground',
+                        isResult && 'font-semibold text-foreground',
+                        isItem && 'pl-4 text-foreground',
+                        bottom && 'font-heading text-[14px]',
+                      )}>
+                        {hasChildren ? <ChevronRight className={cn('h-3.5 w-3.5 shrink-0 text-foreground-muted transition-transform', isOpen && 'rotate-90')} /> : <span className="w-3.5 shrink-0" />}
                         {row.label}
                       </span>
                     </td>
                     {months.map((m) => {
                       const val = row.values[m] || 0;
-                      const isNegative = val < 0;
-                      const showAsNegative = isDeductionRow(row.label) && val > 0;
                       return (
-                        <td
-                          key={m}
-                          className={cn(
-                            'px-4 text-right tabular-nums last:pr-6',
-                            isItem ? 'py-2.5 text-sm' : 'py-3',
-                            m === currentMonthLabel && 'bg-foreground/[0.04]',
-                            isItem && 'text-foreground-muted',
-                            isGroup && 'font-heading font-semibold text-foreground',
-                            (isNegative || showAsNegative) && !isResult && 'text-foreground-muted',
-                            isResult && cn('font-heading font-semibold', resultTone(val)),
-                            bottom && 'text-[15px]',
-                          )}
-                        >
+                        <td key={m} className={cn('whitespace-nowrap border-b border-border px-3 text-right tabular-nums', realce, isItem ? 'py-2.5' : 'py-3', (isResult || isGroup) && 'font-heading font-semibold', tom(val, row))}>
                           {fmt(val, row.label)}
                         </td>
                       );
                     })}
+                    <td className={cn('whitespace-nowrap border-b border-border bg-surface-2/60 px-4 pr-5 text-right font-heading font-semibold tabular-nums', realce, isItem ? 'py-2.5' : 'py-3', bottom && 'text-[14px]', tom(tot, row))}>
+                      {fmt(tot, row.label)}
+                    </td>
                   </tr>
-                  {hasChildren && isOpen && row.children!.map((c) => (
-                    <tr key={`${idx}-${c.label}`} className="border-b border-border bg-surface-2/60">
-                      <td className="px-6 py-2 pl-14 text-xs text-foreground-muted">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="inline-block h-1 w-1 rounded-full bg-foreground-muted" />
-                          {c.label}
-                        </span>
-                      </td>
-                      {months.map((m) => {
-                        const cv = c.values[m] || 0;
-                        return (
-                          <td
-                            key={m}
-                            className={cn(
-                              'px-4 py-2 text-right text-xs tabular-nums text-foreground-muted last:pr-6',
-                              m === currentMonthLabel && 'bg-foreground/[0.04]',
-                            )}
-                          >
-                            {cv === 0 ? '-' : formatCurrency(cv)}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                  {hasChildren && isOpen && row.children!.map((c) => {
+                    const ct = totalDe(c.values, c.label, months);
+                    return (
+                      <tr key={`${idx}-${c.label}`} className="text-[12.5px] text-foreground-muted">
+                        <td className="sticky left-0 z-10 whitespace-nowrap border-b border-border bg-surface px-5 py-2 pl-14 shadow-[inset_0_0_0_999px_hsl(var(--surface-2)/0.4)]">{c.label}</td>
+                        {months.map((m) => {
+                          const cv = c.values[m] || 0;
+                          return <td key={m} className="whitespace-nowrap border-b border-border bg-surface-2/40 px-3 py-2 text-right tabular-nums">{cv === 0 ? '–' : formatCurrency(cv)}</td>;
+                        })}
+                        <td className="whitespace-nowrap border-b border-border bg-surface-2/60 px-4 py-2 pr-5 text-right tabular-nums">{ct === 0 ? '–' : formatCurrency(ct)}</td>
+                      </tr>
+                    );
+                  })}
                 </Fragment>
               );
             })}
           </tbody>
         </table>
       </div>
-    </SectionCard>
+    </RelCard>
   );
 }

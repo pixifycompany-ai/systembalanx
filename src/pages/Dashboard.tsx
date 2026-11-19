@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { format, subMonths } from 'date-fns';
+import { addMonths, format, parseISO, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
-  AlertTriangle, ArrowLeftRight, ArrowUp, Bell, CalendarClock, ChevronDown, ChevronRight, CreditCard, ListChecks, Mic,
+  AlertTriangle, ArrowLeftRight, ArrowUp, Bell, CalendarClock, ChevronDown, ChevronLeft, ChevronRight, CreditCard, ListChecks, Mic,
   Plus, Receipt, TrendingDown, TrendingUp, Upload,
 } from 'lucide-react';
 import { Sparkle } from '@/components/shared/Sparkle';
@@ -58,6 +58,10 @@ const TOM_ALERTA: Record<Alert['type'], { cls: string; icon: React.ReactNode }> 
 };
 
 export default function Dashboard() {
+  // Mês escolhido ("yyyy-MM"). O mês atual mantém o comportamento de sempre.
+  const mesAtual = format(new Date(), 'yyyy-MM');
+  const [periodo, setPeriodo] = useState(mesAtual);
+  const ehAtual = periodo === mesAtual;
   const {
     dashboardData,
     accountBalances,
@@ -68,9 +72,10 @@ export default function Dashboard() {
     revenueData3m,
     revenueData6m,
     revenueData12m,
+    monthItems,
     isLoading,
     error,
-  } = useDashboard();
+  } = useDashboard(periodo);
   const { getMetaValor, upsertMeta } = useMetas();
   const { profile } = useProfile();
   const { pendencias, total: totalPendencias } = usePendencias();
@@ -79,9 +84,14 @@ export default function Dashboard() {
   const [saldoSheetOpen, setSaldoSheetOpen] = useState(false);
   const [pergunta, setPergunta] = useState('');
 
-  const currentPeriodo = format(new Date(), 'yyyy-MM');
-  const mesNome = format(new Date(), "MMMM 'de' yyyy", { locale: ptBR });
-  const mesCurto = format(new Date(), 'MMMM', { locale: ptBR });
+  const currentPeriodo = periodo;
+  const dataMes = parseISO(`${periodo}-01`);
+  const mesNome = format(dataMes, "MMMM 'de' yyyy", { locale: ptBR });
+  const mesCurto = format(dataMes, 'MMMM', { locale: ptBR });
+  const mudarMes = (n: number) => setPeriodo(format(addMonths(dataMes, n), 'yyyy-MM'));
+  const passado = periodo < mesAtual;
+  // Leva o mês escolhido para o Fluxo de caixa (no mês atual, a URL de sempre).
+  const comMes = (url: string) => (ehAtual ? url : `${url}&mes=${periodo}`);
   const dataExtenso = format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR });
   const primeiroNome = profile?.nome?.split(' ')[0] ?? 'por aqui';
 
@@ -106,10 +116,14 @@ export default function Dashboard() {
   const metaValor = getMetaValor('faturamento', currentPeriodo, 15000);
   const metaSubtitle = mesNome.charAt(0).toUpperCase() + mesNome.slice(1);
   // Comparações: mesmo período do mês anterior (KPIs de caixa) e fechamento do mês anterior (saldo)
-  const mesAnteriorCurto = format(subMonths(new Date(), 1), 'MMM', { locale: ptBR });
-  const hintComparacao = `vs 1–${format(new Date(), 'd')} de ${mesAnteriorCurto}`;
+  const mesAnteriorCurto = format(subMonths(dataMes, 1), 'MMM', { locale: ptBR });
+  const hintComparacao = ehAtual
+    ? `vs 1–${format(new Date(), 'd')} de ${mesAnteriorCurto}`
+    : `vs ${format(subMonths(dataMes, 1), 'MMMM', { locale: ptBR })} inteiro`;
   const saldoAnterior = consolidatedHistory.length >= 2 ? consolidatedHistory[consolidatedHistory.length - 2].valor : null;
   const saldoAtualHist = consolidatedHistory.length >= 1 ? consolidatedHistory[consolidatedHistory.length - 1].valor : null;
+  // Saldo: hoje (mês atual ou futuro) ou o fechamento do mês passado escolhido.
+  const saldoKpi = passado && saldoAtualHist != null ? saldoAtualHist : totalBalance;
 
   const perguntar = (texto: string) => {
     const q = texto.trim();
@@ -131,10 +145,12 @@ export default function Dashboard() {
     }] : []),
   ];
 
-  // Próximos 7 dias
-  const proximos = upcomingItems.slice(0, 6);
-  const entra = upcomingItems.filter((i) => i.tipo === 'receita').reduce((s, i) => s + i.valor, 0);
-  const sai = upcomingItems.filter((i) => i.tipo === 'despesa').reduce((s, i) => s + i.valor, 0);
+  // Próximos 7 dias (mês atual) ou vencimentos do mês escolhido
+  const listaVenc = ehAtual ? upcomingItems : monthItems;
+  const proximos = listaVenc.slice(0, ehAtual ? 6 : 8);
+  const entra = listaVenc.filter((i) => i.tipo === 'receita').reduce((s, i) => s + i.valor, 0);
+  const sai = listaVenc.filter((i) => i.tipo === 'despesa').reduce((s, i) => s + i.valor, 0);
+  const quitado = (i: UpcomingItem) => i.status === 'pago' || i.status === 'recebido';
   const abrirItem = (item: UpcomingItem) => {
     const tipo = item.tipo === 'receita' ? 'entrada' : 'saida';
     navigate(item.href ?? `/fluxo-caixa?tipo=${tipo}&search=${encodeURIComponent(item.descricao)}`);
@@ -162,7 +178,19 @@ export default function Dashboard() {
         <div className="flex items-center gap-2 max-sm:w-full">
           {/* Sino só no celular — no desktop o topo já tem um */}
           <span className="md:hidden"><NotificationBell /></span>
-          <span className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-surface px-3.5 text-[13px] text-foreground max-sm:flex-1">{metaSubtitle}</span>
+          <div className="flex h-10 items-center justify-between gap-0.5 rounded-full border border-border bg-surface p-1 max-sm:flex-1">
+            <button type="button" onClick={() => mudarMes(-1)} aria-label="Mês anterior" className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"><ChevronLeft className="h-4 w-4" /></button>
+            <button
+              type="button"
+              onClick={() => setPeriodo(mesAtual)}
+              disabled={ehAtual}
+              title={ehAtual ? undefined : 'Voltar para o mês atual'}
+              className="whitespace-nowrap px-1.5 text-[13px] text-foreground disabled:cursor-default"
+            >
+              {metaSubtitle}
+            </button>
+            <button type="button" onClick={() => mudarMes(1)} aria-label="Próximo mês" className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"><ChevronRight className="h-4 w-4" /></button>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" className="inline-flex h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-[14px] font-medium text-background hover:opacity-90 max-sm:hidden">
@@ -212,8 +240,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiStatCard
           highlight
-          label="Saldo em contas"
-          value={totalBalance}
+          label={passado ? `Saldo no fim de ${mesCurto}` : 'Saldo em contas'}
+          value={saldoKpi}
           delta={saldoAnterior != null ? variacaoPct(saldoAtualHist ?? totalBalance, saldoAnterior) : null}
           hint={`${accountBalances.length} ${accountBalances.length === 1 ? 'conta' : 'contas'} · vs fim de ${mesAnteriorCurto}`}
           onClick={() => setSaldoSheetOpen(true)}
@@ -223,7 +251,7 @@ export default function Dashboard() {
           value={resumo.faturamento_mes}
           delta={variacaoPct(resumo.faturamento_mes, resumo.faturamento_mes_anterior)}
           hint={hintComparacao}
-          onClick={() => navigate('/fluxo-caixa?tipo=entrada&status=recebido&base=efetivacao')}
+          onClick={() => navigate(comMes('/fluxo-caixa?tipo=entrada&status=recebido&base=efetivacao'))}
         >
           <MetaInline
             current={meta_faturamento.valor_realizado}
@@ -238,14 +266,14 @@ export default function Dashboard() {
           invertDelta
           delta={variacaoPct(resumo.despesas_mes, resumo.despesas_mes_anterior)}
           hint={hintComparacao}
-          onClick={() => navigate('/fluxo-caixa?tipo=saida&status=pago&base=efetivacao')}
+          onClick={() => navigate(comMes('/fluxo-caixa?tipo=saida&status=pago&base=efetivacao'))}
         />
         <KpiStatCard
           label="Lucro do mês"
           value={resumo.lucro_mensal}
           delta={variacaoPct(resumo.lucro_mensal, resumo.lucro_mensal_anterior)}
           hint={`margem ${String(resumo.lucro_mensal_percentual).replace('.', ',')}%`}
-          onClick={() => navigate('/fluxo-caixa?status=recebido,pago&base=efetivacao')}
+          onClick={() => navigate(comMes('/fluxo-caixa?status=recebido,pago&base=efetivacao'))}
         />
       </div>
 
@@ -284,24 +312,32 @@ export default function Dashboard() {
           onMesClick={(mes) => navigate(`/fluxo-caixa?mes=${mes}&status=recebido,pago&base=efetivacao`)}
         />
 
-        <Card title="Próximos 7 dias" action={<Link to="/calendario" className="text-[12.5px] text-primary hover:underline">Calendário</Link>}>
+        <Card
+          title={ehAtual ? 'Próximos 7 dias' : `Vencimentos de ${mesCurto}`}
+          sub={ehAtual ? undefined : `${listaVenc.length} ${listaVenc.length === 1 ? 'lançamento' : 'lançamentos'} no mês`}
+          action={<Link to="/calendario" className="text-[12.5px] text-primary hover:underline">Calendário</Link>}
+        >
           <div className="mb-3 grid grid-cols-2 gap-2">
             <div className="rounded-2xl bg-success-bg px-3 py-2.5"><p className="text-[11.5px] text-success-fg">Entra</p><p className="font-heading text-[17px] font-semibold tabular-nums text-success-fg">{formatCurrency(entra)}</p></div>
             <div className="rounded-2xl bg-danger-bg px-3 py-2.5"><p className="text-[11.5px] text-danger-fg">Sai</p><p className="font-heading text-[17px] font-semibold tabular-nums text-danger-fg">{formatCurrency(sai)}</p></div>
           </div>
           {proximos.length === 0 ? (
-            <p className="rounded-2xl bg-surface-2/60 px-4 py-6 text-center text-[13px] text-foreground-muted">Nada vencendo nos próximos 7 dias</p>
+            <p className="rounded-2xl bg-surface-2/60 px-4 py-6 text-center text-[13px] text-foreground-muted">{ehAtual ? 'Nada vencendo nos próximos 7 dias' : `Nada vencendo em ${mesCurto}`}</p>
           ) : (
             <div className="divide-y divide-border">
               {proximos.map((item) => {
-                const q = quandoVence(item.data_vencimento);
+                const q = ehAtual ? quandoVence(item.data_vencimento) : (() => {
+                  const d = dataLocal(item.data_vencimento);
+                  const sem = format(d, 'EEE', { locale: ptBR }).replace('.', '');
+                  return { rot: quitado(item) ? (item.tipo === 'receita' ? 'Recebido' : 'Pago') : sem.charAt(0).toUpperCase() + sem.slice(1), dia: format(d, 'dd/MM') };
+                })();
                 const receita = item.tipo === 'receita';
                 const titulo = item.cliente_ou_fornecedor && !item.cliente_ou_fornecedor.startsWith('Sem ') ? item.cliente_ou_fornecedor : item.descricao;
                 const sub = titulo === item.descricao ? null : item.descricao;
                 return (
                   <button key={item.id} type="button" onClick={() => abrirItem(item)} className="grid w-full grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-2 py-2.5 text-left hover:bg-surface-2/40">
                     <span className="text-center leading-tight">
-                      <span className={cn('block text-[11.5px] font-medium', q.rot === 'Atrasado' ? 'text-danger-fg' : 'text-foreground')}>{q.rot}</span>
+                      <span className={cn('block text-[11.5px] font-medium', q.rot === 'Atrasado' ? 'text-danger-fg' : quitado(item) ? 'text-success-fg' : 'text-foreground')}>{q.rot}</span>
                       <span className="block text-[11px] tabular-nums text-foreground-muted">{q.dia}</span>
                     </span>
                     <span className="min-w-0">
@@ -314,9 +350,9 @@ export default function Dashboard() {
                   </button>
                 );
               })}
-              {upcomingItems.length > proximos.length && (
-                <button type="button" onClick={() => navigate('/fluxo-caixa?venc=prox7')} className="w-full pt-2.5 text-left text-[12.5px] text-primary hover:underline">
-                  + {upcomingItems.length - proximos.length} lançamentos · ver todos
+              {listaVenc.length > proximos.length && (
+                <button type="button" onClick={() => navigate(ehAtual ? '/fluxo-caixa?venc=prox7' : `/fluxo-caixa?mes=${periodo}`)} className="w-full pt-2.5 text-left text-[12.5px] text-primary hover:underline">
+                  + {listaVenc.length - proximos.length} lançamentos · ver todos
                 </button>
               )}
             </div>
@@ -339,7 +375,7 @@ export default function Dashboard() {
                 <button
                   key={c.categoria}
                   type="button"
-                  onClick={() => navigate(`/fluxo-caixa?tipo=saida&status=pago&base=efetivacao&categoria=${c.categoria_id || '__sem_categoria__'}`)}
+                  onClick={() => navigate(comMes(`/fluxo-caixa?tipo=saida&status=pago&base=efetivacao&categoria=${c.categoria_id || '__sem_categoria__'}`))}
                   className="block w-full text-left"
                 >
                   <span className="flex items-baseline justify-between gap-2 text-[13px]">

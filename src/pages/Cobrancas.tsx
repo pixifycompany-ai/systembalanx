@@ -5,7 +5,7 @@ import { useActionParam } from '@/hooks/useActionParam';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { formatCurrency, formatDate } from '@/utils/formatters';
@@ -105,7 +105,7 @@ function NotasAnexo({ notas, onVer }: { notas: NotaRef[]; onVer: (path: string) 
 export default function Cobrancas() {
   const {
     cobrancas, loading, busyId,
-    criarAvulsa, criarAvulsaParcelada, cancelar, cancelarSoEsta, removerDoHistorico, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail,
+    criarAvulsa, criarAvulsaParcelada, cancelar, cancelarSoEsta, removerDoHistorico, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarWhatsappBruto, enviarEmail,
     anexarNotas, removerNota, setExigirNf, setEnvioPix, salvarRegra, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, whatsappTemplate, pixCfg, emailCfg,
     fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload,
   } = useCobrancas();
@@ -271,13 +271,12 @@ export default function Cobrancas() {
   const [waText, setWaText] = useState('');
   const [waSending, setWaSending] = useState(false);
   const [waCob, setWaCob] = useState<FaturaView | null>(null);
-  const openWhatsapp = (cob: FaturaView) => {
+  // Mesma mensagem do envio individual (template de Meu Perfil, ou o de PIX).
+  const textoWhats = (cob: FaturaView) => {
     const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
-    setWaCob(cob);
-    setWaTel(cli?.telefone || '');
     const usaPix = !!cob.envio_pix && !!pixCfg.chave;
     const diff = differenceInCalendarDays(parseISO(cob.vencimento), new Date());
-    setWaText(preencherTemplate(usaPix ? (pixCfg.template || WHATSAPP_TEMPLATE_PIX_PADRAO) : whatsappTemplate, {
+    return preencherTemplate(usaPix ? (pixCfg.template || WHATSAPP_TEMPLATE_PIX_PADRAO) : whatsappTemplate, {
       cliente: cli?.nome || 'cliente',
       descricao: cob.descricao || 'cobrança',
       valor: formatCurrency(Number(cob.valor)),
@@ -287,7 +286,13 @@ export default function Cobrancas() {
       link: cob.invoice_url || '',
       pix: pixCfg.chave,
       titular: pixCfg.titular,
-    }));
+    });
+  };
+  const openWhatsapp = (cob: FaturaView) => {
+    const cli = cob.cliente_id ? clienteById.get(cob.cliente_id) : undefined;
+    setWaCob(cob);
+    setWaTel(cli?.telefone || '');
+    setWaText(textoWhats(cob));
     setWaOpen(true);
   };
   const waBloqueado = !!waCob?.exigir_nf && !waCob?.notas.length && !waCob?.nota_fiscal_enviada;
@@ -302,7 +307,7 @@ export default function Cobrancas() {
       if (!url) break;
       docs.push({ url, nome: n.nome });
     }
-    const res = await enviarWhatsapp(waTel, waText, docs);
+    const res = await enviarWhatsapp(waTel, waText, docs, { cobranca_id: waCob.id });
     setWaSending(false);
     if (res) {
       // PDFs com envio confirmado → apaga do Storage pra não ocupar espaço.
@@ -312,6 +317,72 @@ export default function Cobrancas() {
       }
       setWaOpen(false);
     }
+  };
+
+  // ===== Ações em massa: WhatsApp e regra de envio (só faturas em aberto/vencidas) =====
+  const selAbertas = useMemo(
+    () => filtradas.filter((c) => selecionadas.has(c.id) && (c.status === 'pendente' || c.status === 'vencido')),
+    [filtradas, selecionadas],
+  );
+  type ResultadoMassa = { enviadas: number; falhas: { nome: string; erro: string }[]; semTelefone: string[]; semNf: string[]; abortado?: string };
+  const [massaWaOpen, setMassaWaOpen] = useState(false);
+  const [massaWaFase, setMassaWaFase] = useState<'confirmar' | 'enviando' | 'feito'>('confirmar');
+  const [massaWaProg, setMassaWaProg] = useState({ feitas: 0, total: 0 });
+  const [massaWaRes, setMassaWaRes] = useState<ResultadoMassa | null>(null);
+  const massaWaPlano = useMemo(() => {
+    const enviar: FaturaView[] = []; const semTelefone: string[] = []; const semNf: string[] = [];
+    for (const c of selAbertas) {
+      const cli = c.cliente_id ? clienteById.get(c.cliente_id) : undefined;
+      const nome = cli?.nome || c.descricao || 'Cobrança';
+      if (!cli?.telefone || String(cli.telefone).replace(/\D/g, '').length < 10) { semTelefone.push(nome); continue; }
+      if (c.exigir_nf && !c.notas.length && !c.nota_fiscal_enviada) { semNf.push(nome); continue; }
+      enviar.push(c);
+    }
+    return { enviar, semTelefone, semNf };
+  }, [selAbertas, clienteById]);
+  const abrirMassaWa = () => { setMassaWaFase('confirmar'); setMassaWaRes(null); setMassaWaProg({ feitas: 0, total: 0 }); setMassaWaOpen(true); };
+  const enviarMassaWa = async () => {
+    const { enviar, semTelefone, semNf } = massaWaPlano;
+    const res: ResultadoMassa = { enviadas: 0, falhas: [], semTelefone, semNf };
+    setMassaWaFase('enviando');
+    setMassaWaProg({ feitas: 0, total: enviar.length });
+    for (let i = 0; i < enviar.length; i++) {
+      const c = enviar[i];
+      const cli = c.cliente_id ? clienteById.get(c.cliente_id) : undefined;
+      const nome = cli?.nome || c.descricao || 'Cobrança';
+      const docs: { url: string; nome: string }[] = [];
+      for (const n of c.notas) {
+        const url = await notaSignedUrl(n.path);
+        if (!url) break;
+        docs.push({ url, nome: n.nome });
+      }
+      const r = await enviarWhatsappBruto(cli?.telefone || '', textoWhats(c), docs, c.id);
+      if (r.ok) {
+        res.enviadas++;
+        if (r.docsEnviados) await marcarNotasEnviadas(c.notas.slice(0, r.docsEnviados));
+      } else {
+        res.falhas.push({ nome, erro: r.erro });
+        // Sem WhatsApp da empresa conectado: nenhuma das próximas vai sair, para aqui.
+        if (r.semWhatsapp) { res.abortado = r.erro; break; }
+      }
+      setMassaWaProg({ feitas: i + 1, total: enviar.length });
+    }
+    setMassaWaRes(res);
+    setMassaWaFase('feito');
+    if (res.enviadas && !res.falhas.length) setSelecionadas(new Set());
+  };
+
+  const [massaRegraOpen, setMassaRegraOpen] = useState(false);
+  const [massaRegraVal, setMassaRegraVal] = useState<RegraAuto>(REGRA_PADRAO);
+  const [massaRegraSaving, setMassaRegraSaving] = useState(false);
+  const abrirMassaRegra = () => { setMassaRegraVal(REGRA_PADRAO); setMassaRegraOpen(true); };
+  const salvarMassaRegra = async () => {
+    const ids = selAbertas.flatMap((c) => c.linhas.map((l) => l.id));
+    if (!ids.length) return;
+    setMassaRegraSaving(true);
+    const ok = await salvarRegra(ids, massaRegraVal);
+    setMassaRegraSaving(false);
+    if (ok) { setMassaRegraOpen(false); setSelecionadas(new Set()); }
   };
 
   // ===== E-mail =====
@@ -616,16 +687,33 @@ export default function Cobrancas() {
   const detalhe = useMemo(() => (detalheId ? faturasView.find((f) => f.id === detalheId) ?? null : null), [detalheId, faturasView]);
   // Abre outra ação a partir do detalhe: fecha o detalhe antes (sem modal sobre modal).
   const doDetalhe = (fn: () => void) => { setDetalheId(null); window.setTimeout(fn, 150); };
-  type EnvioEmail = { id: string; para: string; status: string; created_at: string };
-  const [enviosDetalhe, setEnviosDetalhe] = useState<EnvioEmail[]>([]);
+  // Histórico de envios da cobrança: e-mails (email_envios) + WhatsApp (whatsapp_envios).
+  type EnvioHist = { id: string; canal: 'email' | 'whatsapp'; destino: string; status: string; origem: string | null; erro: string | null; created_at: string };
+  const [enviosDetalhe, setEnviosDetalhe] = useState<EnvioHist[]>([]);
   useEffect(() => {
     if (!detalhe) { setEnviosDetalhe([]); return; }
     const ids = detalhe.linhas.map((l) => l.id);
-    // email_envios ainda não está nos tipos gerados
+    let vivo = true;
+    // Tabelas fora dos tipos gerados; whatsapp_envios pode ainda não existir (migração
+    // não aplicada): nesse caso a consulta só volta vazia.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from('email_envios').select('id, para, status, created_at').in('cobranca_id', ids)
-      .order('created_at', { ascending: false }).limit(8)
-      .then(({ data }: { data: EnvioEmail[] | null }) => setEnviosDetalhe(data || []));
+    const db = supabase as any;
+    Promise.all([
+      db.from('email_envios').select('id, para, status, origem, erro, created_at').in('cobranca_id', ids)
+        .order('created_at', { ascending: false }).limit(10).then((r: { data: unknown }) => r, () => ({ data: null })),
+      db.from('whatsapp_envios').select('id, telefone, status, origem, erro, created_at').in('cobranca_id', ids)
+        .order('created_at', { ascending: false }).limit(10).then((r: { data: unknown }) => r, () => ({ data: null })),
+    ]).then(([em, wa]) => {
+      if (!vivo) return;
+      type Em = { id: string; para: string; status: string; origem: string | null; erro: string | null; created_at: string };
+      type Wa = { id: string; telefone: string; status: string; origem: string | null; erro: string | null; created_at: string };
+      const lista: EnvioHist[] = [
+        ...((Array.isArray(em.data) ? em.data : []) as Em[]).map((e) => ({ id: `e-${e.id}`, canal: 'email' as const, destino: e.para, status: e.status, origem: e.origem, erro: e.erro, created_at: e.created_at })),
+        ...((Array.isArray(wa.data) ? wa.data : []) as Wa[]).map((w) => ({ id: `w-${w.id}`, canal: 'whatsapp' as const, destino: w.telefone, status: w.status, origem: w.origem, erro: w.erro, created_at: w.created_at })),
+      ].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 12);
+      setEnviosDetalhe(lista);
+    });
+    return () => { vivo = false; };
   }, [detalhe?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const copiarLink = async (cob: Cobranca) => {
@@ -907,12 +995,98 @@ export default function Cobrancas() {
       {selecionadas.size > 0 && (
         <div className="sticky bottom-24 z-30 mx-auto flex w-fit max-w-full flex-wrap items-center gap-1.5 rounded-[28px] bg-foreground px-2 py-2 pl-4 text-background shadow-2xl md:bottom-4">
           <span className="text-[13px]">{selecionadas.size} selecionada{selecionadas.size > 1 ? 's' : ''}</span>
+          {selAbertas.length > 0 && (<>
+            <button disabled={bulkBusy} onClick={abrirMassaWa} title={selAbertas.length < selecionadas.size ? 'Só as em aberto/vencidas' : undefined} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-background/15 px-3 text-[12.5px] hover:bg-background/25 disabled:opacity-50"><MessageCircle className="h-3.5 w-3.5" />Enviar por WhatsApp</button>
+            <button disabled={bulkBusy} onClick={abrirMassaRegra} title={selAbertas.length < selecionadas.size ? 'Só as em aberto/vencidas' : undefined} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-background/15 px-3 text-[12.5px] hover:bg-background/25 disabled:opacity-50"><BellRing className="h-3.5 w-3.5" />Regra de envio</button>
+          </>)}
           <button disabled={bulkBusy} onClick={() => aplicarFimSemana(true)} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-background/15 px-3 text-[12.5px] hover:bg-background/25 disabled:opacity-50"><CalendarCheck className="h-3.5 w-3.5" />Enviar no fim de semana</button>
           <button disabled={bulkBusy} onClick={() => aplicarFimSemana(false)} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-background/15 px-3 text-[12.5px] hover:bg-background/25 disabled:opacity-50"><CalendarOff className="h-3.5 w-3.5" />Não enviar no fim de semana</button>
           <button onClick={toggleTodas} className="h-8 rounded-full px-3 text-[12.5px] hover:bg-background/15">{todasSelecionadas ? 'Desmarcar todas' : 'Marcar todas'}</button>
           <button onClick={limparSel} aria-label="Limpar seleção" className="grid h-8 w-8 place-items-center rounded-full hover:bg-background/15"><X className="h-4 w-4" /></button>
         </div>
       )}
+
+      {/* Modal: WhatsApp em massa */}
+      <Sheet open={massaWaOpen} onOpenChange={(o) => { if (!o && massaWaFase !== 'enviando') setMassaWaOpen(false); }}>
+        <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[520px]')}>
+          <SheetTitle className="sr-only">Enviar por WhatsApp</SheetTitle>
+          <ModalShell>
+            <ModalHeader eyebrow="Cobranças · WhatsApp da empresa" title="Enviar por WhatsApp" onClose={() => { if (massaWaFase !== 'enviando') setMassaWaOpen(false); }} />
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-5">
+              {massaWaFase === 'confirmar' && (<>
+                <section className="rounded-[20px] border border-border bg-surface p-4">
+                  <p className="font-heading text-[30px] font-semibold tabular-nums tracking-[-0.03em] text-foreground">{massaWaPlano.enviar.length}</p>
+                  <p className="text-[13px] text-foreground-muted">{massaWaPlano.enviar.length === 1 ? 'cobrança vai sair' : 'cobranças vão sair'} pelo WhatsApp da empresa, uma por vez, com a mensagem de Meu Perfil (e as notas fiscais anexadas).</p>
+                </section>
+                {selAbertas.length < selecionadas.size && (
+                  <p className="rounded-2xl bg-surface-2/70 px-3.5 py-2.5 text-[12.5px] text-foreground-muted">{selecionadas.size - selAbertas.length} selecionada(s) paga(s) ou cancelada(s) ficam de fora.</p>
+                )}
+                {massaWaPlano.semTelefone.length > 0 && (
+                  <p className="rounded-2xl bg-warning-bg px-3.5 py-2.5 text-[12.5px] leading-snug text-warning-fg"><b className="font-medium">Sem WhatsApp no cadastro ({massaWaPlano.semTelefone.length}):</b> {massaWaPlano.semTelefone.join(', ')}</p>
+                )}
+                {massaWaPlano.semNf.length > 0 && (
+                  <p className="rounded-2xl bg-warning-bg px-3.5 py-2.5 text-[12.5px] leading-snug text-warning-fg"><b className="font-medium">Exigem nota fiscal e estão sem ({massaWaPlano.semNf.length}):</b> {massaWaPlano.semNf.join(', ')}</p>
+                )}
+              </>)}
+              {massaWaFase === 'enviando' && (
+                <section className="rounded-[20px] border border-border bg-surface p-4">
+                  <p className="flex items-center gap-2 text-[14px] text-foreground"><Loader2 className="h-4 w-4 animate-spin" />Enviando {massaWaProg.feitas} de {massaWaProg.total}…</p>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-foreground transition-all" style={{ width: `${massaWaProg.total ? (massaWaProg.feitas / massaWaProg.total) * 100 : 0}%` }} /></div>
+                  <p className="mt-2 text-[12px] text-foreground-muted">Não feche esta janela até terminar.</p>
+                </section>
+              )}
+              {massaWaFase === 'feito' && massaWaRes && (<>
+                <section className="rounded-[20px] border border-border bg-surface p-4">
+                  <p className="text-[15px] font-medium text-foreground">{massaWaRes.enviadas} {massaWaRes.enviadas === 1 ? 'enviada' : 'enviadas'}{massaWaRes.falhas.length ? `, ${massaWaRes.falhas.length} ${massaWaRes.falhas.length === 1 ? 'falhou' : 'falharam'}` : ''}</p>
+                  {(massaWaRes.semTelefone.length + massaWaRes.semNf.length) > 0 && (
+                    <p className="text-[12.5px] text-foreground-muted">{massaWaRes.semTelefone.length + massaWaRes.semNf.length} ficaram de fora (sem WhatsApp ou sem nota fiscal).</p>
+                  )}
+                </section>
+                {massaWaRes.abortado && (
+                  <p className="rounded-2xl bg-danger-bg px-3.5 py-2.5 text-[12.5px] leading-snug text-danger-fg">Parei o envio: {massaWaRes.abortado}</p>
+                )}
+                {massaWaRes.falhas.length > 0 && (
+                  <section className="divide-y divide-border rounded-[20px] border border-border bg-surface">
+                    {massaWaRes.falhas.map((f, k) => (
+                      <div key={k} className="px-4 py-2.5"><p className="text-[13.5px] text-foreground">{f.nome}</p><p className="text-[12px] text-danger-fg [overflow-wrap:anywhere]">{f.erro}</p></div>
+                    ))}
+                  </section>
+                )}
+              </>)}
+            </div>
+            <ModalFooter>
+              {massaWaFase === 'confirmar' && (<>
+                <button type="button" className={btn.outline} onClick={() => setMassaWaOpen(false)}>Cancelar</button>
+                <button type="button" className={btn.primary} onClick={enviarMassaWa} disabled={!massaWaPlano.enviar.length}><MessageCircle className="h-4 w-4" />Enviar {massaWaPlano.enviar.length}</button>
+              </>)}
+              {massaWaFase === 'enviando' && <button type="button" className={btn.primary} disabled><Loader2 className="h-4 w-4 animate-spin" />Enviando…</button>}
+              {massaWaFase === 'feito' && <button type="button" className={btn.primary} onClick={() => setMassaWaOpen(false)}>Fechar</button>}
+            </ModalFooter>
+          </ModalShell>
+        </SheetContent>
+      </Sheet>
+
+      {/* Modal: regra de envio em massa */}
+      <Sheet open={massaRegraOpen} onOpenChange={(o) => { if (!o && !massaRegraSaving) setMassaRegraOpen(false); }}>
+        <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[520px]')}>
+          <SheetTitle className="sr-only">Regra de envio automático</SheetTitle>
+          <ModalShell>
+            <ModalHeader eyebrow={`${selAbertas.length} ${selAbertas.length === 1 ? 'cobrança em aberto' : 'cobranças em aberto'}`} title="Regra de envio automático" onClose={() => { if (!massaRegraSaving) setMassaRegraOpen(false); }} />
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-5">
+              <section className="rounded-[20px] border border-border bg-surface p-4">
+                <RegraAutoCobranca value={massaRegraVal} onChange={setMassaRegraVal} />
+              </section>
+              {selAbertas.length < selecionadas.size && (
+                <p className="rounded-2xl bg-surface-2/70 px-3.5 py-2.5 text-[12.5px] text-foreground-muted">{selecionadas.size - selAbertas.length} selecionada(s) paga(s) ou cancelada(s) ficam de fora.</p>
+              )}
+            </div>
+            <ModalFooter>
+              <button type="button" className={btn.outline} onClick={() => setMassaRegraOpen(false)} disabled={massaRegraSaving}>Cancelar</button>
+              <button type="button" className={btn.primary} onClick={salvarMassaRegra} disabled={massaRegraSaving || !selAbertas.length}>{massaRegraSaving && <Loader2 className="h-4 w-4 animate-spin" />}Aplicar em {selAbertas.length}</button>
+            </ModalFooter>
+          </ModalShell>
+        </SheetContent>
+      </Sheet>
 
       {/* Modal: detalhe da cobrança */}
       <Sheet open={!!detalhe} onOpenChange={(o) => { if (!o) setDetalheId(null); }}>
@@ -981,19 +1155,29 @@ export default function Cobrancas() {
                           {c.created_at && (
                             <li className="flex gap-3"><span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-success-fg" /><span><span className="block text-[13.5px] text-foreground">Criada</span><span className="block text-[12px] text-foreground-muted">{formatDate(c.created_at.slice(0, 10))}</span></span></li>
                           )}
-                          {enviosDetalhe.map((e) => (
-                            <li key={e.id} className="flex gap-3">
-                              <span className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-full', ['falhou', 'devolvido', 'spam'].includes(e.status) ? 'bg-danger-fg' : 'bg-success-fg')} />
-                              <span><span className="block text-[13.5px] text-foreground">E-mail {['falhou', 'devolvido', 'spam'].includes(e.status) ? 'não entregue' : e.status === 'entregue' ? 'entregue' : 'enviado'}</span><span className="block text-[12px] text-foreground-muted">{formatDate(e.created_at.slice(0, 10))} · {e.para}</span></span>
-                            </li>
-                          ))}
+                          {enviosDetalhe.map((e) => {
+                            const falhou = ['falhou', 'devolvido', 'spam'].includes(e.status);
+                            const quando = new Date(e.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                            const titulo = e.canal === 'whatsapp'
+                              ? `WhatsApp ${falhou ? 'não enviado' : 'enviado'}${e.origem === 'auto' ? ' (automático)' : ''}`
+                              : `E-mail ${falhou ? 'não entregue' : e.status === 'entregue' ? 'entregue' : 'enviado'}${e.origem === 'auto' ? ' (automático)' : ''}`;
+                            return (
+                              <li key={e.id} className="flex gap-3">
+                                <span className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-full', falhou ? 'bg-danger-fg' : 'bg-success-fg')} />
+                                <span className="min-w-0">
+                                  <span className="flex items-center gap-1.5 text-[13.5px] text-foreground">{e.canal === 'whatsapp' ? <MessageCircle className="h-3.5 w-3.5 text-foreground-muted" /> : <Mail className="h-3.5 w-3.5 text-foreground-muted" />}{titulo}</span>
+                                  <span className="block text-[12px] text-foreground-muted">{quando} · {e.destino}</span>
+                                  {falhou && e.erro && <span className="block text-[11.5px] text-danger-fg [overflow-wrap:anywhere]">{e.erro.slice(0, 140)}</span>}
+                                </span>
+                              </li>
+                            );
+                          })}
                           {pago ? (
                             <li className="flex gap-3"><span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-success-fg" /><span><span className="block text-[13.5px] text-foreground">Paga</span><span className="block text-[12px] text-foreground-muted">{c.data_pagamento ? formatDate(c.data_pagamento) : '—'}</span></span></li>
                           ) : aberta && regra.modo !== 'off' ? (
                             <li className="flex gap-3"><span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-primary bg-background" /><span><span className="block text-[13.5px] text-foreground">Próximos lembretes automáticos</span><span className="block text-[12px] text-foreground-muted">{descreverRegra(regra)}</span></span></li>
                           ) : null}
                         </ol>
-                        <p className="mt-3 text-[11.5px] text-foreground-subtle">Envios por WhatsApp não ficam registrados aqui.</p>
                       </Bloco>
                     </div>
 

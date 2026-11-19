@@ -90,6 +90,9 @@ export interface AsaasAssinatura {
   vinculada: boolean;
 }
 
+/** Resultado de um envio por WhatsApp (envio em massa lê o erro sem toast). */
+export interface ResultadoWhats { ok: boolean; docsEnviados: number; erro: string; semWhatsapp: boolean }
+
 export function useCobrancas() {
   const [cobrancas, setCobrancas] = useState<Cobranca[]>([]);
   const [loading, setLoading] = useState(false);
@@ -640,9 +643,30 @@ export function useCobrancas() {
     return typeof d?.docsEnviados === 'number' ? d.docsEnviados : d?.docEnviado ? 1 : 0;
   };
 
-  const enviarWhatsapp = async (telefone: string, text: string, documentos: { url: string; nome: string }[] = []) => {
+  /**
+   * Envia pelo WhatsApp da empresa, com toast. `cobranca_id` liga o envio ao histórico
+   * da cobrança (whatsapp_envios); `silencioso` tira os toasts.
+   */
+  const enviarWhatsapp = async (
+    telefone: string, text: string, documentos: { url: string; nome: string }[] = [],
+    opts: { cobranca_id?: string | null; silencioso?: boolean } = {},
+  ): Promise<{ ok: true; docsEnviados: number } | null> => {
+    const r = await enviarWhatsappBruto(telefone, text, documentos, opts.cobranca_id);
+    if (r.ok) {
+      if (!opts.silencioso) toast.success('WhatsApp enviado!');
+      return { ok: true, docsEnviados: r.docsEnviados };
+    }
+    if (!opts.silencioso) toast.error(r.erro, { duration: 8000 });
+    return null;
+  };
+
+  /** Envio sem toasts: devolve o resultado (usado no envio em massa). */
+  const enviarWhatsappBruto = async (
+    telefone: string, text: string, documentos: { url: string; nome: string }[] = [], cobranca_id?: string | null,
+  ): Promise<ResultadoWhats> => {
     try {
       const body: Record<string, unknown> = { telefone, text };
+      if (cobranca_id) body.cobranca_id = cobranca_id;
       if (documentos.length) {
         body.documentos = documentos;
         body.documento_url = documentos[0].url; body.documento_nome = documentos[0].nome; // formato antigo
@@ -651,19 +675,20 @@ export function useCobrancas() {
       if (error) {
         // supabase-js troca nosso JSON {error} por "non-2xx" genérico; lê o corpo real.
         let msg = error.message;
+        let semWhatsapp = false;
         try {
           const ctx = (error as { context?: Response }).context;
           const b = ctx && typeof ctx.json === 'function' ? await ctx.json() : null;
           if (b?.error) msg = b.error;
+          semWhatsapp = !!b?.sem_whatsapp;
         } catch { /* mantém msg */ }
-        throw new Error(msg);
+        return { ok: false, docsEnviados: 0, erro: msg, semWhatsapp };
       }
-      if ((data as { error?: string })?.error) throw new Error((data as { error?: string }).error);
-      toast.success('WhatsApp enviado!');
-      return { ok: true, docsEnviados: docsConfirmados(data) };
+      const d = data as { error?: string; sem_whatsapp?: boolean } | null;
+      if (d?.error) return { ok: false, docsEnviados: 0, erro: d.error, semWhatsapp: !!d.sem_whatsapp };
+      return { ok: true, docsEnviados: docsConfirmados(data), erro: '', semWhatsapp: false };
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao enviar WhatsApp', { duration: 8000 });
-      return null;
+      return { ok: false, docsEnviados: 0, erro: e instanceof Error ? e.message : 'Erro ao enviar WhatsApp', semWhatsapp: false };
     }
   };
 
@@ -721,7 +746,7 @@ export function useCobrancas() {
     return m;
   }, [cobrancas]);
 
-  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, criarAvulsaParcelada, listarAssinaturas, vincularAssinatura, desvincularAssinatura, encerrarContratoCobrancas, reajustarAssinatura, cancelar, cancelarSoEsta, removerDoHistorico, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarEmail, anexarNotas, removerNota, setExigirNf, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, salvarRegra, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
+  return { cobrancas, byContrato, bySubscription, loading, busyId, criarDoContrato, criarAvulsa, criarAvulsaParcelada, listarAssinaturas, vincularAssinatura, desvincularAssinatura, encerrarContratoCobrancas, reajustarAssinatura, cancelar, cancelarSoEsta, removerDoHistorico, excluir, sincronizar, receberManual, atualizarConta, atualizarCliente, atualizarForma, enviarWhatsapp, enviarWhatsappBruto, enviarEmail, anexarNotas, removerNota, setExigirNf, notaSignedUrl, marcarNotasEnviadas, conciliarListar, conciliarAplicar, agrupar, setEnvioPix, salvarRegra, whatsappTemplate, pixCfg, emailCfg, fimSemanaPadrao, setFimSemanaPadrao, setEnviarFimSemana, reload: load };
 }
 
 export const WHATSAPP_TEMPLATE_PADRAO =

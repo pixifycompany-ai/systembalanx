@@ -5,7 +5,7 @@ import { buscarBoletoUrl, temBoleto } from "../_shared/asaas.ts";
 import { anexoDaNota } from "../_shared/notas.ts";
 import { frasePrazo } from "../_shared/prazo.ts";
 import { sincronizarPausa } from "../_shared/pausa.ts";
-import { ficarOffline } from "../_shared/whatsapp.ts";
+import { ficarOffline, registrarEnvioWhats } from "../_shared/whatsapp.ts";
 
 
 // Worker do cron: roda 1x/dia, encontra cobranças que casam com a regra de
@@ -249,8 +249,14 @@ serve(async (req) => {
             method: "POST", headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
             body: JSON.stringify({ to, text }),
           });
-          if (!tr.ok) { erros++; console.error("auto text fail", cob.id, tr.status, await tr.text().catch(() => "")); }
+          if (!tr.ok) {
+            erros++;
+            const corpoErro = await tr.text().catch(() => "");
+            console.error("auto text fail", cob.id, tr.status, corpoErro);
+            await registrarEnvioWhats(admin, { user_id: cob.user_id, cobranca_id: cob.id, telefone: to, origem: "auto", status: "falhou", erro: `${tr.status}${corpoErro ? ` — ${corpoErro.slice(0, 300)}` : ""}` });
+          }
           else {
+            let docsWpp = 0;
             for (const n of notas) {
               const { data: signed } = await admin.storage.from("notas-fiscais").createSignedUrl(n.path, 600);
               if (!signed?.signedUrl) continue;
@@ -258,8 +264,9 @@ serve(async (req) => {
                 method: "POST", headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
                 body: JSON.stringify({ to, url: signed.signedUrl, filename: n.nome, mimetype: "application/pdf" }),
               }).catch(() => null);
-              if (dr && dr.ok) nfsEntregues.add(n.path);
+              if (dr && dr.ok) { nfsEntregues.add(n.path); docsWpp++; }
             }
+            await registrarEnvioWhats(admin, { user_id: cob.user_id, cobranca_id: cob.id, telefone: to, origem: "auto", status: "enviado", documentos: docsWpp });
             await admin.from("cobrancas").update({ auto_wpp_ultimo_dia: hoje }).in("id", linhas.map((l) => l.id));
             enviados++; algoEnviado = true;
           }

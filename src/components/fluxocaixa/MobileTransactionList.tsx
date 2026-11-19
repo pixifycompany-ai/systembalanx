@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { CabecalhoDiaFixo } from './CabecalhoDiaFixo';
 import { format, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { SwipeableTransactionCard } from './SwipeableTransactionCard';
@@ -57,6 +58,7 @@ export function MobileTransactionList({
   onNewEntrada,
   onNewSaida,
 }: MobileTransactionListProps) {
+  const listaRef = useRef<HTMLElement>(null);
   // Group by date
   const grouped = useMemo(() => {
     const map = new Map<string, TransacaoUnificada[]>();
@@ -105,7 +107,8 @@ export function MobileTransactionList({
   }
 
   return (
-    <section className="overflow-hidden rounded-[24px] border border-border bg-surface">
+    <section ref={listaRef} className="overflow-hidden rounded-[24px] border border-border bg-surface">
+      <CabecalhoDiaFixo alvo={listaRef} />
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <p className="text-[15px] font-semibold text-foreground">Movimentações <span className="font-normal text-foreground-muted">· {transactions.length}</span></p>
         <span className={cn('text-[12.5px] font-medium tabular-nums', totals.saldo >= 0 ? 'text-foreground' : 'text-danger-fg')}>{totals.saldo < 0 ? '−' : ''}{formatCurrency(Math.abs(totals.saldo))}</span>
@@ -114,7 +117,7 @@ export function MobileTransactionList({
         const hoje = isToday(parseISO(date));
         return (
           <div key={date}>
-            <div className={cn('flex items-center justify-between gap-3 border-b border-border px-4 py-2', hoje ? 'bg-primary/[0.06]' : 'bg-surface-2/70')}>
+            <div data-dia-header className={cn('flex items-center justify-between gap-3 border-b border-border px-4 py-2', hoje ? 'bg-primary/[0.06]' : 'bg-surface-2/70')}>
               <span className="flex min-w-0 items-center gap-2 text-[12.5px] text-foreground">
                 <span className="truncate">{formatDateHeader(date)}</span>
                 {hoje && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-primary-foreground">Hoje</span>}

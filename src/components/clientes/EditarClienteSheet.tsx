@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { Campo, ModalFooter, ModalHeader, ModalShell, Secao } from '@/components/reskin/kit';
+import { btn, campoCls, modalCls } from '@/components/reskin/estilos';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { maskCpfCnpj, onlyDigits } from '@/utils/formatters';
 import type { ClienteDB, ClienteFormData } from '@/hooks/useClientes';
 
-const CHOICE_BASE = 'no-touch-min h-10 rounded-full border text-[13px] font-semibold transition-colors';
+const CHOICE_BASE = 'no-touch-min h-10 rounded-full border text-[13px] transition-colors';
 const CHOICE_ON = 'border-foreground bg-foreground text-background';
 const CHOICE_OFF = 'border-border bg-surface text-foreground hover:border-border-strong';
+
+function Escolha<T extends string>({ v, atual, onPick, children }: { v: T; atual: T; onPick: (v: T) => void; children: React.ReactNode }) {
+  return <button type="button" onClick={() => onPick(v)} aria-pressed={atual === v} className={cn(CHOICE_BASE, atual === v ? CHOICE_ON : CHOICE_OFF)}>{children}</button>;
+}
 
 interface Props {
   open: boolean;
@@ -51,104 +54,73 @@ export function EditarClienteSheet({ open, onOpenChange, cliente, onSalvar }: Pr
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
-        <div className="mx-auto w-full max-w-[480px] pb-6 pt-1">
-          <p className="text-[13px] text-foreground-muted">Cadastro</p>
-          <h2 className="mt-0.5 mb-4 text-[24px] font-semibold tracking-[-0.03em] text-foreground">Editar cliente</h2>
-
-          <div className="space-y-5">
-            <FormSection title="Identificação">
-              <div className="space-y-2">
-                <Label>Nome</Label>
-                <Input value={form.nome} onChange={(e) => set({ nome: e.target.value })} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Tipo</Label>
+      <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[600px]')}>
+        <SheetTitle className="sr-only">Editar cliente</SheetTitle>
+        <ModalShell>
+          <ModalHeader eyebrow="Cadastro" title="Editar cliente" onClose={() => onOpenChange(false)} />
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-5">
+            <Secao n={1} title="Identificação">
+              <Campo label="Nome">
+                <input value={form.nome} onChange={(e) => set({ nome: e.target.value })} className={campoCls} />
+              </Campo>
+              <Campo label="Tipo">
                 <div className="grid grid-cols-2 gap-2">
                   {(['PF', 'PJ'] as const).map((t) => (
-                    <button key={t} type="button" onClick={() => set({ tipo: t })}
-                      className={cn(CHOICE_BASE, form.tipo === t ? CHOICE_ON : CHOICE_OFF)}>
-                      {t === 'PF' ? 'Pessoa Física' : 'Pessoa Jurídica'}
-                    </button>
+                    <Escolha key={t} v={t} atual={form.tipo} onPick={(v) => set({ tipo: v })}>{t === 'PF' ? 'Pessoa física' : 'Pessoa jurídica'}</Escolha>
                   ))}
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>{form.tipo === 'PJ' ? 'CNPJ' : 'CPF'}</Label>
-                <Input
+              </Campo>
+              <Campo label={form.tipo === 'PJ' ? 'CNPJ' : 'CPF'}>
+                <input
                   inputMode="numeric"
                   value={maskCpfCnpj(form.cpf_cnpj || '', form.tipo)}
                   onChange={(e) => set({ cpf_cnpj: onlyDigits(e.target.value).slice(0, form.tipo === 'PJ' ? 14 : 11) })}
                   placeholder={form.tipo === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
                   maxLength={form.tipo === 'PJ' ? 18 : 14}
+                  className={campoCls}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Status</Label>
+              </Campo>
+              <Campo label="Situação">
                 <div className="grid grid-cols-2 gap-2">
-                  {(['ativo', 'inativo'] as const).map((s) => (
-                    <button key={s} type="button" onClick={() => set({ status: s })}
-                      className={cn(CHOICE_BASE, 'capitalize', form.status === s ? CHOICE_ON : CHOICE_OFF)}>
-                      {s}
-                    </button>
+                  {(['ativo', 'inativo'] as const).map((st) => (
+                    <Escolha key={st} v={st} atual={form.status} onPick={(v) => set({ status: v })}>{st === 'ativo' ? 'Ativo' : 'Inativo'}</Escolha>
                   ))}
                 </div>
-              </div>
-            </FormSection>
+              </Campo>
+            </Secao>
 
-            <FormSection title="Contato">
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-3">
-                <div className="space-y-2">
-                  <Label>E-mail</Label>
-                  <Input type="email" value={form.email || ''} onChange={(e) => set({ email: e.target.value })} placeholder="contato@…" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefone (WhatsApp)</Label>
-                  <Input type="tel" inputMode="tel" autoComplete="tel" value={form.telefone || ''} onChange={(e) => set({ telefone: e.target.value })} placeholder="(11) ..." />
-                </div>
+            <Secao n={2} title="Contato">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Campo label="E-mail">
+                  <input type="email" value={form.email || ''} onChange={(e) => set({ email: e.target.value })} placeholder="contato@…" className={campoCls} />
+                </Campo>
+                <Campo label="Telefone (WhatsApp)">
+                  <input type="tel" inputMode="tel" autoComplete="tel" value={form.telefone || ''} onChange={(e) => set({ telefone: e.target.value })} placeholder="(11) ..." className={campoCls} />
+                </Campo>
               </div>
+              <Campo label="Endereço">
+                <input value={form.endereco || ''} onChange={(e) => set({ endereco: e.target.value })} placeholder="Rua, número, cidade - estado" className={campoCls} />
+              </Campo>
+            </Secao>
 
-              <div className="space-y-2">
-                <Label>Endereço</Label>
-                <Input value={form.endereco || ''} onChange={(e) => set({ endereco: e.target.value })} placeholder="Rua, número, cidade - estado" />
-              </div>
-            </FormSection>
-
-            <FormSection title="Cobrança">
-              <div className="space-y-2">
-                <Label>Cobrança preferida por</Label>
+            <Secao n={3} title="Cobrança">
+              <Campo label="Cobrança preferida por">
                 <div className="grid grid-cols-3 gap-2">
                   {([['whatsapp', 'WhatsApp'], ['email', 'E-mail'], ['ambos', 'Ambos']] as const).map(([v, l]) => (
-                    <button key={v} type="button" onClick={() => set({ canal_cobranca: v })}
-                      className={cn(CHOICE_BASE, (form.canal_cobranca || 'whatsapp') === v ? CHOICE_ON : CHOICE_OFF)}>
-                      {l}
-                    </button>
+                    <Escolha key={v} v={v} atual={form.canal_cobranca || 'whatsapp'} onPick={(x) => set({ canal_cobranca: x })}>{l}</Escolha>
                   ))}
                 </div>
-              </div>
-            </FormSection>
-
-            <div className="flex gap-2.5 pt-1">
-              <Button type="button" variant="outline" size="lg" className="flex-1" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button type="button" size="lg" className="flex-[2]" onClick={handleSalvar} disabled={salvando || !form.nome.trim()}>
-                {salvando && <Loader2 className="h-4 w-4 animate-spin" />}Salvar cliente
-              </Button>
-            </div>
+              </Campo>
+            </Secao>
           </div>
-        </div>
+          <ModalFooter>
+            <button type="button" onClick={() => onOpenChange(false)} className={btn.outline}>Cancelar</button>
+            <button type="button" onClick={handleSalvar} disabled={salvando || !form.nome.trim()} className={btn.primary}>
+              {salvando && <Loader2 className="h-4 w-4 animate-spin" />}Salvar cliente
+            </button>
+          </ModalFooter>
+        </ModalShell>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-2">
-      <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">{title}</h3>
-      <div className="space-y-3.5 rounded-[20px] border border-border p-4">{children}</div>
-    </section>
   );
 }

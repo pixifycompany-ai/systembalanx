@@ -3,8 +3,7 @@ import {
 } from 'recharts';
 import { formatCurrency } from '@/utils/formatters';
 import type { RecDespResumo } from '@/hooks/useRelatorios';
-import { SectionCard } from '@/components/shared/SectionCard';
-import { ChartLegend, KpiStrip } from './ReportKit';
+import { ChartLegend, KpiStrip, RelCard } from './ReportKit';
 import { CHART, axisProps, barCursor, gridProps, tooltipProps } from './chartTheme';
 
 interface ReceitasDespesasTabProps {
@@ -22,24 +21,24 @@ export function ReceitasDespesasTab({ data }: ReceitasDespesasTabProps) {
   const totalEmpresas = data.receitaPorEmpresa.reduce((s, e) => s + e.valor, 0);
 
   return (
-    <div className="animate-fade-in space-y-4 md:space-y-6">
+    <div className="animate-fade-in space-y-4">
       <KpiStrip
         items={[
-          { label: 'Total Receitas', value: formatCurrency(data.totalReceitas), tone: 'success' },
-          { label: 'Total Despesas', value: formatCurrency(data.totalDespesas), tone: 'danger' },
+          { label: 'Receitas', value: formatCurrency(data.totalReceitas), tone: 'success' },
+          { label: 'Despesas', value: formatCurrency(data.totalDespesas), tone: 'danger' },
           { label: 'Resultado', value: formatCurrency(data.resultado), highlight: true },
           { label: 'Margem', value: `${data.margem.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`, tone: data.margem >= 0 ? 'default' : 'danger' },
         ]}
       />
 
-      <div className="grid gap-4 md:gap-6 xl:grid-cols-5">
+      <div className="grid gap-4 xl:grid-cols-5">
         {/* Receitas vs despesas por mês */}
-        <SectionCard className="xl:col-span-3" title="Receitas vs Despesas por Mês">
+        <RelCard className="xl:col-span-3" title="Mês a mês">
           <ChartLegend
             className="mb-3"
             items={[
               { label: 'Receitas', color: CHART.primary },
-              { label: 'Despesas', color: CHART.secondary },
+              { label: 'Despesas', color: CHART.danger },
             ]}
           />
           <div className="h-[260px] md:h-[300px]">
@@ -54,20 +53,20 @@ export function ReceitasDespesasTab({ data }: ReceitasDespesasTabProps) {
                   formatter={(value: number, name: string) => [formatCurrency(value), name === 'receitas' ? 'Receitas' : 'Despesas']}
                 />
                 <Bar dataKey="receitas" fill={CHART.primary} radius={[6, 6, 0, 0]} maxBarSize={28} />
-                <Bar dataKey="despesas" fill={CHART.secondary} radius={[6, 6, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="despesas" fill={CHART.danger} fillOpacity={0.85} radius={[6, 6, 0, 0]} maxBarSize={28} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </SectionCard>
+        </RelCard>
 
         {/* Receita por empresa-fonte */}
-        <SectionCard className="xl:col-span-2" title="Receita por Empresa">
+        <RelCard className="xl:col-span-2" title="Receita por marca">
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-1">
             {data.receitaPorEmpresa.map((item) => {
               const color = BRAND_TOKEN[item.empresa];
               const percent = totalEmpresas > 0 ? (item.valor / totalEmpresas) * 100 : 0;
               return (
-                <div key={item.empresa} className="rounded-[16px] border border-border p-3.5">
+                <div key={item.empresa} className="rounded-2xl bg-surface-2/60 p-3.5">
                   <div className="mb-1.5 flex items-center gap-1.5">
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: `hsl(${color})` }} />
                     <span className="truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">
@@ -87,7 +86,7 @@ export function ReceitasDespesasTab({ data }: ReceitasDespesasTabProps) {
               );
             })}
           </div>
-        </SectionCard>
+        </RelCard>
       </div>
     </div>
   );

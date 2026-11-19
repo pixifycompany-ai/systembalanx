@@ -36,14 +36,27 @@ interface DashboardResult {
   revenueData12m: FaturamentoVsDespesas[];
   receitaPorEmpresa: ReceitaPorEmpresa[];
   creditCardsData: CreditCardData[];
+  /** Vencimentos do mês escolhido (receitas, despesas e faturas), com a situação. */
+  monthItems: UpcomingItem[];
+  /** O mês escolhido é o mês atual (comparações "até hoje"). */
+  ehMesAtual: boolean;
   isLoading: boolean;
   error: string | null;
 }
 
-async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' | 'error'>> {
+/**
+ * @param mesRef mês de referência "yyyy-MM". Sem ele (ou no mês atual) o cálculo é o
+ * de sempre. Em outro mês, só os números DO MÊS mudam (recebido, pago, lucro, a receber/
+ * pagar, categorias, receita por marca, saldo no fim do mês); caixa de hoje, MRR, LTV,
+ * alertas e próximos 7 dias continuam olhando para hoje.
+ */
+async function fetchDashboardData(mesRef?: string): Promise<Omit<DashboardResult, 'isLoading' | 'error'>> {
   const today = startOfDay(new Date());
-  const currentMonthStart = startOfMonth(today);
-  const currentMonthEnd = endOfMonth(today);
+  const ehMesAtual = !mesRef || mesRef === format(today, 'yyyy-MM');
+  // Base dos cálculos do mês: hoje (mês atual) ou o 1º dia do mês escolhido.
+  const baseMes = ehMesAtual ? today : parseISO(`${mesRef}-01`);
+  const currentMonthStart = startOfMonth(baseMes);
+  const currentMonthEnd = endOfMonth(baseMes);
 
   // Fetch all data in parallel
   const [receitasRes, despesasRes, contratosRes, clientesRes, categoriasRes, contasRes, transferenciasRes, aditivosRes, faturasRes, fatPagRes] = await Promise.all([
@@ -151,8 +164,9 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
 
   // Mesmo período do mês anterior (dia 1 até o mesmo dia do mês) — comparação justa
   // mesmo no começo do mês. Mesmo critério de caixa dos totais acima.
-  const prevStart = startOfMonth(subMonths(today, 1));
-  const prevEnd = endOfDay(subMonths(today, 1));
+  // Em outro mês, compara o mês inteiro com o mês anterior inteiro.
+  const prevStart = startOfMonth(subMonths(baseMes, 1));
+  const prevEnd = ehMesAtual ? endOfDay(subMonths(today, 1)) : endOfMonth(subMonths(baseMes, 1));
   const noPeriodoAnterior = (iso: string | null) => {
     const d = iso ? parseISO(iso) : null;
     return !!d && d >= prevStart && d <= prevEnd;
@@ -324,7 +338,8 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
   // Consolidated balance history (last 4 months)
   const consolidatedHistory: { mes: string; valor: number }[] = [];
   for (let i = 3; i >= 0; i--) {
-    const monthDate = subMonths(today, i);
+    // Termina no mês escolhido (no mês atual, igual a antes).
+    const monthDate = subMonths(baseMes, i);
     const monthEnd = endOfMonth(monthDate);
     const mesNome = format(monthDate, 'MMM', { locale: ptBR });
     
@@ -374,8 +389,8 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
   const faturamentoVsDespesas = revenueData6m;
 
   // Receita por empresa-fonte (mês atual vs mês anterior)
-  const previousMonthStart = startOfMonth(subMonths(today, 1));
-  const previousMonthEnd = endOfMonth(subMonths(today, 1));
+  const previousMonthStart = startOfMonth(subMonths(baseMes, 1));
+  const previousMonthEnd = endOfMonth(subMonths(baseMes, 1));
   const empresas: EmpresaFonte[] = ['PIXIFY', 'REVVUE', 'CLARIO', 'TABELIO'];
   const receitaPorEmpresa: ReceitaPorEmpresa[] = empresas.map((empresa) => {
     const valorMes = receitas
@@ -585,6 +600,50 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
     parseISO(a.data_vencimento).getTime() - parseISO(b.data_vencimento).getTime()
   );
 
+  // Vencimentos do mês escolhido (para a Início quando o mês não é o atual).
+  // Mesmos critérios dos próximos 7 dias: itens de fatura não entram soltos — a fatura
+  // do cartão entra como 1 item pelo total.
+  const noMes = (iso: string | null | undefined) => {
+    const d = iso ? parseISO(iso) : null;
+    return !!d && d >= currentMonthStart && d <= currentMonthEnd;
+  };
+  const monthItems: UpcomingItem[] = [];
+  if (!ehMesAtual) {
+    receitas.filter(r => noMes(r.data_vencimento)).forEach(r => monthItems.push({
+      id: r.id,
+      tipo: 'receita',
+      descricao: r.descricao,
+      valor: Number(r.valor),
+      data_vencimento: r.data_vencimento,
+      cliente_ou_fornecedor: (r.cliente as { nome: string })?.nome || 'Sem cliente',
+      status: r.status,
+    }));
+    despesas.filter(d => d.fatura_id == null && noMes(d.data_vencimento) && !faturaPorDespesa.has(d.id)).forEach(d => monthItems.push({
+      id: d.id,
+      tipo: 'despesa',
+      descricao: d.descricao,
+      valor: Number(d.valor),
+      data_vencimento: d.data_vencimento,
+      cliente_ou_fornecedor: d.fornecedor || 'Sem fornecedor',
+      status: d.status,
+    }));
+    type FaturaMes = { id: string; cartao_id: string; data_vencimento: string; valor_total: number | string | null; status: string };
+    (faturas as FaturaMes[]).filter((f) => noMes(f.data_vencimento) && Number(f.valor_total || 0) > 0.005).forEach((f) => {
+      const nome = contaById.get(f.cartao_id)?.nome || 'Cartão de crédito';
+      monthItems.push({
+        id: `fatura-${f.id}`,
+        tipo: 'despesa',
+        descricao: `Fatura ${nome}`,
+        valor: Number(f.valor_total || 0),
+        data_vencimento: f.data_vencimento,
+        cliente_ou_fornecedor: nome,
+        href: '/contas',
+        status: f.status === 'paga' ? 'pago' : 'pendente',
+      });
+    });
+    monthItems.sort((a, b) => parseISO(a.data_vencimento).getTime() - parseISO(b.data_vencimento).getTime());
+  }
+
   // Build dashboard data
   const dashboardData: DashboardData = {
     resumo: {
@@ -678,15 +737,22 @@ async function fetchDashboardData(): Promise<Omit<DashboardResult, 'isLoading' |
     revenueData12m,
     receitaPorEmpresa,
     creditCardsData,
+    monthItems,
+    ehMesAtual,
   };
 }
 
-export function useDashboard(): DashboardResult {
+/** @param mesRef "yyyy-MM" (opcional). Sem ele: mês atual — mesmo resultado de sempre. */
+export function useDashboard(mesRef?: string): DashboardResult {
+  const mesAtual = format(new Date(), 'yyyy-MM');
+  const ref = mesRef && mesRef !== mesAtual ? mesRef : undefined;
   const { data, isLoading, error } = useQuery({
-    queryKey: ['dashboard'],
-    queryFn: fetchDashboardData,
+    queryKey: ref ? ['dashboard', ref] : ['dashboard'],
+    queryFn: () => fetchDashboardData(ref),
     staleTime: 30000, // 30 seconds
     refetchInterval: 60000, // Refetch every minute
+    // Ao trocar de mês, mantém o mês anterior na tela até o novo chegar (sem esqueleto).
+    placeholderData: (anterior) => anterior,
   });
 
   return {
@@ -736,6 +802,8 @@ export function useDashboard(): DashboardResult {
     revenueData12m: data?.revenueData12m || [],
     creditCardsData: data?.creditCardsData || [],
     receitaPorEmpresa: data?.receitaPorEmpresa || [],
+    monthItems: data?.monthItems || [],
+    ehMesAtual: data?.ehMesAtual ?? true,
     isLoading,
     error: error?.message || null,
   };

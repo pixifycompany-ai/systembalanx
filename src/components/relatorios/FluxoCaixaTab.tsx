@@ -3,8 +3,7 @@ import {
 } from 'recharts';
 import { formatCurrency } from '@/utils/formatters';
 import type { FluxoCaixaData } from '@/hooks/useRelatorios';
-import { SectionCard } from '@/components/shared/SectionCard';
-import { ChartLegend } from './ReportKit';
+import { ChartLegend, RelCard } from './ReportKit';
 import { CHART, axisProps, gridProps, tooltipProps } from './chartTheme';
 
 interface FluxoCaixaTabProps {
@@ -15,10 +14,9 @@ const LABELS: Record<string, string> = { entradas: 'Entradas', saidas: 'Saídas'
 
 export function FluxoCaixaTab({ data }: FluxoCaixaTabProps) {
   return (
-    <SectionCard
+    <RelCard
       className="animate-fade-in"
-      title="Fluxo de Caixa realizado — resultado acumulado no período"
-      description="Entradas recebidas × saídas pagas em cada mês (o que de fato entrou e saiu do banco, inclusive distribuição de lucros). Mesmo critério dos cards da Início."
+      sub="Entradas recebidas × saídas pagas em cada mês (inclui distribuição de lucros). Mesmo critério dos cards da Início."
     >
       <ChartLegend
         className="mb-3"
@@ -44,6 +42,6 @@ export function FluxoCaixaTab({ data }: FluxoCaixaTabProps) {
           </LineChart>
         </ResponsiveContainer>
       </div>
-    </SectionCard>
+    </RelCard>
   );
 }

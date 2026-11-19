@@ -27,13 +27,11 @@ export function DFCTab({ period, customStart, customEnd }: DFCTabProps) {
       <DRETable
         rows={data.rows}
         months={data.months}
-        title="DFC – Demonstrativo de Fluxo de Caixa"
-        description="Regime de caixa: o que entrou e saiu das contas bancárias, pela data do recebimento/pagamento. A fatura do cartão entra quando é paga, rateada pelas categorias das compras. Toque numa linha com seta para ver as categorias."
         isNegativeRow={(label) => SAIDAS.has(label)}
         bottomLineLabel="SALDO FINAL"
       />
       {data.quitadosNoFuturo.length > 0 && (
-        <div className="rounded-[16px] border border-transparent bg-warning-bg px-4 py-3 text-[13px] leading-relaxed text-warning-fg">
+        <div className="rounded-2xl bg-warning-bg px-4 py-3 text-[13px] leading-relaxed text-warning-fg">
           <b className="font-semibold">Atenção: {data.quitadosNoFuturo.length === 1 ? 'há 1 lançamento marcado como quitado' : `há ${data.quitadosNoFuturo.length} lançamentos marcados como quitados`} com data no futuro.</b>{' '}
           O caixa já conta como saída/entrada de hoje (igual ao saldo da conta), mas a data está errada e bagunça os meses do relatório. Corrija a data:
           <ul className="mt-1.5 space-y-0.5">
@@ -44,6 +42,7 @@ export function DFCTab({ period, customStart, customEnd }: DFCTabProps) {
         </div>
       )}
       <p className="px-1 text-[12px] leading-relaxed text-foreground-muted">
+        Pela data do recebimento/pagamento; a fatura do cartão entra quando é paga, dividida pelas categorias das compras.{' '}
         Saldo real das contas hoje: <b className="font-semibold text-foreground">{formatCurrency(data.saldoAtualContas)}</b> — o saldo final do mês atual bate com ele.
         {data.semConta.quantidade > 0 && (
           <> {data.semConta.quantidade} lançamento(s) quitado(s) sem conta bancária ficam fora do caixa (líquido {formatCurrency(data.semConta.valor)}); defina a conta deles para entrarem.</>

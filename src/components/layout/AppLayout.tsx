@@ -4,7 +4,6 @@ import { Header } from './Header';
 import { MobileBottomNav } from './MobileBottomNav';
 import { PullToRefresh } from './PullToRefresh';
 import { BuscaRapida } from './BuscaRapida';
-import { NovoLancamento } from './NovoLancamento';
 import { Navigate } from 'react-router-dom';
 import { useTenant } from '@/contexts/TenantContext';
 import { ligarMascara } from '@/lib/ocultarValores';
@@ -16,7 +15,6 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const { acessoAtivo, loading: tenantLoading, memberships, isSuperadmin } = useTenant();
   const [busca, setBusca] = useState(false);
-  const [novo, setNovo] = useState(false);
 
   // Layout effect: esconde os valores antes da 1ª pintura da tela
   useLayoutEffect(() => ligarMascara(), []);
@@ -43,7 +41,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <PullToRefresh>
       <div className="flex min-h-dvh w-full">
-        <AppSidebar onBusca={() => setBusca(true)} onNovo={() => setNovo(true)} />
+        <AppSidebar onBusca={() => setBusca(true)} />
         <div className="flex min-w-0 flex-1 flex-col bg-transparent">
           <Header />
           <main className="app-safe-top max-w-full flex-1 overflow-x-hidden px-3 py-3 pb-24 md:px-10 md:pb-8 md:pt-4">
@@ -53,7 +51,6 @@ export function AppLayout({ children }: AppLayoutProps) {
         <MobileBottomNav onBusca={() => setBusca(true)} />
       </div>
       <BuscaRapida open={busca} onOpenChange={setBusca} />
-      <NovoLancamento open={novo} onOpenChange={setNovo} />
     </PullToRefresh>
   );
 }

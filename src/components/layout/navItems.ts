@@ -63,3 +63,20 @@ export const NOVO_ACOES: NovoAcao[] = [
   { label: 'Lançar por voz', desc: 'Fale e a IARA preenche', to: '/lancar-voz', icon: Mic, tom: 'text-foreground' },
   { label: 'Subir extrato ou print', desc: 'A IARA lê e você revisa', to: '/fluxo-caixa?action=importar', icon: Upload, tom: 'text-foreground' },
 ];
+
+/** Número que aparece ao lado de um item do menu (pílula; bolinha no modo recolhido). */
+export interface BadgeMenu { txt: string; tom: 'warn' | 'danger' | 'info' }
+export const TOM_BADGE: Record<BadgeMenu['tom'], { pilula: string; ponto: string }> = {
+  warn: { pilula: 'bg-warning-bg text-warning-fg', ponto: 'bg-warning-fg' },
+  danger: { pilula: 'bg-danger-bg text-danger-fg', ponto: 'bg-danger-fg' },
+  info: { pilula: 'bg-info-bg text-info-fg', ponto: 'bg-info-fg' },
+};
+const ate99 = (n: number) => (n > 99 ? '99+' : String(n));
+
+/** Pendências (amarelo), cobranças vencidas (vermelho) e o que vence hoje no Calendário (azul). */
+export function badgeDoMenu(href: string, c: { pendencias: number; cobrancasVencidas: number; calendarioHoje: number }): BadgeMenu | null {
+  if (href === '/pendencias' && c.pendencias > 0) return { txt: ate99(c.pendencias), tom: 'warn' };
+  if (href === '/cobrancas' && c.cobrancasVencidas > 0) return { txt: ate99(c.cobrancasVencidas), tom: 'danger' };
+  if (href === '/calendario' && c.calendarioHoje > 0) return { txt: `${ate99(c.calendarioHoje)} hoje`, tom: 'info' };
+  return null;
+}

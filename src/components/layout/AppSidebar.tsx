@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronsLeft, ChevronsRight, Eye, EyeOff, LogOut, Moon, Plus, Search, ShieldCheck, UserCircle } from 'lucide-react';
+import { ChevronDown, ChevronsLeft, ChevronsRight, Eye, EyeOff, LogOut, Moon, Search, ShieldCheck, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PixifyLogo } from '@/components/shared/PixifyLogo';
 import { Switch } from '@/components/ui/switch';
@@ -9,14 +9,15 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useTenant } from '@/contexts/TenantContext';
 import { useProfile } from '@/hooks/useProfile';
 import { usePendencias } from '@/hooks/usePendencias';
+import { useContadoresMenu } from '@/hooks/useContadoresMenu';
 import { alternarValores, useValoresOcultos } from '@/lib/ocultarValores';
 import { EmpresaSwitcher } from './EmpresaSwitcher';
-import { NAV_GRUPOS, NAV_TOPO, ativo, type NavItem } from './navItems';
+import { NAV_GRUPOS, NAV_TOPO, TOM_BADGE, ativo, badgeDoMenu, type BadgeMenu, type NavItem } from './navItems';
 
 const CHAVE_RECOLHIDA = 'balanx.sidebar.recolhida';
 const lerRecolhida = () => { try { return localStorage.getItem(CHAVE_RECOLHIDA) === '1'; } catch { return false; } };
 
-function Item({ it, atual, recolhida, badge, onClick }: { it: NavItem; atual: boolean; recolhida: boolean; badge?: number; onClick: () => void }) {
+function Item({ it, atual, recolhida, badge, onClick }: { it: NavItem; atual: boolean; recolhida: boolean; badge?: BadgeMenu | null; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -29,15 +30,15 @@ function Item({ it, atual, recolhida, badge, onClick }: { it: NavItem; atual: bo
     >
       <it.icon className="h-[18px] w-[18px] shrink-0" />
       {!recolhida && <span className="min-w-0 flex-1 truncate text-left">{it.label}</span>}
-      {!!badge && (recolhida
-        ? <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-warning-fg" />
-        : <span className={cn('rounded-full px-1.5 py-px text-[10.5px] font-medium tabular-nums', atual ? 'bg-background/15 text-background' : 'bg-warning-bg text-warning-fg')}>{badge > 99 ? '99+' : badge}</span>)}
+      {badge && (recolhida
+        ? <span className={cn('absolute right-1.5 top-1.5 h-2 w-2 rounded-full', TOM_BADGE[badge.tom].ponto)} />
+        : <span className={cn('shrink-0 rounded-full px-1.5 py-px text-[10.5px] font-medium tabular-nums', atual ? 'bg-background/15 text-background' : TOM_BADGE[badge.tom].pilula)}>{badge.txt}</span>)}
     </button>
   );
 }
 
 /** Menu lateral do desktop (o celular usa a barra de baixo). */
-export function AppSidebar({ onBusca, onNovo }: { onBusca: () => void; onNovo: () => void }) {
+export function AppSidebar({ onBusca }: { onBusca: () => void }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
@@ -45,6 +46,7 @@ export function AppSidebar({ onBusca, onNovo }: { onBusca: () => void; onNovo: (
   const { isSuperadmin } = useTenant();
   const { profile, avatarSignedUrl } = useProfile();
   const { total: totalPendencias } = usePendencias();
+  const { cobrancasVencidas, calendarioHoje } = useContadoresMenu();
   const oculto = useValoresOcultos();
   const [recolhida, setRecolhida] = useState(lerRecolhida);
   const [usuario, setUsuario] = useState(false);
@@ -59,7 +61,7 @@ export function AppSidebar({ onBusca, onNovo }: { onBusca: () => void; onNovo: (
 
   const nome = profile?.nome?.trim() || 'Minha conta';
   const inicial = (profile?.nome?.trim()?.[0] || 'B').toUpperCase();
-  const badgeDe = (href: string) => (href === '/pendencias' ? totalPendencias : undefined);
+  const badgeDe = (href: string) => badgeDoMenu(href, { pendencias: totalPendencias, cobrancasVencidas, calendarioHoje });
   const Sep = () => <div className="mx-auto mb-1.5 h-px w-6 bg-border" />;
 
   // O body tem overflow-x:hidden, então sticky não prende: a barra é fixed e um
@@ -78,14 +80,10 @@ export function AppSidebar({ onBusca, onNovo }: { onBusca: () => void; onNovo: (
 
       <div className={cn('space-y-2 px-3', recolhida && 'px-2')}>
         <EmpresaSwitcher compacto={recolhida} />
-        <div className={cn('flex gap-2', recolhida && 'flex-col')}>
+        <div className="flex">
           <button type="button" onClick={onBusca} title="Buscar ou perguntar (⌘K)" aria-label="Buscar"
             className={cn('flex h-10 items-center gap-2 rounded-full border border-border bg-surface text-[13px] text-foreground-muted hover:text-foreground', recolhida ? 'w-full justify-center' : 'min-w-0 flex-1 px-3.5')}>
             <Search className="h-4 w-4 shrink-0" />{!recolhida && <><span className="flex-1 truncate text-left">Buscar</span><kbd className="rounded-md border border-border px-1.5 text-[10.5px]">⌘K</kbd></>}
-          </button>
-          <button type="button" onClick={onNovo} title="Novo lançamento" aria-label="Novo lançamento"
-            className={cn('flex h-10 items-center justify-center gap-1.5 rounded-full bg-foreground text-[13.5px] font-medium text-background hover:opacity-90', recolhida ? 'w-full' : 'px-4')}>
-            <Plus className="h-4 w-4" />{!recolhida && 'Novo'}
           </button>
         </div>
       </div>
@@ -97,7 +95,7 @@ export function AppSidebar({ onBusca, onNovo }: { onBusca: () => void; onNovo: (
         {NAV_GRUPOS.map((g) => (
           <div key={g.label} className="space-y-0.5">
             {recolhida ? <Sep /> : <p className="px-3 pb-1 text-[11px] font-medium uppercase tracking-[0.1em] text-foreground-subtle">{g.label}</p>}
-            {g.items.map((it) => <Item key={it.href} it={it} atual={ativo(pathname, it.href)} recolhida={recolhida} onClick={() => navigate(it.href)} />)}
+            {g.items.map((it) => <Item key={it.href} it={it} atual={ativo(pathname, it.href)} recolhida={recolhida} badge={badgeDe(it.href)} onClick={() => navigate(it.href)} />)}
           </div>
         ))}
         {isSuperadmin && (

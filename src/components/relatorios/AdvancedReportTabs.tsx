@@ -4,17 +4,17 @@
 import { useState, type ReactNode } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { SectionCard } from '@/components/shared/SectionCard';
 import { cn } from '@/lib/utils';
-import { formatCurrencyShort } from '@/utils/formatters';
+import { formatCurrency, formatCurrencyShort } from '@/utils/formatters';
+import { Segmented } from '@/components/reskin/kit';
 import type { AdvancedReports } from '@/hooks/useAdvancedReports';
-import { ChartLegend, EmptyNote, KpiStrip, RangeChips, TitleWithInfo } from './ReportKit';
+import { ChartLegend, EmptyNote, KpiStrip, RelCard } from './ReportKit';
 import { CHART, axisProps, barCursor, gridProps, tooltipProps } from './chartTheme';
 
-const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const brl = (n: number) => formatCurrency(n);
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
 
 const DANGER_TEXT = 'text-[hsl(var(--danger-fg))]';
@@ -24,11 +24,11 @@ const VALUE = 'font-heading font-semibold tabular-nums text-foreground';
 /** Eixo Y em moeda: largura fixa para não espremer o gráfico no mobile. */
 const yMoney = { ...axisProps, width: 60, tickFormatter: formatCurrencyShort };
 
-/** Bloco-tabela: SectionCard flush + lista no mobile + tabela no desktop. */
+/** Bloco-tabela: cartão do reskin sem recuo + lista no celular + tabela no desktop. */
 function TableCard({
   title, info, description, action, mobile, desktop, empty, children,
 }: {
-  title: string;
+  title?: string;
   info?: string;
   description?: string;
   action?: ReactNode;
@@ -38,13 +38,7 @@ function TableCard({
   children?: ReactNode;
 }) {
   return (
-    <SectionCard
-      flush
-      className="animate-fade-in overflow-hidden"
-      title={<TitleWithInfo title={title} info={info} />}
-      description={description}
-      action={action}
-    >
+    <RelCard flush className="animate-fade-in" title={title} sub={description} info={info} action={action}>
       {children}
       {empty ? (
         <EmptyNote className="border-t border-border">{empty}</EmptyNote>
@@ -54,7 +48,7 @@ function TableCard({
           <div className="hidden md:block">{desktop}</div>
         </>
       )}
-    </SectionCard>
+    </RelCard>
   );
 }
 
@@ -70,7 +64,7 @@ function Row({ title, subtitle, value, aside, lead, onClick }: {
     >
       {lead}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">{title}</p>
+        <p className="truncate text-[13.5px] font-medium text-foreground">{title}</p>
         {subtitle && <p className="mt-0.5 truncate text-[12px] text-foreground-muted">{subtitle}</p>}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
@@ -83,22 +77,18 @@ function Row({ title, subtitle, value, aside, lead, onClick }: {
 
 /** Cabeçalho de tabela com recuo lateral alinhado ao título do card. */
 const HeadRow = ({ children }: { children: ReactNode }) => (
-  <TableRow className="border-t border-border hover:bg-transparent [&>th:first-child]:pl-6 [&>th:last-child]:pr-6">{children}</TableRow>
+  <TableRow className="border-t border-border hover:bg-transparent [&>th:first-child]:pl-5 [&>th:last-child]:pr-5 [&>th]:h-10 [&>th]:text-[12px] [&>th]:font-normal [&>th]:text-foreground-muted">{children}</TableRow>
 );
 const BodyRow = ({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) => (
   <TableRow
-    className={cn('border-border [&>td:first-child]:pl-6 [&>td:last-child]:pr-6', onClick && 'cursor-pointer', className)}
+    className={cn('border-border text-[13px] [&>td:first-child]:pl-5 [&>td:last-child]:pr-5 [&>td]:py-3 [&>td]:text-[13px]', onClick && 'cursor-pointer hover:bg-surface-2/50', className)}
     onClick={onClick}
     title={onClick ? 'Ver lançamentos' : undefined}
   >{children}</TableRow>
 );
 
-const RANGES = [
-  { value: '3', label: '3M' },
-  { value: '6', label: '6M' },
-  { value: '12', label: '12M' },
-] as const;
-type RangeValue = (typeof RANGES)[number]['value'];
+type RangeValue = '3' | '6' | '12';
+const RANGES: [RangeValue, string][] = [['3', '3M'], ['6', '6M'], ['12', '12M']];
 
 export function MRRTab({ data }: { data: AdvancedReports['mrr'] }) {
   const [range, setRange] = useState<RangeValue>('12');
@@ -107,7 +97,7 @@ export function MRRTab({ data }: { data: AdvancedReports['mrr'] }) {
   const growth = prevMRR ? (lastMRR - prevMRR) / prevMRR : 0;
   const serie = data.slice(-Number(range));
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-4">
       <KpiStrip
         items={[
           { label: 'MRR atual', value: brl(lastMRR), highlight: true, info: 'Receita recorrente mensal: soma do valor mensal equivalente de todos os contratos recorrentes ativos no mês. Contratos quinzenais/semanais são convertidos para o equivalente mensal. Contratos de cobrança única não entram.' },
@@ -116,10 +106,11 @@ export function MRRTab({ data }: { data: AdvancedReports['mrr'] }) {
           { label: 'Net New (mês)', value: brl((data[data.length - 1]?.newMRR ?? 0) - (data[data.length - 1]?.churnMRR ?? 0)), info: 'MRR novo (contratos que entraram no mês) menos MRR perdido (contratos encerrados no mês).' },
         ]}
       />
-      <SectionCard
+      <RelCard
         className="animate-fade-in"
-        title={<TitleWithInfo title="Evolução do MRR (12 meses)" info="Série dos últimos 12 meses — não muda com o filtro de período." />}
-        action={<RangeChips<RangeValue> value={range} onChange={setRange} options={RANGES} />}
+        title="Evolução do MRR"
+        info="Série dos últimos 12 meses — não muda com o filtro de período."
+        action={<Segmented<RangeValue> size="sm" className="max-sm:w-full" value={range} onChange={setRange} opts={RANGES} />}
       >
         <div className="h-[240px] md:h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -138,7 +129,7 @@ export function MRRTab({ data }: { data: AdvancedReports['mrr'] }) {
             </AreaChart>
           </ResponsiveContainer>
         </div>
-      </SectionCard>
+      </RelCard>
     </div>
   );
 }
@@ -146,8 +137,8 @@ export function MRRTab({ data }: { data: AdvancedReports['mrr'] }) {
 const ClasseBadge = ({ classe }: { classe: string }) => (
   <span
     className={cn(
-      'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 text-[11px] font-semibold',
-      classe === 'A' ? 'bg-info-bg text-info-fg' : 'bg-surface-2 text-foreground-muted',
+      'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
+      classe === 'A' ? 'bg-foreground text-background' : classe === 'B' ? 'bg-surface-2 text-foreground' : 'border border-border text-foreground-muted',
     )}
   >
     {classe}
@@ -158,8 +149,7 @@ export function TopClientsTab({ data, onRowClick }: { data: AdvancedReports['top
   const rows = data.slice(0, 20);
   return (
     <TableCard
-      title="Concentração de Receita (Curva ABC)"
-      description="Top 80% = classe A · 80-95% = B · 95-100% = C"
+      description="Até 80% da receita = classe A · 80–95% = B · 95–100% = C"
       info="Ordena os clientes pela receita no período selecionado. Classe A = clientes que somam até 80% da receita, B = de 80% a 95%, C = de 95% a 100%. Serve pra ver o quanto a receita depende de poucos clientes."
       empty={data.length === 0 && 'Sem dados'}
       mobile={rows.map((c) => (
@@ -207,9 +197,10 @@ export function CategoryTab({ data, title, onRowClick }: { data: AdvancedReports
   const Dot = ({ cor }: { cor?: string | null }) => (
     <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: cor || 'hsl(var(--foreground-muted))' }} />
   );
+  const totalCat = data.reduce((s, c) => s + c.total, 0);
   return (
     <TableCard
-      title={title}
+      description={`${data.length} ${data.length === 1 ? 'categoria' : 'categorias'} · total ${brl(totalCat)}`}
       info={info}
       empty={data.length === 0 && 'Sem dados'}
       mobile={data.map((c) => (
@@ -260,58 +251,55 @@ export function CategoryTab({ data, title, onRowClick }: { data: AdvancedReports
   );
 }
 
-/** Rótulo curto da faixa no eixo do gráfico (o completo fica na tabela e no tooltip). */
-const agingCurto = (l: string) => l
-  .replace('Atraso 90+ dias', '+90 atr.').replace(/^Atraso (\d+)–(\d+) dias$/, '$1–$2 atr.')
-  .replace('Vence em até 30 dias', '≤30d').replace(/^Vence em (\d+)–(\d+) dias$/, '$1–$2d')
-  .replace('Vence em 91 dias a 1 ano', '91d–1a').replace('Vence em mais de 1 ano', '+1 ano');
+/** Cor de cada faixa: a vencer em azul (mais claro = mais longe); atraso do amarelo ao vermelho escuro. */
+const COR_ATRASO = ['#F59E0B', '#F97316', '#EF4444', '#991B1B'];
+const corFaixa = (b: { vencido: boolean }, iAtraso: number, iVencer: number, nVencer: number) =>
+  b.vencido ? COR_ATRASO[Math.min(iAtraso, COR_ATRASO.length - 1)] : `hsl(var(--primary) / ${1 - (iVencer / Math.max(1, nVencer)) * 0.6})`;
 
-export function AgingTab({ data, title }: { data: AdvancedReports['agingRecebiveis']; title: string }) {
+export function AgingTab({ data }: { data: AdvancedReports['agingRecebiveis']; title?: string }) {
   const total = data.reduce((s, b) => s + b.total, 0);
   const vencido = data.filter((b) => b.vencido).reduce((s, b) => s + b.total, 0);
+  const qtdVencido = data.filter((b) => b.vencido).reduce((s, b) => s + b.count, 0);
+  const vencer = data.filter((b) => !b.vencido);
+  // Ordem visual: a vencer (mais perto → mais longe) e depois atraso (menor → maior).
+  let iA = 0; let iV = 0;
+  const faixas = [...vencer, ...data.filter((b) => b.vencido)].map((b) => ({ ...b, cor: corFaixa(b, b.vencido ? iA++ : 0, b.vencido ? 0 : iV++, vencer.length) }));
   return (
-    <TableCard
-      title={title}
-      description={`Em aberto: ${brl(total)} · Vencido: ${brl(vencido)} · A vencer: ${brl(total - vencido)}`}
-      info="Tudo o que está EM ABERTO (não recebido / não pago), de qualquer data, separado em ATRASO (dias desde o vencimento) e A VENCER (dias até o vencimento, contando hoje). Independe do filtro de período."
-      mobile={data.map((b) => (
-        <Row key={b.label} title={b.label} subtitle={`${b.count} ${b.count === 1 ? 'lançamento' : 'lançamentos'}`} value={brl(b.total)} />
-      ))}
-      desktop={
-        <Table>
-          <TableHeader><HeadRow><TableHead>Faixa</TableHead><TableHead className="text-right">Quantidade</TableHead><TableHead className="text-right">Valor</TableHead></HeadRow></TableHeader>
-          <TableBody>
-            {data.map((b) => (
-              <BodyRow key={b.label}>
-                <TableCell className={cn('font-medium', b.vencido && b.total > 0 && 'text-[hsl(var(--danger-fg))]')}>{b.label}</TableCell>
-                <TableCell className="text-right tabular-nums text-foreground-muted">{b.count}</TableCell>
-                <TableCell className={cn('text-right', VALUE)}>{brl(b.total)}</TableCell>
-              </BodyRow>
+    <div className="animate-fade-in space-y-4">
+      <KpiStrip
+        items={[
+          { label: 'Em aberto', value: brl(total), highlight: true, info: 'Tudo o que está EM ABERTO (não recebido / não pago), de qualquer data. Independe do filtro de período.' },
+          { label: 'Em atraso', value: brl(vencido), tone: vencido > 0 ? 'danger' : 'default', hint: `${qtdVencido} ${qtdVencido === 1 ? 'lançamento' : 'lançamentos'}` },
+          { label: 'A vencer', value: brl(total - vencido) },
+        ]}
+      />
+      <RelCard sub="Por faixa: dias até o vencimento (a vencer) ou desde o vencimento (atraso)">
+        {total > 0 ? (
+          <div className="flex h-3 overflow-hidden rounded-full bg-surface-2">
+            {faixas.filter((f) => f.total > 0).map((f) => (
+              <div key={f.label} title={`${f.label}: ${brl(f.total)}`} style={{ width: `${(f.total / total) * 100}%`, background: f.cor }} />
             ))}
-          </TableBody>
-        </Table>
-      }
-    >
-      <div className="h-[220px] px-2 pb-4 md:px-4">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 5, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid {...gridProps} />
-            <XAxis dataKey="label" {...axisProps} interval={0} tickFormatter={agingCurto} />
-            <YAxis {...yMoney} />
-            <Tooltip formatter={(v: number) => brl(v)} cursor={barCursor} {...tooltipProps} />
-            <Bar dataKey="total" name="Valor" radius={[6, 6, 0, 0]} maxBarSize={44}>
-              {data.map((b) => <Cell key={b.label} fill={b.vencido ? CHART.danger : CHART.primary} />)}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </TableCard>
+          </div>
+        ) : (
+          <EmptyNote className="min-h-[80px]">Nada em aberto.</EmptyNote>
+        )}
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
+          {faixas.map((f) => (
+            <div key={f.label} className={cn('rounded-2xl border p-3', f.vencido && f.total > 0 ? 'border-danger-bg bg-danger-bg/40' : 'border-border')}>
+              <p className="flex items-center gap-1.5 text-[12px] text-foreground-muted"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: f.cor }} /><span className="truncate">{f.label}</span></p>
+              <p className={cn('mt-0.5 font-heading text-[16px] font-semibold tabular-nums', f.total === 0 ? 'text-foreground-subtle' : f.vencido ? 'text-danger-fg' : 'text-foreground')}>{brl(f.total)}</p>
+              <p className="text-[11.5px] text-foreground-muted">{f.count} {f.count === 1 ? 'lançamento' : 'lançamentos'}</p>
+            </div>
+          ))}
+        </div>
+      </RelCard>
+    </div>
   );
 }
 
 export function BurnRunwayTab({ data }: { data: AdvancedReports['burnRunway'] }) {
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-4">
       <KpiStrip
         items={[
           { label: 'Runway', value: `${data.runwayMonths.toFixed(1)} meses`, highlight: true, info: 'Por quantos meses o caixa atual dura mantendo o burn médio. = Caixa ÷ Burn médio (3m).' },
@@ -319,9 +307,10 @@ export function BurnRunwayTab({ data }: { data: AdvancedReports['burnRunway'] })
           { label: 'Caixa estimado', value: brl(data.cashOnHand), hint: 'Saldo real conciliado das contas', info: 'Saldo real das contas (não-cartão): saldo inicial + entradas recebidas − saídas pagas, considerando todo o histórico. É o mesmo cálculo da aba Conciliação.' },
         ]}
       />
-      <SectionCard
+      <RelCard
         className="animate-fade-in"
-        title={<TitleWithInfo title="Burn Rate mensal (6 meses)" info="Quanto saiu das contas bancárias em cada um dos últimos 6 meses (regime de caixa, pela data de pagamento)." />}
+        title="Saída de caixa por mês"
+        info="Quanto saiu das contas bancárias em cada um dos últimos 6 meses (regime de caixa, pela data de pagamento)."
       >
         <div className="h-[240px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -330,11 +319,11 @@ export function BurnRunwayTab({ data }: { data: AdvancedReports['burnRunway'] })
               <XAxis dataKey="month" {...axisProps} />
               <YAxis {...yMoney} />
               <Tooltip formatter={(v: number) => brl(v)} cursor={barCursor} {...tooltipProps} />
-              <Bar dataKey="burn" name="Burn" fill={CHART.primary} radius={[6, 6, 0, 0]} maxBarSize={44} />
+              <Bar dataKey="burn" name="Saída" fill={CHART.danger} fillOpacity={0.85} radius={[6, 6, 0, 0]} maxBarSize={40} />
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </SectionCard>
+      </RelCard>
     </div>
   );
 }
@@ -343,8 +332,7 @@ export function ClientMarginTab({ data }: { data: AdvancedReports['clientMargins
   const rows = data.slice(0, 30);
   return (
     <TableCard
-      title="Margem por Cliente"
-      description="Receita − despesas vinculadas (custo direto)"
+      description="Receita − despesas vinculadas ao cliente (custo direto)"
       info="Para cada cliente, no período: receita − despesas lançadas com aquele cliente (custo direto). % Margem = margem ÷ receita. Só captura custos que você vinculou ao cliente no lançamento."
       empty={data.length === 0 && 'Sem dados'}
       mobile={rows.map((c) => (
@@ -405,7 +393,7 @@ export function LTVCACTab({ data }: { data: AdvancedReports['ltvCac'] }) {
 export function CardsSummaryTab({ data }: { data: AdvancedReports['cards'] }) {
   return (
     <TableCard
-      title="Cartões de Crédito"
+      description={`${data.length} ${data.length === 1 ? 'cartão' : 'cartões'}`}
       info="Por cartão: limite, valor em aberto nas faturas (total − pago) e disponível (limite − em aberto). % Uso = em aberto ÷ limite."
       empty={data.length === 0 && 'Sem cartões'}
       mobile={data.map((c) => (
@@ -468,8 +456,7 @@ export function CardsSummaryTab({ data }: { data: AdvancedReports['cards'] }) {
 export function ReconciliationTab({ data }: { data: AdvancedReports['reconciliation'] }) {
   return (
     <TableCard
-      title="Conciliação por Conta"
-      description="Saldo inicial + entradas confirmadas − saídas confirmadas"
+      description="Saldo inicial + entradas recebidas − saídas pagas, de todo o histórico"
       info="Para cada conta (não-cartão), somando TODO o histórico: saldo inicial + entradas com status 'recebido' − saídas com status 'pago'. O saldo calculado deve bater com o extrato real do banco. Não muda com o filtro de período."
       empty={data.length === 0 && 'Sem contas'}
       mobile={data.map((r) => (
@@ -528,15 +515,10 @@ export function OpKPIsTab({ data }: { data: AdvancedReports['opKPIs'] }) {
 
 export function ProjectionTab({ data }: { data: AdvancedReports['projection'] }) {
   return (
-    <SectionCard
+    <RelCard
       className="animate-fade-in"
-      title={
-        <TitleWithInfo
-          title="Projeção 12 meses"
-          info="Projeção linear simples: mantém o MRR atual como entrada mensal e o burn médio (3m) como saída, acumulando sobre o caixa atual. É uma estimativa de tendência, não uma previsão — não considera sazonalidade nem novos contratos."
-        />
-      }
-      description="Baseada no MRR atual e burn médio dos últimos 3 meses"
+      sub="Baseada no MRR atual e na saída média de caixa dos últimos 3 meses"
+      info="Projeção linear simples: mantém o MRR atual como entrada mensal e o burn médio (3m) como saída, acumulando sobre o caixa atual. É uma estimativa de tendência, não uma previsão — não considera sazonalidade nem novos contratos."
     >
       <ChartLegend
         className="mb-3"
@@ -559,7 +541,7 @@ export function ProjectionTab({ data }: { data: AdvancedReports['projection'] })
           </LineChart>
         </ResponsiveContainer>
       </div>
-    </SectionCard>
+    </RelCard>
   );
 }
 
@@ -568,7 +550,7 @@ export function TaxesTab({ data }: { data: AdvancedReports['taxes'] }) {
   const totalDed = data.reduce((s, r) => s + r.deducoes, 0);
   const carga = totalRec ? totalDed / totalRec : 0;
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-4">
       <KpiStrip
         items={[
           { label: 'Carga tributária', value: pct(carga), highlight: true, info: 'Impostos ÷ receita bruta nos últimos 12 meses.' },
@@ -577,7 +559,7 @@ export function TaxesTab({ data }: { data: AdvancedReports['taxes'] }) {
         ]}
       />
       <TableCard
-        title="Receita × Impostos por mês"
+        title="Mês a mês"
         info="Série dos últimos 12 meses."
         mobile={data.map((r) => (
           <Row

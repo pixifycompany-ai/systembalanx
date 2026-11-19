@@ -9,10 +9,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTenant } from '@/contexts/TenantContext';
 import { usePendencias } from '@/hooks/usePendencias';
+import { useContadoresMenu } from '@/hooks/useContadoresMenu';
 import { alternarValores, useValoresOcultos } from '@/lib/ocultarValores';
 import { EmpresaSwitcher } from './EmpresaSwitcher';
 import { NovoLancamento } from './NovoLancamento';
-import { NAV_GRUPOS, NAV_TODOS, ativo, type NavItem } from './navItems';
+import { NAV_GRUPOS, NAV_TODOS, TOM_BADGE, ativo, badgeDoMenu, type NavItem } from './navItems';
 
 interface MobileBottomNavProps {
   /** Abre a busca rápida (a mesma do ⌘K). */
@@ -45,6 +46,7 @@ export function MobileBottomNav({ onBusca }: MobileBottomNavProps) {
   const { isSuperadmin } = useTenant();
   const { signOut } = useAuth();
   const { total: totalPendencias } = usePendencias();
+  const { cobrancasVencidas, calendarioHoje } = useContadoresMenu();
   const oculto = useValoresOcultos();
   const [menuOpen, setMenuOpen] = useState(false);
   const [novoOpen, setNovoOpen] = useState(false);
@@ -54,7 +56,9 @@ export function MobileBottomNav({ onBusca }: MobileBottomNavProps) {
   const ir = (href: string) => { setMenuOpen(false); navigate(href); };
   const noMenu = !['/', '/iara'].includes(pathname) && !pathname.startsWith('/fluxo-caixa');
   const porHref = (h: string) => NAV_TODOS.find((x) => x.href === h)!;
-  const badgeDe = (h: string) => (h === '/pendencias' && totalPendencias ? (totalPendencias > 99 ? '99+' : String(totalPendencias)) : null);
+  const badgeDe = (h: string) => badgeDoMenu(h, { pendencias: totalPendencias, cobrancasVencidas, calendarioHoje });
+  // Bolinha vermelha no "Menu" só quando há algo pedindo atenção lá dentro.
+  const temAviso = totalPendencias > 0 || cobrancasVencidas > 0 || calendarioHoje > 0;
 
   const BotaoBarra = ({ rot, ativoAgora, onClick, children }: { rot: string; ativoAgora: boolean; onClick: () => void; children: React.ReactNode }) => (
     <button type="button" onClick={onClick} aria-label={rot} aria-current={ativoAgora ? 'page' : undefined}
@@ -79,7 +83,7 @@ export function MobileBottomNav({ onBusca }: MobileBottomNavProps) {
         </button>
         <BotaoBarra rot="IARA" ativoAgora={ativo(pathname, '/iara')} onClick={() => navigate('/iara')}><Sparkle className="h-[21px] w-[21px]" /></BotaoBarra>
         <BotaoBarra rot="Menu" ativoAgora={noMenu} onClick={() => setMenuOpen(true)}>
-          <span className="relative"><GradeIcone />{totalPendencias > 0 && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-danger-fg ring-2 ring-surface" />}</span>
+          <span className="relative"><GradeIcone />{temAviso && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-danger-fg ring-2 ring-surface" />}</span>
         </BotaoBarra>
       </nav>
 
@@ -110,7 +114,7 @@ export function MobileBottomNav({ onBusca }: MobileBottomNavProps) {
                     className={cn('relative flex flex-col items-start gap-2 rounded-[20px] border p-3 text-left', ativo(pathname, h) ? 'border-foreground bg-foreground text-background' : 'border-border bg-surface text-foreground')}>
                     <it.icon className="h-5 w-5" />
                     <span className="text-[12.5px] leading-tight">{it.label}</span>
-                    {b && <span className="absolute right-2 top-2 rounded-full bg-warning-bg px-1.5 text-[10px] text-warning-fg">{b}</span>}
+                    {b && <span className={cn('absolute right-2 top-2 rounded-full px-1.5 text-[10px]', TOM_BADGE[b.tom].pilula)}>{b.txt}</span>}
                   </button>
                 );
               })}
@@ -124,6 +128,7 @@ export function MobileBottomNav({ onBusca }: MobileBottomNavProps) {
                     <button key={it.href} type="button" onClick={() => ir(it.href)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
                       <span className={cn('grid h-8 w-8 place-items-center rounded-full', ativo(pathname, it.href) ? 'bg-foreground text-background' : 'bg-surface-2 text-foreground-muted')}><it.icon className="h-4 w-4" /></span>
                       <span className="flex-1 text-[14.5px] text-foreground">{it.label}</span>
+                      {(() => { const b = badgeDe(it.href); return b ? <span className={cn('rounded-full px-2 py-0.5 text-[11px] tabular-nums', TOM_BADGE[b.tom].pilula)}>{b.txt}</span> : null; })()}
                       <ChevronRight className="h-4 w-4 text-foreground-subtle" />
                     </button>
                   ))}

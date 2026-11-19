@@ -4,7 +4,7 @@ import { useActionParam } from '@/hooks/useActionParam';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { SkeletonTable } from '@/components/shared/LoadingSpinner';
 import { MultiSelectBar } from '@/components/shared/MultiSelectBar';
-import { FormSection, InitialsAvatar, InlineNotice, iniciais } from '@/components/cobrancas/formParts';
+import { InitialsAvatar, InlineNotice, iniciais } from '@/components/cobrancas/formParts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,12 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency, formatDate } from '@/utils/formatters';
@@ -42,6 +36,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ContractImportDialog } from '@/components/import/ContractImportDialog';
+import { ContratoDuplicadoDialog, MesclarContratosDialog } from '@/components/contratos/ContratoDuplicadoDialogs';
 import { useContratoAditivos } from '@/hooks/useContratoAditivos';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { PausaContrato } from '@/components/contratos/PausaContrato';
@@ -216,7 +211,7 @@ export default function Contratos() {
       if (!url) break;
       docs.push({ url, nome: n.nome });
     }
-    const res = await enviarWhatsapp(whatsappTel, whatsappText, docs);
+    const res = await enviarWhatsapp(whatsappTel, whatsappText, docs, { cobranca_id: whatsappCob.id });
     setWhatsappSending(false);
     if (res) {
       await marcarNotasEnviadas(whatsappNotas.slice(0, res.docsEnviados));
@@ -1268,133 +1263,25 @@ export default function Contratos() {
           </SheetContent>
         </Sheet>
 
-        {/* Duplicate contract detection dialog */}
-        <Dialog
-          open={!!duplicateMatch}
-          onOpenChange={(open) => {
-            if (!open) {
-              setDuplicateMatch(null);
-              setPendingSubmitData(null);
-            }
-          }}
-        >
-          <DialogContent className="sm:max-w-[480px]">
-            <DialogHeader>
-              <DialogTitle>Contrato similar já existe</DialogTitle>
-            </DialogHeader>
-            {duplicateMatch && pendingSubmitData && (
-              <div className="space-y-4">
-                <p className="text-sm text-foreground-muted">
-                  Encontramos um contrato ativo parecido para <strong className="text-foreground">{duplicateMatch.contrato.cliente?.nome}</strong>:
-                </p>
-                <div className="flex items-center gap-3 rounded-[20px] border border-border p-3.5">
-                  <InitialsAvatar nome={duplicateMatch.contrato.cliente?.nome} />
-                  <div className="min-w-0 flex-1 space-y-0.5 text-sm">
-                    <div className="truncate font-semibold text-foreground">{duplicateMatch.contrato.descricao}</div>
-                    <div className="flex flex-wrap items-center gap-x-2 text-[12.5px]">
-                      <span className="text-foreground-muted">Valor atual:</span>
-                      <span className="font-heading font-semibold tabular-nums text-foreground">{formatCurrency(Number(duplicateMatch.contrato.valor))}</span>
-                      {!duplicateMatch.sameValue && (
-                        <>
-                          <span className="text-foreground-muted">→</span>
-                          <span className="font-heading font-semibold tabular-nums text-primary">
-                            {formatCurrency(pendingSubmitData.valor)}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {duplicateMatch.sameValue ? (
-                  <p className="text-sm text-foreground">
-                    O valor é igual ao do contrato existente. Tem certeza que deseja criar um novo contrato?
-                  </p>
-                ) : (
-                  <p className="text-sm text-foreground">
-                    Parece um <strong>reajuste de valor</strong>. Recomendamos registrar como Aditivo no contrato existente para preservar o histórico e não duplicar o MRR.
-                  </p>
-                )}
-                <div className="flex flex-col gap-2 pt-1">
-                  {!duplicateMatch.sameValue && (
-                    <Button size="lg" onClick={handleApplyAsAditivo} disabled={isSaving} className="w-full">
-                      {isSaving ? 'Aplicando...' : 'Registrar como Aditivo (recomendado)'}
-                    </Button>
-                  )}
-                  <Button size="lg" variant="outline" onClick={handleCreateAnyway} disabled={isSaving} className="w-full">
-                    Criar novo contrato mesmo assim
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => { setDuplicateMatch(null); setPendingSubmitData(null); }}
-                    disabled={isSaving}
-                    className="w-full"
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        {/* Contrato duplicado ao criar */}
+        <ContratoDuplicadoDialog
+          match={duplicateMatch}
+          novoValor={pendingSubmitData ? pendingSubmitData.valor : null}
+          salvando={isSaving}
+          onAditivo={handleApplyAsAditivo}
+          onCriarMesmoAssim={handleCreateAnyway}
+          onCancelar={() => { setDuplicateMatch(null); setPendingSubmitData(null); }}
+        />
 
-        {/* Merge duplicate contracts dialog */}
-        <Dialog
-          open={!!mergeGroup}
-          onOpenChange={(open) => {
-            if (!open) { setMergeGroup(null); setKeepContratoId(null); }
-          }}
-        >
-          <DialogContent className="sm:max-w-[760px]">
-            <DialogHeader>
-              <DialogTitle>Mesclar contratos duplicados</DialogTitle>
-            </DialogHeader>
-            {mergeGroup && (
-              <div className="space-y-5">
-                <p className="text-sm text-foreground-muted">
-                  Escolha qual contrato de <strong className="text-foreground">{mergeGroup.cliente_nome}</strong> deve permanecer ativo. Os demais serão <strong className="text-foreground">encerrados</strong> e seus lançamentos pendentes futuros serão removidos.
-                </p>
-                <FormSection label="Contrato que permanece">
-                  <div className="space-y-2">
-                    {mergeGroup.contratos.map(c => (
-                      <label
-                        key={c.id}
-                        className={cn(
-                          'flex cursor-pointer items-start gap-3 rounded-[20px] border p-3.5 transition-colors',
-                          keepContratoId === c.id ? 'border-foreground bg-surface-2' : 'border-border hover:border-border-strong'
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          name="keepContrato"
-                          checked={keepContratoId === c.id}
-                          onChange={() => setKeepContratoId(c.id)}
-                          className="mt-1 accent-[hsl(var(--foreground))]"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold text-foreground">{c.descricao}</div>
-                          <div className="text-[12px] text-foreground-muted">
-                            Início {formatDate(c.data_inicio)} • <span className="font-heading font-semibold tabular-nums text-foreground">{formatCurrency(Number(c.valor))}</span>
-                          </div>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </FormSection>
-                <p className="text-[12px] text-foreground-muted">
-                  Dica: mantenha o contrato com o valor mais atual. Se algum reajuste do encerrado fizer sentido como histórico, ele será anotado como aditivo.
-                </p>
-                <div className="flex justify-end gap-2 pt-1">
-                  <Button variant="outline" onClick={() => { setMergeGroup(null); setKeepContratoId(null); }} disabled={isMerging}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleMergeDuplicates} disabled={isMerging || !keepContratoId}>
-                    {isMerging ? 'Mesclando...' : 'Mesclar contratos'}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        {/* Mesclar contratos duplicados */}
+        <MesclarContratosDialog
+          grupo={mergeGroup}
+          manterId={keepContratoId}
+          onManter={setKeepContratoId}
+          mesclando={isMerging}
+          onMesclar={handleMergeDuplicates}
+          onFechar={() => { setMergeGroup(null); setKeepContratoId(null); }}
+        />
 
     </main>
   );

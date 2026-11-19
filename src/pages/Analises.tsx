@@ -1,19 +1,30 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { Sparkle } from '@/components/shared/Sparkle';
 import { cn } from '@/lib/utils';
-import { PageHeader } from '@/components/reskin/kit';
+import { PageHeader, Segmented } from '@/components/reskin/kit';
 import { btn } from '@/components/reskin/estilos';
-import { useAnalises } from '@/hooks/useAnalises';
+import { useAnalises, type PeriodoAnalises } from '@/hooks/useAnalises';
 import {
   ChurnBloco, CoortesBloco, LTVBloco, ProjecaoBloco, RentabilidadeBloco, SaudeFinanceira,
 } from '@/components/analises/AnalisesBlocos';
 
+// "Geral" é o cálculo de sempre (o mesmo que a IARA usa); os outros só mudam a janela.
+const PERIODOS: [PeriodoAnalises, string][] = [['geral', 'Geral'], ['6m', '6 meses'], ['12m', '12 meses'], ['ano', 'Este ano']];
+const TXT_PERIODO: Record<PeriodoAnalises, string> = {
+  geral: 'desde o início',
+  '6m': 'últimos 6 meses',
+  '12m': 'últimos 12 meses',
+  ano: 'este ano',
+};
+
 export default function Analises() {
   const navigate = useNavigate();
+  const [periodo, setPeriodo] = useState<PeriodoAnalises>('geral');
   const {
     ltvEvolution, churnData, cohorts, revenueProjection, clientProfitability, healthScore, isLoading, error,
-  } = useAnalises();
+  } = useAnalises(periodo);
 
   if (isLoading) {
     return <main className="container py-6"><LoadingSpinner /></main>;
@@ -36,7 +47,7 @@ export default function Analises() {
       contextoTela: {
         tela: 'analises',
         titulo: 'Análises',
-        periodo: 'últimos meses (até hoje)',
+        periodo: periodo === 'geral' ? 'últimos meses (até hoje)' : TXT_PERIODO[periodo],
         dados: {
           saude: { nota: healthScore.score, categoria: healthScore.categoria, fatores: healthScore.fatores.map((f) => ({ nome: f.nome, valor: Number(f.valor.toFixed(2)), peso: f.peso, nota: Math.round((f.contribuicao / f.peso) * 100) })) },
           churn: { taxa_mensal: churnData.taxaChurnMensal, ativos: churnData.clientesAtivos, novos: churnData.clientesNovos, perdidos: churnData.clientesPerdidos },
@@ -51,6 +62,7 @@ export default function Analises() {
     <main className="container overflow-hidden py-3 md:py-6">
       <div className="space-y-5">
         <PageHeader eyebrow="Análise" title="Análises" mobileAction={<button type="button" onClick={explicar} aria-label="Explicar com a IARA" title="Explicar com a IARA" className="grid h-10 w-10 place-items-center rounded-full bg-foreground text-background"><Sparkle className="h-4 w-4" /></button>}>
+          <Segmented<PeriodoAnalises> size="sm" className="max-sm:w-full" value={periodo} onChange={setPeriodo} opts={PERIODOS} />
           <button type="button" onClick={explicar} className={cn(btn.outline, 'max-sm:hidden')}><Sparkle className="h-3.5 w-3.5" />Explicar com a IARA</button>
         </PageHeader>
 
@@ -64,9 +76,9 @@ export default function Analises() {
           <ProjecaoBloco data={revenueProjection} />
         </div>
 
-        <CoortesBloco cohorts={cohorts} clientesPerdidos={churnData.clientesPerdidos} />
+        <CoortesBloco cohorts={cohorts} clientesPerdidos={churnData.clientesPerdidos} periodoTxt={periodo === 'geral' ? 'últimas 6 turmas' : `turmas de ${TXT_PERIODO[periodo]}`} />
 
-        <RentabilidadeBloco clients={clientProfitability} />
+        <RentabilidadeBloco clients={clientProfitability} periodoTxt={TXT_PERIODO[periodo]} />
       </div>
     </main>
   );

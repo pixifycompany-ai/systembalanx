@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ficarOffline } from "../_shared/whatsapp.ts";
+import { ficarOffline, registrarEnvioWhats } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,7 +35,7 @@ serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser(token);
     if (!user) return json({ error: "Unauthorized" }, 401);
 
-    const { telefone, text, documento_url, documento_nome, documentos } = await req.json().catch(() => ({}));
+    const { telefone, text, documento_url, documento_nome, documentos, cobranca_id } = await req.json().catch(() => ({}));
     const to = normalizarWhats(String(telefone || ""));
     if (!to) return json({ error: "Telefone do cliente inválido/ausente. Cadastre o WhatsApp com DDD." }, 400);
     if (!text || !String(text).trim()) return json({ error: "Mensagem vazia." }, 400);
@@ -46,6 +46,18 @@ serve(async (req) => {
     const { data: conexao } = await supabase.from("whatsapp_conexoes").select("sid, estado").maybeSingle();
     const sid = conexao?.sid as string | undefined;
     if (!sid) return json({ error: "Conecte o WhatsApp da sua empresa em Meu Perfil → WhatsApp para enviar por lá.", sem_whatsapp: true }, 400);
+
+    // Histórico (whatsapp_envios): só liga à cobrança se ela for desta conta (a RLS do
+    // cliente do usuário filtra); grava com a service role, sem derrubar o envio.
+    let cobrancaId: string | null = null;
+    if (cobranca_id && typeof cobranca_id === "string") {
+      const { data: cob } = await supabase.from("cobrancas").select("id").eq("id", cobranca_id).maybeSingle();
+      cobrancaId = cob?.id ?? null;
+    }
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const admin = serviceKey ? createClient(Deno.env.get("SUPABASE_URL")!, serviceKey) : null;
+    const registrar = (status: "enviado" | "falhou", erro: string | null, docsN = 0) =>
+      admin ? registrarEnvioWhats(admin, { user_id: user.id, cobranca_id: cobrancaId, telefone: to, origem: "manual", status, erro, documentos: docsN }) : Promise.resolve();
 
     const resp = await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/messages/text`, {
       method: "POST",
@@ -61,6 +73,7 @@ serve(async (req) => {
         : resp.status === 404
         ? " (sessão do WhatsApp não encontrada — confira o SID)"
         : "";
+      await registrar("falhou", `${resp.status}${dica}${detalhe}`);
       return json({ error: `Falha ao enviar (${resp.status})${dica}${detalhe}`, status: resp.status, to }, 400);
     }
 
@@ -86,6 +99,7 @@ serve(async (req) => {
     // Enviar pelo aparelho conectado deixa o número "online" e o celular do dono para de
     // receber notificação: volta a sessão para offline (falha em silêncio).
     await ficarOffline(sid);
+    await registrar("enviado", null, docsEnviados);
     return json({ ok: true, to, docEnviado: docsEnviados > 0, docsEnviados, docsTotal: docs.length });
   } catch (e) {
     console.error("whatsapp-enviar error", e);

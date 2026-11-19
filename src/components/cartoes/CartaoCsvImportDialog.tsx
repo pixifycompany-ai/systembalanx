@@ -1,23 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
 import { Upload, FileSpreadsheet, Loader2, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { ModalFooter, ModalHeader, ModalShell } from '@/components/reskin/kit';
+import { btn, modalCls } from '@/components/reskin/estilos';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -100,9 +86,10 @@ export function CartaoCsvImportDialog({
           body: { rows: parsed, categorias: catInput },
         });
 
-        const enrichedMap = new Map<number, any>();
+        type Enriquecido = { index: number; fornecedor?: string; categoria_id?: string; tipo_despesa?: 'fixa' | 'variavel' };
+        const enrichedMap = new Map<number, Enriquecido>();
         if (!fnError && data?.enriched) {
-          for (const e of data.enriched) enrichedMap.set(e.index, e);
+          for (const e of data.enriched as Enriquecido[]) enrichedMap.set(e.index, e);
         }
 
         const preview: PreviewRow[] = parsed.map(r => {
@@ -196,182 +183,130 @@ export function CartaoCsvImportDialog({
   const selectedCount = rows.filter(r => r.selected).length;
   const totalSelected = rows.filter(r => r.selected).reduce((s, r) => s + r.valor, 0);
 
+  const mini = 'h-9 w-full rounded-xl border border-input bg-surface-2 px-2.5 text-[13px] text-foreground outline-none focus:ring-2 focus:ring-ring';
+
   return (
-    <Dialog open={open} onOpenChange={(o) => (!o ? handleClose() : onOpenChange(o))}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <p className="text-[13px] text-foreground-muted">Importar CSV · IA</p>
-          <DialogTitle className="flex items-center gap-2 text-[22px] font-semibold tracking-[-0.03em]">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-surface-2 text-foreground">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <span className="truncate">{cartao.nome}</span>
-          </DialogTitle>
-          <DialogDescription>
-            Faça upload do CSV exportado do banco. A IA categoriza e identifica os fornecedores automaticamente.
-          </DialogDescription>
-        </DialogHeader>
-
-        {step === 'upload' && (
-          <div
-            onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
-            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={handleDrop}
-            onClick={() => inputRef.current?.click()}
-            className={cn(
-              'cursor-pointer rounded-[20px] border-2 border-dashed p-8 text-center transition-colors md:p-10',
-              dragActive ? 'border-primary bg-info-bg' : 'border-border bg-surface hover:border-border-strong'
-            )}
-          >
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".csv,text/csv"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-[14px] bg-surface-2 text-foreground">
-              <Upload className="h-5 w-5" />
-            </span>
-            <p className="font-semibold text-foreground">Arraste o CSV aqui ou clique para selecionar</p>
-            <p className="mt-1 text-[12px] text-foreground-muted">Aceita CSV de Nubank, Itaú, Bradesco, Inter, C6 e similares</p>
-            {error && (
-              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-[hsl(var(--danger-fg))]">
-                <AlertCircle className="h-4 w-4" /> {error}
+    <Sheet open={open} onOpenChange={(o) => (!o ? handleClose() : onOpenChange(o))}>
+      <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[860px]')}>
+        <SheetTitle className="sr-only">Importar CSV do cartão {cartao.nome}</SheetTitle>
+        <ModalShell>
+          <ModalHeader eyebrow={`${cartao.nome} · ${step === 'preview' ? 'passo 2 de 2 · revise antes de importar' : step === 'done' ? 'concluído' : 'passo 1 de 2 · envie o CSV'}`} title="Importar CSV do cartão" onClose={handleClose} />
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-5">
+            {step === 'upload' && (
+              <div className="space-y-3">
+                <div
+                  onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+                  onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={handleDrop}
+                  onClick={() => inputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
+                  className={cn(
+                    'flex cursor-pointer flex-col items-center gap-3 rounded-[24px] border-2 border-dashed px-6 py-10 text-center transition-colors',
+                    dragActive ? 'border-primary bg-info-bg' : 'border-border-strong bg-surface hover:bg-surface-2/50',
+                  )}
+                >
+                  <input ref={inputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFileSelect} />
+                  <span className="grid h-14 w-14 place-items-center rounded-full bg-surface-2 text-foreground"><Upload className="h-6 w-6" /></span>
+                  <span className="text-[15px] font-medium text-foreground">Arraste o CSV aqui ou toque para escolher</span>
+                  <span className="text-[12.5px] text-foreground-muted">Aceita CSV de Nubank, Itaú, Bradesco, Inter, C6 e similares</span>
+                  {error && <span className="flex items-center gap-2 text-[13px] text-danger-fg"><AlertCircle className="h-4 w-4" /> {error}</span>}
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {[
+                    [<FileSpreadsheet key="a" className="h-4 w-4" />, 'CSV do banco', 'Exporte a fatura no app do banco'],
+                    [<Sparkles key="b" className="h-4 w-4" />, 'Lido pela IA', 'Fornecedor e categoria sugeridos'],
+                    [<CheckCircle2 key="c" className="h-4 w-4" />, 'Você revisa', 'Nada é salvo antes de confirmar'],
+                  ].map(([ic, t, d]) => (
+                    <div key={t as string} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3">
+                      <span className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-foreground-muted">{ic}</span>
+                      <span><span className="block text-[13px] text-foreground">{t}</span><span className="block text-[11.5px] text-foreground-muted">{d}</span></span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
-        )}
 
-        {step === 'processing' && (
-          <div className="py-10 text-center">
-            <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary mb-3" />
-            <p className="font-semibold text-foreground">Analisando CSV e categorizando com IA…</p>
-            <p className="mt-1 text-[12px] text-foreground-muted">Isso pode levar alguns segundos.</p>
-          </div>
-        )}
-
-        {step === 'preview' && (
-          <>
-            <div className="overflow-hidden rounded-[20px] border border-border bg-surface">
-              <div className="overflow-x-auto max-h-[420px] overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 z-10 bg-surface-2 text-[12px] text-foreground-muted">
-                    <tr>
-                      <th className="w-10 px-3 py-2.5">
-                        <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
-                      </th>
-                      <th className="px-3 py-2.5 font-medium text-left">Data</th>
-                      <th className="px-3 py-2.5 font-medium text-left">Descrição</th>
-                      <th className="px-3 py-2.5 font-medium text-left">Fornecedor</th>
-                      <th className="px-3 py-2.5 font-medium text-left">Categoria</th>
-                      <th className="px-3 py-2.5 font-medium text-left">Tipo</th>
-                      <th className="px-3 py-2.5 font-medium text-right">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map(r => (
-                      <tr key={r.id} className="border-t border-border">
-                        <td className="px-3 py-2">
-                          <Checkbox
-                            checked={r.selected}
-                            onCheckedChange={() => updateRow(r.id, { selected: !r.selected })}
-                          />
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-xs">
-                          {r.data.split('-').reverse().join('/')}
-                        </td>
-                        <td className="px-3 py-2 max-w-[200px] truncate" title={r.descricao}>
-                          {r.descricao}
-                        </td>
-                        <td className="px-3 py-2">
-                          <Input
-                            value={r.fornecedor}
-                            onChange={(e) => updateRow(r.id, { fornecedor: e.target.value })}
-                            className="h-8 text-xs"
-                            placeholder="Fornecedor"
-                          />
-                        </td>
-                        <td className="px-3 py-2 min-w-[150px]">
-                          <Select
-                            value={r.categoria_id || 'none'}
-                            onValueChange={(v) => updateRow(r.id, { categoria_id: v === 'none' ? '' : v })}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue placeholder="Sem categoria" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">Sem categoria</SelectItem>
-                              {despesaCategorias.map(c => (
-                                <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="px-3 py-2">
-                          <Select
-                            value={r.tipo_despesa}
-                            onValueChange={(v: 'fixa' | 'variavel') => updateRow(r.id, { tipo_despesa: v })}
-                          >
-                            <SelectTrigger className="h-8 text-xs w-[110px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="variavel">Variável</SelectItem>
-                              <SelectItem value="fixa">Fixa</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="px-3 py-2 text-right font-heading font-semibold tabular-nums whitespace-nowrap">
-                          {formatCurrency(r.valor)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {step === 'processing' && (
+              <div className="flex flex-col items-center gap-3 rounded-[24px] border border-border bg-surface px-6 py-12 text-center">
+                <span className="iara-brilho grid h-14 w-14 place-items-center rounded-full bg-foreground text-background"><Sparkles className="h-6 w-6" /></span>
+                <span className="text-[15px] font-medium text-foreground">Analisando o CSV e categorizando com IA…</span>
+                <span className="text-[12.5px] text-foreground-muted">Isso pode levar alguns segundos.</span>
               </div>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center whitespace-nowrap rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] font-semibold text-foreground-muted">{selectedCount} de {rows.length} selecionados</span>
-                <span className="text-foreground-muted">Total: <span className="font-heading font-semibold tabular-nums text-foreground">{formatCurrency(totalSelected)}</span></span>
+            )}
+
+            {step === 'preview' && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-surface-2/70 px-3.5 py-2.5 text-[13px]">
+                  <label className="flex items-center gap-2 text-foreground"><Checkbox checked={allSelected} onCheckedChange={toggleAll} aria-label="Selecionar todos" />{selectedCount} de {rows.length} selecionados</label>
+                  <span className="text-foreground-muted">Total <b className="font-heading font-semibold tabular-nums text-foreground">{formatCurrency(totalSelected)}</b></span>
+                </div>
+                <div className="divide-y divide-border rounded-[20px] border border-border bg-surface">
+                  {rows.map((r) => (
+                    <div key={r.id} className={cn('space-y-2 px-4 py-3', !r.selected && 'opacity-55')}>
+                      <div className="flex items-center gap-3">
+                        <Checkbox checked={r.selected} onCheckedChange={() => updateRow(r.id, { selected: !r.selected })} aria-label={`Selecionar ${r.descricao}`} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13.5px] text-foreground" title={r.descricao}>{r.descricao}</span>
+                          <span className="block text-[12px] text-foreground-muted">{r.data.split('-').reverse().join('/')}</span>
+                        </span>
+                        <span className="shrink-0 font-heading text-[14px] font-semibold tabular-nums text-foreground">{formatCurrency(r.valor)}</span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2 pl-7 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_120px]">
+                        <input value={r.fornecedor} onChange={(e) => updateRow(r.id, { fornecedor: e.target.value })} placeholder="Fornecedor" aria-label="Fornecedor" className={mini} />
+                        <select value={r.categoria_id} onChange={(e) => updateRow(r.id, { categoria_id: e.target.value })} aria-label="Categoria" className={mini}>
+                          <option value="">Sem categoria</option>
+                          {despesaCategorias.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                        </select>
+                        <select value={r.tipo_despesa} onChange={(e) => updateRow(r.id, { tipo_despesa: e.target.value as 'fixa' | 'variavel' })} aria-label="Tipo de despesa" className={mini}>
+                          <option value="variavel">Variável</option>
+                          <option value="fixa">Fixa</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={handleClose}>Cancelar</Button>
-              <Button onClick={handleImport} disabled={selectedCount === 0}>
-                <FileSpreadsheet className="h-4 w-4" />
-                Importar {selectedCount} lançamentos
-              </Button>
-            </DialogFooter>
-          </>
-        )}
+            )}
 
-        {step === 'importing' && (
-          <div className="py-8 space-y-4">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary mb-2" />
-              <p className="font-semibold text-foreground">Importando lançamentos…</p>
-              <p className="text-[12px] text-foreground-muted">{imported} de {rows.filter(r => r.selected).length}</p>
-            </div>
-            <Progress value={progress} />
-          </div>
-        )}
+            {step === 'importing' && (
+              <div className="space-y-4 rounded-[24px] border border-border bg-surface px-6 py-10 text-center">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-foreground" />
+                <div>
+                  <p className="text-[15px] font-medium text-foreground">Importando lançamentos…</p>
+                  <p className="text-[12.5px] text-foreground-muted">{imported} de {rows.filter((r) => r.selected).length}</p>
+                </div>
+                <Progress value={progress} />
+              </div>
+            )}
 
-        {step === 'done' && (
-          <div className="py-8 text-center space-y-3">
-            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-success-bg text-success-fg">
-              <CheckCircle2 className="h-7 w-7" />
-            </span>
-            <div>
-              <p className="font-semibold">{imported} lançamentos importados!</p>
-              <p className="text-[12px] text-foreground-muted">Os valores foram adicionados à fatura do cartão.</p>
-            </div>
-            <Button onClick={handleClose}>Fechar</Button>
+            {step === 'done' && (
+              <div className="flex flex-col items-center gap-3 rounded-[24px] border border-border bg-surface px-6 py-10 text-center">
+                <span className="grid h-14 w-14 place-items-center rounded-full bg-success-bg text-success-fg"><CheckCircle2 className="h-7 w-7" /></span>
+                <p className="text-[15px] font-medium text-foreground">{imported} lançamentos importados!</p>
+                <p className="text-[12.5px] text-foreground-muted">Os valores foram adicionados à fatura do cartão.</p>
+              </div>
+            )}
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+
+          <ModalFooter left={step === 'preview' ? <button type="button" onClick={reset} className={btn.ghost}>Trocar arquivo</button> : undefined}>
+            {step === 'done' ? (
+              <button type="button" onClick={handleClose} className={btn.primary}>Fechar</button>
+            ) : (
+              <>
+                <button type="button" onClick={handleClose} disabled={step === 'importing'} className={btn.outline}>Cancelar</button>
+                {step === 'preview' && (
+                  <button type="button" onClick={handleImport} disabled={selectedCount === 0} className={btn.primary}>
+                    <FileSpreadsheet className="h-4 w-4" />Importar {selectedCount}
+                  </button>
+                )}
+              </>
+            )}
+          </ModalFooter>
+        </ModalShell>
+      </SheetContent>
+    </Sheet>
   );
 }

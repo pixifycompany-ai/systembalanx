@@ -121,46 +121,99 @@ const STRIP_TONE: Record<KpiStripTone, string> = {
 };
 
 /**
- * Faixa de KPIs colados (divisória de 1px), no mesmo desenho do KpiTriple,
- * mas aceitando valores já formatados (%, meses, "x") e o "?" de ajuda.
+ * Faixa de números do relatório (padrão do reskin): blocos arredondados em
+ * bg-surface-2/60 dentro de um cartão. Aceita valores já formatados e o "?".
  */
 export function KpiStrip({ items, className }: { items: KpiStripItem[]; className?: string }) {
   const odd = items.length % 2 === 1;
   return (
-    <div
-      className={cn(
-        'grid grid-cols-2 gap-px overflow-hidden rounded-[20px] border border-border bg-border',
-        items.length >= 4 ? 'md:grid-cols-4' : items.length === 3 ? 'md:grid-cols-3' : '',
-        odd && '[&>*:first-child]:col-span-2 md:[&>*:first-child]:col-span-1',
-        className,
-      )}
-    >
-      {items.map((k) => (
-        <div
-          key={k.label}
-          className={cn('flex min-w-0 flex-col gap-1 px-4 py-3.5 md:px-5 md:py-4', k.highlight ? 'text-white' : 'bg-surface')}
-          style={k.highlight ? { background: 'hsl(var(--navy-card))' } : undefined}
-        >
-          <span className="flex min-w-0 items-center gap-1">
-            <span className={cn('truncate text-[12px] md:text-[13px]', k.highlight ? 'text-white/75' : 'text-foreground-muted')}>
-              {k.label}
-            </span>
-            {k.info && <InfoHint text={k.info} onNavy={k.highlight} />}
-          </span>
-          <span
-            className={cn(
-              'truncate font-heading text-[19px] font-semibold tabular-nums leading-tight tracking-[-0.02em] md:text-[24px]',
-              !k.highlight && STRIP_TONE[k.tone ?? 'default'],
-            )}
+    <div className={cn('rounded-[24px] border border-border bg-surface p-3 md:p-4', className)}>
+      <div
+        className={cn(
+          'grid grid-cols-2 gap-2',
+          items.length >= 4 ? 'md:grid-cols-4' : items.length === 3 ? 'md:grid-cols-3' : '',
+          odd && '[&>*:first-child]:col-span-2 md:[&>*:first-child]:col-span-1',
+        )}
+      >
+        {items.map((k) => (
+          <div
+            key={k.label}
+            className={cn('flex min-w-0 flex-col gap-0.5 rounded-2xl p-3 md:p-3.5', k.highlight ? 'text-white' : 'bg-surface-2/60')}
+            style={k.highlight ? { background: 'hsl(var(--navy-card))' } : undefined}
           >
-            {k.value}
-          </span>
-          {k.hint && (
-            <span className={cn('truncate text-[11.5px]', k.highlight ? 'text-white/70' : 'text-foreground-muted')}>
-              {k.hint}
+            <span className="flex min-w-0 items-center gap-1">
+              <span className={cn('truncate text-[12px]', k.highlight ? 'text-white/70' : 'text-foreground-muted')}>{k.label}</span>
+              {k.info && <InfoHint text={k.info} onNavy={k.highlight} />}
             </span>
-          )}
+            <span
+              className={cn(
+                'truncate font-heading text-[18px] font-semibold tabular-nums leading-tight tracking-[-0.02em] md:text-[21px]',
+                !k.highlight && STRIP_TONE[k.tone ?? 'default'],
+              )}
+            >
+              {k.value}
+            </span>
+            {k.hint && <span className={cn('truncate text-[11.5px]', k.highlight ? 'text-white/65' : 'text-foreground-muted')}>{k.hint}</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Cartão de conteúdo do relatório (padrão do reskin). `flush` = sem recuo no
+ * corpo (tabelas e listas vão de ponta a ponta). Título é opcional: o cabeçalho
+ * da página já mostra o nome e a descrição do relatório.
+ */
+export function RelCard({
+  title, sub, info, action, flush, className, children,
+}: {
+  title?: ReactNode; sub?: ReactNode; info?: ReactNode; action?: ReactNode; flush?: boolean; className?: string; children: ReactNode;
+}) {
+  const temTopo = !!(title || sub || info || action);
+  return (
+    <section className={cn('overflow-hidden rounded-[24px] border border-border bg-surface', !flush && 'p-4 md:p-5', className)}>
+      {temTopo && (
+        <div className={cn('mb-3 flex flex-wrap items-start justify-between gap-2', flush && 'px-4 pt-4 md:px-5 md:pt-5')}>
+          <div className="min-w-0">
+            {title && (
+              <p className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground">
+                <span>{title}</span>{info && <InfoHint text={info} />}
+              </p>
+            )}
+            {sub && (
+              <p className="flex items-center gap-1.5 text-[12.5px] text-foreground-muted">
+                <span>{sub}</span>{!title && info && <InfoHint text={info} />}
+              </p>
+            )}
+            {!title && !sub && info && <InfoHint text={info} />}
+          </div>
+          {action && <div className="flex items-center gap-2 max-sm:w-full">{action}</div>}
         </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+/** Pílulas de rolagem (mês do DRE no celular etc.): selecionada = escura. */
+export function PillStrip<T extends string>({ value, onChange, options, className }: { value: T; onChange: (v: T) => void; options: readonly { value: T; label: string }[]; className?: string }) {
+  return (
+    <div className={cn('flex gap-1.5 overflow-x-auto scrollbar-hide', className)}>
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={o.value === value}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            'h-8 shrink-0 whitespace-nowrap rounded-full border px-3 text-[12.5px] transition-colors',
+            o.value === value ? 'border-foreground bg-foreground text-background' : 'border-border bg-surface text-foreground-muted hover:text-foreground',
+          )}
+        >
+          {o.label}
+        </button>
       ))}
     </div>
   );

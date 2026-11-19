@@ -14,6 +14,8 @@ export interface UpcomingItem {
   cliente_ou_fornecedor: string;
   /** Destino ao clicar (ex.: fatura de cartão → /contas). Se ausente, usa o padrão. */
   href?: string;
+  /** Situação (só nos vencimentos de um mês passado/futuro). */
+  status?: string;
 }
 
 interface UpcomingDueWidgetProps {

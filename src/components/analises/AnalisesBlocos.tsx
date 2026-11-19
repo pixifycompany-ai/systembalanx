@@ -174,7 +174,7 @@ export function ProjecaoBloco({ data }: { data: RevenueProjection[] }) {
   }), [data, cen]);
   const total = dados.reduce((s, d) => s + d.rec + d.vari, 0);
   return (
-    <Card title="Receita dos próximos 6 meses" sub={CENARIO[cen].txt}
+    <Card title={`Receita dos próximos ${data.length || 6} meses`} sub={CENARIO[cen].txt}
       action={<Segmented<Cenario> size="sm" value={cen} onChange={setCen} opts={[['pess', 'Pessimista'], ['base', 'Base'], ['oti', 'Otimista']]} />}>
       <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-foreground-muted"><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-primary" />Recorrente</span><span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: SEGUNDA }} />Variável</span><span className="ml-auto">Total no período <b className="font-semibold text-foreground">{formatCurrency(total)}</b></span></div>
       <div className="h-[240px]">
@@ -194,7 +194,7 @@ export function ProjecaoBloco({ data }: { data: RevenueProjection[] }) {
 }
 
 /* ================================= Coortes ================================= */
-export function CoortesBloco({ cohorts, clientesPerdidos }: { cohorts: CohortData[]; clientesPerdidos: number }) {
+export function CoortesBloco({ cohorts, clientesPerdidos, periodoTxt }: { cohorts: CohortData[]; clientesPerdidos: number; periodoTxt?: string }) {
   const cols = Math.max(1, ...cohorts.map((c) => c.retencaoMeses.length));
   const idx = Array.from({ length: cols }, (_, i) => i);
   const media = idx.map((i) => {
@@ -208,7 +208,7 @@ export function CoortesBloco({ cohorts, clientesPerdidos }: { cohorts: CohortDat
     .sort((a, b) => b.v - a.v)[0];
   const m3 = media[3] ?? media.filter((x) => x !== null).slice(-1)[0] ?? null;
   return (
-    <Card title="Quanto tempo os clientes ficam" sub="Cada linha é a turma que entrou no mês; as colunas mostram quantos seguem ativos depois de 1, 2, 3… meses">
+    <Card title="Quanto tempo os clientes ficam" sub={`Cada linha é a turma que entrou no mês; as colunas mostram quantos seguem ativos depois de 1, 2, 3… meses${periodoTxt ? ` · ${periodoTxt}` : ''}`}>
       {!cohorts.length ? (
         <p className="py-10 text-center text-[13.5px] text-foreground-muted">Ainda não há turmas de clientes com contrato para comparar.</p>
       ) : (<>
@@ -251,7 +251,7 @@ export function CoortesBloco({ cohorts, clientesPerdidos }: { cohorts: CohortDat
 
 /* ========================= Rentabilidade por cliente ========================= */
 type Ordem = 'lucro' | 'margem' | 'receita' | 'ltv';
-export function RentabilidadeBloco({ clients }: { clients: ClientProfitability[] }) {
+export function RentabilidadeBloco({ clients, periodoTxt }: { clients: ClientProfitability[]; periodoTxt?: string }) {
   const [ord, setOrd] = useState<Ordem>('lucro');
   const lista = useMemo(() => [...clients].sort((a, b) =>
     ord === 'receita' ? b.receitaTotal - a.receitaTotal
@@ -260,7 +260,7 @@ export function RentabilidadeBloco({ clients }: { clients: ClientProfitability[]
       : b.lucroEstimado - a.lucroEstimado), [clients, ord]);
   const piores = clients.filter((c) => c.receitaTotal > 0 && c.margemPercentual < 30).sort((a, b) => a.margemPercentual - b.margemPercentual);
   return (
-    <Card title="Rentabilidade por cliente" sub="Receita menos os custos vinculados a cada cliente"
+    <Card title="Rentabilidade por cliente" sub={`Receita menos os custos vinculados a cada cliente${periodoTxt ? ` · ${periodoTxt}` : ''}`}
       action={<Segmented<Ordem> size="sm" value={ord} onChange={setOrd} opts={[['lucro', 'Lucro'], ['margem', 'Margem'], ['receita', 'Receita'], ['ltv', 'LTV']]} />}>
       {!lista.length ? (
         <p className="py-10 text-center text-[13.5px] text-foreground-muted">Sem clientes com receita para analisar.</p>

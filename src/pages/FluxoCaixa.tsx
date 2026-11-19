@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useEffect as useEffectForAction } from 'react';
 
@@ -42,6 +42,8 @@ import { GerarCobrancaDialog } from '@/components/fluxocaixa/GerarCobrancaDialog
 import { BarraSelecao } from '@/components/fluxocaixa/BarraSelecao';
 import { TipoIcone } from '@/components/fluxocaixa/TipoIcone';
 import { FORMA_LABEL, serieDe, statusInfo } from '@/components/fluxocaixa/lancamento';
+import { ExcluirLancamento } from '@/components/fluxocaixa/ExcluirLancamento';
+import { CabecalhoDiaFixo } from '@/components/fluxocaixa/CabecalhoDiaFixo';
 import { Chips, ContasPick, ExcluirSheet, QuickDatas, ResumoLateral, Stepper, ValorInput } from '@/components/fluxocaixa/formPecas';
 import { Bloco, Campo, MenuAcoes, ModalFooter, ModalHeader, ModalShell, PageHeader, Secao, Segmented } from '@/components/reskin/kit';
 import { btn, modalCls } from '@/components/reskin/estilos';
@@ -186,6 +188,7 @@ export default function FluxoCaixa() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Delete states
+  const listaRef = useRef<HTMLElement>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<{ id: string; tipo: 'receitas' | 'despesas' | 'transferencia' } | null>(null);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
@@ -1197,7 +1200,8 @@ export default function FluxoCaixa() {
             />
           </PullToRefresh>
         ) : (
-          <section className="rounded-[24px] border border-border bg-surface">
+          <section ref={listaRef} className="rounded-[24px] border border-border bg-surface">
+            <CabecalhoDiaFixo alvo={listaRef} />
             <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
               <p className="text-[15px] font-semibold text-foreground">
                 Movimentações {!isLoading && <span className="font-normal text-foreground-muted">· {filteredTransacoes.length} {filteredTransacoes.length === 1 ? 'lançamento' : 'lançamentos'}</span>}
@@ -1239,7 +1243,7 @@ export default function FluxoCaixa() {
                   const rotulo = format(d, d.getFullYear() === new Date().getFullYear() ? "EEEE, dd 'de' MMMM" : "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
                   return (
                     <div key={`${data}-${gi}`}>
-                      <div className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border px-5 py-2', hoje ? 'bg-primary/[0.06]' : 'bg-surface-2/70')}>
+                      <div data-dia-header className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border px-5 py-2', hoje ? 'bg-primary/[0.06]' : 'bg-surface-2/70')}>
                         <span className="flex items-center gap-2 text-[12.5px] text-foreground">
                           <span className="first-letter:uppercase">{rotulo}</span>
                           {hoje && <span className="rounded-full bg-primary px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-primary-foreground">Hoje</span>}
@@ -1734,14 +1738,16 @@ export default function FluxoCaixa() {
         <FluxoCaixaReport open={reportOpen} onOpenChange={setReportOpen} transacoes={transacoes} contas={contas} />
 
         {/* Excluir */}
-        <ExcluirSheet
+        <ExcluirLancamento
           open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
-          titulo={deletingItem?.tipo === 'transferencia' ? 'Excluir esta transferência?' : 'Excluir este lançamento?'}
-          descricao={itemExcluir
-            ? <><b className="font-medium text-foreground">{itemExcluir.descricao}</b> · {formatCurrency(itemExcluir.valor)} · {formatDate(itemExcluir.data_vencimento)}. Não dá para desfazer.</>
-            : 'Esta ação não pode ser desfeita.'}
-          onConfirm={handleDelete}
+          onOpenChange={(o) => { setDeleteDialogOpen(o); if (!o) setDeletingItem(null); }}
+          item={itemExcluir}
+          onExcluirEste={handleDelete}
+          onExcluirVarios={async (ids, tabela) => {
+            const ok = tabela === 'receitas' ? await deleteMultipleReceitas(ids) : await deleteMultipleDespesas(ids);
+            if (ok) { setDeletingItem(null); syncContas(); }
+            return ok;
+          }}
           isLoading={isSaving}
         />
         <ExcluirSheet

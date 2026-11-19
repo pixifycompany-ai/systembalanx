@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { addDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -67,6 +67,10 @@ function MoneyInput({ cents, onChange, id, ariaLabel }: { cents: number; onChang
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  // /onboarding?nova=1 → quem JÁ tem empresa cria mais uma (vem do seletor de empresa).
+  const [params] = useSearchParams();
+  const novaEmpresa = params.get('nova') === '1';
+  const [novaCriada, setNovaCriada] = useState(false);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const { memberships, activeTenant, loading: tenantLoading, refresh } = useTenant();
@@ -100,6 +104,7 @@ export default function Onboarding() {
 
   // Quem volta pro onboarding já com conta criada: começa com o nome atual.
   useEffect(() => {
+    if (novaEmpresa) return; // empresa nova começa em branco
     if (activeTenant?.nome && !negocio) setNegocio(activeTenant.nome);
   }, [activeTenant?.nome]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -115,9 +120,12 @@ export default function Onboarding() {
     const tipo = pessoal ? 'pessoal' : 'agencia';
     setSalvando(true);
     try {
-      if (memberships.length === 0) {
+      if (memberships.length === 0 || (novaEmpresa && !novaCriada)) {
+        // A RPC já deixa a empresa nova como a atual (profiles.current_tenant_id),
+        // então a conta e a meta dos próximos passos caem nela.
         const { error } = await sb.rpc('create_tenant_with_owner', { p_nome: nome, p_tipo: tipo });
         if (error) throw error;
+        if (novaEmpresa) setNovaCriada(true);
       } else if (activeTenant) {
         await sb.from('tenants').update({ nome, tipo }).eq('id', activeTenant.id);
       }
@@ -173,6 +181,8 @@ export default function Onboarding() {
 
   const concluir = (destino = '/') => {
     try { localStorage.removeItem('onboarding:nome'); } catch { /* ignore */ }
+    // Empresa nova: recarrega para nenhum dado em cache da empresa anterior aparecer.
+    if (novaCriada) { window.location.replace(destino); return; }
     navigate(destino, { replace: true });
   };
 
@@ -207,8 +217,8 @@ export default function Onboarding() {
         {/* ---------- 1. Negócio ---------- */}
         {step === 'negocio' && (
           <section className="flex flex-1 flex-col animate-fade-in">
-            <p className="mb-2 text-[14px] text-foreground-muted">{primeiroNome ? `Olá, ${primeiroNome}! ` : ''}Vamos montar seu BALANX.</p>
-            <h1 className={titulo}>Para quem é <span className={serif}>esta conta?</span></h1>
+            <p className="mb-2 text-[14px] text-foreground-muted">{novaEmpresa ? 'Nova empresa no seu BALANX. Os dados dela ficam separados das outras.' : `${primeiroNome ? `Olá, ${primeiroNome}! ` : ''}Vamos montar seu BALANX.`}</p>
+            <h1 className={titulo}>Para quem é <span className={serif}>{novaEmpresa ? 'a nova empresa?' : 'esta conta?'}</span></h1>
 
             <div className="mt-7 grid grid-cols-2 gap-2.5" role="radiogroup" aria-label="Perfil">
               {PERFIS.map((p) => {
@@ -239,8 +249,13 @@ export default function Onboarding() {
 
             <div className="flex-1" />
             <Button className="mt-8 h-12 w-full text-[15px]" onClick={salvarNegocio} disabled={salvando}>
-              {salvando ? 'Criando sua conta…' : 'Continuar'}
+              {salvando ? (novaEmpresa ? 'Criando a empresa…' : 'Criando sua conta…') : 'Continuar'}
             </Button>
+            {novaEmpresa && !novaCriada && (
+              <button type="button" onClick={() => navigate('/', { replace: true })} className="mt-2 h-11 text-[13px] font-medium text-foreground-muted hover:text-foreground">
+                Cancelar
+              </button>
+            )}
           </section>
         )}
 
