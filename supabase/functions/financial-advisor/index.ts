@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { calcularIndicadores, GRUPOS_INDICADORES } from "../_shared/indicadores.ts";
 import { GLOSSARIO_INDICADORES } from "../_shared/glossarioIara.ts";
+import { podeOutrasAgendas } from "../_shared/google.ts";
+import { estadoSessao } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -420,6 +422,12 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Você pode chamar mais de uma ferramenta antes de responder (ex.: saldo_e_contas + projecao_fluxo para dizer se vai faltar caixa).
 - Se a pessoa não disser o período, responda com o período do contexto ("${periodLabel}") e diga qual período usou. Sempre deixe claro o intervalo que os números cobrem.
 
+## Conexões e integrações (WhatsApp, Google, Asaas, notificações, atalho do iPhone, app)
+- "O que está conectado?", "meu WhatsApp está conectado?", "o Google está ligado?", "status das integrações" → **status_conexoes** e responda com uma lista curta, uma linha por conexão (✅ conectado com o detalhe que importa, ou ⚠️ não conectado + o que falta). Não invente estado: use só o que a ferramenta devolver.
+- Pedido para CONECTAR/CONFIGURAR/ATIVAR algo ("conecta meu WhatsApp", "quero ler o QR", "liga o Google Agenda", "configura o atalho do iPhone", "ativa as notificações", "como instalo o app", "conectar o Asaas") → **mostrar_conexao** com o tipo certo. O painel aparece AQUI na conversa (QR Code do WhatsApp, botão do Google, passo a passo do atalho, botão de notificações, instruções de instalar). Depois de chamar, escreva 1–2 frases do que a pessoa faz no painel (ex.: "Aponte a câmera do WhatsApp para o QR abaixo: WhatsApp → Aparelhos conectados → Conectar aparelho.").
+- Asaas: NUNCA peça a chave de API no chat (é credencial). Use mostrar_conexao tipo "asaas" — ele leva para a tela segura de Meu Perfil, onde a pessoa cola a chave.
+- Se a pessoa estiver pelo Atalho do iPhone (voz), diga para abrir o app BALANX para ver o painel.
+
 ## Cobranças, clientes e contratos — você também CRIA (sempre com confirmação)
 - COBRAR um cliente ("cobra 1.500 da Sabor Maria dia 25 no Pix", "gera um boleto de 800 pro João", "manda um link de pagamento") → **preparar_cobranca**. Ao confirmar, o sistema cria a cobrança no Asaas e o lançamento "a receber" já vinculado. Precisa de cliente, valor e vencimento: se faltar algum, PERGUNTE antes de chamar (não invente data). "Em 3x" → parcelas: 3 (mensais a partir do vencimento). Forma não dita = qualquer.
 - CADASTRAR CLIENTE ("cadastra o cliente X", um CNPJ solto, cartão CNPJ, contrato social, print ou PDF com dados de empresa/pessoa) → **preparar_cliente**. Com CNPJ, o sistema busca sozinho os dados públicos da Receita — basta passar o CNPJ (e o nome, se souber). Leia anexos com atenção: copie CPF/CNPJ, e-mail e telefone exatamente como aparecem.
@@ -484,6 +492,8 @@ ${contexto}${blocoTela}`;
       { type: "function", function: { name: "compras_parceladas", description: "Compras PARCELADAS no cartão: cada compra com nº de parcelas, quantas já foram pagas e quantas FALTAM, valor da parcela, próxima data de vencimento e valor restante. Use p/ 'minhas compras parceladas', 'quantas parcelas faltam do X', 'o que ainda está parcelado no cartão'.", parameters: { type: "object", properties: { incluir_quitadas: { type: "boolean", description: "incluir compras já quitadas (padrão: false)" } } } } },
       { type: "function", function: { name: "categorias_vs_media", description: "Compara o gasto de CADA categoria no período (padrão: mês atual até hoje) com a média mensal DA PRÓPRIA categoria nos meses anteriores (padrão 3). Retorna as que estão acima da média (com diferença e %), mesmo critério do DRE. Use p/ 'despesas acima da média', 'o que aumentou', 'onde estou gastando mais'.", parameters: { type: "object", properties: { inicio: D, fim: D, meses_base: { type: "number", description: "meses anteriores para a média (padrão 3, máx 12)" } } } } },
       { type: "function", function: { name: "parcelas_comprometidas", description: "Quanto das PRÓXIMAS FATURAS já está comprometido com parcelamentos do cartão, somado por MÊS de vencimento (parcelas ainda não pagas). Use p/ 'quanto já devo em parcelas nos próximos meses', 'quanto da fatura futura já está tomado', 'total comprometido em parcelas'.", parameters: { type: "object", properties: { meses: { type: "number", description: "quantos meses à frente (padrão 12)" } } } } },
+      { type: "function", function: { name: "status_conexoes", description: "Estado das conexões da conta: WhatsApp da empresa, Google Agenda/Tarefas, Asaas, notificações no celular e atalho do iPhone. Use quando perguntarem o que está conectado ou se algo está funcionando.", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "mostrar_conexao", description: "Mostra NA CONVERSA o painel para conectar/configurar algo: whatsapp (QR Code), google (Agenda e Tarefas), atalho_iphone, notificacoes (push no celular), asaas (leva à tela segura para colar a chave), instalar_app (passo a passo).", parameters: { type: "object", properties: { tipo: { type: "string", enum: ["whatsapp", "google", "atalho_iphone", "notificacoes", "asaas", "instalar_app"] } }, required: ["tipo"] } } },
       { type: "function", function: { name: "indicadores_negocio", description: "Indicadores e relatórios do negócio com os MESMOS números e fórmulas das telas Visão, Análises e Relatórios, cada bloco com 'como_calcula'. Grupos: recorrencia (MRR, ARR/receita anual projetada, contratos e clientes ativos, crescimento do MRR, série 12m), clientes (LTV, ticket, tempo médio, churn, coortes, LTV/CAC), rentabilidade (lucro e margem por cliente com rateio), saude (nota de saúde financeira 0–100 e os 5 fatores), projecao (receita 6m e caixa 12m), resultado (receitas × despesas e fluxo realizado), dre, dfc, comparativo (mês atual × anterior), categorias, abc (curva ABC), margem (por cliente, sem rateio), aging (a receber/pagar por faixa de atraso), caixa (burn e runway), conciliacao, cartoes, kpis, fiscal (impostos). Use p/ 'o que é / como está / está bom?' de qualquer indicador ou relatório.", parameters: { type: "object", properties: { inicio: { ...D, description: "YYYY-MM-DD (só p/ blocos com período; padrão: 1º de janeiro)" }, fim: { ...D, description: "YYYY-MM-DD (padrão: 31 de dezembro)" }, grupos: { type: "array", items: { type: "string", enum: [...GRUPOS_INDICADORES] }, description: "um ou mais blocos" } }, required: ["grupos"] } } },
       { type: "function", function: {
         name: "preparar_lancamentos",
@@ -1343,7 +1353,40 @@ ${contexto}${blocoTela}`;
     }
 
     // ---- Ações (cobrança, cliente, contrato): prévias que a pessoa confirma na tela ----
+    // ---- Conexões da conta (status + painéis na conversa) ----
+    const TIPOS_CONEXAO = ["whatsapp", "google", "atalho_iphone", "notificacoes", "asaas", "instalar_app"];
+    async function statusConexoes() {
+      const uid = user!.id;
+      const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const [w, g, a, p, prof, ch] = await Promise.all([
+        supabase.from("whatsapp_conexoes").select("sid, numero, estado").eq("user_id", uid).maybeSingle(),
+        supabase.from("google_integracoes").select("email, escopos, calendar_id, tasklist_id, ultima_sync, ultimo_erro").maybeSingle(),
+        supabase.from("cobranca_config").select("asaas_account_name, asaas_env").eq("user_id", uid).maybeSingle(),
+        supabase.from("push_subscriptions").select("id", { count: "exact", head: true }).eq("user_id", uid),
+        supabase.from("profiles").select("push_enabled").eq("user_id", uid).maybeSingle(),
+        admin.from("iara_chaves").select("created_at, ultimo_uso").eq("user_id", uid).maybeSingle(),
+      ]);
+      let whatsEstado = (w.data as any)?.estado || null;
+      let whatsNumero = (w.data as any)?.numero || null;
+      if ((w.data as any)?.sid && Deno.env.get("WHATSAPP_API_KEY")) {
+        try { const e = await estadoSessao((w.data as any).sid); whatsEstado = e.existe ? e.estado : "removida"; whatsNumero = e.numero || whatsNumero; } catch { /* usa o salvo */ }
+      }
+      const gi: any = g.data;
+      return {
+        whatsapp: { conectado: whatsEstado === "open", numero: whatsNumero, situacao: whatsEstado || "nunca conectado" },
+        google: gi ? {
+          conectado: true, conta: gi.email, agenda_balanx: !!gi.calendar_id, tarefas: !!gi.tasklist_id,
+          salvar_em_outras_agendas: podeOutrasAgendas(gi.escopos), agenda_pessoal_leitura: String(gi.escopos || "").includes("calendar.events.readonly"),
+          ultima_sincronizacao: gi.ultima_sync, problema: gi.ultimo_erro === "reconectar" ? "o Google pediu para autorizar de novo" : gi.ultimo_erro || null,
+        } : { conectado: false },
+        asaas: a.data ? { conectado: true, conta: (a.data as any).asaas_account_name, ambiente: (a.data as any).asaas_env === "sandbox" ? "teste (sandbox)" : "produção" } : { conectado: false },
+        notificacoes_celular: { ativadas: !!(prof.data as any)?.push_enabled && (p.count || 0) > 0, aparelhos: p.count || 0 },
+        atalho_iphone: ch.data ? { configurado: true, chave_criada_em: (ch.data as any).created_at, ultimo_uso: (ch.data as any).ultimo_uso } : { configurado: false },
+      };
+    }
+
     const acoes: any[] = [];
+    const conexoes: string[] = [];
     const soDigitos = (v: unknown) => String(v ?? "").replace(/\D/g, "");
     const novoId = () => crypto.randomUUID();
     const achaCliente = (nome?: string, doc?: string): any | null => {
@@ -1832,6 +1875,12 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
             else if (tc.function.name === "movimento_por_forma") result = await toolPorForma(args.inicio, args.fim, args.tipo);
             else if (tc.function.name === "compras_parceladas") result = await toolParceladas(args.incluir_quitadas);
             else if (tc.function.name === "parcelas_comprometidas") result = await toolParcelasComprometidas(args.meses);
+            else if (tc.function.name === "status_conexoes") result = JSON.stringify(await statusConexoes());
+            else if (tc.function.name === "mostrar_conexao") {
+              const t = String(args.tipo || "");
+              if (!TIPOS_CONEXAO.includes(t)) result = JSON.stringify({ ok: false, erro: "tipo inválido" });
+              else { if (!conexoes.includes(t)) conexoes.push(t); result = JSON.stringify({ ok: true, painel: t, obs: "O painel aparece na conversa logo abaixo da sua resposta." }); }
+            }
             else if (tc.function.name === "indicadores_negocio") result = JSON.stringify(await calcularIndicadores(supabase, { inicio: args.inicio, fim: args.fim, grupos: Array.isArray(args.grupos) ? args.grupos : [] }));
             else if (tc.function.name === "categorias_vs_media") result = await toolCategoriasVsMedia(args.inicio, args.fim, args.meses_base);
             else if (tc.function.name === "preparar_lancamentos") result = prepararLancamentos(args.lancamentos);
@@ -1874,6 +1923,8 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
         }
         // Prévia de cobrança / cliente / contrato (card com botão de confirmar).
         if (acoes.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ acoes })}\n\n`));
+        // Painéis de conexão (WhatsApp, Google, atalho…) para o app mostrar na conversa.
+        if (conexoes.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ conexoes })}\n\n`));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       },

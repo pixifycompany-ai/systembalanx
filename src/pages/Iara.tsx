@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFinancialAdvisor, type AnexoIara, type ContextoTela } from '@/hooks/useFinancialAdvisor';
 import { PropostaLancamentos } from '@/components/iara/PropostaLancamentos';
 import { PropostaAcoes } from '@/components/iara/PropostaAcoes';
+import { ConexaoIara } from '@/components/iara/ConexaoIara';
 import { IaraTela } from '@/components/iara/IaraTela';
 
 /** Quem abre /iara de outra tela pode mandar a pergunta e o que a pessoa estava vendo. */
@@ -220,6 +221,7 @@ export default function Iara() {
           {m.lancamentos && m.lancamentos.length > 0 && (
             <div className="mt-3"><PropostaLancamentos lancamentos={m.lancamentos} onResolved={() => clearLancamentos(m.id)} /></div>
           )}
+          {m.conexoes?.map((t) => <ConexaoIara key={t} tipo={t} />)}
         </>
       )}
     />

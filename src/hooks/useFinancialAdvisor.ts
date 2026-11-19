@@ -14,6 +14,8 @@ export interface ChatMessage {
   lancamentos?: PropostaLancamento[];
   /** Prévia de cliente / contrato / cobrança para confirmar. */
   acoes?: AcaoIara[];
+  /** Painéis de conexão para mostrar na conversa (whatsapp, google, atalho_iphone…). */
+  conexoes?: string[];
   /** Nomes dos arquivos enviados junto (mensagem do usuário). */
   anexos?: string[];
 }
@@ -184,6 +186,12 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
                 m.id === assistantMessageId ? { ...m, acoes } : m
               ));
             }
+            if (Array.isArray(parsed.conexoes) && parsed.conexoes.length) {
+              const conexoes = parsed.conexoes as string[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, conexoes } : m
+              ));
+            }
           } catch {
             // Incomplete JSON, put back in buffer
             buffer = line + '\n' + buffer;
@@ -220,6 +228,12 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
               const acoes = parsed.acoes as AcaoIara[];
               setMessages(prev => prev.map(m =>
                 m.id === assistantMessageId ? { ...m, acoes } : m
+              ));
+            }
+            if (Array.isArray(parsed.conexoes) && parsed.conexoes.length) {
+              const conexoes = parsed.conexoes as string[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, conexoes } : m
               ));
             }
           } catch { /* ignore */ }

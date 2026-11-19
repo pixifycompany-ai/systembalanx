@@ -191,7 +191,11 @@ export default function MeuPerfil() {
   const carregarGoogle = () => statusGoogle().then((s) => setGoogleEmail(s ? (s.email || 'conectado') : null)).catch(() => setGoogleEmail(null));
   useEffect(() => {
     carregarGoogle();
-    if (new URLSearchParams(window.location.search).get('integracao') === 'google') setSheet('google');
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('integracao') === 'google') setSheet('google');
+    // A IARA manda para cá (ex.: /perfil?abrir=asaas) quando a conexão precisa de credencial.
+    const abrir = q.get('abrir');
+    if (abrir && ['asaas', 'whatsapp', 'google', 'atalho', 'regras'].includes(abrir)) setSheet(abrir as Sheet);
   }, []);
 
   const handleConectarAsaas = async () => {
