@@ -6,6 +6,14 @@ import { anexoDaNota } from "../_shared/notas.ts";
 import { frasePrazo } from "../_shared/prazo.ts";
 import { sincronizarPausa } from "../_shared/pausa.ts";
 
+/** Sessão do WhatsApp como "offline" (ver skill astracalls: notificação do celular). Falha em silêncio. */
+async function ficarOffline(sid: string, apiKey: string) {
+  await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/presence`, {
+    method: "POST", headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
+    body: JSON.stringify({ available: false }),
+  }).catch(() => null);
+}
+
 // Worker do cron: roda 1x/dia, encontra cobranças que casam com a regra de
 // auto-envio (global ou exceção do contrato) e dispara pelo WhatsApp (Pixify),
 // anexando a nota fiscal (PDF) quando houver. Protegido por CRON_SECRET.
@@ -331,6 +339,9 @@ serve(async (req) => {
     }
   }
 
+  // Enviar pelo aparelho conectado deixa o número "online" no WhatsApp, e aí o celular do dono
+  // para de receber notificação. Depois dos envios, volta a sessão para offline.
+  if (enviados > 0 && apiKey) await ficarOffline(sid, apiKey);
   return new Response(JSON.stringify({ ok: true, hoje, total: faturas.size, enviados, enviadosEmail, pulados, faltaNf, erros, pausas }), {
     status: 200, headers: { "Content-Type": "application/json" },
   });

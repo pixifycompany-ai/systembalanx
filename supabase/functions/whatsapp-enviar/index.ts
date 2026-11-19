@@ -79,6 +79,12 @@ serve(async (req) => {
       }
       docsEnviados++;
     }
+    // Enviar pelo aparelho conectado deixa o número "online" e o celular do dono para de
+    // receber notificação: volta a sessão para offline (falha em silêncio).
+    await fetch(`https://apiastracalls.pixify.company/api/sessions/${sid}/presence`, {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
+      body: JSON.stringify({ available: false }),
+    }).catch(() => null);
     return json({ ok: true, to, docEnviado: docsEnviados > 0, docsEnviados, docsTotal: docs.length });
   } catch (e) {
     console.error("whatsapp-enviar error", e);
