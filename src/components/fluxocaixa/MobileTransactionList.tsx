@@ -2,13 +2,12 @@ import { useMemo } from 'react';
 import { format, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { SwipeableTransactionCard } from './SwipeableTransactionCard';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { SkeletonTable } from '@/components/shared/LoadingSpinner';
-import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/utils/formatters';
-import { TrendingUp, TrendingDown, ArrowLeftRight } from 'lucide-react';
+import { Plus, TrendingDown } from 'lucide-react';
 import type { TransacaoUnificada } from '@/types/fluxoCaixa';
 import { cn } from '@/lib/utils';
+import { btn } from '@/components/reskin/estilos';
 
 interface Conta {
   id: string;
@@ -32,11 +31,8 @@ interface MobileTransactionListProps {
 }
 
 function formatDateHeader(dateStr: string): string {
-  const date = parseISO(dateStr);
-  if (isToday(date)) {
-    return `Hoje · ${format(date, 'd MMM', { locale: ptBR })}`;
-  }
-  return format(date, 'EEE · d MMM', { locale: ptBR });
+  const s = format(parseISO(dateStr), "EEEE, dd 'de' MMMM", { locale: ptBR });
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 /** Total líquido do dia (transferências são neutras), com sinal explícito. */
@@ -92,55 +88,58 @@ export function MobileTransactionList({
   }, [transactions, saldoAtual]);
 
   if (isLoading) {
-    return <div className="overflow-hidden rounded-[20px] border border-border bg-surface"><SkeletonTable rows={5} /></div>;
+    return <div className="overflow-hidden rounded-[24px] border border-border bg-surface"><SkeletonTable rows={5} /></div>;
+  }
+
+  if (transactions.length === 0) {
+    return (
+      <div className="rounded-[24px] border border-border bg-surface px-6 py-12 text-center">
+        <p className="text-[15px] text-foreground">Nada por aqui com esses filtros.</p>
+        <p className="mt-1 text-[13px] text-foreground-muted">Limpe os filtros ou lance uma entrada ou saída.</p>
+        <div className="mt-4 flex justify-center gap-2">
+          <button type="button" onClick={onNewSaida} className={btn.outline}><TrendingDown className="h-4 w-4 text-danger-fg" />Saída</button>
+          <button type="button" onClick={onNewEntrada} className={btn.primary}><Plus className="h-4 w-4" />Entrada</button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div>
-      {/* Lista agrupada por dia */}
-      {transactions.length === 0 ? (
-        <EmptyState
-          title="Nenhuma transação encontrada"
-          description="Registre receitas ou despesas para visualizar o fluxo."
-          action={
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={onNewSaida}>Nova Saída</Button>
-              <Button onClick={onNewEntrada}>Nova Entrada</Button>
+    <section className="overflow-hidden rounded-[24px] border border-border bg-surface">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <p className="text-[15px] font-semibold text-foreground">Movimentações <span className="font-normal text-foreground-muted">· {transactions.length}</span></p>
+        <span className={cn('text-[12.5px] font-medium tabular-nums', totals.saldo >= 0 ? 'text-foreground' : 'text-danger-fg')}>{totals.saldo < 0 ? '−' : ''}{formatCurrency(Math.abs(totals.saldo))}</span>
+      </div>
+      {grouped.map(([date, items]) => {
+        const hoje = isToday(parseISO(date));
+        return (
+          <div key={date}>
+            <div className={cn('flex items-center justify-between gap-3 border-b border-border px-4 py-2', hoje ? 'bg-primary/[0.06]' : 'bg-surface-2/70')}>
+              <span className="flex min-w-0 items-center gap-2 text-[12.5px] text-foreground">
+                <span className="truncate">{formatDateHeader(date)}</span>
+                {hoje && <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-primary-foreground">Hoje</span>}
+              </span>
+              <span className="shrink-0 text-[12px] tabular-nums text-foreground-muted">{formatDayTotal(items)}</span>
             </div>
-          }
-        />
-      ) : (
-        <div className="flex flex-col gap-1">
-          {grouped.map(([date, items]) => (
-            <section key={date} className="flex flex-col">
-              <div className="flex items-baseline justify-between gap-3 px-0.5 pb-1.5 pt-2.5">
-                <span className="truncate text-[12px] font-semibold uppercase tracking-[0.04em] text-foreground-muted">
-                  {formatDateHeader(date)}
-                </span>
-                <span className="shrink-0 text-[12px] tabular-nums text-foreground-muted">{formatDayTotal(items)}</span>
-              </div>
-              <div className="overflow-hidden rounded-[20px] border border-border bg-surface">
-                {items.map((t) => {
-                  const conta = t.conta_id ? contaMap.get(t.conta_id) : undefined;
-                  return (
-                    <SwipeableTransactionCard
-                      key={`${t.tabela_origem}-${t.id}`}
-                      transaction={t}
-                      contaNome={conta?.nome}
-                      contaCor={conta?.cor}
-                      saldoCorrente={saldoPorId.get(`${t.tabela_origem}-${t.id}`)}
-                      onConfirm={onConfirm}
-                      onDelete={onDelete}
-                      onClick={onClick}
-                      onDuplicate={onDuplicate}
-                    />
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
-      )}
-    </div>
+            {items.map((t) => {
+              const conta = t.conta_id ? contaMap.get(t.conta_id) : undefined;
+              return (
+                <SwipeableTransactionCard
+                  key={`${t.tabela_origem}-${t.id}`}
+                  transaction={t}
+                  contaNome={conta?.nome}
+                  contaCor={conta?.cor}
+                  saldoCorrente={saldoPorId.get(`${t.tabela_origem}-${t.id}`)}
+                  onConfirm={onConfirm}
+                  onDelete={onDelete}
+                  onClick={onClick}
+                  onDuplicate={onDuplicate}
+                />
+              );
+            })}
+          </div>
+        );
+      })}
+    </section>
   );
 }

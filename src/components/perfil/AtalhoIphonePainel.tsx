@@ -121,7 +121,7 @@ export function AtalhoIphonePainel() {
       </details>
 
       <div className="flex gap-2 pt-1">
-        <Button className="h-11 flex-1 rounded-full font-semibold" onClick={gerar} disabled={busy}>
+        <Button className="h-11 flex-1 rounded-full font-medium bg-foreground text-background hover:bg-foreground/90" onClick={gerar} disabled={busy}>
           {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{st.ativa ? 'Gerar chave nova' : 'Gerar minha chave'}
         </Button>
         {st.ativa && (

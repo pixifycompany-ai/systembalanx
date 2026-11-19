@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DatePickerField } from '@/components/shared/DatePickerField';
-import { SheetHeading } from '@/components/cobrancas/formParts';
+import { ModalHeader, ModalFooter, ModalShell } from '@/components/reskin/kit';
+import { btn, modalCls } from '@/components/reskin/estilos';
 import { cn } from '@/lib/utils';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import type { ContaDB } from '@/hooks/useContas';
@@ -104,10 +105,12 @@ export function ConferirSaldoSheet({ open, onOpenChange, contas, contaInicial, o
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface p-0 sm:mx-auto sm:max-w-[560px]">
+      <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[600px]')}>
         <SheetTitle className="sr-only">Conferir saldo com o banco</SheetTitle>
-        <SheetHeading className="px-5 pt-1" eyebrow="Contas" title="Conferir saldo com o banco" />
-        <div className="space-y-5 p-5 pt-4">
+        <ModalShell>
+        <ModalHeader eyebrow="Contas" title="Conferir com o banco" onClose={() => onOpenChange(false)} />
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
+          <p className="text-[13px] text-foreground-muted">Abra o app do banco, veja o saldo e digite aqui. O BALANX mostra se bate com o que está lançado e o que pode explicar a diferença.</p>
           <div className="space-y-1.5">
             <Label>Conta</Label>
             <div className="flex flex-wrap gap-1.5">
@@ -117,15 +120,22 @@ export function ConferirSaldoSheet({ open, onOpenChange, contas, contaInicial, o
                   type="button"
                   onClick={() => setContaId(c.id)}
                   className={cn(
-                    'rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors',
+                    'inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-[13px] transition-colors',
                     contaId === c.id ? 'border-foreground bg-foreground text-background' : 'border-border text-foreground-muted hover:text-foreground',
                   )}
                 >
-                  {c.nome}
+                  <i className="h-2 w-2 rounded-full" style={{ background: c.cor }} />{c.nome}
                 </button>
               ))}
             </div>
           </div>
+
+          {conta && (
+            <div className="flex items-center justify-between rounded-2xl bg-surface-2/70 px-4 py-3">
+              <span className="text-[12.5px] text-foreground-muted">No BALANX hoje</span>
+              <span className="font-heading text-[18px] font-semibold tabular-nums text-foreground">{formatCurrency(Number(conta.saldo_atual || 0))}</span>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
             <DatePickerField label="Data do extrato" value={data} onChange={(d) => { setData(d); setResultado(null); }} />
@@ -158,9 +168,6 @@ export function ConferirSaldoSheet({ open, onOpenChange, contas, contaInicial, o
             Use o saldo do fim do dia no extrato. Conta no negativo? Toque no + para virar −.
           </p>
 
-          <Button className="w-full" size="lg" onClick={conferir} disabled={busy || !contaId || !Number.isFinite(saldoBanco)}>
-            {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Scale className="mr-2 h-4 w-4" />} Conferir
-          </Button>
 
           {resultado && (
             <div className="space-y-4">
@@ -219,6 +226,13 @@ export function ConferirSaldoSheet({ open, onOpenChange, contas, contaInicial, o
             </div>
           )}
         </div>
+        <ModalFooter>
+          <button type="button" className={btn.outline} onClick={() => onOpenChange(false)}>Fechar</button>
+          <button type="button" className={btn.primary} onClick={conferir} disabled={busy || !contaId || !Number.isFinite(saldoBanco)}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scale className="h-4 w-4" />} Conferir
+          </button>
+        </ModalFooter>
+        </ModalShell>
       </SheetContent>
     </Sheet>
   );

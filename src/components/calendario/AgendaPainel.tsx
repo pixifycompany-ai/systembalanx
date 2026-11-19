@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarClock, CheckCircle2, ChevronRight, Circle, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { SectionCard } from '@/components/shared/SectionCard';
+import { Card } from '@/components/reskin/kit';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/utils/formatters';
 import { useAgenda, diaDoItem, type AgendaItem } from '@/hooks/useAgenda';
@@ -92,11 +92,43 @@ export function AgendaPainel({ inicio, fim }: { inicio: string; fim: string }) {
 
   return (
     <>
-      <SectionCard
-        title="Compromissos"
-        description={conectado === false ? undefined : conectado ? 'Sincronizado com o Google Agenda' : undefined}
+      <Card
+        title={`Tarefas${abertas.length ? ` · ${abertas.length}` : ''}`}
         action={
-          <button onClick={() => setSheet({ item: null, tipo: 'compromisso' })} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-[12.5px] font-semibold text-foreground hover:bg-surface-2">
+          <button onClick={() => setSheet({ item: null, tipo: 'tarefa' })} className="inline-flex h-8 items-center gap-1 rounded-full border border-border px-3 text-[12.5px] text-foreground hover:bg-surface-2">
+            <Plus className="h-3.5 w-3.5" /> Tarefa
+          </button>
+        }
+      >
+        {tarefas.length === 0 ? (
+          <p className="py-2 text-[13px] text-foreground-muted">Nenhuma tarefa. Crie uma ou peça para a IARA.</p>
+        ) : (
+          <>
+            {abertas.length === 0 ? (
+              <p className="py-2 text-[13px] text-foreground-muted">Tudo feito por aqui.</p>
+            ) : (
+              <ul>{abertas.map((t) => linhaTarefa(t))}</ul>
+            )}
+            {feitas.length > 0 && (
+              <div className={cn(abertas.length > 0 && 'mt-1 border-t border-border')}>
+                <button onClick={() => setVerFeitas((v) => !v)} aria-expanded={verFeitas}
+                  className="flex w-full items-center gap-1.5 py-2.5 text-left text-[13px] font-medium text-foreground-muted hover:text-foreground">
+                  <ChevronRight className={cn('h-4 w-4 transition-transform', verFeitas && 'rotate-90')} />
+                  Concluídas ({feitas.length})
+                  <span className="ml-auto text-[11px] font-normal text-foreground-subtle">últimos 30 dias</span>
+                </button>
+                {verFeitas && <ul>{feitas.map((t) => linhaTarefa(t))}</ul>}
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+
+      <Card
+        title="Próximos compromissos"
+        sub={conectado === false ? undefined : conectado ? 'Sincronizado com o Google Agenda' : undefined}
+        action={
+          <button onClick={() => setSheet({ item: null, tipo: 'compromisso' })} className="inline-flex h-8 items-center gap-1 rounded-full border border-border px-3 text-[12.5px] text-foreground hover:bg-surface-2">
             <Plus className="h-3.5 w-3.5" /> Compromisso
           </button>
         }
@@ -128,39 +160,7 @@ export function AgendaPainel({ inicio, fim }: { inicio: string; fim: string }) {
         {conectado === false && (
           <Link to="/perfil?integracao=google" className="mt-3 inline-block text-[12.5px] font-semibold text-primary hover:underline">Conectar com o Google Agenda →</Link>
         )}
-      </SectionCard>
-
-      <SectionCard
-        title={`Tarefas${abertas.length ? ` · ${abertas.length}` : ''}`}
-        action={
-          <button onClick={() => setSheet({ item: null, tipo: 'tarefa' })} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-[12.5px] font-semibold text-foreground hover:bg-surface-2">
-            <Plus className="h-3.5 w-3.5" /> Tarefa
-          </button>
-        }
-      >
-        {tarefas.length === 0 ? (
-          <p className="py-2 text-[13px] text-foreground-muted">Nenhuma tarefa. Crie uma ou peça para a IARA.</p>
-        ) : (
-          <>
-            {abertas.length === 0 ? (
-              <p className="py-2 text-[13px] text-foreground-muted">Tudo feito por aqui.</p>
-            ) : (
-              <ul>{abertas.map((t) => linhaTarefa(t))}</ul>
-            )}
-            {feitas.length > 0 && (
-              <div className={cn(abertas.length > 0 && 'mt-1 border-t border-border')}>
-                <button onClick={() => setVerFeitas((v) => !v)} aria-expanded={verFeitas}
-                  className="flex w-full items-center gap-1.5 py-2.5 text-left text-[13px] font-medium text-foreground-muted hover:text-foreground">
-                  <ChevronRight className={cn('h-4 w-4 transition-transform', verFeitas && 'rotate-90')} />
-                  Concluídas ({feitas.length})
-                  <span className="ml-auto text-[11px] font-normal text-foreground-subtle">últimos 30 dias</span>
-                </button>
-                {verFeitas && <ul>{feitas.map((t) => linhaTarefa(t))}</ul>}
-              </div>
-            )}
-          </>
-        )}
-      </SectionCard>
+      </Card>
 
       <AgendaItemSheet
         aberto={!!sheet}

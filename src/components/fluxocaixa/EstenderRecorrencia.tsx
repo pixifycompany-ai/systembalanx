@@ -62,8 +62,8 @@ export function EstenderRecorrencia({ lancamento, onChange }: { lancamento: Lanc
   const ultimo = serie?.length ? [...serie].sort((a, b) => a.data_vencimento.localeCompare(b.data_vencimento)).at(-1)! : null;
 
   return (
-    <div className="space-y-3 rounded-[18px] border border-border p-3.5">
-      <p className="text-[13.5px] font-semibold text-foreground">Estender recorrência</p>
+    <div className="space-y-3 rounded-[20px] border border-border bg-surface p-4">
+      <p className="text-[11.5px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">Estender recorrência</p>
       {busy && !serie ? (
         <div className="flex items-center gap-2 text-[12.5px] text-foreground-muted"><Loader2 className="h-4 w-4 animate-spin" /> Lendo a série…</div>
       ) : ultimo && plano ? (

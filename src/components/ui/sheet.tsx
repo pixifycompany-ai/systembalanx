@@ -44,6 +44,19 @@ const sheetVariants = cva(
   },
 );
 
+/**
+ * side="bottom" é "bottom sheet" SÓ no celular. A partir de md (desktop/tablet) vira uma
+ * janela centralizada (como um Dialog), sem a barrinha de arrastar. Vem DEPOIS do className
+ * de quem usa, para valer mesmo quando a tela passa classes próprias (rounded-t, sm:mx-auto…).
+ */
+const BOTTOM_NO_DESKTOP = cn(
+  "md:inset-auto md:left-1/2 md:top-1/2 md:right-auto md:bottom-auto md:w-[calc(100%-3rem)]",
+  "md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[26px] md:border md:border-border md:max-h-[88dvh] md:pb-6",
+  "md:data-[state=open]:slide-in-from-left-1/2 md:data-[state=open]:slide-in-from-top-[48%] md:data-[state=open]:zoom-in-95 md:data-[state=open]:fade-in-0",
+  "md:data-[state=closed]:slide-out-to-left-1/2 md:data-[state=closed]:slide-out-to-top-[48%] md:data-[state=closed]:zoom-out-95 md:data-[state=closed]:fade-out-0",
+  "md:data-[state=open]:duration-200",
+);
+
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {
@@ -57,9 +70,15 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
   ({ side = "right", className, children, showHandle, showClose = true, ...props }, ref) => (
     <SheetPortal>
       <SheetOverlay />
-      <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+      <SheetPrimitive.Content
+        ref={ref}
+        className={side === "bottom"
+          ? cn(sheetVariants({ side }), className, BOTTOM_NO_DESKTOP, !/max-w-/.test(String(className || "")) && "md:max-w-[560px]")
+          : cn(sheetVariants({ side }), className)}
+        {...props}
+      >
         {(showHandle ?? side === "bottom") && side === "bottom" && (
-          <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-border-strong" aria-hidden />
+          <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-border-strong md:hidden" aria-hidden />
         )}
         {children}
         {showClose && (

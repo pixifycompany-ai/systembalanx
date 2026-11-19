@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, AlertTriangle, Layers, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
 import type { AsaasAssinatura } from '@/hooks/useCobrancas';
-import { ChoiceChip, FormSection, InlineNotice, NATIVE_SELECT_CLS, SheetFooter, SheetHeading } from '@/components/cobrancas/formParts';
+import { ChoiceChip, FormSection, InlineNotice, NATIVE_SELECT_CLS } from '@/components/cobrancas/formParts';
+import { ModalFooter, ModalHeader, ModalShell } from '@/components/reskin/kit';
+import { btn, modalCls } from '@/components/reskin/estilos';
 
 export interface ContratoParaAgrupar {
   id: string;
@@ -37,6 +38,7 @@ interface Props {
   agrupar: (p: {
     contrato_ids: string[]; modo: 'criar' | 'vincular'; asaas_subscription_id?: string; forma_pagamento?: string;
     conta_id?: string | null; dia_vencimento?: number; multa_percent?: number; juros_percent?: number;
+    cancelar_existentes?: boolean;
   }) => Promise<boolean>;
 }
 
@@ -118,13 +120,10 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[560px] sm:mx-auto">
-        <div className="mx-auto w-full max-w-[520px] space-y-6 pb-6 pt-1">
-          <SheetHeading
-            eyebrow="Cobrança"
-            title="Cobrar juntos num boleto só"
-            subtitle={clienteId ? nomeCliente(clienteId) : undefined}
-          />
+      <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[600px]')}>
+        <ModalShell>
+        <ModalHeader eyebrow={clienteId ? `Cobrança · ${nomeCliente(clienteId)}` : 'Cobrança'} title="Cobrar juntos num boleto só" onClose={() => onOpenChange(false)} />
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4 md:p-5">
 
           {/* Contratos do grupo */}
           <FormSection label="Contratos do grupo">
@@ -245,14 +244,15 @@ export function AgruparCobrancaSheet({ open, onOpenChange, contratos, nomeClient
             )}
           </FormSection>
 
-          <SheetFooter>
-            <Button variant="outline" size="lg" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button size="lg" onClick={handleAgrupar} disabled={!podeEnviar}>
-              {salvando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {modo === 'criar' ? `Criar cobrança de ${formatCurrency(total)}` : 'Vincular e agrupar'}
-            </Button>
-          </SheetFooter>
         </div>
+        <ModalFooter>
+          <button type="button" onClick={() => onOpenChange(false)} className={btn.outline}>Cancelar</button>
+          <button type="button" onClick={handleAgrupar} disabled={!podeEnviar} className={btn.primary}>
+            {salvando && <Loader2 className="h-4 w-4 animate-spin" />}
+            {modo === 'criar' ? `Criar cobrança de ${formatCurrency(total)}` : 'Vincular e agrupar'}
+          </button>
+        </ModalFooter>
+        </ModalShell>
       </SheetContent>
     </Sheet>
   );

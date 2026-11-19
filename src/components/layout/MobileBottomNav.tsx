@@ -1,75 +1,25 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  HomeIcon, DocumentTextIcon, ChartBarIcon, Squares2X2Icon, PlusIcon,
-  WalletIcon, CalendarDaysIcon, DocumentChartBarIcon, PresentationChartLineIcon,
-  UsersIcon, TagIcon, Cog6ToothIcon, ChevronRightIcon, MoonIcon,
-  ArrowUpIcon, ArrowDownIcon, ArrowsRightLeftIcon, BanknotesIcon,
-} from '@heroicons/react/24/outline';
-import {
-  HomeIcon as HomeSolid, DocumentTextIcon as DocumentSolid,
-  Squares2X2Icon as GridSolid,
-} from '@heroicons/react/24/solid';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ArrowLeftRight, Bell, ChevronRight, EyeOff, Home, LogOut, Moon, Plus, Search, ShieldCheck, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
+import { Sparkle } from '@/components/shared/Sparkle';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTenant } from '@/contexts/TenantContext';
-import { ShieldCheckIcon, MicrophoneIcon, ArrowUpTrayIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
-import { Sparkle } from '@/components/shared/Sparkle';
-import { cn } from '@/lib/utils';
+import { usePendencias } from '@/hooks/usePendencias';
+import { alternarValores, useValoresOcultos } from '@/lib/ocultarValores';
+import { EmpresaSwitcher } from './EmpresaSwitcher';
+import { NovoLancamento } from './NovoLancamento';
+import { NAV_GRUPOS, NAV_TODOS, ativo, type NavItem } from './navItems';
 
 interface MobileBottomNavProps {
-  onNewEntrada: () => void;
-  onNewSaida: () => void;
-  onNewTransferencia: () => void;
+  /** Abre a busca rápida (a mesma do ⌘K). */
+  onBusca: () => void;
 }
 
-const mainItems = [
-  { href: '/', label: 'Início', icon: HomeIcon, iconSolid: HomeSolid },
-  { href: '/fluxo-caixa', label: 'Lançamentos', icon: DocumentTextIcon, iconSolid: DocumentSolid },
-  { href: '__fab__', label: '', icon: PlusIcon, iconSolid: PlusIcon },
-  { href: '/iara', label: 'IARA', icon: Sparkle, iconSolid: Sparkle },
-  { href: '__more__', label: 'Menu', icon: Squares2X2Icon, iconSolid: GridSolid },
-];
-
-const moreSections = [
-  {
-    label: 'Visão geral',
-    items: [
-      { href: '/pendencias', label: 'Pendências', icon: ClipboardDocumentCheckIcon },
-    ],
-  },
-  {
-    label: 'Análise',
-    items: [
-      { href: '/calendario', label: 'Calendário', icon: CalendarDaysIcon },
-      { href: '/visao', label: 'Visão', icon: ChartBarIcon },
-      { href: '/analises', label: 'Análises', icon: PresentationChartLineIcon },
-      { href: '/relatorios', label: 'Relatórios', icon: DocumentChartBarIcon },
-    ],
-  },
-  {
-    label: 'Gestão',
-    items: [
-      { href: '/clientes', label: 'Clientes', icon: UsersIcon },
-      { href: '/contratos', label: 'Contratos', icon: DocumentTextIcon },
-      { href: '/cobrancas', label: 'Cobranças', icon: BanknotesIcon },
-    ],
-  },
-  {
-    label: 'Sistema',
-    items: [
-      { href: '/contas', label: 'Contas', icon: WalletIcon },
-      { href: '/categorias', label: 'Categorias', icon: TagIcon },
-      { href: '/perfil', label: 'Meu Perfil', icon: Cog6ToothIcon },
-    ],
-  },
-];
-
-const allMoreHrefs = moreSections.flatMap(s => s.items.map(i => i.href));
-
-// FAB adaptativo: em telas de cadastro o "+" cria o item daquela tela; nas
-// telas de finanças (início, fluxo, visão…) abre o seletor de lançamento.
+// "+" adaptativo: nas telas de cadastro cria o item daquela tela; nas de finanças abre o seletor.
 type FabAction = { kind: 'sheet' } | { kind: 'nav'; label: string; to: string };
 function fabForPath(pathname: string): FabAction {
   if (pathname.startsWith('/contratos')) return { kind: 'nav', label: 'Novo contrato', to: '/contratos?action=novo' };
@@ -80,194 +30,117 @@ function fabForPath(pathname: string): FabAction {
   return { kind: 'sheet' };
 }
 
-export function MobileBottomNav({ onNewEntrada, onNewSaida, onNewTransferencia }: MobileBottomNavProps) {
-  const location = useLocation();
+const BARRA = ['/', '/fluxo-caixa'] as const;
+// Atalhos do topo do Menu (o que costuma pedir atenção)
+const ATALHOS = ['/pendencias', '/calendario', '/cobrancas', '/contas', '/clientes', '/relatorios'];
+
+function GradeIcone() {
+  return <span className="grid h-[21px] w-[21px] grid-cols-2 gap-[3px] p-[2px]">{[0, 1, 2, 3].map((k) => <span key={k} className="rounded-[2px] border-[1.6px] border-current" />)}</span>;
+}
+
+export function MobileBottomNav({ onBusca }: MobileBottomNavProps) {
+  const { pathname } = useLocation();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { isSuperadmin } = useTenant();
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [fabOpen, setFabOpen] = useState(false);
+  const { signOut } = useAuth();
+  const { total: totalPendencias } = usePendencias();
+  const oculto = useValoresOcultos();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [novoOpen, setNovoOpen] = useState(false);
 
-  const fab = fabForPath(location.pathname);
-  const handleFab = () => {
-    if (fab.kind === 'nav') navigate(fab.to);
-    else setFabOpen(true);
-  };
+  const fab = fabForPath(pathname);
+  const handleFab = () => { if (fab.kind === 'nav') navigate(fab.to); else setNovoOpen(true); };
+  const ir = (href: string) => { setMenuOpen(false); navigate(href); };
+  const noMenu = !['/', '/iara'].includes(pathname) && !pathname.startsWith('/fluxo-caixa');
+  const porHref = (h: string) => NAV_TODOS.find((x) => x.href === h)!;
+  const badgeDe = (h: string) => (h === '/pendencias' && totalPendencias ? (totalPendencias > 99 ? '99+' : String(totalPendencias)) : null);
 
-  const handleNavClick = (href: string) => {
-    if (href === '__more__') { setMoreOpen(true); return; }
-    if (href === '__fab__') { handleFab(); return; }
-    navigate(href);
-  };
-
-  const isActive = (href: string) => {
-    if (href === '/') return location.pathname === '/';
-    return location.pathname.startsWith(href);
-  };
+  const BotaoBarra = ({ rot, ativoAgora, onClick, children }: { rot: string; ativoAgora: boolean; onClick: () => void; children: React.ReactNode }) => (
+    <button type="button" onClick={onClick} aria-label={rot} aria-current={ativoAgora ? 'page' : undefined}
+      className={cn('flex h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-full text-[10.5px] transition-colors', ativoAgora ? 'text-foreground' : 'text-foreground-muted')}>
+      {children}
+      <span className={cn(ativoAgora && 'font-medium')}>{rot}</span>
+      <span className={cn('h-1 w-1 rounded-full', ativoAgora ? 'bg-foreground' : 'bg-transparent')} />
+    </button>
+  );
 
   return (
     <>
       <nav
-        className="fixed left-1/2 z-50 flex md:hidden w-[min(92%,380px)] -translate-x-1/2 items-center justify-between gap-0.5 p-1.5 rounded-full border border-border bg-card shadow-[0_16px_36px_-16px_hsl(224_55%_10%/0.45)]"
+        className="fixed left-1/2 z-50 flex w-[min(92%,390px)] -translate-x-1/2 items-center justify-between rounded-full border border-border bg-surface/90 p-1.5 shadow-[0_16px_36px_-16px_hsl(224_55%_10%/0.45)] backdrop-blur md:hidden"
         style={{ bottom: 'calc(0.9rem + env(safe-area-inset-bottom, 0px))' }}
       >
-        {mainItems.map((item) => {
-          if (item.href === '__fab__') {
-            return (
-              <button
-                key="fab"
-                onClick={handleFab}
-                aria-label={fab.kind === 'nav' ? fab.label : 'Novo lançamento'}
-                className="mx-0.5 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_18px_-6px_hsl(var(--primary)/0.6)] active:scale-95 transition-transform"
-              >
-                <PlusIcon className="h-6 w-6" strokeWidth={2.4} />
-              </button>
-            );
-          }
-
-          const active = item.href === '__more__'
-            ? allMoreHrefs.some(h => isActive(h))
-            : isActive(item.href);
-          const Icon = active ? item.iconSolid : item.icon;
-
-          return (
-            <button
-              key={item.href}
-              onClick={() => handleNavClick(item.href)}
-              aria-label={item.label}
-              aria-current={active ? 'page' : undefined}
-              className={cn(
-                "flex h-12 shrink-0 items-center justify-center gap-2 rounded-full transition-all duration-200",
-                // Ativo = pílula com o nome (navy no claro / clara com texto navy no escuro)
-                active ? "bg-foreground px-4 text-background" : "w-11 text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Icon className={cn("shrink-0", active ? "h-[19px] w-[19px]" : "h-[22px] w-[22px]")} />
-              {active && <span className="whitespace-nowrap text-[13px] font-semibold">{item.label}</span>}
-            </button>
-          );
-        })}
+        <BotaoBarra rot="Início" ativoAgora={ativo(pathname, BARRA[0])} onClick={() => navigate('/')}><Home className="h-[21px] w-[21px]" /></BotaoBarra>
+        <BotaoBarra rot="Caixa" ativoAgora={ativo(pathname, BARRA[1])} onClick={() => navigate('/fluxo-caixa')}><ArrowLeftRight className="h-[21px] w-[21px]" /></BotaoBarra>
+        <button type="button" onClick={handleFab} aria-label={fab.kind === 'nav' ? fab.label : 'Novo lançamento'}
+          className="mx-0.5 grid h-12 w-12 shrink-0 place-items-center rounded-full bg-foreground text-background transition-transform active:scale-95">
+          <Plus className="h-6 w-6" />
+        </button>
+        <BotaoBarra rot="IARA" ativoAgora={ativo(pathname, '/iara')} onClick={() => navigate('/iara')}><Sparkle className="h-[21px] w-[21px]" /></BotaoBarra>
+        <BotaoBarra rot="Menu" ativoAgora={noMenu} onClick={() => setMenuOpen(true)}>
+          <span className="relative"><GradeIcone />{totalPendencias > 0 && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-danger-fg ring-2 ring-surface" />}</span>
+        </BotaoBarra>
       </nav>
 
-      {/* FAB Action Sheet — seletor "Novo lançamento" (igual mockup) */}
-      <Sheet open={fabOpen} onOpenChange={setFabOpen}>
-        <SheetContent side="bottom" className="rounded-t-[26px] border-t border-border bg-surface" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2rem)' }}>
-          <SheetHeader className="text-left space-y-0 pb-3.5">
-            <span className="text-[11px] font-medium text-foreground-muted">Adicionar</span>
-            <SheetTitle className="text-[19px] font-semibold tracking-[-0.02em]">Novo lançamento</SheetTitle>
-          </SheetHeader>
+      <NovoLancamento open={novoOpen} onOpenChange={setNovoOpen} />
 
-          <div className="flex gap-2.5">
-            {[
-              { label: 'Receita', icon: ArrowUpIcon, tint: 'bg-[hsl(var(--success)/0.24)] text-[hsl(var(--success))]', onClick: onNewEntrada },
-              { label: 'Despesa', icon: ArrowDownIcon, tint: 'bg-[hsl(var(--danger)/0.24)] text-[hsl(var(--danger))]', onClick: onNewSaida },
-              { label: 'Transferência', icon: ArrowsRightLeftIcon, tint: 'bg-primary/25 text-[hsl(var(--primary))]', onClick: onNewTransferencia },
-            ].map((t) => (
-              <button
-                key={t.label}
-                onClick={() => { setFabOpen(false); t.onClick(); }}
-                className="flex flex-1 flex-col items-center gap-2.5 rounded-2xl border border-border bg-surface-2 px-2 py-4 transition-transform active:scale-[0.97]"
-              >
-                <span className={cn('grid h-11 w-11 place-items-center rounded-[14px]', t.tint)}>
-                  <t.icon className="h-5 w-5" strokeWidth={2.4} />
-                </span>
-                <span className="text-[12.5px] font-semibold text-foreground">{t.label}</span>
-              </button>
-            ))}
+      {/* Menu do celular (tela cheia) */}
+      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+        <SheetContent side="bottom" showHandle={false} showClose={false} className="bottom-auto left-0 right-0 top-0 flex h-lvh w-auto max-w-none flex-col gap-0 rounded-none border-0 bg-background p-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom md:hidden">
+          <div className="flex items-center justify-between px-5 pb-2 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
+            <div>
+              <p className="text-[12px] text-foreground-muted">Tudo do BALANX</p>
+              <SheetTitle className="font-heading text-[32px] font-light leading-none tracking-[-0.04em] text-foreground">Menu</SheetTitle>
+            </div>
+            <button type="button" onClick={() => setMenuOpen(false)} aria-label="Fechar" className="grid h-10 w-10 place-items-center rounded-full bg-surface text-foreground ring-1 ring-border"><X className="h-5 w-5" /></button>
           </div>
-
-          <div className="mt-3 grid grid-cols-2 gap-2.5">
-            <button
-              onClick={() => { setFabOpen(false); navigate('/lancar-voz'); }}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface-2 py-3 text-[13px] font-semibold text-foreground transition-transform active:scale-[0.99]"
-            >
-              <MicrophoneIcon className="h-4 w-4 text-primary" />
-              Lançar por voz
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-10 pt-2">
+            <EmpresaSwitcher />
+            <button type="button" onClick={() => { setMenuOpen(false); onBusca(); }} className="flex h-11 w-full items-center gap-2.5 rounded-full border border-border bg-surface px-4 text-[14px] text-foreground-muted">
+              <Search className="h-4 w-4" />Buscar ou perguntar à IARA
             </button>
-            <button
-              onClick={() => { setFabOpen(false); navigate('/fluxo-caixa?action=importar'); }}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface-2 py-3 text-[13px] font-semibold text-foreground transition-transform active:scale-[0.99]"
-            >
-              <ArrowUpTrayIcon className="h-4 w-4 text-primary" />
-              Subir print
-            </button>
-          </div>
-        </SheetContent>
-      </Sheet>
 
-      {/* More Menu Sheet — grupos iOS (igual mockup: setgroup + setrow) */}
-      <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent
-          side="bottom"
-          showHandle={false}
-          className="top-0 bottom-auto left-0 right-0 h-lvh w-auto max-w-none rounded-none border-0 flex flex-col gap-0 px-5 pb-safe bg-background data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom"
-          style={{
-            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
-          }}
-        >
-          <SheetHeader className="shrink-0 text-left space-y-0">
-            <span className="text-xs font-medium text-foreground-muted">Tudo do BALANX</span>
-            <SheetTitle className="text-2xl font-semibold tracking-tight">Menu</SheetTitle>
-          </SheetHeader>
+            <div className="grid grid-cols-3 gap-2">
+              {ATALHOS.map((h) => {
+                const it = porHref(h);
+                const b = badgeDe(h);
+                return (
+                  <button key={h} type="button" onClick={() => ir(h)}
+                    className={cn('relative flex flex-col items-start gap-2 rounded-[20px] border p-3 text-left', ativo(pathname, h) ? 'border-foreground bg-foreground text-background' : 'border-border bg-surface text-foreground')}>
+                    <it.icon className="h-5 w-5" />
+                    <span className="text-[12.5px] leading-tight">{it.label}</span>
+                    {b && <span className="absolute right-2 top-2 rounded-full bg-warning-bg px-1.5 text-[10px] text-warning-fg">{b}</span>}
+                  </button>
+                );
+              })}
+            </div>
 
-          <div className="flex-1 overflow-y-auto pt-3 pb-6">
-            {moreSections.map((section) => (
-              <div key={section.label}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-3.5 mb-2 px-0.5">
-                  {section.label}
-                </p>
-                <div className="mb-3.5 overflow-hidden rounded-2xl border border-border bg-surface">
-                  {section.items.map((item) => {
-                    const active = isActive(item.href);
-                    return (
-                      <button
-                        key={item.href}
-                        onClick={() => { setMoreOpen(false); navigate(item.href); }}
-                        className="flex items-center gap-3 w-full px-4 py-3.5 text-left border-b border-border/50 last:border-b-0 transition-colors hover:bg-foreground/[0.04]"
-                      >
-                        <item.icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-primary' : 'text-foreground-muted')} />
-                        <span className={cn('flex-1 text-sm font-medium', active ? 'text-primary' : 'text-foreground')}>{item.label}</span>
-                        <ChevronRightIcon className="h-4 w-4 text-foreground-subtle shrink-0" />
-                      </button>
-                    );
-                  })}
+            {[...NAV_GRUPOS, ...(isSuperadmin ? [{ label: 'Plataforma', items: [{ href: '/superadmin', label: 'Superadmin', icon: ShieldCheck } as NavItem] }] : [])].map((g) => (
+              <div key={g.label}>
+                <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">{g.label}</p>
+                <div className="divide-y divide-border overflow-hidden rounded-[20px] border border-border bg-surface">
+                  {g.items.map((it) => (
+                    <button key={it.href} type="button" onClick={() => ir(it.href)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+                      <span className={cn('grid h-8 w-8 place-items-center rounded-full', ativo(pathname, it.href) ? 'bg-foreground text-background' : 'bg-surface-2 text-foreground-muted')}><it.icon className="h-4 w-4" /></span>
+                      <span className="flex-1 text-[14.5px] text-foreground">{it.label}</span>
+                      <ChevronRight className="h-4 w-4 text-foreground-subtle" />
+                    </button>
+                  ))}
                 </div>
               </div>
             ))}
 
-            {/* Plataforma (só superadmin) */}
-            {isSuperadmin && (
-              <>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-3.5 mb-2 px-0.5">
-                  Plataforma
-                </p>
-                <div className="mb-3.5 overflow-hidden rounded-2xl border border-border bg-surface">
-                  <button
-                    onClick={() => { setMoreOpen(false); navigate('/superadmin'); }}
-                    className="flex items-center gap-3 w-full px-4 py-3.5 text-left transition-colors hover:bg-foreground/[0.04]"
-                  >
-                    <ShieldCheckIcon className="h-[18px] w-[18px] shrink-0 text-primary" />
-                    <span className="flex-1 text-sm font-medium text-foreground">Superadmin</span>
-                    <ChevronRightIcon className="h-4 w-4 text-foreground-subtle shrink-0" />
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Sistema · preferências */}
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted mt-3.5 mb-2 px-0.5">
-              Preferências
-            </p>
-            <div className="mb-3.5 overflow-hidden rounded-2xl border border-border bg-surface">
-              <div className="flex items-center gap-3 w-full px-4 py-3.5">
-                <MoonIcon className="h-[18px] w-[18px] shrink-0 text-foreground-muted" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground">Tema</div>
-                  <div className="text-[11px] text-foreground-muted">{theme === 'dark' ? 'Escuro (AURO)' : 'Claro'}</div>
-                </div>
-                <Switch aria-label="Alternar tema" checked={theme === 'dark'} onCheckedChange={toggleTheme} />
+            <div>
+              <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Preferências</p>
+              <div className="divide-y divide-border overflow-hidden rounded-[20px] border border-border bg-surface">
+                <label className="flex items-center gap-3 px-4 py-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-surface-2 text-foreground-muted"><Moon className="h-4 w-4" /></span><span className="flex-1 text-[14.5px] text-foreground">Tema escuro</span><Switch aria-label="Tema escuro" checked={theme === 'dark'} onCheckedChange={toggleTheme} /></label>
+                <label className="flex items-center gap-3 px-4 py-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-surface-2 text-foreground-muted"><EyeOff className="h-4 w-4" /></span><span className="flex-1"><span className="block text-[14.5px] text-foreground">Ocultar valores</span><span className="block text-[12px] text-foreground-muted">Esconde os R$ ao abrir o app</span></span><Switch aria-label="Ocultar valores" checked={oculto} onCheckedChange={alternarValores} /></label>
+                <button type="button" onClick={() => ir('/perfil')} className="flex w-full items-center gap-3 px-4 py-3.5 text-left"><span className="grid h-8 w-8 place-items-center rounded-full bg-surface-2 text-foreground-muted"><Bell className="h-4 w-4" /></span><span className="flex-1 text-[14.5px] text-foreground">Notificações</span><ChevronRight className="h-4 w-4 text-foreground-subtle" /></button>
               </div>
             </div>
+
+            <button type="button" onClick={() => { setMenuOpen(false); void signOut(); }} className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-border bg-surface text-[14px] text-danger-fg"><LogOut className="h-4 w-4" />Sair da conta</button>
           </div>
         </SheetContent>
       </Sheet>

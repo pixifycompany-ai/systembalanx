@@ -1,22 +1,12 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useActionParam } from '@/hooks/useActionParam';
-import { IconButton } from '@/components/shared/IconButton';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { StatusBadge } from '@/components/shared/StatusBadge';
-import { MobileContratosList } from '@/components/contratos/MobileContratosList';
-import { KpiTriple } from '@/components/shared/KpiTriple';
-import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
-import { LoadingSpinner, SkeletonTable } from '@/components/shared/LoadingSpinner';
+import { SkeletonTable } from '@/components/shared/LoadingSpinner';
 import { MultiSelectBar } from '@/components/shared/MultiSelectBar';
-import { SectionCard } from '@/components/shared/SectionCard';
-import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChoiceChip, FormSection, InitialsAvatar, InlineNotice, NATIVE_SELECT_CLS, SheetFooter, SheetHeading } from '@/components/cobrancas/formParts';
+import { FormSection, InitialsAvatar, InlineNotice, iniciais } from '@/components/cobrancas/formParts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -31,7 +21,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { exportContratos } from '@/utils/exportCSV';
@@ -44,20 +33,24 @@ import { AgruparCobrancaSheet, type ContratoParaAgrupar } from '@/components/con
 import { EditarClienteSheet } from '@/components/clientes/EditarClienteSheet';
 import { useContratoParcelas, gerarParcelas, type ParcelaFormData } from '@/hooks/useContratoParcelas';
 import { useClientes } from '@/hooks/useClientes';
-import { Plus, Pencil, Trash2, FileText, RefreshCw, Upload, Calendar, TrendingUp, X, Zap, ChevronUp, ChevronDown, ChevronsUpDown, Loader2, Layers } from 'lucide-react';
+import {
+  Plus, Pencil, Trash2, FileText, RefreshCw, Upload, X, Zap, ChevronDown, Loader2, Layers, ArrowUpDown, BellRing,
+  CalendarDays, Check, Download, FileSignature, MoreHorizontal, Pause, AlertTriangle, Search,
+} from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ContractImportDialog } from '@/components/import/ContractImportDialog';
-import { useContratoAditivos, type AditivoFormData } from '@/hooks/useContratoAditivos';
+import { useContratoAditivos } from '@/hooks/useContratoAditivos';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { PausaContrato } from '@/components/contratos/PausaContrato';
 import { CancelarCobrancaDialog } from '@/components/cobrancas/CancelarCobrancaDialog';
 import { estadoPausa } from '@/lib/pausaContrato';
 import { findPossibleDuplicate, findDuplicateGroups, type DuplicateMatch, type DuplicateGroup } from '@/utils/contractDuplicates';
 import { isContratoAtivoHoje, getValorMensalEquivalente } from '@/utils/contractUtils';
-import { AlertTriangle, Search } from 'lucide-react';
+import { Campo, ModalFooter, ModalHeader, ModalShell, PageHeader, Secao, Segmented } from '@/components/reskin/kit';
+import { btn, campoCls, modalCls } from '@/components/reskin/estilos';
 
 const RECORRENCIA_OPTIONS = [
   { value: 'semanal', label: 'Semanal (7 dias)' },
@@ -75,8 +68,26 @@ const STATUS_OPTIONS = [
   { value: 'encerrado', label: 'Encerrado' },
 ] as const;
 
+type FiltroStatus = 'ativo' | 'pausado' | 'encerrado' | 'cancelado' | 'all';
+const FILTROS_STATUS: [FiltroStatus, string][] = [['ativo', 'Ativos'], ['pausado', 'Pausados'], ['encerrado', 'Encerrados'], ['cancelado', 'Cancelados'], ['all', 'Todos']];
+const ST_LABEL: Record<string, string> = { ativo: 'Ativo', pausado: 'Pausado', encerrado: 'Encerrado', cancelado: 'Cancelado' };
+const ST_CLS: Record<string, string> = {
+  ativo: 'bg-success-bg text-success-fg', pausado: 'bg-warning-bg text-warning-fg',
+  encerrado: 'bg-surface-2 text-foreground-muted', cancelado: 'bg-danger-bg text-danger-fg',
+};
+const REC_LABEL: Record<string, string> = {
+  semanal: 'Semanal', quinzenal: 'Quinzenal', mensal: 'Mensal', trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual', unico: 'Único / parcelado',
+};
+const REC_RESUMO: Record<string, string> = {
+  semanal: 'por semana', quinzenal: 'a cada 15 dias', mensal: 'por mês', trimestral: 'por trimestre', semestral: 'por semestre', anual: 'por ano', unico: 'valor total (em parcelas)',
+};
+const MENU_ITEM = 'flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13.5px] text-foreground hover:bg-surface-2';
+const CORES_AVATAR = ['bg-blue-100 text-blue-700', 'bg-violet-100 text-violet-700', 'bg-emerald-100 text-emerald-700', 'bg-amber-100 text-amber-800', 'bg-rose-100 text-rose-700', 'bg-sky-100 text-sky-700'];
+const corAvatar = (n: string) => CORES_AVATAR[[...n].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % CORES_AVATAR.length];
+const hojeISO = () => new Date().toLocaleDateString('en-CA');
+
 export default function Contratos() {
-  const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const { 
     contratos, 
     isLoading, 
@@ -150,6 +161,22 @@ export default function Contratos() {
     if (direta) return direta;
     const sub = contratos.find((c) => c.id === contratoId)?.asaas_subscription_id;
     return sub ? bySubscription.get(sub) : undefined;
+  };
+  // Próxima cobrança: a pendente do Asaas, senão o próximo "dia de vencimento".
+  const proximaCobranca = (c: { id: string; status: string; recorrencia: string; dia_vencimento?: number | null; pausado_desde?: string | null; pausado_ate?: string | null }): string | null => {
+    if (c.status !== 'ativo' || c.recorrencia === 'unico' || estadoPausa(c) === 'pausado') return null;
+    const hoje = hojeISO();
+    const cob = cobrancaDoContrato(c.id);
+    if (cob && (cob.status === 'pendente' || cob.status === 'vencido') && cob.vencimento) return cob.vencimento;
+    if (!c.dia_vencimento) return null;
+    const d = new Date(`${hoje}T12:00:00`);
+    for (let k = 0; k < 2; k++) {
+      const ano = d.getFullYear(), mes = d.getMonth() + k;
+      const ultimo = new Date(ano, mes + 1, 0).getDate();
+      const alvo = new Date(ano, mes, Math.min(c.dia_vencimento, ultimo)).toLocaleDateString('en-CA');
+      if (alvo >= hoje) return alvo;
+    }
+    return null;
   };
   // Linhas da mesma fatura: contratos agrupados numa assinatura dividem um boleto.
   const linhasDaFatura = (cob: Cobranca): Cobranca[] => {
@@ -227,7 +254,7 @@ export default function Contratos() {
     motivo: '',
   });
   
-  const [statusFilter, setStatusFilter] = useState<string>('ativo');
+  const [statusFilter, setStatusFilter] = useState<FiltroStatus>('ativo');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Modal states
@@ -287,7 +314,9 @@ export default function Contratos() {
   // Filter contratos
   const filteredContratos = useMemo(() => {
     return contratos.filter(c => {
-      const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+      const pausado = c.status === 'ativo' && estadoPausa(c) === 'pausado';
+      const matchesStatus = statusFilter === 'all'
+        || (statusFilter === 'pausado' ? pausado : statusFilter === 'ativo' ? c.status === 'ativo' && !pausado : c.status === statusFilter);
       const matchesSearch = !searchTerm || 
         c.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.cliente?.nome.toLowerCase().includes(searchTerm.toLowerCase());
@@ -295,43 +324,36 @@ export default function Contratos() {
     });
   }, [contratos, statusFilter, searchTerm]);
 
-  // Ordenação por coluna (clicando no cabeçalho)
-  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null);
-  const toggleSort = (key: string) => setSort((p) => (p?.key === key ? { key, dir: p.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }));
+  // Ordenação (select da barra de filtros)
+  const [ordem, setOrdem] = useState<'valor' | 'proxima' | 'cliente' | 'inicio'>('valor');
+  const [menuAberto, setMenuAberto] = useState<string | null>(null);
   const sortedContratos = useMemo(() => {
-    if (!sort) return filteredContratos;
-    const dir = sort.dir === 'asc' ? 1 : -1;
-    const val = (c: any): string | number => {
-      switch (sort.key) {
-        case 'cliente': return (c.cliente?.nome || '').toLowerCase();
-        case 'descricao': return (c.descricao || '').toLowerCase();
-        case 'recorrencia': return c.recorrencia || '';
-        case 'valor': return Number(c.valor) || 0;
-        case 'inicio': return c.data_inicio || '';
-        case 'status': return c.status || '';
-        default: return '';
-      }
-    };
-    return [...filteredContratos].sort((a, b) => {
-      const va = val(a), vb = val(b);
-      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
-      return String(va).localeCompare(String(vb), 'pt-BR') * dir;
-    });
-  }, [filteredContratos, sort]);
-  const sortIcon = (key: string) => sort?.key === key
-    ? (sort.dir === 'asc' ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />)
-    : <ChevronsUpDown className="h-3.5 w-3.5 opacity-30" />;
+    const lista = [...filteredContratos];
+    if (ordem === 'cliente') return lista.sort((a, b) => (a.cliente?.nome || '').localeCompare(b.cliente?.nome || '', 'pt-BR'));
+    if (ordem === 'inicio') return lista.sort((a, b) => (b.data_inicio || '').localeCompare(a.data_inicio || ''));
+    if (ordem === 'proxima') return lista.sort((a, b) => (proximaCobranca(a) || '9999').localeCompare(proximaCobranca(b) || '9999'));
+    return lista.sort((a, b) => getValorMensalEquivalente(Number(b.valor), b.recorrencia) - getValorMensalEquivalente(Number(a.valor), a.recorrencia));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredContratos, ordem, cobrancas]);
 
-  // Calculate totals using actual vigência (status + dates) so MRR matches reality
-  const totals = useMemo(() => {
-    const vigentes = filteredContratos.filter(c => isContratoAtivoHoje(c as any));
+  // Resumo (sobre todos os contratos, não só o filtro): MRR pela vigência real.
+  const resumo = useMemo(() => {
+    const vigentes = contratos.filter(c => isContratoAtivoHoje(c as never));
     // MRR = soma do valor MENSAL EQUIVALENTE (quinzenal conta 2×, trimestral ÷3, etc.).
-    const mrrTotal = vigentes
-      .reduce((sum, c) => sum + getValorMensalEquivalente(Number(c.valor), c.recorrencia), 0);
-    const ativos = vigentes.length;
-    const valorTotal = vigentes.reduce((sum, c) => sum + Number(c.valor), 0);
-    return { mrrTotal, ativos, valorTotal };
-  }, [filteredContratos]);
+    const mrr = vigentes.reduce((sum, c) => sum + getValorMensalEquivalente(Number(c.valor), c.recorrencia), 0);
+    const semCobranca = vigentes.filter((c) => c.recorrencia !== 'unico'
+      && !(c as { asaas_subscription_id?: string | null }).asaas_subscription_id && !byContrato.has(c.id)).length;
+    return { mrr, ativos: vigentes.length, semCobranca };
+  }, [contratos, byContrato]);
+  const contagem = useMemo(() => {
+    const out: Record<FiltroStatus, number> = { ativo: 0, pausado: 0, encerrado: 0, cancelado: 0, all: contratos.length };
+    for (const c of contratos) {
+      if (c.status === 'ativo') { if (estadoPausa(c) === 'pausado') out.pausado++; else out.ativo++; }
+      else if (c.status === 'encerrado') out.encerrado++;
+      else if (c.status === 'cancelado') out.cancelado++;
+    }
+    return out;
+  }, [contratos]);
 
   // Detect already-existing duplicate active contracts so user can sanitize
   const duplicateGroups = useMemo(() => findDuplicateGroups(contratos), [contratos]);
@@ -430,6 +452,18 @@ export default function Contratos() {
     exportContratos(dataToExport);
   };
 
+  // Exporta a lista filtrada (botão do cabeçalho)
+  const handleExportLista = () => {
+    exportContratos(sortedContratos.map(c => ({
+      numero_contrato: c.id.slice(0, 8),
+      cliente: c.cliente?.nome || '-',
+      tipo: c.recorrencia,
+      valor_mensal: Number(c.valor),
+      data_inicio: c.data_inicio,
+      status: c.status,
+    })));
+  };
+
   // Open modal for new contrato
   const handleNew = () => {
     setEditingContrato(null);
@@ -481,6 +515,16 @@ export default function Contratos() {
     setModalOpen(true);
   };
 
+  // ⋯ → Reajustar valor: abre a edição já com o formulário de reajuste aberto
+  const abrirReajuste = (contrato: typeof contratos[0]) => {
+    handleEdit(contrato);
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    nextMonth.setDate(1);
+    setAditivoData({ valor_novo: '', data_vigencia: nextMonth.toISOString().split('T')[0], motivo: '' });
+    setShowAditivoForm(true);
+  };
+
   const handleSaveAditivo = async () => {
     if (!editingContratoId || !aditivoData.valor_novo || !aditivoData.data_vigencia) return;
     setIsSaving(true);
@@ -523,6 +567,7 @@ export default function Contratos() {
 
     // Exceção de envio automático + exigência de NF (grava direto na linha do contrato)
     if (contratoResult) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase as any).from('contratos').update({
         cobranca_auto_modo: caModo,
         cobranca_auto_antes_dias: caModo === 'custom' ? (parseInt(caAntes) || 0) : null,
@@ -665,715 +710,432 @@ export default function Contratos() {
   const activeClientes = clientes.filter(c => c.status === 'ativo');
 
   return (
-    <main className="container py-4 md:py-6">
-        {/* Page Header */}
-        <MobilePageHeader
-          eyebrow="Gestão · Recorrência"
-          title="Contratos"
-          actions={
-            <>
-              <IconButton label="Sincronizar cobranças (Asaas)" onClick={() => sincronizarCobrancas()} disabled={cobrLoading} className="h-10 w-10 rounded-full">
-                <RefreshCw className={cn('h-4 w-4', cobrLoading && 'animate-spin')} />
-              </IconButton>
-              <IconButton label="Importar contrato (PDF)" onClick={() => setImportDialogOpen(true)} className="h-10 w-10 rounded-full">
-                <Upload className="h-4 w-4" />
-              </IconButton>
-              <Button onClick={handleNew} className="gap-1.5" aria-label="Novo Contrato">
-                <Plus className="h-4 w-4" />
-                <span className="sm:hidden">Novo</span>
-                <span className="hidden sm:inline">Novo contrato</span>
-              </Button>
-            </>
-          }
-        />
+    <main className="container space-y-5 py-4 md:py-6" onClick={() => setMenuAberto(null)}>
+        <PageHeader eyebrow="Gestão · Recorrência" title="Contratos">
+          <button type="button" onClick={() => sincronizarCobrancas()} disabled={cobrLoading} aria-label="Sincronizar cobranças (Asaas)" title="Sincronizar cobranças (Asaas)" className={btn.icon}>
+            <RefreshCw className={cn('h-4 w-4', cobrLoading && 'animate-spin')} />
+          </button>
+          <button type="button" onClick={() => setImportDialogOpen(true)} aria-label="Importar contrato (PDF)" title="Importar contrato (PDF)" className={btn.icon}>
+            <Upload className="h-4 w-4" />
+          </button>
+          <button type="button" onClick={handleExportLista} aria-label="Exportar lista" title="Exportar lista (CSV)" className={btn.icon}>
+            <Download className="h-4 w-4" />
+          </button>
+          <button type="button" onClick={handleNew} className={btn.primary} aria-label="Novo Contrato">
+            <Plus className="h-4 w-4" /><span className="sm:hidden">Novo</span><span className="hidden sm:inline">Novo contrato</span>
+          </button>
+        </PageHeader>
 
-        {/* Resumo — 3 KPIs colados; MRR é a célula navy de destaque */}
-        <KpiTriple
-          className="md:mb-6"
-          items={[
-            { label: 'Ativos', value: totals.ativos, tone: 'green', format: 'count' },
-            { label: 'Valor Total', value: totals.valorTotal, tone: 'amber' },
-            { label: 'MRR Total', value: totals.mrrTotal, tone: 'steel' },
-          ]}
-        />
+        {/* Resumo numa faixa só */}
+        <div className="grid grid-cols-3 items-center gap-x-4 gap-y-3 rounded-[22px] border border-border bg-surface px-5 py-4 md:flex md:flex-wrap md:gap-x-8">
+          <div className="col-span-3">
+            <p className="text-[12px] text-foreground-muted">Receita recorrente (MRR)</p>
+            <p className="font-heading text-[28px] font-semibold tabular-nums tracking-[-0.03em] text-foreground">{formatCurrency(resumo.mrr)}<span className="ml-1 text-[13px] font-normal text-foreground-muted">/mês</span></p>
+          </div>
+          <div className="h-10 w-px bg-border max-sm:hidden" />
+          <div><p className="text-[12px] text-foreground-muted">Por ano (ARR)</p><p className="text-[15px] font-semibold tabular-nums text-foreground md:text-[17px]">{formatCurrency(resumo.mrr * 12)}</p></div>
+          <div><p className="text-[12px] text-foreground-muted">Contratos ativos</p><p className="text-[15px] font-semibold tabular-nums text-foreground md:text-[17px]">{resumo.ativos}</p></div>
+          <div><p className="text-[12px] text-foreground-muted">Ticket médio</p><p className="text-[15px] font-semibold tabular-nums text-foreground md:text-[17px]">{formatCurrency(resumo.mrr / Math.max(1, resumo.ativos))}</p></div>
+          {resumo.semCobranca > 0 && (
+            <div className="col-span-3 flex w-fit items-center gap-2 rounded-full bg-warning-bg px-3 py-1.5 text-[12.5px] text-warning-fg md:ml-auto">
+              <BellRing className="h-3.5 w-3.5" /> {resumo.semCobranca} {resumo.semCobranca === 1 ? 'ativo sem cobrança' : 'ativos sem cobrança'} no Asaas
+            </div>
+          )}
+        </div>
 
-        {/* Banner: existing duplicate active contracts */}
+        {/* Contratos duplicados inflando o MRR */}
         {duplicateGroups.length > 0 && (
-          <SectionCard className="mb-4 md:mb-6" flush>
-            <div className="flex items-start gap-3 px-4 pt-4 md:px-6 md:pt-5">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-warning-bg text-warning-fg">
-                <AlertTriangle className="h-[18px] w-[18px]" />
-              </span>
+          <section className="rounded-[22px] border border-warning-fg/25 bg-warning-bg/40 p-4 md:p-5">
+            <div className="flex items-start gap-3">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-warning-bg text-warning-fg"><AlertTriangle className="h-4 w-4" /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-[14px] font-semibold text-foreground">
-                  {duplicateGroups.length === 1
-                    ? '1 possível contrato duplicado'
-                    : `${duplicateGroups.length} possíveis contratos duplicados`} inflando o MRR
+                  {duplicateGroups.length === 1 ? '1 possível contrato duplicado' : `${duplicateGroups.length} possíveis contratos duplicados`} inflando o MRR
                 </p>
-                <p className="mt-0.5 text-[12.5px] text-foreground-muted">
-                  Mescle para manter apenas um contrato vigente por serviço/cliente. Os demais serão encerrados.
-                </p>
+                <p className="mt-0.5 text-[12.5px] text-foreground-muted">Mescle para manter apenas um contrato vigente por serviço/cliente. Os demais serão encerrados.</p>
               </div>
             </div>
-            <div className="mt-2 px-4 pb-1 md:px-6">
+            <div className="mt-2">
               {duplicateGroups.map((group, idx) => (
-                <div
-                  key={`${group.cliente_id}-${idx}`}
-                  className="flex items-center gap-3 border-b border-border py-3 last:border-b-0"
-                >
-                  <InitialsAvatar nome={group.cliente_nome} />
+                <div key={`${group.cliente_id}-${idx}`} className="flex items-center gap-3 border-b border-border/60 py-3 last:border-b-0">
+                  <InitialsAvatar nome={group.cliente_nome} className="rounded-full" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[14px] font-semibold text-foreground">{group.cliente_nome}</div>
-                    <div className="truncate text-[12px] text-foreground-muted">
-                      {group.contratos.map(c => `${c.descricao} (${formatCurrency(Number(c.valor))})`).join(' • ')}
-                    </div>
+                    <div className="truncate text-[12px] text-foreground-muted">{group.contratos.map(c => `${c.descricao} (${formatCurrency(Number(c.valor))})`).join(' • ')}</div>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => openMergeDialog(group)} className="shrink-0">
-                    Resolver
-                  </Button>
+                  <button type="button" onClick={() => openMergeDialog(group)} className={btn.mini}>Resolver</button>
                 </div>
               ))}
             </div>
-          </SectionCard>
+          </section>
         )}
 
-        {/* Filtros: status em pílulas + busca */}
-        <div className="mb-4 flex flex-col gap-3 md:mb-5 md:flex-row md:items-center md:justify-between">
-          <ScrollPills aria-label="Filtrar por status">
-            <Pill active={statusFilter === 'all'} onClick={() => setStatusFilter('all')}>Todos</Pill>
-            {STATUS_OPTIONS.map(option => (
-              <Pill key={option.value} active={statusFilter === option.value} onClick={() => setStatusFilter(option.value)}>
-                {option.label}
-              </Pill>
+        {/* Filtros */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide" role="group" aria-label="Filtrar por status">
+            {FILTROS_STATUS.map(([v, r]) => (
+              <button key={v} type="button" onClick={() => setStatusFilter(v)} aria-pressed={statusFilter === v}
+                className={cn('no-touch-min inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px]',
+                  statusFilter === v ? 'border-foreground bg-foreground text-background' : 'border-border bg-surface text-foreground-muted hover:text-foreground')}>
+                {r}<span className={cn('rounded-full px-1.5 text-[11px] tabular-nums', statusFilter === v ? 'bg-background/20' : 'bg-surface-2')}>{contagem[v]}</span>
+              </button>
             ))}
-          </ScrollPills>
-          <div className="relative md:w-80">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
-            <Input
-              type="search"
-              placeholder="Buscar por descrição ou cliente..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="rounded-full bg-surface pl-10"
-            />
+          </div>
+          <div className="ml-auto flex w-full items-center gap-2 sm:w-auto">
+            <label className="flex h-9 flex-1 items-center gap-2 rounded-full border border-border bg-surface px-3.5 sm:w-72 sm:flex-none">
+              <Search className="h-4 w-4 text-foreground-muted" />
+              <input type="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar cliente ou serviço" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-foreground-muted" />
+            </label>
+            <div className="relative">
+              <select value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} aria-label="Ordenar" className="h-9 appearance-none rounded-full border border-border bg-surface pl-8 pr-8 text-[13px] text-foreground outline-none">
+                <option value="valor">Maior valor</option><option value="proxima">Próxima cobrança</option><option value="cliente">Cliente (A–Z)</option><option value="inicio">Mais recentes</option>
+              </select>
+              <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground-muted" />
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground-muted" />
+            </div>
           </div>
         </div>
 
-        {/* Table / Mobile List */}
-        {isMobile ? (
-          <MobileContratosList
-            contratos={filteredContratos as any}
-            isLoading={isLoading}
-            onEdit={(c: any) => handleEdit(c)}
-            onDelete={(id) => { setDeletingId(id); setDeleteDialogOpen(true); }}
-            onNew={handleNew}
-            renderCobranca={(c: any) => (
-              <ContratoCobrancaCell
-                contratoId={c.id}
-                cobranca={cobrancaDoContrato(c.id)}
-                busy={cobrBusyId === c.id || cobrBusyId === cobrancaDoContrato(c.id)?.id}
-                contas={contasRecebimento}
-                clienteNome={c.cliente?.nome || c.cliente_nome || ''}
-                contratoDescricao={c.descricao}
-                contratoValor={c.valor}
-                onCobrar={(forma, contaId, extra) => criarCobranca(c.id, forma, contaId, extra)}
-                onListarAssinaturas={() => listarAssinaturas(c.cliente_id)}
-                onVincular={async (subId, contaId) => { await vincularAssinatura(c.id, subId, contaId); refetchContratos(); }}
-                onDesvincular={() => setDesvincularAlvo({ id: c.id, nome: c.cliente?.nome || c.descricao || 'contrato' })}
-                onCancelar={() => { const cb = cobrancaDoContrato(c.id); if (cb) setCancelandoCob({ cob: cb, nome: c.cliente?.nome || c.cliente_nome || '' }); }}
-                onSincronizar={() => sincronizarCobrancas(c.id)}
-                onReceberManual={() => { const cb = cobrancaDoContrato(c.id); if (cb) receberManualCobranca(cb.id); }}
-                onWhatsapp={() => openWhatsapp(cobrancaDoContrato(c.id))}
-                grupoQtd={(() => { const cb = cobrancaDoContrato(c.id); return cb ? linhasDaFatura(cb).length : 1; })()}
-              />
-            )}
-          />
-        ) : (
-        <SectionCard flush className="overflow-hidden">
+        {/* Lista */}
+        <div className="rounded-[24px] border border-border bg-surface [&>div:last-child]:rounded-b-[24px]">
+          <div className="hidden grid-cols-[28px_minmax(0,2.2fr)_minmax(0,1.1fr)_minmax(0,1.4fr)_130px_40px] items-center gap-4 border-b border-border px-5 py-2.5 text-[11.5px] uppercase tracking-[0.06em] text-foreground-muted md:grid">
+            <button type="button" onClick={toggleSelectAll} aria-label="Selecionar todos"
+              className={cn('grid h-5 w-5 place-items-center rounded-md border transition-colors', isAllSelected ? 'border-primary bg-primary text-primary-foreground' : isSomeSelected ? 'border-primary bg-primary/40 text-primary-foreground' : 'border-border-strong')}>
+              {(isAllSelected || isSomeSelected) && <Check className="h-3.5 w-3.5" />}
+            </button>
+            <span>Cliente e serviço</span><span>Recorrência</span><span>Cobrança</span><span className="text-right">Valor</span><span />
+          </div>
           {isLoading ? (
-            <SkeletonTable rows={5} />
-          ) : filteredContratos.length === 0 ? (
-            <EmptyState
-              title="Nenhum contrato encontrado"
-              description="Crie seu primeiro contrato para acompanhar seus acordos com clientes."
-              action={
-                <Button onClick={handleNew} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Novo Contrato
-                </Button>
-              }
-            />
-          ) : (
-            <Table className="min-w-[1080px]">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-12 pl-5 md:pl-6">
-                    <Checkbox
-                      checked={isAllSelected}
-                      onCheckedChange={toggleSelectAll}
-                      aria-label="Selecionar todos"
-                      className={isSomeSelected ? 'data-[state=checked]:bg-primary/50' : ''}
-                    />
-                  </TableHead>
-                  <TableHead className="min-w-[220px]"><SortBtn label="Cliente" onClick={() => toggleSort('cliente')} icon={sortIcon('cliente')} /></TableHead>
-                  <TableHead className="min-w-[240px]"><SortBtn label="Descrição" onClick={() => toggleSort('descricao')} icon={sortIcon('descricao')} /></TableHead>
-                  <TableHead className="w-[130px]"><SortBtn label="Recorrência" onClick={() => toggleSort('recorrencia')} icon={sortIcon('recorrencia')} /></TableHead>
-                  <TableHead className="w-[140px] text-right"><SortBtn label="Valor" onClick={() => toggleSort('valor')} icon={sortIcon('valor')} align="right" /></TableHead>
-                  <TableHead className="w-[110px]"><SortBtn label="Início" onClick={() => toggleSort('inicio')} icon={sortIcon('inicio')} /></TableHead>
-                  <TableHead className="w-[110px]"><SortBtn label="Status" onClick={() => toggleSort('status')} icon={sortIcon('status')} /></TableHead>
-                  <TableHead className="w-[160px]">Cobrança</TableHead>
-                  <TableHead className="w-[100px] pr-5 text-right md:pr-6">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedContratos.map(contrato => (
-                  <TableRow
-                    key={contrato.id}
-                    data-state={isSelected(contrato.id) ? 'selected' : undefined}
-                    className="border-b border-border"
-                  >
-                    <TableCell className="pl-5 md:pl-6">
-                      <Checkbox
-                        checked={isSelected(contrato.id)}
-                        onCheckedChange={() => toggleSelect(contrato.id)}
-                        aria-label={`Selecionar ${contrato.descricao}`}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex min-w-0 items-center gap-3">
-                        <InitialsAvatar nome={contrato.cliente?.nome} className="h-9 w-9 rounded-[12px] text-[12px]" />
-                        <span className="truncate font-semibold text-foreground">{contrato.cliente?.nome || '-'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[260px] truncate text-foreground-muted">{contrato.descricao}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={contrato.recorrencia} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="whitespace-nowrap font-heading font-semibold tabular-nums tracking-[-0.02em] text-[hsl(var(--success-fg))]">{formatCurrency(Number(contrato.valor))}</span>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-foreground-muted">{formatDate(contrato.data_inicio)}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={contrato.status === 'ativo' && estadoPausa(contrato) === 'pausado' ? 'pausado' : contrato.status} />
-                    </TableCell>
-                    <TableCell>
-                      <ContratoCobrancaCell
-                        contratoId={contrato.id}
-                        cobranca={cobrancaDoContrato(contrato.id)}
-                        busy={cobrBusyId === contrato.id || cobrBusyId === cobrancaDoContrato(contrato.id)?.id}
-                        contas={contasRecebimento}
-                        clienteNome={contrato.cliente?.nome || ''}
-                        contratoDescricao={contrato.descricao}
-                        contratoValor={contrato.valor}
-                        onCobrar={(forma, contaId, extra) => criarCobranca(contrato.id, forma, contaId, extra)}
-                        onListarAssinaturas={() => listarAssinaturas(contrato.cliente_id)}
-                        onVincular={async (subId, contaId) => { await vincularAssinatura(contrato.id, subId, contaId); refetchContratos(); }}
-                        onDesvincular={() => setDesvincularAlvo({ id: contrato.id, nome: contrato.cliente?.nome || contrato.descricao || 'contrato' })}
-                        onCancelar={() => { const c = cobrancaDoContrato(contrato.id); if (c) setCancelandoCob({ cob: c, nome: contrato.cliente?.nome || '' }); }}
-                        onSincronizar={() => sincronizarCobrancas(contrato.id)}
-                        onReceberManual={() => { const c = cobrancaDoContrato(contrato.id); if (c) receberManualCobranca(c.id); }}
-                        onWhatsapp={() => openWhatsapp(cobrancaDoContrato(contrato.id))}
-                        grupoQtd={(() => { const cb = cobrancaDoContrato(contrato.id); return cb ? linhasDaFatura(cb).length : 1; })()}
-                      />
-                    </TableCell>
-                    <TableCell className="pr-5 md:pr-6">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" aria-label="Editar contrato" onClick={() => handleEdit(contrato)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full hover:bg-danger-bg" aria-label="Excluir contrato" onClick={() => { setDeletingId(contrato.id); setDeleteDialogOpen(true); }}>
-                          <Trash2 className="h-4 w-4 text-[hsl(var(--danger-fg))]" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </SectionCard>
-        )}
+            <div className="p-4 md:p-5"><SkeletonTable rows={5} /></div>
+          ) : sortedContratos.length === 0 ? (
+            <div className="px-6 py-14 text-center">
+              <p className="text-[15px] text-foreground">{contratos.length ? 'Nenhum contrato com esses filtros.' : 'Nenhum contrato ainda.'}</p>
+              <p className="mt-1 text-[13px] text-foreground-muted">Crie um contrato para acompanhar seus acordos com clientes.</p>
+              <button type="button" onClick={handleNew} className={cn(btn.primary, 'mt-4')}><Plus className="h-4 w-4" /> Novo contrato</button>
+            </div>
+          ) : sortedContratos.map((contrato) => {
+            const marcado = isSelected(contrato.id);
+            const pausado = contrato.status === 'ativo' && estadoPausa(contrato) === 'pausado';
+            const st = pausado ? 'pausado' : contrato.status;
+            const prox = proximaCobranca(contrato);
+            const cob = cobrancaDoContrato(contrato.id);
+            const mensalEq = getValorMensalEquivalente(Number(contrato.valor), contrato.recorrencia);
+            const nomeCli = contrato.cliente?.nome || '-';
+            return (
+              <div key={contrato.id}
+                className={cn('group relative grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-2 gap-y-1 border-b border-border px-4 py-3.5 last:border-b-0 hover:bg-surface-2/50 md:grid-cols-[28px_minmax(0,2.2fr)_minmax(0,1.1fr)_minmax(0,1.4fr)_130px_40px] md:gap-4 md:px-5',
+                  marcado && 'bg-primary/5')}>
+                <button type="button" onClick={(e) => { e.stopPropagation(); toggleSelect(contrato.id); }} aria-label={`Selecionar ${contrato.descricao}`}
+                  className={cn('hidden h-5 w-5 place-items-center rounded-md border transition-colors md:grid', marcado ? 'border-primary bg-primary text-primary-foreground' : 'border-border-strong md:opacity-0 md:group-hover:opacity-100', selectedIds.size > 0 && 'md:opacity-100')}>
+                  {marcado && <Check className="h-3.5 w-3.5" />}
+                </button>
+                <button type="button" onClick={() => handleEdit(contrato)} className="flex min-w-0 items-center gap-3 text-left">
+                  <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-full text-[13px] font-semibold', corAvatar(nomeCli))}>{iniciais(nomeCli)}</span>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2"><span className="truncate text-[15px] font-semibold text-foreground">{nomeCli}</span>
+                      {st !== 'ativo' && <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10.5px]', ST_CLS[st] || 'bg-surface-2 text-foreground-muted')}>{ST_LABEL[st] || st}</span>}</span>
+                    <span className="block truncate text-[12.5px] text-foreground-muted">{contrato.descricao}</span>
+                  </span>
+                </button>
+                <div className="col-span-3 row-start-2 flex flex-wrap items-center gap-x-2 pl-[52px] text-[12.5px] text-foreground-muted md:col-span-1 md:row-start-auto md:block md:pl-0">
+                  <span className="text-foreground first-letter:uppercase md:block">{REC_LABEL[contrato.recorrencia] || contrato.recorrencia}</span><span className="md:hidden">·</span>
+                  <span className="md:block">{contrato.recorrencia !== 'unico' && contrato.dia_vencimento ? `vence dia ${contrato.dia_vencimento} · ` : ''}desde {formatDate(contrato.data_inicio).slice(3)}</span>
+                </div>
+                <div className="col-span-3 row-start-3 pl-[52px] md:col-span-1 md:row-start-auto md:pl-0" onClick={(e) => e.stopPropagation()}>
+                  <ContratoCobrancaCell
+                    contratoId={contrato.id}
+                    cobranca={cob}
+                    busy={cobrBusyId === contrato.id || cobrBusyId === cob?.id}
+                    contas={contasRecebimento}
+                    clienteNome={contrato.cliente?.nome || ''}
+                    contratoDescricao={contrato.descricao}
+                    contratoValor={contrato.valor}
+                    onCobrar={(forma, contaId, extra) => criarCobranca(contrato.id, forma, contaId, extra)}
+                    onListarAssinaturas={() => listarAssinaturas(contrato.cliente_id)}
+                    onVincular={async (subId, contaId) => { await vincularAssinatura(contrato.id, subId, contaId); refetchContratos(); }}
+                    onDesvincular={() => setDesvincularAlvo({ id: contrato.id, nome: contrato.cliente?.nome || contrato.descricao || 'contrato' })}
+                    onCancelar={() => { if (cob) setCancelandoCob({ cob, nome: contrato.cliente?.nome || '' }); }}
+                    onSincronizar={() => sincronizarCobrancas(contrato.id)}
+                    onReceberManual={() => { if (cob) receberManualCobranca(cob.id); }}
+                    onWhatsapp={() => openWhatsapp(cob)}
+                    grupoQtd={cob ? linhasDaFatura(cob).length : 1}
+                  />
+                  {prox && <span className="mt-0.5 block text-[12px] text-foreground-muted">próxima em {formatDate(prox)}</span>}
+                </div>
+                <div className="col-start-2 row-start-1 text-right md:col-start-auto md:row-start-auto">
+                  <span className="block font-heading text-[16px] font-semibold tabular-nums text-foreground">{formatCurrency(Number(contrato.valor))}</span>
+                  <span className="block text-[11.5px] text-foreground-muted">{contrato.recorrencia === 'mensal' ? 'por mês' : contrato.recorrencia === 'unico' ? 'valor único' : `${formatCurrency(mensalEq)}/mês`}</span>
+                </div>
+                <div className="relative col-start-3 row-start-1 md:col-start-auto md:row-start-auto" onClick={(e) => e.stopPropagation()}>
+                  <button type="button" onClick={() => setMenuAberto(menuAberto === contrato.id ? null : contrato.id)} aria-label="Mais ações" className="grid h-9 w-9 place-items-center rounded-full text-foreground-muted hover:bg-surface-2 hover:text-foreground"><MoreHorizontal className="h-4 w-4" /></button>
+                  {menuAberto === contrato.id && (
+                    <div className="absolute right-0 top-10 z-30 w-56 rounded-2xl border border-border bg-surface p-1.5 shadow-xl">
+                      <button type="button" onClick={() => { setMenuAberto(null); handleEdit(contrato); }} className={MENU_ITEM}><Pencil className="h-4 w-4" />Editar</button>
+                      <button type="button" onClick={() => { setMenuAberto(null); abrirReajuste(contrato); }} className={MENU_ITEM}><FileSignature className="h-4 w-4" />Reajustar valor</button>
+                      {contrato.status === 'ativo' && contrato.recorrencia !== 'unico' && (
+                        <button type="button" onClick={() => { setMenuAberto(null); handleEdit(contrato); }} className={MENU_ITEM}><Pause className="h-4 w-4" />{pausado ? 'Reativar / pausa' : 'Pausar'}</button>
+                      )}
+                      <button type="button" onClick={() => { setMenuAberto(null); navigate('/cobrancas'); }} className={MENU_ITEM}><CalendarDays className="h-4 w-4" />Ver cobranças</button>
+                      <div className="my-1 h-px bg-border" />
+                      <button type="button" onClick={() => { setMenuAberto(null); setDeletingId(contrato.id); setDeleteDialogOpen(true); }} className={cn(MENU_ITEM, 'text-danger-fg hover:bg-danger-bg')}><Trash2 className="h-4 w-4" />Excluir</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         {/* Create/Edit Modal */}
         <Sheet open={modalOpen} onOpenChange={setModalOpen}>
-          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[560px] sm:mx-auto">
-            <SheetHeading
-              className="px-5 pt-1"
-              eyebrow="Cadastro"
-              title={editingContrato ? 'Editar contrato' : 'Novo contrato'}
-            />
-
-            <form onSubmit={handleSubmit} className="space-y-6 p-5 pt-4">
-              {/* ===== Cliente e serviço ===== */}
-              <FormSection
-                label="Cliente e serviço"
-                action={
-                  <div className="flex items-center gap-3">
-                    {formData.cliente_id && !novoClienteOpen && (
-                      <button
-                        type="button"
-                        onClick={() => setEditarClienteOpen(true)}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                      >
-                        <Pencil className="h-3 w-3" /> Editar cadastro
+          <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[940px]')}>
+            <form onSubmit={handleSubmit} className="flex max-h-[92dvh] flex-col md:max-h-[88dvh]">
+              <ModalHeader
+                eyebrow={editingContrato ? 'Contrato' : 'Cadastro'}
+                title={editingContrato ? (clientes.find((c) => c.id === formData.cliente_id)?.nome || 'Editar contrato') : 'Novo contrato'}
+                onClose={() => setModalOpen(false)}
+              />
+              <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="space-y-3 p-4 md:p-5">
+                  <Secao n={1} title="Cliente e serviço" extra={
+                    <div className="flex items-center gap-3">
+                      {formData.cliente_id && !novoClienteOpen && (
+                        <button type="button" onClick={() => setEditarClienteOpen(true)} className="inline-flex items-center gap-1 text-[12px] text-primary hover:underline">
+                          <Pencil className="h-3 w-3" /> Editar cadastro
+                        </button>
+                      )}
+                      <button type="button" onClick={() => setNovoClienteOpen(v => !v)} className="text-[12px] text-primary hover:underline">
+                        {novoClienteOpen ? 'Cancelar' : '+ Novo cliente'}
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setNovoClienteOpen(v => !v)}
-                      className="text-xs font-medium text-primary hover:underline"
-                    >
-                      {novoClienteOpen ? 'Cancelar' : '+ Novo cliente'}
-                    </button>
-                  </div>
-                }
-              >
-                <div className="space-y-1.5">
-                  <Label htmlFor="cliente_id">Cliente</Label>
-                  {novoClienteOpen ? (
-                    <div className="flex gap-2">
-                      <Input
-                        autoFocus
-                        value={novoClienteNome}
-                        onChange={(e) => setNovoClienteNome(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCriarClienteInline(); } }}
-                        placeholder="Nome do novo cliente"
-                      />
-                      <Button type="button" size="lg" onClick={handleCriarClienteInline} disabled={criandoCliente || !novoClienteNome.trim()}>
-                        {criandoCliente ? 'Criando…' : 'Criar'}
-                      </Button>
                     </div>
-                  ) : (
-                    <Select
-                      value={formData.cliente_id}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, cliente_id: value }))}
-                    >
-                      <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {activeClientes.map(cliente => (
-                          <SelectItem key={cliente.id} value={cliente.id}>
-                            {cliente.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
+                  }>
+                    <Campo label="Cliente">
+                      {novoClienteOpen ? (
+                        <div className="flex gap-2">
+                          <Input autoFocus value={novoClienteNome} onChange={(e) => setNovoClienteNome(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCriarClienteInline(); } }}
+                            placeholder="Nome do novo cliente" />
+                          <button type="button" onClick={handleCriarClienteInline} disabled={criandoCliente || !novoClienteNome.trim()} className={btn.primary}>
+                            {criandoCliente ? 'Criando…' : 'Criar'}
+                          </button>
+                        </div>
+                      ) : (
+                        <Select value={formData.cliente_id} onValueChange={(value) => setFormData(prev => ({ ...prev, cliente_id: value }))}>
+                          <SelectTrigger className="h-10"><SelectValue placeholder="Selecione o cliente" /></SelectTrigger>
+                          <SelectContent>
+                            {activeClientes.map(cliente => <SelectItem key={cliente.id} value={cliente.id}>{cliente.nome}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </Campo>
+                    <Campo label="O que você entrega">
+                      <Input id="descricao" value={formData.descricao} onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))} placeholder="Ex.: Gestão de redes sociais" required />
+                    </Campo>
+                  </Secao>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="descricao">Descrição *</Label>
-                  <Textarea
-                    id="descricao"
-                    value={formData.descricao}
-                    onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-                    placeholder="Descrição do contrato..."
-                    rows={2}
-                    required
-                  />
-                </div>
-              </FormSection>
-
-              {/* ===== Valor e recorrência ===== */}
-              <FormSection label="Valor e recorrência">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="valor">Valor *</Label>
-                    <Input
-                      id="valor"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.valor}
-                      onChange={(e) => setFormData(prev => ({ ...prev, valor: e.target.value }))}
-                      placeholder="0,00"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="recorrencia">Recorrência</Label>
-                    <Select
-                      value={formData.recorrencia}
-                      onValueChange={(value: typeof formData.recorrencia) => setFormData(prev => ({ ...prev, recorrencia: value }))}
-                    >
-                      <SelectTrigger className="h-11">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {RECORRENCIA_OPTIONS.map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Conditional: Dia de Vencimento for recurring contracts */}
-                {formData.recorrencia !== 'unico' && (
-                  <div className="space-y-1.5">
-                    <Label htmlFor="dia_vencimento" className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-foreground-muted" />
-                      Dia de Vencimento *
-                    </Label>
-                    <Input
-                      id="dia_vencimento"
-                      type="number"
-                      min="1"
-                      max="31"
-                      value={formData.dia_vencimento}
-                      onChange={(e) => setFormData(prev => ({ ...prev, dia_vencimento: e.target.value }))}
-                      placeholder="Ex: 10"
-                      required
-                    />
-                    <p className="text-[11.5px] text-foreground-muted">
-                      Dia do mês para cobrança (1-31)
-                    </p>
-                  </div>
-                )}
-
-                {/* Conditional: Parcelas for unique contracts */}
-                {formData.recorrencia === 'unico' && (
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="num_parcelas" className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-foreground-muted" />
-                        Número de Parcelas
-                      </Label>
-                      <Input
-                        id="num_parcelas"
-                        type="number"
-                        min="1"
-                        max="60"
-                        value={formData.num_parcelas}
-                        onChange={(e) => setFormData(prev => ({ ...prev, num_parcelas: e.target.value }))}
-                      />
+                  <Secao n={2} title="Valor e recorrência">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <Campo label="Valor">
+                        <div className="flex h-10 items-center rounded-xl border border-input bg-surface-2 px-3 focus-within:ring-2 focus-within:ring-ring">
+                          <span className="mr-1 text-foreground-muted">R$</span>
+                          <input id="valor" type="number" step="0.01" min="0" value={formData.valor} onChange={(e) => setFormData(prev => ({ ...prev, valor: e.target.value }))} placeholder="0,00" required className="min-w-0 flex-1 bg-transparent font-semibold tabular-nums outline-none" />
+                        </div>
+                      </Campo>
+                      {formData.recorrencia !== 'unico' ? (
+                        <Campo label="Vence todo dia" hint="Se o mês não tiver esse dia, vence no último.">
+                          <Input id="dia_vencimento" type="number" min="1" max="31" value={formData.dia_vencimento} onChange={(e) => setFormData(prev => ({ ...prev, dia_vencimento: e.target.value }))} placeholder="Ex: 10" required />
+                        </Campo>
+                      ) : (
+                        <Campo label="Número de parcelas">
+                          <Input id="num_parcelas" type="number" min="1" max="60" value={formData.num_parcelas} onChange={(e) => setFormData(prev => ({ ...prev, num_parcelas: e.target.value }))} />
+                        </Campo>
+                      )}
                     </div>
-
-                    {parcelas.length > 0 && (
-                      <div className="space-y-1.5">
-                        <Label>Parcelas</Label>
-                        <div className="overflow-hidden rounded-[20px] border border-border">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="text-left text-xs font-medium text-foreground-muted">
-                                <th className="px-3 py-2.5">#</th>
-                                <th className="px-3 py-2.5">Vencimento</th>
-                                <th className="px-3 py-2.5 text-right">Valor</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {parcelas.map((parcela, index) => (
-                                <tr key={index} className="border-t border-border">
-                                  <td className="px-3 py-2 text-foreground-muted">
-                                    {parcela.numero_parcela}/{parcelas.length}
-                                  </td>
-                                  <td className="px-3 py-2">
-                                    <Input
-                                      type="date"
-                                      value={parcela.data_vencimento}
-                                      onChange={(e) => {
-                                        const newParcelas = [...parcelas];
-                                        newParcelas[index] = { ...newParcelas[index], data_vencimento: e.target.value };
-                                        setParcelas(newParcelas);
-                                      }}
-                                      className="w-full"
-                                    />
-                                  </td>
-                                  <td className="px-3 py-2">
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      value={parcela.valor}
-                                      onChange={(e) => {
-                                        const newParcelas = [...parcelas];
-                                        newParcelas[index] = { ...newParcelas[index], valor: parseFloat(e.target.value) || 0 };
-                                        setParcelas(newParcelas);
-                                      }}
-                                      className="w-24 text-right"
-                                    />
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot>
-                              <tr className="border-t border-border bg-surface-2 font-medium">
-                                <td colSpan={2} className="px-3 py-2.5">Total</td>
-                                <td className="px-3 py-2.5 text-right font-heading font-semibold tabular-nums">
-                                  {formatCurrency(parcelas.reduce((sum, p) => sum + p.valor, 0))}
+                    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Recorrência">
+                      {RECORRENCIA_OPTIONS.map(option => (
+                        <button key={option.value} type="button" onClick={() => setFormData(prev => ({ ...prev, recorrencia: option.value }))} aria-pressed={formData.recorrencia === option.value}
+                          className={cn('no-touch-min h-9 rounded-full border px-3.5 text-[13px] transition-colors', formData.recorrencia === option.value ? 'border-foreground bg-foreground font-medium text-background' : 'border-border text-foreground-muted hover:text-foreground')}>
+                          {REC_LABEL[option.value]}
+                        </button>
+                      ))}
+                    </div>
+                    {formData.recorrencia === 'unico' && parcelas.length > 0 && (
+                      <div className="overflow-hidden rounded-2xl border border-border">
+                        <table className="w-full text-sm">
+                          <thead><tr className="text-left text-[12px] text-foreground-muted"><th className="px-3 py-2">Parcela</th><th className="px-3 py-2">Vencimento</th><th className="px-3 py-2 text-right">Valor</th></tr></thead>
+                          <tbody>
+                            {parcelas.map((parcela, index) => (
+                              <tr key={index} className="border-t border-border">
+                                <td className="px-3 py-2 text-foreground-muted">{parcela.numero_parcela}/{parcelas.length}</td>
+                                <td className="px-3 py-2">
+                                  <Input type="date" value={parcela.data_vencimento} onChange={(e) => { const n = [...parcelas]; n[index] = { ...n[index], data_vencimento: e.target.value }; setParcelas(n); }} className="w-full" />
+                                </td>
+                                <td className="px-3 py-2">
+                                  <Input type="number" step="0.01" value={parcela.valor} onChange={(e) => { const n = [...parcelas]; n[index] = { ...n[index], valor: parseFloat(e.target.value) || 0 }; setParcelas(n); }} className="w-24 text-right" />
                                 </td>
                               </tr>
-                            </tfoot>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </FormSection>
-
-              {/* ===== Vigência ===== */}
-              <FormSection label="Vigência">
-                <div className="grid grid-cols-2 gap-3">
-                  <DatePickerField
-                    label="Data Início *"
-                    value={formData.data_inicio}
-                    onChange={(d) => setFormData(prev => ({ ...prev, data_inicio: d }))}
-                    required
-                  />
-                  <DatePickerField
-                    label="Data Fim"
-                    value={formData.data_fim}
-                    onChange={(d) => setFormData(prev => ({ ...prev, data_fim: d }))}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="status">Status</Label>
-                  <div className="grid grid-cols-3 gap-1 rounded-full border border-border bg-surface p-1">
-                    {(['ativo', 'encerrado', 'cancelado'] as const).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, status: s }))}
-                        className={cn(
-                          'no-touch-min h-9 rounded-full text-[13px] font-semibold transition-colors',
-                          formData.status === s ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground',
-                        )}
-                      >
-                        {s === 'ativo' ? 'Ativo' : s === 'encerrado' ? 'Encerrado' : 'Cancelado'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Data de Inativação - only when status is not ativo */}
-                {formData.status !== 'ativo' && (
-                  <div className="space-y-1.5">
-                    <DatePickerField
-                      label="Data de Inativação"
-                      value={formData.data_inativacao}
-                      onChange={(d) => setFormData(prev => ({ ...prev, data_inativacao: d }))}
-                    />
-                    <p className="text-[11.5px] text-foreground-muted">
-                      Data efetiva de encerramento/cancelamento. Se não informada, será usada a data atual.
-                    </p>
-                  </div>
-                )}
-              </FormSection>
-
-              {/* ===== Pausa (só na edição de contrato ativo e recorrente) ===== */}
-              {(() => {
-                const atual = editingContratoId ? contratos.find(c => c.id === editingContratoId) : undefined;
-                if (!atual || atual.status !== 'ativo' || atual.recorrencia === 'unico') return null;
-                return <PausaContrato key={`${atual.id}-${atual.pausado_desde}-${atual.pausado_ate}`} contrato={atual} onChange={() => refetchContratos()} />;
-              })()}
-
-              {/* ===== Criar cobrança no Asaas junto com o contrato (só na criação, recorrente) ===== */}
-              {!editingContrato && formData.recorrencia !== 'unico' && (
-                <FormSection label="Cobrança no Asaas">
-                  <div className="rounded-[20px] border border-border p-3.5">
-                    <div className="flex items-center justify-between gap-3">
-                      <Label className="flex items-center gap-2.5 text-sm font-semibold">
-                        <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-info-bg text-info-fg"><Zap className="h-4 w-4" /></span>
-                        Criar cobrança no Asaas
-                      </Label>
-                      <Switch checked={novoContratoCobranca} onCheckedChange={setNovoContratoCobranca} />
-                    </div>
-                    {novoContratoCobranca && (
-                      <div className="mt-4 space-y-3.5 border-t border-border pt-3.5">
-                        <div className="space-y-1.5">
-                          <Label className="text-[12px] text-foreground-muted">Forma de pagamento</Label>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {[['UNDEFINED', 'Cliente escolhe'], ['PIX', 'Pix'], ['BOLETO', 'Boleto'], ['CREDIT_CARD', 'Cartão']].map(([v, l]) => (
-                              <ChoiceChip key={v} active={ncForma === v} onClick={() => setNcForma(v)}>{l}</ChoiceChip>
                             ))}
-                          </div>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[12px] text-foreground-muted">Conta de recebimento</Label>
-                          <select value={ncConta} onChange={(e) => setNcConta(e.target.value)} className={NATIVE_SELECT_CLS}>
-                            <option value="">Sem conta (defino depois)</option>
-                            {contasRecebimento.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                          </select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1.5"><Label className="text-[12px] text-foreground-muted">Multa atraso (%)</Label><Input type="number" step="0.01" min="0" value={ncMulta} onChange={(e) => setNcMulta(e.target.value)} placeholder="0" /></div>
-                          <div className="space-y-1.5"><Label className="text-[12px] text-foreground-muted">Juros ao mês (%)</Label><Input type="number" step="0.01" min="0" value={ncJuros} onChange={(e) => setNcJuros(e.target.value)} placeholder="0" /></div>
-                        </div>
-                        <p className="text-[11.5px] leading-snug text-foreground-muted">Cria a assinatura no Asaas e lança a receita a receber. Multa/juros só incidem se atrasar — juros é <b>ao mês</b> (proporcional aos dias). O juros/multa recebido entra como receita extra na baixa.</p>
+                          </tbody>
+                          <tfoot><tr className="border-t border-border bg-surface-2"><td colSpan={2} className="px-3 py-2.5 font-medium">Total</td><td className="px-3 py-2.5 text-right font-heading font-semibold tabular-nums">{formatCurrency(parcelas.reduce((sum, p) => sum + p.valor, 0))}</td></tr></tfoot>
+                        </table>
                       </div>
                     )}
-                  </div>
-                </FormSection>
-              )}
+                  </Secao>
 
-              {/* ===== Cobrança automática (exceção) + exigir nota fiscal — por contrato ===== */}
-              {formData.recorrencia !== 'unico' && (
-                <FormSection label="Cobrança automática (WhatsApp)">
-                  <div className="grid grid-cols-3 gap-1 rounded-full border border-border bg-surface p-1">
-                    {[['padrao', 'Padrão'], ['off', 'Desligado'], ['custom', 'Personalizado']].map(([v, l]) => (
-                      <button key={v} type="button" onClick={() => setCaModo(v as 'padrao' | 'off' | 'custom')} className={cn('no-touch-min h-9 rounded-full text-[12.5px] font-semibold transition-colors', caModo === v ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground')}>{l}</button>
-                    ))}
-                  </div>
-                  <p className="text-[11.5px] text-foreground-muted">
-                    {caModo === 'padrao' ? 'Usa a regra global (Meu Perfil).' : caModo === 'off' ? 'Nunca dispara automático para este contrato.' : 'Define uma regra só para este contrato.'}
-                  </p>
-                  <div className="rounded-[20px] border border-border px-3.5">
-                    {caModo === 'custom' && (
-                      <>
-                        <div className="flex items-center justify-between gap-3 border-b border-border py-2.5">
-                          <Label className="text-[13px] font-normal">Enviar <b>X dias antes</b></Label>
-                          <Input type="number" min="0" value={caAntes} onChange={(e) => setCaAntes(e.target.value)} placeholder="0" className="w-20 text-center" />
-                        </div>
-                        <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-border py-2.5">
-                          <Label className="text-[13px] font-normal">Enviar <b>no dia</b></Label>
-                          <Switch checked={caNoDia} onCheckedChange={setCaNoDia} />
-                        </div>
-                        <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-border py-2.5">
-                          <Label className="text-[13px] font-normal">Reenviar <b>todo dia em atraso</b></Label>
-                          <Switch checked={caAtraso} onCheckedChange={setCaAtraso} />
-                        </div>
-                      </>
+                  <Secao n={3} title="Vigência e status">
+                    <div className="grid grid-cols-2 gap-3">
+                      <DatePickerField label="Começa em *" value={formData.data_inicio} onChange={(d) => setFormData(prev => ({ ...prev, data_inicio: d }))} required />
+                      <DatePickerField label="Termina em (opcional)" value={formData.data_fim} onChange={(d) => setFormData(prev => ({ ...prev, data_fim: d }))} />
+                    </div>
+                    <Segmented<'ativo' | 'encerrado' | 'cancelado'> value={formData.status} onChange={(s) => setFormData(prev => ({ ...prev, status: s }))} opts={[['ativo', 'Ativo'], ['encerrado', 'Encerrado'], ['cancelado', 'Cancelado']]} />
+                    {formData.status !== 'ativo' && (
+                      <div>
+                        <DatePickerField label="Data de inativação" value={formData.data_inativacao} onChange={(d) => setFormData(prev => ({ ...prev, data_inativacao: d }))} />
+                        <p className="mt-1 text-[11.5px] text-foreground-muted">Data efetiva de encerramento/cancelamento. Se não informada, será usada a data atual.</p>
+                      </div>
                     )}
-                    <div className="flex min-h-[52px] items-center justify-between gap-3 border-b border-border py-2.5">
-                      <Label className="text-[13px] font-normal">Exigir <b>nota fiscal (PDF)</b> para disparar</Label>
-                      <Switch checked={caExigirNf} onCheckedChange={setCaExigirNf} />
-                    </div>
-                    <div className="flex min-h-[52px] items-center justify-between gap-3 py-2.5">
-                      <Label className="text-[13px] font-normal">No WhatsApp, enviar <b>chave PIX</b> (não o link Asaas)</Label>
-                      <Switch checked={caEnvioPix} onCheckedChange={setCaEnvioPix} />
-                    </div>
-                  </div>
-                  <p className="text-[11.5px] text-foreground-muted">Vale para as próximas cobranças geradas deste contrato. A chave PIX é a de Meu Perfil; a baixa é pelo "Identificar pagamento manual".</p>
-                </FormSection>
-              )}
+                    {(() => {
+                      const atual = editingContratoId ? contratos.find(c => c.id === editingContratoId) : undefined;
+                      if (!atual || atual.status !== 'ativo' || atual.recorrencia === 'unico') return null;
+                      return <PausaContrato key={`${atual.id}-${atual.pausado_desde}-${atual.pausado_ate}`} contrato={atual} onChange={() => refetchContratos()} />;
+                    })()}
+                  </Secao>
 
-              {/* ===== Histórico de reajustes (edição) ===== */}
-              {editingContrato && (
-                <FormSection
-                  label={<span className="inline-flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5" /> Histórico de Reajustes</span>}
-                  action={!showAditivoForm && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
+                  {formData.recorrencia !== 'unico' && (
+                    <Secao n={4} title="Cobrança">
+                      {!editingContrato && (
+                        <div className="rounded-2xl bg-surface-2/60 px-3.5 py-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span><span className="flex items-center gap-1.5 text-[14px] text-foreground"><Zap className="h-4 w-4 text-primary" />Cobrar todo mês pelo Asaas</span><span className="block text-[12px] text-foreground-muted">Cria a assinatura e lança a receita a receber · baixa automática</span></span>
+                            <Switch checked={novoContratoCobranca} onCheckedChange={setNovoContratoCobranca} aria-label="Criar cobrança no Asaas" />
+                          </div>
+                          {novoContratoCobranca && (
+                            <div className="mt-3 space-y-3 border-t border-border pt-3">
+                              <Segmented<string> value={ncForma} onChange={setNcForma} opts={[['UNDEFINED', 'Cliente escolhe'], ['PIX', 'Pix'], ['BOLETO', 'Boleto'], ['CREDIT_CARD', 'Cartão']]} />
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                <Campo label="Recebe na conta">
+                                  <select value={ncConta} onChange={(e) => setNcConta(e.target.value)} className={campoCls}>
+                                    <option value="">Defino depois</option>
+                                    {contasRecebimento.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                  </select>
+                                </Campo>
+                                <Campo label="Multa por atraso (%)"><Input type="number" step="0.01" min="0" value={ncMulta} onChange={(e) => setNcMulta(e.target.value)} placeholder="0" /></Campo>
+                                <Campo label="Juros ao mês (%)"><Input type="number" step="0.01" min="0" value={ncJuros} onChange={(e) => setNcJuros(e.target.value)} placeholder="0" /></Campo>
+                              </div>
+                              <p className="text-[11.5px] leading-snug text-foreground-muted">Multa/juros só incidem se atrasar — juros é <b>ao mês</b> (proporcional aos dias). O juros/multa recebido entra como receita extra na baixa.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <p className="pt-1 text-[12.5px] text-foreground-muted">Lembretes automáticos (WhatsApp da empresa e e-mail)</p>
+                      <Segmented<'padrao' | 'off' | 'custom'> value={caModo} onChange={setCaModo} opts={[['padrao', 'Padrão'], ['off', 'Desligado'], ['custom', 'Personalizado']]} />
+                      <p className="text-[11.5px] text-foreground-muted">
+                        {caModo === 'padrao' ? 'Usa a regra global (Meu Perfil).' : caModo === 'off' ? 'Nunca dispara automático para este contrato.' : 'Define uma regra só para este contrato.'}
+                      </p>
+                      <div className="divide-y divide-border rounded-2xl border border-border">
+                        {caModo === 'custom' && (
+                          <>
+                            <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[13.5px] text-foreground">Enviar X dias antes
+                              <Input type="number" min="0" value={caAntes} onChange={(e) => setCaAntes(e.target.value)} placeholder="0" className="h-9 w-20 text-center" />
+                            </div>
+                            <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[13.5px] text-foreground">Enviar no dia<Switch checked={caNoDia} onCheckedChange={setCaNoDia} /></div>
+                            <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[13.5px] text-foreground">Reenviar todo dia em atraso<Switch checked={caAtraso} onCheckedChange={setCaAtraso} /></div>
+                          </>
+                        )}
+                        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[13.5px] text-foreground">Exigir nota fiscal (PDF) para disparar<Switch checked={caExigirNf} onCheckedChange={setCaExigirNf} /></div>
+                        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[13.5px] text-foreground">No WhatsApp, enviar chave PIX (não o link Asaas)<Switch checked={caEnvioPix} onCheckedChange={setCaEnvioPix} /></div>
+                      </div>
+                      <p className="text-[11.5px] text-foreground-muted">Vale para as próximas cobranças geradas deste contrato. A chave PIX é a de Meu Perfil; a baixa é pelo "Identificar pagamento manual".</p>
+                    </Secao>
+                  )}
+
+                  {editingContrato && (
+                    <Secao n={formData.recorrencia !== 'unico' ? 5 : 4} title="Reajustes" extra={!showAditivoForm && (
+                      <button type="button" onClick={() => {
                         const nextMonth = new Date();
                         nextMonth.setMonth(nextMonth.getMonth() + 1);
                         nextMonth.setDate(1);
-                        setAditivoData({
-                          valor_novo: '',
-                          data_vigencia: nextMonth.toISOString().split('T')[0],
-                          motivo: '',
-                        });
+                        setAditivoData({ valor_novo: '', data_vigencia: nextMonth.toISOString().split('T')[0], motivo: '' });
                         setShowAditivoForm(true);
-                      }}
-                      className="gap-1"
-                    >
-                      <Plus className="h-3 w-3" />
-                      Novo Reajuste
-                    </Button>
-                  )}
-                >
-                  {showAditivoForm && (
-                    <div className="space-y-3 rounded-[20px] border border-border p-3.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-foreground">Novo Reajuste</span>
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full" aria-label="Fechar novo reajuste" onClick={() => setShowAditivoForm(false)}>
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-[12px] text-foreground-muted">Novo Valor *</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={aditivoData.valor_novo}
-                            onChange={(e) => setAditivoData(prev => ({ ...prev, valor_novo: e.target.value }))}
-                            placeholder="0,00"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[12px] text-foreground-muted">Vigência a partir de *</Label>
-                          <DatePickerField
-                            label=""
-                            value={aditivoData.data_vigencia}
-                            onChange={(d) => setAditivoData(prev => ({ ...prev, data_vigencia: d }))}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[12px] text-foreground-muted">Motivo</Label>
-                        <Input
-                          value={aditivoData.motivo}
-                          onChange={(e) => setAditivoData(prev => ({ ...prev, motivo: e.target.value }))}
-                          placeholder="Ex: mais usuários + novo serviço"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={handleSaveAditivo}
-                        disabled={isSaving || !aditivoData.valor_novo || !aditivoData.data_vigencia}
-                        className="w-full"
-                      >
-                        {isSaving ? 'Salvando...' : 'Salvar Reajuste'}
-                      </Button>
-                    </div>
-                  )}
-
-                  {aditivosLoading ? (
-                    <p className="text-xs text-foreground-muted">Carregando...</p>
-                  ) : aditivos.length === 0 ? (
-                    <p className="text-xs text-foreground-muted">Nenhum reajuste registrado.</p>
-                  ) : (
-                    <div className="rounded-[20px] border border-border px-3.5">
-                      {aditivos.map(aditivo => (
-                        <div key={aditivo.id} className="flex items-center justify-between gap-3 border-b border-border py-2.5 text-sm last:border-b-0">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="tabular-nums text-foreground-muted line-through">
-                                {formatCurrency(Number(aditivo.valor_anterior))}
-                              </span>
-                              <span className="text-foreground">→</span>
-                              <span className="font-heading font-semibold tabular-nums text-foreground">
-                                {formatCurrency(Number(aditivo.valor_novo))}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-[12px] text-foreground-muted">
-                              <span>A partir de {formatDate(aditivo.data_vigencia)}</span>
-                              {aditivo.motivo && <span className="truncate">• {aditivo.motivo}</span>}
-                            </div>
+                      }} className={btn.mini}><Plus className="mr-1 inline h-3 w-3" />Novo reajuste</button>
+                    )}>
+                      {showAditivoForm && (
+                        <div className="space-y-3 rounded-2xl bg-surface-2/60 p-3.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[14px] font-medium text-foreground">Novo reajuste</span>
+                            <button type="button" aria-label="Fechar novo reajuste" onClick={() => setShowAditivoForm(false)} className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface"><X className="h-3.5 w-3.5" /></button>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 shrink-0 rounded-full hover:bg-danger-bg"
-                            aria-label="Excluir reajuste"
-                            onClick={() => deleteAditivo(aditivo.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 text-[hsl(var(--danger-fg))]" />
-                          </Button>
+                          <div className="grid grid-cols-2 gap-3">
+                            <Campo label="Novo valor *"><Input type="number" step="0.01" min="0" value={aditivoData.valor_novo} onChange={(e) => setAditivoData(prev => ({ ...prev, valor_novo: e.target.value }))} placeholder="0,00" /></Campo>
+                            <DatePickerField label="Vigência a partir de *" value={aditivoData.data_vigencia} onChange={(d) => setAditivoData(prev => ({ ...prev, data_vigencia: d }))} />
+                          </div>
+                          <Campo label="Motivo"><Input value={aditivoData.motivo} onChange={(e) => setAditivoData(prev => ({ ...prev, motivo: e.target.value }))} placeholder="Ex: mais usuários + novo serviço" /></Campo>
+                          <button type="button" onClick={handleSaveAditivo} disabled={isSaving || !aditivoData.valor_novo || !aditivoData.data_vigencia} className={cn(btn.primary, 'w-full')}>
+                            {isSaving ? 'Salvando...' : 'Salvar reajuste'}
+                          </button>
                         </div>
-                      ))}
-                    </div>
+                      )}
+                      {aditivosLoading ? (
+                        <p className="text-[12.5px] text-foreground-muted">Carregando...</p>
+                      ) : aditivos.length === 0 ? (
+                        <p className="text-[12.5px] text-foreground-muted">Nenhum reajuste registrado.</p>
+                      ) : (
+                        <div className="divide-y divide-border rounded-2xl border border-border px-3.5">
+                          {aditivos.map(aditivo => (
+                            <div key={aditivo.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="tabular-nums text-foreground-muted line-through">{formatCurrency(Number(aditivo.valor_anterior))}</span>
+                                  <span className="text-foreground">→</span>
+                                  <span className="font-heading font-semibold tabular-nums text-foreground">{formatCurrency(Number(aditivo.valor_novo))}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[12px] text-foreground-muted">
+                                  <span>A partir de {formatDate(aditivo.data_vigencia)}</span>
+                                  {aditivo.motivo && <span className="truncate">• {aditivo.motivo}</span>}
+                                </div>
+                              </div>
+                              <button type="button" aria-label="Excluir reajuste" onClick={() => deleteAditivo(aditivo.id)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-danger-fg hover:bg-danger-bg"><Trash2 className="h-3.5 w-3.5" /></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Secao>
                   )}
-                </FormSection>
-              )}
+                </div>
 
-              <SheetFooter className="border-t border-border pt-4">
-                <Button type="button" variant="outline" size="lg" onClick={() => setModalOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" size="lg" disabled={isSaving}>
-                  {isSaving ? 'Salvando…' : (editingContrato ? 'Atualizar' : 'Criar')}
-                </Button>
-              </SheetFooter>
+                {/* Resumo ao vivo */}
+                <aside className="border-t border-border bg-surface p-5 md:border-l md:border-t-0">
+                  <div className="space-y-4 md:sticky md:top-0">
+                    <p className="text-[12px] font-semibold uppercase tracking-[0.06em] text-foreground-muted">Resumo</p>
+                    <div>
+                      <p className="font-heading text-[30px] font-semibold tabular-nums tracking-[-0.03em] text-foreground">{formatCurrency(parseFloat(formData.valor) || 0)}</p>
+                      <p className="text-[13px] text-foreground-muted">{REC_RESUMO[formData.recorrencia]}</p>
+                    </div>
+                    <dl className="space-y-2.5 text-[13px]">
+                      <div className="flex justify-between gap-2"><dt className="text-foreground-muted">Cliente</dt><dd className="truncate text-right text-foreground">{clientes.find((c) => c.id === formData.cliente_id)?.nome || '—'}</dd></div>
+                      {formData.recorrencia !== 'unico' && formData.dia_vencimento && (
+                        <div className="flex justify-between gap-2"><dt className="text-foreground-muted">Vence</dt><dd className="text-foreground">todo dia {formData.dia_vencimento}</dd></div>
+                      )}
+                      <div className="flex justify-between gap-2"><dt className="text-foreground-muted">Entra no MRR</dt><dd className="font-semibold text-success-fg">{formData.recorrencia === 'unico' ? '—' : `+${formatCurrency(getValorMensalEquivalente(parseFloat(formData.valor) || 0, formData.recorrencia))}`}</dd></div>
+                      <div className="flex justify-between gap-2"><dt className="text-foreground-muted">Status</dt><dd className="text-foreground">{ST_LABEL[formData.status]}</dd></div>
+                      {formData.recorrencia !== 'unico' && (
+                        <div className="flex justify-between gap-2"><dt className="text-foreground-muted">Lembretes</dt><dd className="text-foreground">{caModo === 'off' ? 'desligados' : caModo === 'custom' ? 'personalizados' : 'regra padrão'}</dd></div>
+                      )}
+                    </dl>
+                    <p className="rounded-2xl bg-primary/5 p-3 text-[12px] leading-relaxed text-foreground-muted">
+                      {formData.recorrencia === 'unico' ? 'As parcelas viram receitas a receber no financeiro ao salvar.' : 'As receitas dos próximos 12 meses entram no financeiro ao salvar.'}
+                    </p>
+                  </div>
+                </aside>
+              </div>
+              <ModalFooter left={editingContrato ? (
+                <button type="button" onClick={() => { if (editingContrato) { setModalOpen(false); setDeletingId(editingContrato.id); setDeleteDialogOpen(true); } }} className={btn.danger}><Trash2 className="h-4 w-4" /> Excluir</button>
+              ) : undefined}>
+                <button type="button" onClick={() => setModalOpen(false)} className={btn.outline}>Cancelar</button>
+                <button type="submit" disabled={isSaving} className={btn.primary}>
+                  {isSaving ? 'Salvando…' : editingContrato ? <><span className="md:hidden">Salvar</span><span className="max-md:hidden">Salvar alterações</span></> : 'Criar contrato'}
+                </button>
+              </ModalFooter>
             </form>
           </SheetContent>
         </Sheet>
@@ -1469,40 +1231,32 @@ export default function Contratos() {
 
         {/* Enviar cobrança por WhatsApp (mensagem editável) */}
         <Sheet open={whatsappOpen} onOpenChange={setWhatsappOpen}>
-          <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
-            <SheetHeading eyebrow="Cobrança" title="Enviar por WhatsApp" />
-            <div className="space-y-6 pt-3">
-              <FormSection label="Destinatário">
-                <div className="space-y-1.5">
-                  <Label>WhatsApp do cliente</Label>
+          <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[560px]')}>
+            <ModalShell>
+              <ModalHeader eyebrow="Cobrança" title="Enviar por WhatsApp" onClose={() => setWhatsappOpen(false)} />
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-5">
+                <Campo label="WhatsApp do cliente" hint="Vem do cadastro do cliente. Enviamos com DDI+DDD, sem o nono dígito.">
                   <Input type="tel" inputMode="tel" value={whatsappTel} onChange={(e) => setWhatsappTel(e.target.value)} placeholder="(65) 99902-0102" />
-                  <p className="text-[11.5px] text-foreground-muted">Vem do cadastro do cliente. Enviamos com DDI+DDD, sem o nono dígito.</p>
-                </div>
-              </FormSection>
-              <FormSection label="Mensagem">
-                <div className="space-y-1.5">
-                  <Label className="sr-only">Mensagem</Label>
+                </Campo>
+                <Campo label="Mensagem" hint="Aceita *negrito*, _itálico_ e quebra de linha. Edite à vontade — o padrão vem de Meu Perfil.">
                   <Textarea value={whatsappText} onChange={(e) => setWhatsappText(e.target.value)} rows={10} className="font-mono text-[13px] leading-relaxed" />
-                  <p className="text-[11.5px] text-foreground-muted">Aceita *negrito*, _itálico_ e quebra de linha. Edite à vontade — o padrão vem de Meu Perfil.</p>
-                </div>
+                </Campo>
                 {whatsappNotas.length ? (
                   <InlineNotice tone="neutral" icon={<FileText className="text-primary" />}>
                     <span className="block">Vai anexar {whatsappNotas.length > 1 ? `${whatsappNotas.length} notas fiscais:` : 'a nota fiscal:'}</span>
                     {whatsappNotas.map((n) => <span key={n.path} className="block truncate text-foreground-muted">{n.nome}</span>)}
                   </InlineNotice>
                 ) : whatsappBloqueado ? (
-                  <InlineNotice tone="warning" icon={<FileText />}>
-                    Esta cobrança exige nota fiscal anexada. Anexe na tela de Cobranças.
-                  </InlineNotice>
+                  <InlineNotice tone="warning" icon={<FileText />}>Esta cobrança exige nota fiscal anexada. Anexe na tela de Cobranças.</InlineNotice>
                 ) : null}
-              </FormSection>
-              <SheetFooter>
-                <Button variant="outline" size="lg" onClick={() => setWhatsappOpen(false)}>Cancelar</Button>
-                <Button size="lg" onClick={handleEnviarWhatsapp} disabled={whatsappSending || whatsappBloqueado || !whatsappTel.trim() || !whatsappText.trim()}>
-                  {whatsappSending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Enviar
-                </Button>
-              </SheetFooter>
-            </div>
+              </div>
+              <ModalFooter>
+                <button type="button" onClick={() => setWhatsappOpen(false)} className={btn.outline}>Cancelar</button>
+                <button type="button" onClick={handleEnviarWhatsapp} disabled={whatsappSending || whatsappBloqueado || !whatsappTel.trim() || !whatsappText.trim()} className={btn.primary}>
+                  {whatsappSending && <Loader2 className="h-4 w-4 animate-spin" />}Enviar
+                </button>
+              </ModalFooter>
+            </ModalShell>
           </SheetContent>
         </Sheet>
 
@@ -1635,13 +1389,5 @@ export default function Contratos() {
         </Dialog>
 
     </main>
-  );
-}
-
-function SortBtn({ label, onClick, icon, align = 'left' }: { label: string; onClick: () => void; icon: React.ReactNode; align?: 'left' | 'right' }) {
-  return (
-    <button type="button" onClick={onClick} className={cn('inline-flex items-center gap-1 hover:text-foreground', align === 'right' && 'ml-auto flex-row-reverse')}>
-      {label} {icon}
-    </button>
   );
 }

@@ -2,24 +2,16 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useEffect as useEffectForAction } from 'react';
 
-import { StatusBadge } from '@/components/shared/StatusBadge';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { SkeletonTable, LoadingSpinner } from '@/components/shared/LoadingSpinner';
-
-import { MultiSelectBar } from '@/components/shared/MultiSelectBar';
-import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { FileImportDialog } from '@/components/import/FileImportDialog';
 import { FluxoCaixaReport } from '@/components/fluxocaixa/FluxoCaixaReport';
 import { LinkedAuxiliaryList } from '@/components/fluxocaixa/LinkedAuxiliaryList';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Switch } from '@/components/ui/switch';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { exportFluxoCaixa } from '@/utils/exportCSV';
@@ -28,18 +20,11 @@ import { useClientes } from '@/hooks/useClientes';
 import { useContas, useAccountRunningBalance } from '@/hooks/useContas';
 import { useTransferencias, type TransferenciaFormData } from '@/hooks/useTransferencias';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
-import { TrendingUp, TrendingDown, ArrowLeftRight, ArrowRightLeft, Filter, Plus, Pencil, Trash2, Upload, CalendarIcon, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CalendarRange, X, FileText, BarChart3, Repeat, SlidersHorizontal, CheckCircle2, CreditCard, User, Store, Receipt, Search, MoreHorizontal, Paperclip } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { FluxoCaixaKPIRow } from '@/components/fluxocaixa/FluxoCaixaKPIRow';
+import { ArrowRightLeft, ArrowUp, ArrowDown, BarChart3, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Copy, CreditCard, Download, FileText, MoreHorizontal, Paperclip, Pencil, Plus, Receipt, Search, SlidersHorizontal, Store, Trash2, TrendingDown, Upload, User, X } from 'lucide-react';
+import { ResumoPeriodo } from '@/components/fluxocaixa/FluxoCaixaKPIRow';
 import { ReceiptGenerator, type ReceiptData } from '@/components/shared/ReceiptGenerator';
-import { DatePickerField, QuickDateButtons } from '@/components/shared/DatePickerField';
-import { IconButton } from '@/components/shared/IconButton';
-import { FilterPill } from '@/components/shared/FilterPill';
-import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
-import { SectionCard } from '@/components/shared/SectionCard';
-import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
-import { HeroStatCard } from '@/components/shared/HeroStatCard';
-import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, endOfDay } from 'date-fns';
+import { DatePickerField } from '@/components/shared/DatePickerField';
+import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, endOfDay, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { TipoTransacao, TransacaoUnificada } from '@/types/fluxoCaixa';
 import { cn } from '@/lib/utils';
@@ -54,6 +39,12 @@ import { PullToRefresh } from '@/components/shared/PullToRefresh';
 import { TransactionDetailSheet } from '@/components/fluxocaixa/TransactionDetailSheet';
 import { toast } from 'sonner';
 import { GerarCobrancaDialog } from '@/components/fluxocaixa/GerarCobrancaDialog';
+import { BarraSelecao } from '@/components/fluxocaixa/BarraSelecao';
+import { TipoIcone } from '@/components/fluxocaixa/TipoIcone';
+import { FORMA_LABEL, serieDe, statusInfo } from '@/components/fluxocaixa/lancamento';
+import { Chips, ContasPick, ExcluirSheet, QuickDatas, ResumoLateral, Stepper, ValorInput } from '@/components/fluxocaixa/formPecas';
+import { Bloco, Campo, ModalFooter, ModalHeader, ModalShell, PageHeader, Secao, Segmented } from '@/components/reskin/kit';
+import { btn, modalCls } from '@/components/reskin/estilos';
 
 // Sorting types
 const SEM_CATEGORIA = '__sem_categoria__';
@@ -84,20 +75,9 @@ const RECURRENCE_OPTIONS = [
 
 const TIPO_OPTIONS: { v: TipoTransacao; l: string }[] = [
   { v: 'todas', l: 'Tudo' },
-  { v: 'entrada', l: 'Receitas' },
-  { v: 'saida', l: 'Despesas' },
+  { v: 'entrada', l: 'Entradas' },
+  { v: 'saida', l: 'Saídas' },
 ];
-
-// Estilos de layout (BALANX Claro)
-const ROUND_BTN = 'relative grid h-11 w-11 shrink-0 place-items-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-surface-2';
-const ROUND_ICON_BTN = 'h-10 w-10 rounded-full shadow-none';
-const SECTION_LABEL = 'text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted';
-const chipCls = (active: boolean) => cn(
-  'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors',
-  active
-    ? 'border-foreground bg-foreground text-background'
-    : 'border-border bg-surface text-foreground hover:border-border-strong',
-);
 
 function calculateNextDate(baseDate: string, frequency: string, index: number): string {
   const d = parseISO(baseDate);
@@ -131,6 +111,8 @@ export default function FluxoCaixa() {
     updateMultipleCliente,
     updateMultipleFornecedor,
     updateMultipleConta,
+    updateMultipleForma,
+    updateMultipleCategoria,
     refetch: refetchFluxo,
   } = useFluxoCaixa();
   
@@ -183,7 +165,6 @@ export default function FluxoCaixa() {
   const [dateFilterMode, setDateFilterMode] = useState<'month' | 'range'>(initialRange ? 'range' : 'month');
   const [dateRangeStart, setDateRangeStart] = useState<Date | undefined>(initialRange?.de);
   const [dateRangeEnd, setDateRangeEnd] = useState<Date | undefined>(initialRange?.ate);
-  const [dateRangeOpen, setDateRangeOpen] = useState(false);
   
   // Sorting
   const isMobile = useIsMobile();
@@ -243,6 +224,8 @@ export default function FluxoCaixa() {
   const [saidaValorJuros, setSaidaValorJuros] = useState('');
   const [saidaValorTarifa, setSaidaValorTarifa] = useState('');
   const [saidaValorImposto, setSaidaValorImposto] = useState('');
+  const [extrasEntrada, setExtrasEntrada] = useState(false);
+  const [extrasSaida, setExtrasSaida] = useState(false);
 
   // Form states
   const [formEntrada, setFormEntrada] = useState<ReceitaFormData>({
@@ -369,11 +352,12 @@ export default function FluxoCaixa() {
         case 'descricao':
           comparison = a.descricao.localeCompare(b.descricao);
           break;
-        case 'origem':
+        case 'origem': {
           const origemA = a.cliente?.nome || a.fornecedor || '';
           const origemB = b.cliente?.nome || b.fornecedor || '';
           comparison = origemA.localeCompare(origemB);
           break;
+        }
         case 'categoria':
           comparison = (a.categoria?.nome || '').localeCompare(b.categoria?.nome || '');
           break;
@@ -403,26 +387,6 @@ export default function FluxoCaixa() {
     }));
   };
 
-  // Sortable header component
-  const SortableHeader = ({ column, children, className }: { column: SortColumn; children: React.ReactNode; className?: string }) => (
-    <th 
-      className={cn(
-        "h-11 cursor-pointer select-none px-3 text-left text-xs font-medium text-foreground-muted transition-colors hover:text-foreground",
-        className
-      )}
-      onClick={() => handleSort(column)}
-    >
-      <div className="flex items-center gap-1">
-        {children}
-        {sortConfig.column === column && (
-          sortConfig.direction === 'asc' 
-            ? <ChevronUp className="h-3 w-3" /> 
-            : <ChevronDown className="h-3 w-3" />
-        )}
-      </div>
-    </th>
-  );
-
   // Calculate totals (transferências são neutras — não afetam entradas/saídas/saldo)
   const totals = useMemo(() => {
     const reaisTransacoes = filteredTransacoes.filter(t => t.tabela_origem !== 'transferencia');
@@ -430,8 +394,6 @@ export default function FluxoCaixa() {
     const saidas = reaisTransacoes.filter(t => t.tipo === 'saida').reduce((s, t) => s + t.valor, 0);
     return { entradas, saidas, saldo: entradas - saidas };
   }, [filteredTransacoes]);
-
-  const hasFilters = statusFilter.length > 0 || categoriaFilter.length > 0 || monthFilter !== 'all' || searchTerm !== '' || contaFilter !== 'all' || (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd);
 
   // Multi-select
   const {
@@ -448,8 +410,9 @@ export default function FluxoCaixa() {
     getItemId: (t) => `${t.tabela_origem}-${t.id}-${t.tipo}`,
   });
 
-  const selectedEntradas = selectedItems.filter(t => t.tipo === 'entrada');
-  const selectedSaidas = selectedItems.filter(t => t.tipo === 'saida');
+  // Ações em massa valem só para receitas/despesas (pernas de transferência ficam de fora).
+  const selectedEntradas = selectedItems.filter(t => t.tipo === 'entrada' && t.tabela_origem === 'receitas');
+  const selectedSaidas = selectedItems.filter(t => t.tipo === 'saida' && t.tabela_origem === 'despesas');
   const hasEntradas = selectedEntradas.length > 0;
   const hasSaidas = selectedSaidas.length > 0;
 
@@ -524,6 +487,7 @@ export default function FluxoCaixa() {
     setEntradaValorJuros('');
     setEntradaValorTarifa('');
     setEntradaValorImposto('');
+    setExtrasEntrada(false);
     setEntradaModalOpen(true);
   };
 
@@ -545,6 +509,7 @@ export default function FluxoCaixa() {
     setEntradaValorJuros('');
     setEntradaValorTarifa('');
     setEntradaValorImposto('');
+    setExtrasEntrada(false);
     setEntradaModalOpen(true);
   };
 
@@ -571,6 +536,7 @@ export default function FluxoCaixa() {
     setSaidaValorJuros('');
     setSaidaValorTarifa('');
     setSaidaValorImposto('');
+    setExtrasSaida(false);
     setSaidaModalOpen(true);
   };
 
@@ -594,6 +560,7 @@ export default function FluxoCaixa() {
     setSaidaValorJuros('');
     setSaidaValorTarifa('');
     setSaidaValorImposto('');
+    setExtrasSaida(false);
     setSaidaModalOpen(true);
   };
 
@@ -851,78 +818,6 @@ export default function FluxoCaixa() {
     clearSelection();
   };
 
-  // DatePickerField and QuickDateButtons imported from shared
-
-  // Recurrence section component
-  const RecurrenceSection = ({
-    recurrence,
-    setRecurrence,
-    frequency,
-    setFrequency,
-    repeatTimes,
-    setRepeatTimes,
-  }: {
-    recurrence: 'unico' | 'recorrente';
-    setRecurrence: (v: 'unico' | 'recorrente') => void;
-    frequency: string;
-    setFrequency: (v: string) => void;
-    repeatTimes: number;
-    setRepeatTimes: (v: number) => void;
-  }) => (
-    <div className="space-y-3 rounded-lg border border-border/50 p-3 bg-muted/20">
-      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lançamento</Label>
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          variant={recurrence === 'unico' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setRecurrence('unico')}
-          className="text-xs"
-        >
-          Único
-        </Button>
-        <Button
-          type="button"
-          variant={recurrence === 'recorrente' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setRecurrence('recorrente')}
-          className="text-xs gap-1"
-        >
-          <Repeat className="h-3 w-3" />
-          Recorrente
-        </Button>
-      </div>
-      {recurrence === 'recorrente' && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Frequência</Label>
-            <Select value={frequency} onValueChange={setFrequency}>
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {RECURRENCE_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Repetir (vezes)</Label>
-            <Input
-              type="number"
-              min={2}
-              max={60}
-              value={repeatTimes}
-              onChange={(e) => setRepeatTimes(Math.max(2, Math.min(60, parseInt(e.target.value) || 2)))}
-              className="h-8 text-xs"
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
   // Handle action param from mobile nav
   useEffectForAction(() => {
     if (actionParam === 'nova-entrada') {
@@ -979,17 +874,17 @@ export default function FluxoCaixa() {
   // Long-press → Duplicar (cria cópia como pendente)
   const handleDuplicate = async (t: TransacaoUnificada) => {
     if (t.tabela_origem === 'transferencia') return;
-    const base: any = {
+    const base = {
       descricao: `${t.descricao} (cópia)`,
       valor: Number(t.valor),
       categoria_id: t.categoria_id || undefined,
       conta_id: t.conta_id || undefined,
-      data_competencia: (t as any).data_competencia || t.data_vencimento,
+      data_competencia: t.data_competencia || t.data_vencimento,
       data_vencimento: t.data_vencimento,
-      status: 'pendente',
+      status: 'pendente' as const,
     };
     if (t.tipo === 'entrada') {
-      await createReceita({ ...base, cliente_id: (t as any).cliente_id || undefined });
+      await createReceita({ ...base, cliente_id: t.cliente_id || undefined });
     } else {
       await createDespesa({ ...base, tipo: 'variavel' });
     }
@@ -999,511 +894,285 @@ export default function FluxoCaixa() {
 
   // ===== Helpers de layout =====
   const changeTipo = (v: TipoTransacao) => { setTipoFilter(v); setStatusFilter([]); };
-  const monthLabel = (() => {
-    const s = format(parseISO(`${monthFilter}-01`), "MMMM 'de' yyyy", { locale: ptBR });
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  })();
-  // Seletor de período em pílula: ‹ mês › (ou o intervalo personalizado com ×)
-  const renderPeriodPill = (compact: boolean) => {
-    const navBtn = cn(
-      'grid shrink-0 place-items-center rounded-full bg-background text-foreground transition-colors hover:bg-surface-2',
-      compact ? 'h-7 w-7' : 'h-10 w-10',
-    );
-    const label = cn('min-w-0 truncate px-1 text-center font-semibold text-foreground', compact ? 'text-[13px]' : 'text-[15px]');
-    return (
-      <div className={cn(
-        'flex items-center justify-between gap-2 rounded-full border border-border bg-surface',
-        compact ? 'w-60 shrink-0 p-[3px]' : 'p-1.5',
-      )}>
-        {dateFilterMode === 'month' ? (
-          <>
-            <button type="button" aria-label="Mês anterior" className={navBtn}
-              onClick={() => setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), -1), 'yyyy-MM'))}>
-              <ChevronLeft className="h-4 w-4" strokeWidth={2.2} />
-            </button>
-            <span className={label}>{monthLabel}</span>
-            <button type="button" aria-label="Próximo mês" className={navBtn}
-              onClick={() => setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), 1), 'yyyy-MM'))}>
-              <ChevronRight className="h-4 w-4" strokeWidth={2.2} />
-            </button>
-          </>
-        ) : (
-          <>
-            <span className={cn(navBtn, 'hover:bg-background')} aria-hidden>
-              <CalendarRange className="h-4 w-4 text-foreground-muted" />
-            </span>
-            <span className={label}>
-              {dateRangeStart && dateRangeEnd
-                ? `${format(dateRangeStart, 'dd/MM/yy')} – ${format(dateRangeEnd, 'dd/MM/yy')}`
-                : 'Período selecionado'}
-            </span>
-            <button type="button" aria-label="Voltar para navegação por mês" className={navBtn}
-              onClick={() => { setDateFilterMode('month'); setDateRangeStart(undefined); setDateRangeEnd(undefined); }}>
-              <X className="h-4 w-4" />
-            </button>
-          </>
-        )}
-      </div>
-    );
+  const mesBase = monthFilter === 'all' ? currentMonth : monthFilter;
+  const monthLabel = monthFilter === 'all'
+    ? 'Todos os meses'
+    : format(parseISO(`${monthFilter}-01`), 'MMMM yyyy', { locale: ptBR });
+  const navMes = (n: number) => {
+    setDateFilterMode('month');
+    setDateRangeStart(undefined);
+    setDateRangeEnd(undefined);
+    setMonthFilter(format(addMonths(parseISO(`${mesBase}-01`), n), 'yyyy-MM'));
+  };
+  const periodoLabel = dateFilterMode === 'range' && dateRangeStart && dateRangeEnd
+    ? `${format(dateRangeStart, 'dd/MM/yy')} – ${format(dateRangeEnd, 'dd/MM/yy')}`
+    : monthLabel;
+  const modoPeriodo: 'mes' | 'periodo' | 'tudo' = dateFilterMode === 'range' ? 'periodo' : monthFilter === 'all' ? 'tudo' : 'mes';
+  const setModoPeriodo = (m: 'mes' | 'periodo' | 'tudo') => {
+    if (m === 'periodo') { setDateFilterMode('range'); return; }
+    setDateFilterMode('month');
+    setDateRangeStart(undefined);
+    setDateRangeEnd(undefined);
+    setMonthFilter(m === 'tudo' ? 'all' : (monthFilter === 'all' ? currentMonth : monthFilter));
   };
 
-  return (
-    <main className="container py-4 md:py-6">
-        {/* Cabeçalho (mobile e desktop) */}
-        <MobilePageHeader
-          eyebrow="Fluxo de caixa"
-          title="Lançamentos"
-          actions={
-            <>
-              {/* Mobile: busca, filtros e mais ações em botões redondos */}
-              <div className="flex items-center gap-2 md:hidden">
-                <button
-                  type="button"
-                  onClick={() => setMobileSearchOpen(o => !o)}
-                  aria-label="Buscar"
-                  aria-pressed={mobileSearchOpen || !!searchTerm}
-                  className={cn(ROUND_BTN, (mobileSearchOpen || searchTerm) && 'border-foreground bg-foreground text-background hover:bg-foreground')}
-                >
-                  <Search className="h-[19px] w-[19px]" strokeWidth={1.8} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltersOpen(true)}
-                  aria-label="Filtros"
-                  className={ROUND_BTN}
-                >
-                  <SlidersHorizontal className="h-[19px] w-[19px]" strokeWidth={1.8} />
-                  {(contaFilter !== 'all' || statusFilter.length > 0 || categoriaFilter.length > 0) && (
-                    <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[hsl(var(--warning))]" />
-                  )}
-                </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button type="button" aria-label="Mais ações" className={ROUND_BTN}>
-                      <MoreHorizontal className="h-[19px] w-[19px]" strokeWidth={1.8} />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem onSelect={() => setReportOpen(true)} className="gap-2">
-                      <BarChart3 className="h-4 w-4" /> Relatório
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setImportDialogOpen(true)} className="gap-2">
-                      <Upload className="h-4 w-4" /> Importar lançamentos
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+  // Situação (segmentado) ↔ statusFilter. "Em aberto" usa 'pendente', que já engloba os atrasados.
+  type Situ = 'todas' | 'aberto' | 'atrasado' | 'efetivado';
+  const situ: Situ | null = statusFilter.length === 0 ? 'todas'
+    : statusFilter.includes('pendente') ? 'aberto'
+    : statusFilter.every(v => v === 'atrasado') ? 'atrasado'
+    : statusFilter.every(v => v === 'recebido' || v === 'pago') ? 'efetivado'
+    : null;
+  const setSitu = (v: Situ) => setStatusFilter(v === 'todas' ? [] : v === 'aberto' ? ['pendente'] : v === 'atrasado' ? ['atrasado'] : ['recebido', 'pago']);
+  const SITU_OPTS: [Situ, string][] = [['todas', 'Todas'], ['aberto', 'Em aberto'], ['atrasado', 'Atrasadas'], ['efetivado', 'Efetivadas']];
 
-              {/* Desktop: ações secundárias redondas + ações principais */}
-              <div className="hidden items-center gap-2 md:flex">
-                <IconButton label="Relatório" className={ROUND_ICON_BTN} onClick={() => setReportOpen(true)}>
-                  <BarChart3 className="h-4 w-4" />
-                </IconButton>
-                <IconButton label="Importar lançamentos" className={ROUND_ICON_BTN} onClick={() => setImportDialogOpen(true)}>
-                  <Upload className="h-4 w-4" />
-                </IconButton>
-                <IconButton label="Transferir entre contas" className={ROUND_ICON_BTN} onClick={() => setTransferModalOpen(true)} disabled={activeContas.length < 2}>
-                  <ArrowRightLeft className="h-4 w-4" />
-                </IconButton>
-                {tipoFilter !== 'entrada' && (
-                  <Button variant="outline" onClick={handleNewSaida} className="gap-1.5">
-                    <TrendingDown className="h-4 w-4" /> Nova Saída
-                  </Button>
-                )}
-                {tipoFilter !== 'saida' && (
-                  <Button onClick={handleNewEntrada} className="gap-1.5">
-                    <Plus className="h-4 w-4" /> Nova Entrada
-                  </Button>
-                )}
-              </div>
-            </>
-          }
+  // Números do período: realizado × previsto (transferências são neutras)
+  const resumo = useMemo(() => {
+    const reais = filteredTransacoes.filter(t => t.tabela_origem !== 'transferencia');
+    const soma = (f: (t: TransacaoUnificada) => boolean) => reais.filter(f).reduce((acc, t) => acc + Number(t.valor || 0), 0);
+    return {
+      entOk: soma(t => t.tipo === 'entrada' && t.status === 'recebido'),
+      entTot: soma(t => t.tipo === 'entrada'),
+      saiOk: soma(t => t.tipo === 'saida' && t.status === 'pago'),
+      saiTot: soma(t => t.tipo === 'saida'),
+      atraso: soma(t => t.tipo === 'entrada' && statusInfo(t).tom === 'atraso'),
+    };
+  }, [filteredTransacoes]);
+
+  const contaById = useMemo(() => new Map(contas.map(c => [c.id, c])), [contas]);
+  const contaEhCartao = (id?: string | null) => !!id && contaById.get(id)?.tipo === 'cartao_credito';
+  const filtrosAtivos = categoriaFilter.length + (dataBase !== 'vencimento' ? 1 : 0) + (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd ? 1 : 0);
+  const contasFiltro = contas.filter(c => c.tipo !== 'cartao_credito');
+
+  // Agrupamento por dia (na ordem exibida) + totais e saldo de fechamento por conta
+  const gruposDia = useMemo(() => {
+    const grupos: { data: string; itens: TransacaoUnificada[] }[] = [];
+    for (const t of filteredTransacoes) {
+      const last = grupos[grupos.length - 1];
+      if (last && last.data === t.data_vencimento) last.itens.push(t);
+      else grupos.push({ data: t.data_vencimento, itens: [t] });
+    }
+    return grupos;
+  }, [filteredTransacoes]);
+  const isSingleAccount = !!singleAccountId && !!runningBalance;
+  const closingByDate = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!singleAccountId || !runningBalance) return m;
+    const displayedDates = Array.from(new Set(filteredTransacoes.map(t => t.data_vencimento))).sort();
+    const efetivadoDates = runningBalance.sortedDates || [];
+    let idx = 0;
+    let last = runningBalance.saldoInicial;
+    for (const d of displayedDates) {
+      while (idx < efetivadoDates.length && efetivadoDates[idx] <= d) {
+        last = runningBalance.byDate.get(efetivadoDates[idx])!;
+        idx++;
+      }
+      m.set(d, last);
+    }
+    return m;
+  }, [filteredTransacoes, singleAccountId, runningBalance]);
+
+  // Dar baixa numa data escolhida (detalhe)
+  const handleDarBaixa = async (t: TransacaoUnificada, dataISO: string) => {
+    if (t.tabela_origem === 'transferencia') return;
+    if (ehFaturaCartao(t)) { await abrirPagarFatura(t.id); return; }
+    if (t.tipo === 'entrada') await updateReceita(t.id, { status: 'recebido', data_recebimento: dataISO });
+    else await updateDespesa(t.id, { status: 'pago', data_pagamento: dataISO });
+    await Promise.all([refetchFluxo(), refetchContas()]);
+  };
+
+  // Recibo a partir de um lançamento salvo
+  const abrirRecibo = (t: TransacaoUnificada) => {
+    const cliente = clientes.find(c => c.id === t.cliente_id);
+    setReceiptData({
+      id: t.id,
+      descricao: t.descricao,
+      valor: t.valor,
+      clienteNome: cliente?.nome || t.fornecedor || '',
+      clienteCnpj: cliente?.cpf_cnpj || undefined,
+      formaPagamento: t.forma_pagamento || undefined,
+      dataVencimento: t.data_vencimento,
+      dataRecebimento: t.tipo === 'entrada' ? t.data_efetivacao || undefined : undefined,
+      dataPagamento: t.tipo === 'saida' ? t.data_efetivacao || undefined : undefined,
+      tipo: t.tipo === 'entrada' ? 'receita' : 'despesa',
+    });
+    setReceiptOpen(true);
+  };
+  const temParteParaRecibo = (t: TransacaoUnificada) => !!t.cliente_id || (!!t.fornecedor && !t.fornecedor.startsWith('['));
+
+  // Forma de pagamento em massa: no cartão de crédito a forma é sempre "Cartão crédito", então
+  // lançamentos em conta cartão (e as linhas de sistema da fatura) ficam de fora.
+  const formaOpcoesBulk = FORMA_PAGAMENTO_OPTIONS.filter(o => o.value !== 'cartao_credito').map(o => ({ value: o.value, label: FORMA_LABEL[o.value] ?? o.label }));
+  const handleBulkForma = async (forma: string) => {
+    const rec = selectedEntradas.filter(t => !contaEhCartao(t.conta_id)).map(t => t.id);
+    const desp = selectedSaidas.filter(t => !contaEhCartao(t.conta_id) && !(t.fornecedor ?? '').startsWith('[')).map(t => t.id);
+    const fora = selectedEntradas.length + selectedSaidas.length - rec.length - desp.length;
+    if (!rec.length && !desp.length) {
+      toast.info('Nada para alterar', { description: 'No cartão de crédito a forma é sempre "Cartão crédito".' });
+      return;
+    }
+    setIsSaving(true);
+    const ok = await updateMultipleForma(rec, desp, forma);
+    if (ok && fora > 0) toast.info(`${fora} lançamento(s) ficaram de fora`, { description: 'Compras no cartão e faturas mantêm a forma "Cartão crédito".' });
+    clearSelection();
+    setIsSaving(false);
+  };
+  // Categoria em massa: só quando a seleção é de um tipo (receitas OU despesas).
+  const bulkCategoriaTipo: 'receitas' | 'despesas' | null = hasEntradas && !hasSaidas ? 'receitas' : hasSaidas && !hasEntradas ? 'despesas' : null;
+  const handleBulkCategoria = async (categoriaId: string) => {
+    if (!bulkCategoriaTipo) return;
+    setIsSaving(true);
+    await updateMultipleCategoria((bulkCategoriaTipo === 'receitas' ? selectedEntradas : selectedSaidas).map(t => t.id), bulkCategoriaTipo, categoriaId);
+    clearSelection();
+    setIsSaving(false);
+  };
+  const somaSelecao = selectedItems.reduce((acc, t) => t.tabela_origem === 'transferencia' ? acc : acc + (t.tipo === 'entrada' ? Number(t.valor) : -Number(t.valor)), 0);
+
+  // Troca entre Nova entrada ↔ Nova saída sem perder o que já foi digitado
+  const trocarTipo = (para: 'entrada' | 'saida') => {
+    if (para === 'saida') {
+      const f = formEntrada;
+      handleNewSaida();
+      setFormSaida(prev => ({ ...prev, valor: f.valor, descricao: f.descricao, data_competencia: f.data_competencia, data_vencimento: f.data_vencimento, conta_id: f.conta_id, forma_pagamento: f.forma_pagamento }));
+      setEntradaModalOpen(false);
+    } else {
+      const f = formSaida;
+      const cartao = contaEhCartao(f.conta_id);
+      handleNewEntrada();
+      setFormEntrada(prev => ({ ...prev, valor: f.valor, descricao: f.descricao, data_competencia: f.data_competencia, data_vencimento: f.data_vencimento, conta_id: cartao ? undefined : f.conta_id, forma_pagamento: cartao ? undefined : f.forma_pagamento }));
+      setSaidaModalOpen(false);
+    }
+  };
+
+  const itemExcluir = deletingItem ? transacoes.find(t => t.id === deletingItem.id && t.tabela_origem === deletingItem.tipo) : undefined;
+  const nomeConta = (id?: string | null) => (id ? contaById.get(id)?.nome : undefined);
+  const nomeCategoria = (id?: string, tipo?: 'entrada' | 'saida') => (tipo === 'entrada' ? categoriasReceita : categoriasDespesa).find(c => c.id === id)?.nome;
+  const dataBR = (iso?: string) => (iso ? format(parseISO(iso), 'dd/MM/yyyy') : '—');
+  const freqPlural: Record<string, string> = { semanal: 'semanais', quinzenal: 'quinzenais', mensal: 'mensais', anual: 'anuais' };
+
+  // Cabeçalho ordenável da lista (desktop)
+  const SortBtn = ({ col, children, className }: { col: SortColumn; children: React.ReactNode; className?: string }) => (
+    <button type="button" onClick={() => handleSort(col)} className={cn('inline-flex items-center gap-1 text-[12px] text-foreground-muted hover:text-foreground', className)}>
+      {children}
+      {sortConfig.column === col && (sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+    </button>
+  );
+
+  const categoriaOpcoes = (lista: { id: string; nome: string; cor: string }[]) => lista.map(c => ({ value: c.id, label: c.nome, color: c.cor }));
+  const entradaEfetivada = formEntrada.status === 'recebido';
+  const saidaEfetivada = formSaida.status === 'pago';
+  const mostrarExtrasEntrada = extrasEntrada || !!(entradaValorJuros || entradaValorTarifa || entradaValorImposto);
+  const mostrarExtrasSaida = extrasSaida || !!(saidaValorJuros || saidaValorTarifa || saidaValorImposto);
+
+  return (
+    <main className="container max-w-[1180px] space-y-5 py-4 md:py-6">
+        {/* Cabeçalho */}
+        <PageHeader eyebrow="Gestão · Financeiro" title="Fluxo de caixa">
+          <div className="flex items-center gap-1 rounded-full border border-border bg-surface p-1">
+            <button type="button" aria-label="Mês anterior" onClick={() => navMes(-1)} className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"><ChevronLeft className="h-4 w-4" /></button>
+            <button type="button" onClick={() => setFiltersOpen(true)} className="max-w-[170px] truncate whitespace-nowrap px-1 text-[13px] text-foreground first-letter:uppercase">{periodoLabel}</button>
+            <button type="button" aria-label="Próximo mês" onClick={() => navMes(1)} className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"><ChevronRight className="h-4 w-4" /></button>
+          </div>
+          <button type="button" onClick={() => setReportOpen(true)} aria-label="Relatório" title="Relatório" className={btn.icon}><BarChart3 className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setImportDialogOpen(true)} aria-label="Importar" title="Importar extrato ou comprovantes" className={btn.icon}><Upload className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setTransferModalOpen(true)} disabled={activeContas.length < 2} aria-label="Transferir" title="Transferir entre contas" className={btn.icon}><ArrowRightLeft className="h-4 w-4" /></button>
+          <button type="button" onClick={handleNewSaida} className={btn.outline}><TrendingDown className="h-4 w-4 text-danger-fg" />Saída</button>
+          <button type="button" onClick={handleNewEntrada} className={btn.primary}><Plus className="h-4 w-4" />Entrada</button>
+        </PageHeader>
+
+        {/* Números do período */}
+        <ResumoPeriodo
+          entradasOk={resumo.entOk}
+          entradasTotal={resumo.entTot}
+          saidasOk={resumo.saiOk}
+          saidasTotal={resumo.saiTot}
+          atrasoReceber={resumo.atraso}
+          saldoLabel={modoPeriodo === 'mes' ? 'Saldo do mês' : 'Saldo do período'}
         />
 
-        {/* ===== Mobile: busca, período, KPIs e chips ===== */}
-        <div className="mb-4 flex flex-col gap-4 md:hidden">
-          {(mobileSearchOpen || searchTerm) && (
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
-              <Input
+        {/* Barra de filtros */}
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Segmented<TipoTransacao> size="sm" value={tipoFilter} onChange={changeTipo} opts={TIPO_OPTIONS.map(o => [o.v, o.l] as [TipoTransacao, string])} />
+            <div className="hidden md:block">
+              <Segmented<Situ> size="sm" value={situ ?? ('' as Situ)} onChange={setSitu} opts={SITU_OPTS} />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className={cn('inline-flex h-10 max-w-[220px] items-center gap-1.5 rounded-full border bg-surface px-3.5 text-[13px] text-foreground', contaFilter !== 'all' ? 'border-foreground' : 'border-border')}>
+                  {contaFilter === 'all' ? 'Todas as contas' : (
+                    <span className="flex min-w-0 items-center gap-1.5"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: contaById.get(contaFilter)?.cor }} /><span className="truncate">{contaById.get(contaFilter)?.nome ?? 'Conta'}</span></span>
+                  )}
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-foreground-muted" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-80 w-64 overflow-y-auto rounded-2xl p-1.5">
+                <DropdownMenuItem onSelect={() => setContaFilter('all')} className={cn('rounded-xl py-2 text-[13.5px]', contaFilter === 'all' && 'font-medium')}>Todas as contas</DropdownMenuItem>
+                {contasFiltro.map(c => (
+                  <DropdownMenuItem key={c.id} onSelect={() => setContaFilter(c.id)} className={cn('justify-between gap-2 rounded-xl py-2 text-[13.5px]', contaFilter === c.id && 'bg-surface-2 font-medium')}>
+                    <span className="flex min-w-0 items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.cor }} /><span className="truncate">{c.nome}</span></span>
+                    <span className="shrink-0 text-[12px] tabular-nums text-foreground-muted">{formatCurrency(Number(c.saldo_atual || 0))}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button type="button" onClick={() => setFiltersOpen(true)} className={cn(btn.outline, 'h-10 px-3.5 text-[13px]')}>
+              <SlidersHorizontal className="h-4 w-4" /><span className="hidden sm:inline">Filtros</span>
+              {filtrosAtivos > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-foreground px-1.5 text-[10.5px] text-background">{filtrosAtivos}</span>}
+            </button>
+            <button type="button" onClick={() => setMobileSearchOpen(o => !o)} aria-label="Buscar" aria-pressed={mobileSearchOpen || !!searchTerm} className={cn(btn.icon, 'sm:hidden', (mobileSearchOpen || searchTerm) && 'border-foreground bg-foreground text-background')}><Search className="h-4 w-4" /></button>
+            <label className={cn('ml-auto h-10 w-full items-center gap-2 rounded-full border border-border bg-surface px-3.5 sm:flex sm:w-72', mobileSearchOpen || searchTerm ? 'flex' : 'hidden')}>
+              <Search className="h-4 w-4 shrink-0 text-foreground-muted" />
+              <input
                 type="text"
                 inputMode="search"
                 enterKeyHint="search"
-                autoFocus={mobileSearchOpen && !searchTerm}
-                placeholder="Buscar descrição, cliente ou fornecedor"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-11 rounded-full bg-surface pl-10 pr-11"
+                placeholder="Buscar lançamento, cliente…"
+                className="min-w-0 flex-1 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-foreground-muted"
               />
-              {searchTerm && (
-                <button
-                  type="button"
-                  aria-label="Limpar busca"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"
-                >
-                  <X className="h-4 w-4" />
+              {searchTerm && <button type="button" onClick={() => setSearchTerm('')} aria-label="Limpar busca"><X className="h-4 w-4 text-foreground-muted" /></button>}
+            </label>
+          </div>
+          {/* situação no celular */}
+          <div className="-mx-3 flex gap-2 overflow-x-auto px-3 scrollbar-hide md:hidden">
+            {SITU_OPTS.map(([v, r]) => (
+              <button key={v} type="button" onClick={() => setSitu(v)} className={cn('h-8 shrink-0 rounded-full border px-3.5 text-[13px]', situ === v ? 'border-foreground bg-foreground text-background' : 'border-border bg-surface text-foreground-muted')}>{r}</button>
+            ))}
+          </div>
+          {/* filtros aplicados */}
+          {(categoriaFilter.length > 0 || dataBase !== 'vencimento' || (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd) || situ === null) && (
+            <div className="flex flex-wrap gap-2">
+              {categoriaFilter.map(id => {
+                const cat = id === SEM_CATEGORIA ? null : categoriaNomePorId.get(id);
+                return (
+                  <button key={id} type="button" onClick={() => toggleCategoria(id)} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-[12.5px] text-background">
+                    {cat && <span className="h-2 w-2 rounded-full" style={{ background: cat.cor }} />}{cat?.nome ?? 'Sem categoria'}<X className="h-3.5 w-3.5" />
+                  </button>
+                );
+              })}
+              {dataBase !== 'vencimento' && (
+                <button type="button" onClick={() => setDataBase('vencimento')} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-[12.5px] text-background">
+                  Data de {dataBase === 'competencia' ? 'competência' : tipoFilter === 'entrada' ? 'recebimento' : tipoFilter === 'saida' ? 'pagamento' : 'recebimento/pagamento'}<X className="h-3.5 w-3.5" />
                 </button>
               )}
-            </div>
-          )}
-
-          {renderPeriodPill(false)}
-
-          <FluxoCaixaKPIRow entradas={totals.entradas} saidas={totals.saidas} saldo={totals.saldo} />
-
-          <ScrollPills className="items-center">
-            {TIPO_OPTIONS.map((o) => (
-              <Pill key={o.v} active={tipoFilter === o.v} onClick={() => changeTipo(o.v)}>{o.l}</Pill>
-            ))}
-
-            <Popover>
-              <PopoverTrigger asChild>
-                {categoriaFilter.length > 0 ? (
-                  <Pill active>
-                    {categoriaFilter.length === 1
-                      ? (categoriaFilter[0] === SEM_CATEGORIA ? 'Sem categoria' : (categoriaNomePorId.get(categoriaFilter[0])?.nome ?? 'Categoria'))
-                      : `${categoriaFilter.length} categorias`}
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </Pill>
-                ) : (
-                  <button
-                    type="button"
-                    className="no-touch-min inline-flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-dashed border-border-strong px-3.5 text-[13px] font-medium text-foreground-muted"
-                  >
-                    <Plus className="h-3.5 w-3.5" /> Categoria
-                  </button>
-                )}
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-[min(20rem,calc(100vw-2rem))] p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className={SECTION_LABEL}>Categoria</p>
-                  {categoriaFilter.length > 0 && (
-                    <button type="button" onClick={() => setCategoriaFilter([])} className="text-[12px] font-medium text-foreground-muted hover:text-foreground">
-                      Limpar ({categoriaFilter.length})
-                    </button>
-                  )}
-                </div>
-                <div className="max-h-[40vh] space-y-2.5 overflow-y-auto pr-1">
-                  {categoriaGrupos.map((g) => (
-                    <div key={g.titulo ?? 'cats'}>
-                      {g.titulo && <p className="mb-1.5 text-[11px] font-medium text-foreground-muted">{g.titulo}</p>}
-                      <div className="flex flex-wrap gap-1.5">
-                        {g.itens.map((c) => (
-                          <button key={c.id} type="button" onClick={() => toggleCategoria(c.id)} className={chipCls(categoriaFilter.includes(c.id))}>
-                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.cor }} />{c.nome}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <button type="button" onClick={() => toggleCategoria(SEM_CATEGORIA)} className={cn(chipCls(categoriaFilter.includes(SEM_CATEGORIA)), 'border-dashed')}>
-                    Sem categoria
-                  </button>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Pill active={contaFilter !== 'all'}>
-                  {contaFilter === 'all' ? 'Todas contas' : (contas.find(c => c.id === contaFilter)?.nome || 'Conta')}
-                  <ChevronDown className="h-3.5 w-3.5" />
-                </Pill>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="max-h-72 w-56 overflow-y-auto p-1.5">
-                <button type="button" onClick={() => setContaFilter('all')} className={cn('w-full rounded-xl px-2.5 py-2 text-left text-sm text-foreground hover:bg-surface-2', contaFilter === 'all' && 'bg-surface-2 font-medium')}>Todas as contas</button>
-                {contas.filter(c => c.tipo !== 'cartao_credito').map(c => (
-                  <button key={c.id} type="button" onClick={() => setContaFilter(c.id)} className={cn('flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm text-foreground hover:bg-surface-2', contaFilter === c.id && 'bg-surface-2 font-medium')}>
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.cor }} />
-                    {c.nome}
-                  </button>
-                ))}
-              </PopoverContent>
-            </Popover>
-
-            {(() => {
-              const pagoVals = ['pago', 'recebido'];
-              const pagoActive = pagoVals.some(v => statusFilter.includes(v));
-              const pendenteActive = statusFilter.includes('pendente');
-              return (
-                <>
-                  <Pill
-                    active={pagoActive}
-                    onClick={() => setStatusFilter(prev => pagoActive ? prev.filter(v => !pagoVals.includes(v)) : [...new Set([...prev, ...pagoVals])])}
-                  >Pago</Pill>
-                  <Pill
-                    active={pendenteActive}
-                    onClick={() => setStatusFilter(prev => pendenteActive ? prev.filter(v => v !== 'pendente') : [...prev, 'pendente'])}
-                  >Pendente</Pill>
-                </>
-              );
-            })()}
-          </ScrollPills>
-        </div>
-
-        {/* Sheet de filtros (botão sliders no header) */}
-        <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <SheetContent side="bottom" className="rounded-t-[26px] pb-safe">
-            <SheetHeader className="text-left">
-              <SheetTitle>Filtros</SheetTitle>
-            </SheetHeader>
-            <div className="space-y-5 py-4">
-              <div>
-                <p className={cn(SECTION_LABEL, 'mb-2')}>Período</p>
-                {/* Alterna entre navegação por mês e período personalizado */}
-                <div className="mb-2.5 inline-flex rounded-full border border-border bg-surface p-0.5">
-                  <button onClick={() => setDateFilterMode('month')}
-                    className={cn('h-8 rounded-full px-3.5 text-xs font-semibold transition-colors', dateFilterMode === 'month' ? 'bg-foreground text-background' : 'text-foreground-muted')}>Mês</button>
-                  <button onClick={() => setDateFilterMode('range')}
-                    className={cn('h-8 rounded-full px-3.5 text-xs font-semibold transition-colors', dateFilterMode === 'range' ? 'bg-foreground text-background' : 'text-foreground-muted')}>Personalizado</button>
-                </div>
-                {dateFilterMode === 'month' ? (
-                  <div className="flex items-center justify-between gap-2 rounded-full border border-border bg-surface p-1.5">
-                    <button aria-label="Mês anterior" onClick={() => setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), -1), 'yyyy-MM'))}
-                      className="grid h-9 w-9 place-items-center rounded-full bg-background text-foreground"><ChevronLeft className="h-4 w-4" /></button>
-                    <span className="truncate text-sm font-semibold text-foreground">{monthLabel}</span>
-                    <button aria-label="Próximo mês" onClick={() => setMonthFilter(format(addMonths(parseISO(`${monthFilter}-01`), 1), 'yyyy-MM'))}
-                      className="grid h-9 w-9 place-items-center rounded-full bg-background text-foreground"><ChevronRight className="h-4 w-4" /></button>
-                  </div>
-                ) : (
-                  <DateRangePicker
-                    from={dateRangeStart}
-                    to={dateRangeEnd}
-                    onApply={(de, ate) => { setDateRangeStart(de); setDateRangeEnd(ate); }}
-                  />
-                )}
-              </div>
-              <div>
-                <p className={cn(SECTION_LABEL, 'mb-2')}>Conta</p>
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={() => setContaFilter('all')} className={chipCls(contaFilter === 'all')}>Todas</button>
-                  {contas.filter(c => c.tipo !== 'cartao_credito').map(c => (
-                    <button key={c.id} onClick={() => setContaFilter(c.id)} className={chipCls(contaFilter === c.id)}>
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.cor }} />{c.nome}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className={cn(SECTION_LABEL, 'mb-2')}>Status</p>
-                <div className="flex flex-wrap gap-2">
-                  {statusOptions.map(o => {
-                    const checked = statusFilter.includes(o.value);
-                    return (
-                      <button key={o.value} onClick={() => setStatusFilter(prev => checked ? prev.filter(v => v !== o.value) : [...prev, o.value])}
-                        className={chipCls(checked)}>
-                        {o.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <p className={cn(SECTION_LABEL, 'mb-2')}>Categoria</p>
-                <div className="max-h-[30vh] space-y-2 overflow-y-auto">
-                  {categoriaGrupos.map((g) => (
-                    <div key={g.titulo ?? 'cats'}>
-                      {g.titulo && <p className="mb-1.5 text-[11px] font-medium text-foreground-muted">{g.titulo}</p>}
-                      <div className="flex flex-wrap gap-2">
-                        {g.itens.map((c) => (
-                          <button key={c.id} onClick={() => toggleCategoria(c.id)} className={chipCls(categoriaFilter.includes(c.id))}>
-                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.cor }} />{c.nome}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <button onClick={() => toggleCategoria(SEM_CATEGORIA)}
-                    className={cn(chipCls(categoriaFilter.includes(SEM_CATEGORIA)), 'border-dashed')}>
-                    Sem categoria
-                  </button>
-                </div>
-              </div>
-              <Button variant="outline" className="w-full" onClick={() => { setContaFilter('all'); setStatusFilter([]); setCategoriaFilter([]); }}>Limpar filtros</Button>
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* ===== Desktop: filtros em linha de pílulas ===== */}
-        <div className="mb-4 hidden flex-wrap items-center gap-2 md:flex">
-          {TIPO_OPTIONS.map((o) => (
-            <Pill key={o.v} active={tipoFilter === o.v} onClick={() => changeTipo(o.v)}>{o.l}</Pill>
-          ))}
-
-          <span className="mx-1 h-6 w-px bg-border" aria-hidden />
-
-          <div className="relative shrink-0">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
-            <Input type="search" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="h-9 w-60 rounded-full bg-surface pl-9" />
-          </div>
-
-          {renderPeriodPill(true)}
-
-          <Select value={contaFilter} onValueChange={setContaFilter}>
-            <SelectTrigger className={cn('h-9 w-48 shrink-0 rounded-full bg-surface text-[13px]', contaFilter !== 'all' && 'border-foreground')}><SelectValue placeholder="Conta" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as contas</SelectItem>
-              {contas.filter(c => c.tipo !== 'cartao_credito').map(c => (
-                <SelectItem key={c.id} value={c.id}>
-                  <div className="flex items-center gap-2">
-                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: c.cor }} />
-                    {c.nome}
-                  </div>
-                </SelectItem>
+              {dateFilterMode === 'range' && dateRangeStart && dateRangeEnd && (
+                <button type="button" onClick={() => setModoPeriodo('mes')} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-[12.5px] text-background">
+                  {format(dateRangeStart, 'dd/MM')}–{format(dateRangeEnd, 'dd/MM')}<X className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {situ === null && statusFilter.map(v => (
+                <button key={v} type="button" onClick={() => setStatusFilter(prev => prev.filter(x => x !== v))} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-[12.5px] text-background">
+                  {statusOptions.find(o => o.value === v)?.label ?? v}<X className="h-3.5 w-3.5" />
+                </button>
               ))}
-            </SelectContent>
-          </Select>
-
-          {/* Mais filtros (agrupa período personalizado + status + categoria) */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 shrink-0 gap-2 px-4 text-[13px]">
-                <SlidersHorizontal className="h-4 w-4" />
-                Mais filtros
-                {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase !== 'vencimento') && (
-                  <span className="ml-0.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-semibold text-background">
-                    {statusFilter.length + categoriaFilter.length + (dateFilterMode === 'range' ? 1 : 0) + (dataBase !== 'vencimento' ? 1 : 0)}
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-[820px] max-w-[calc(100vw-2rem)] space-y-5 p-5">
-              <div className="space-y-2">
-                <p className={SECTION_LABEL}>Status</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {statusOptions.map(o => {
-                    const checked = statusFilter.includes(o.value);
-                    return (
-                      <button
-                        key={o.value}
-                        type="button"
-                        onClick={() => setStatusFilter(prev => checked ? prev.filter(v => v !== o.value) : [...prev, o.value])}
-                        className={chipCls(checked)}
-                      >
-                        {o.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className={SECTION_LABEL}>Categoria</p>
-                  {categoriaFilter.length > 0 && (
-                    <button type="button" onClick={() => setCategoriaFilter([])} className="text-[12px] font-medium text-foreground-muted hover:text-foreground">
-                      Limpar ({categoriaFilter.length})
-                    </button>
-                  )}
-                </div>
-                <div className="max-h-[168px] space-y-2 overflow-y-auto pr-1">
-                  {categoriaGrupos.map((g) => (
-                    <div key={g.titulo ?? 'cats'} className="space-y-1.5">
-                      {g.titulo && <div className="text-[11px] font-medium text-foreground-muted">{g.titulo}</div>}
-                      <div className="flex flex-wrap gap-1.5">
-                        {g.itens.map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => toggleCategoria(c.id)}
-                            className={chipCls(categoriaFilter.includes(c.id))}
-                          >
-                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.cor }} />
-                            {c.nome}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <div className="flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => toggleCategoria(SEM_CATEGORIA)}
-                      className={cn(chipCls(categoriaFilter.includes(SEM_CATEGORIA)), 'border-dashed')}
-                    >
-                      Sem categoria
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <p className={SECTION_LABEL}>Período personalizado</p>
-                <DateRangePicker
-                  from={dateRangeStart}
-                  to={dateRangeEnd}
-                  onApply={(de, ate) => { setDateRangeStart(de); setDateRangeEnd(ate); setDateFilterMode('range'); }}
-                  onClear={() => { setDateRangeStart(undefined); setDateRangeEnd(undefined); setDateFilterMode('month'); }}
-                />
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase !== 'vencimento') && (
-            <Button variant="ghost" size="sm" className="h-9 text-[13px] text-foreground-muted" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDateFilterMode('month'); setDateRangeStart(undefined); setDateRangeEnd(undefined); setDataBase('vencimento'); }}>
-              <X className="mr-1 h-3.5 w-3.5" /> Limpar filtros
-            </Button>
+              <button type="button" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDataBase('vencimento'); setModoPeriodo('mes'); }} className="h-8 px-2 text-[12.5px] text-foreground-muted hover:text-foreground">Limpar</button>
+            </div>
           )}
         </div>
 
-        {/* Chips de filtros aplicados (mais filtros) */}
-        {(statusFilter.length > 0 || categoriaFilter.length > 0 || dateFilterMode === 'range' || dataBase !== 'vencimento') && (
-          <div className="mb-4 hidden flex-wrap items-center gap-2 md:flex">
-            {categoriaFilter.map(id => {
-              const cat = id === SEM_CATEGORIA ? null : categoriaNomePorId.get(id);
-              const label = cat?.nome ?? 'Sem categoria';
-              return (
-                <FilterPill
-                  key={id}
-                  active
-                  label="Categoria"
-                  value={label}
-                  icon={cat ? <span className="block h-2 w-2 rounded-full" style={{ backgroundColor: cat.cor }} /> : undefined}
-                  onClear={() => toggleCategoria(id)}
-                />
-              );
-            })}
-            {dataBase !== 'vencimento' && (
-              <FilterPill
-                active
-                label="Data"
-                value={dataBase === 'competencia' ? 'de competência' : tipoFilter === 'entrada' ? 'de recebimento' : tipoFilter === 'saida' ? 'de pagamento' : 'de recebimento/pagamento'}
-                onClear={() => setDataBase('vencimento')}
-              />
-            )}
-            {statusFilter.map(s => {
-              const label = statusOptions.find(o => o.value === s)?.label || s;
-              return (
-                <FilterPill
-                  key={s}
-                  active
-                  label="Status"
-                  value={label}
-                  onClear={() => setStatusFilter(prev => prev.filter(v => v !== s))}
-                />
-              );
-            })}
-            {dateFilterMode === 'range' && dateRangeStart && dateRangeEnd && (
-              <FilterPill
-                active
-                label="Período"
-                value={`${format(dateRangeStart, 'dd/MM')}–${format(dateRangeEnd, 'dd/MM')}`}
-                onClear={() => { setDateFilterMode('month'); setDateRangeStart(undefined); setDateRangeEnd(undefined); }}
-              />
-            )}
-          </div>
-        )}
-
-        {/* KPI Row (desktop) */}
-        <div className="mb-4 hidden md:mb-6 md:block">
-          <FluxoCaixaKPIRow
-            entradas={totals.entradas}
-            saidas={totals.saidas}
-            saldo={totals.saldo}
-            itemCount={filteredTransacoes.length}
-          />
-        </div>
-
-        {/* Table / Mobile List */}
+        {/* Lista */}
         {isMobile ? (
           <PullToRefresh onRefresh={async () => { await Promise.all([refetchFluxo(), refetchContas(), refetchTransferencias()]); }}>
             <MobileTransactionList
@@ -1511,7 +1180,7 @@ export default function FluxoCaixa() {
               contas={contas}
               isLoading={isLoading}
               totals={totals}
-              saldoAtual={contas.filter(c => c.ativa && c.tipo !== 'cartao_credito').reduce((s, c) => s + Number(c.saldo_atual || 0), 0)}
+              saldoAtual={contas.filter(c => c.ativa && c.tipo !== 'cartao_credito').reduce((acc, c) => acc + Number(c.saldo_atual || 0), 0)}
               onConfirm={handleMobileConfirm}
               onDelete={handleMobileDelete}
               onClick={handleRowClick}
@@ -1521,865 +1190,498 @@ export default function FluxoCaixa() {
             />
           </PullToRefresh>
         ) : (
-        <SectionCard
-          flush
-          title="Movimentações"
-          description={isLoading ? undefined : `${filteredTransacoes.length} ${filteredTransacoes.length === 1 ? 'lançamento' : 'lançamentos'} no período`}
-          className="overflow-hidden"
-        >
-          {isLoading ? (
-            <div className="px-4 pb-4 md:px-6 md:pb-6"><SkeletonTable rows={5} /></div>
-          ) : filteredTransacoes.length === 0 ? (
-            <div className="px-4 pb-6 md:px-6">
-              <EmptyState
-                title="Nenhuma transação encontrada"
-                description="Registre receitas ou despesas para visualizar o fluxo."
-                action={
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleNewSaida}>Nova Saída</Button>
-                    <Button onClick={handleNewEntrada}>Nova Entrada</Button>
-                  </div>
-                }
-              />
+          <section className="rounded-[24px] border border-border bg-surface">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+              <p className="text-[15px] font-semibold text-foreground">
+                Movimentações {!isLoading && <span className="font-normal text-foreground-muted">· {filteredTransacoes.length} {filteredTransacoes.length === 1 ? 'lançamento' : 'lançamentos'}</span>}
+              </p>
+              <div className="flex items-center gap-3">
+                <SortBtn col="data_vencimento">Data</SortBtn>
+                <button type="button" onClick={handleExport} className="inline-flex items-center gap-1.5 text-[12.5px] text-foreground-muted hover:text-foreground"><Download className="h-4 w-4" />Exportar</button>
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              {/* table-fixed + larguras fixas: colunas sempre alinhadas; "Lançamento" ocupa o resto */}
-              <table className="w-full min-w-[1080px] table-fixed">
-                <thead>
-                  <tr className="border-t border-border">
-                    <th className="h-11 w-[52px] px-3 pl-6">
-                      <Checkbox
-                        checked={isAllSelected}
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="Selecionar todos"
-                        className={isSomeSelected && !isAllSelected ? "opacity-50" : ""}
-                      />
-                    </th>
-                    <SortableHeader column="tipo" className="w-[64px]">Tipo</SortableHeader>
-                    <SortableHeader column="descricao">Lançamento</SortableHeader>
-                    <SortableHeader column="categoria" className="w-[170px]">Categoria</SortableHeader>
-                    <SortableHeader column="conta" className="w-[150px]">Conta</SortableHeader>
-                    <SortableHeader column="valor" className="w-[140px] [&>div]:justify-end">Valor</SortableHeader>
-                    <SortableHeader column="status" className="w-[120px] [&>div]:justify-end">Status</SortableHeader>
-                    <th className="h-11 w-[148px] px-3 pr-6 text-center text-xs font-medium text-foreground-muted">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const rows: JSX.Element[] = [];
-                    let lastDate: string | null = null;
-                    const COLSPAN = 8;
-                    // Pre-compute daily totals
-                    const dailyTotals = new Map<string, { entradas: number; saidas: number }>();
-                    for (const t of filteredTransacoes) {
-                      const d = t.data_vencimento;
-                      const cur = dailyTotals.get(d) || { entradas: 0, saidas: 0 };
-                      if (t.tabela_origem !== 'transferencia') {
-                        if (t.tipo === 'entrada') cur.entradas += Number(t.valor);
-                        else cur.saidas += Number(t.valor);
-                      }
-                      dailyTotals.set(d, cur);
-                    }
-
-                    // Bank-statement-style running balance per displayed day.
-                    // Active only when a single account is filtered.
-                    const isSingleAccount = !!singleAccountId && !!runningBalance;
-                    const closingByDate = new Map<string, number>();
-                    if (isSingleAccount && runningBalance) {
-                      const displayedDates = Array.from(new Set(filteredTransacoes.map(t => t.data_vencimento))).sort();
-                      const efetivadoDates = runningBalance.sortedDates || [];
-                      let idx = 0;
-                      let last = runningBalance.saldoInicial;
-                      for (const d of displayedDates) {
-                        while (idx < efetivadoDates.length && efetivadoDates[idx] <= d) {
-                          last = runningBalance.byDate.get(efetivadoDates[idx])!;
-                          idx++;
-                        }
-                        closingByDate.set(d, last);
-                      }
-                    }
-
-                    filteredTransacoes.forEach((t) => {
-                      const key = `${t.tabela_origem}-${t.id}-${t.tipo}`;
-                      const contaNome = contas.find(c => c.id === t.conta_id);
-                      const isTransfer = t.tabela_origem === 'transferencia';
-                      const dateObj = parseISO(t.data_vencimento);
-
-                      if (t.data_vencimento !== lastDate) {
-                        lastDate = t.data_vencimento;
-                        const totals = dailyTotals.get(t.data_vencimento) || { entradas: 0, saidas: 0 };
-                        const saldo = isSingleAccount
-                          ? (closingByDate.get(t.data_vencimento) ?? 0)
-                          : totals.entradas - totals.saidas;
-                        rows.push(
-                          <tr key={`hdr-${t.data_vencimento}`} className="border-t border-border bg-surface-2">
-                            <td colSpan={COLSPAN} className="px-6 py-2">
-                              <div className="flex flex-wrap items-center justify-between gap-4">
-                                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">
-                                  {format(dateObj, "EEE, dd 'de' MMM yyyy", { locale: ptBR })}
-                                </span>
-                                <div className="flex items-center gap-4 text-[12px] tabular-nums">
-                                  {totals.entradas > 0 && (
-                                    <span>
-                                      <span className="mr-1 text-[11px] uppercase tracking-[0.04em] text-foreground-muted">Entradas</span>
-                                      <span className="font-semibold text-[hsl(var(--success-fg))]">{formatCurrency(totals.entradas)}</span>
-                                    </span>
-                                  )}
-                                  {totals.saidas > 0 && (
-                                    <span>
-                                      <span className="mr-1 text-[11px] uppercase tracking-[0.04em] text-foreground-muted">Saídas</span>
-                                      <span className="font-semibold text-[hsl(var(--danger-fg))]">{formatCurrency(totals.saidas)}</span>
-                                    </span>
-                                  )}
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="cursor-help border-l border-border pl-3">
-                                        <span className="mr-1 text-[11px] uppercase tracking-[0.04em] text-foreground-muted">Saldo</span>
-                                        <span className={cn('font-semibold', saldo >= 0 ? 'text-foreground' : 'text-[hsl(var(--danger-fg))]')}>{formatCurrency(saldo)}</span>
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      {isSingleAccount
-                                        ? 'Saldo de fechamento do dia (apenas efetivados)'
-                                        : 'Saldo do dia (entradas − saídas)'}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      rows.push(
-                        <tr
-                          key={key}
-                          className={cn(
-                            "group border-t border-border transition-colors hover:bg-surface-2/60",
-                            !isTransfer && "cursor-pointer",
-                            isSelected(key) && "bg-info-bg hover:bg-info-bg"
-                          )}
-                          onClick={() => handleRowClick(t)}
-                        >
-                          <td className="px-3 py-3 pl-6" onClick={(e) => e.stopPropagation()}>
-                            {!isTransfer && (
-                              <Checkbox
-                                checked={isSelected(key)}
-                                onCheckedChange={() => toggleSelect(key)}
-                                aria-label={`Selecionar ${t.descricao}`}
-                              />
-                            )}
-                          </td>
-                          <td className="px-3 py-3">
-                            <span
-                              className={cn(
-                                "grid h-9 w-9 place-items-center rounded-[12px]",
-                                isTransfer
-                                  ? 'bg-info-bg text-info-fg'
-                                  : t.tipo === 'entrada' ? 'bg-success-bg text-success-fg' : 'bg-danger-bg text-danger-fg'
-                              )}
-                              title={isTransfer ? 'Transferência' : t.tipo === 'entrada' ? 'Entrada' : 'Saída'}
-                            >
-                              {isTransfer
-                                ? <ArrowLeftRight className="h-4 w-4" />
-                                : t.tipo === 'entrada' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                            </span>
-                          </td>
-                          {/* Lançamento: descrição + cliente/fornecedor como badge pequeno.
-                              O clamp fica num <div> interno — no <td> ele quebra a coluna. */}
-                          <td className="px-3 py-3">
-                            <div className="min-w-0">
-                              <div className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-foreground [overflow-wrap:anywhere]" title={t.descricao}>
-                                {!!t.anexos?.length && (
-                                  <Paperclip className="mr-1 inline h-3.5 w-3.5 -translate-y-px text-primary" aria-label={`${t.anexos.length} anexo(s)`} />
-                                )}
-                                {t.descricao}
-                              </div>
-                              {!isTransfer && (t.cliente?.nome || t.fornecedor) && (
-                                <span
-                                  className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-surface-2 px-2 py-[1px] text-[11px] font-medium text-foreground-muted"
-                                  title={t.cliente?.nome ? `Cliente: ${t.cliente.nome}` : `Fornecedor: ${t.fornecedor}`}
-                                >
-                                  {t.cliente?.nome ? <User className="h-2.5 w-2.5 shrink-0" /> : <Store className="h-2.5 w-2.5 shrink-0" />}
-                                  <span className="truncate">{t.cliente?.nome || t.fornecedor}</span>
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            {t.categoria ? (
-                              <span className="flex min-w-0 items-center gap-1.5 text-[12.5px] text-foreground" title={t.categoria.nome}>
-                                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: t.categoria.cor }} />
-                                <span className="truncate">{t.categoria.nome}</span>
-                              </span>
-                            ) : (
-                              <span className="text-[12.5px] text-foreground-muted">—</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-3 text-[12.5px] text-foreground-muted">
-                            {contaNome ? (
-                              <span className="flex min-w-0 items-center gap-1.5" title={contaNome.nome}>
-                                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: contaNome.cor }} />
-                                <span className="truncate">{contaNome.nome}</span>
-                              </span>
-                            ) : '—'}
-                          </td>
-                          <td className={cn(
-                            "whitespace-nowrap px-3 py-3 text-right font-heading text-[14px] font-semibold tabular-nums tracking-[-0.01em]",
-                            isTransfer
-                              ? 'text-foreground-muted'
-                              : t.tipo === 'entrada' ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]'
-                          )}>
-                            {isTransfer ? '' : (t.tipo === 'entrada' ? '+' : '−')}{formatCurrency(t.valor)}
-                          </td>
-                          <td className="px-3 py-3 text-right">
-                            {isTransfer ? (
-                              <span className="inline-flex items-center whitespace-nowrap rounded-full bg-info-bg px-2.5 py-0.5 text-[11px] font-semibold text-info-fg">
-                                Transferida
-                              </span>
-                            ) : (
-                              <StatusBadge status={t.status} />
-                            )}
-                          </td>
-                          <td className="px-3 py-3 pr-6" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-center gap-1">
-                              {podeGerarCobranca(t) && (
-                                <Tooltip delayDuration={250}>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 rounded-full text-primary hover:bg-primary/10 hover:text-primary"
-                                      onClick={() => setCobrancaFor(t)}
-                                      aria-label="Gerar cobrança no Asaas"
-                                    >
-                                      <Receipt className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="text-xs">Gerar cobrança no Asaas</TooltipContent>
-                                </Tooltip>
-                              )}
-                              {!isTransfer && (t.status === 'pendente' || t.status === 'atrasado') && (
-                                <Tooltip delayDuration={250}>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 rounded-full text-[hsl(var(--success-fg))] hover:bg-success-bg hover:text-[hsl(var(--success-fg))]"
-                                      onClick={() => handleMobileConfirm(t)}
-                                      aria-label={t.tipo === 'entrada' ? 'Dar baixa — marcar como recebido' : 'Dar baixa — marcar como pago'}
-                                    >
-                                      <CheckCircle2 className="h-4 w-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="text-xs">
-                                    {t.tipo === 'entrada' ? 'Dar baixa (marcar como recebido)' : 'Dar baixa (marcar como pago)'}
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
+            {isLoading ? (
+              <div className="p-5"><SkeletonTable rows={5} /></div>
+            ) : filteredTransacoes.length === 0 ? (
+              <div className="px-6 py-14 text-center">
+                <p className="text-[15px] text-foreground">Nada por aqui com esses filtros.</p>
+                <p className="mt-1 text-[13px] text-foreground-muted">Limpe os filtros ou lance uma entrada ou saída.</p>
+                <div className="mt-4 flex justify-center gap-2">
+                  <button type="button" onClick={handleNewSaida} className={btn.outline}><TrendingDown className="h-4 w-4 text-danger-fg" />Saída</button>
+                  <button type="button" onClick={handleNewEntrada} className={btn.primary}><Plus className="h-4 w-4" />Entrada</button>
+                </div>
+              </div>
+            ) : (
+              <div className="[&>div:last-child>div:last-child]:rounded-b-[24px]">
+                {/* cabeçalho de colunas */}
+                <div className="grid grid-cols-[22px_minmax(0,2.2fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_112px_132px_76px] items-center gap-4 border-b border-border px-5 py-2">
+                  <Checkbox checked={isAllSelected} onCheckedChange={toggleSelectAll} aria-label="Selecionar todos" className={isSomeSelected && !isAllSelected ? 'opacity-50' : ''} />
+                  <SortBtn col="descricao">Lançamento</SortBtn>
+                  <SortBtn col="categoria">Categoria</SortBtn>
+                  <SortBtn col="conta">Conta</SortBtn>
+                  <SortBtn col="status">Situação</SortBtn>
+                  <SortBtn col="valor" className="justify-end">Valor</SortBtn>
+                  <span />
+                </div>
+                {gruposDia.map(({ data, itens }, gi) => {
+                  const e = itens.filter(t => t.tabela_origem !== 'transferencia' && t.tipo === 'entrada').reduce((acc, t) => acc + Number(t.valor), 0);
+                  const sai = itens.filter(t => t.tabela_origem !== 'transferencia' && t.tipo === 'saida').reduce((acc, t) => acc + Number(t.valor), 0);
+                  const hoje = isToday(parseISO(data));
+                  const saldoDia = isSingleAccount ? (closingByDate.get(data) ?? 0) : e - sai;
+                  const d = parseISO(data);
+                  const rotulo = format(d, d.getFullYear() === new Date().getFullYear() ? "EEEE, dd 'de' MMMM" : "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+                  return (
+                    <div key={`${data}-${gi}`}>
+                      <div className={cn('flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border px-5 py-2', hoje ? 'bg-primary/[0.06]' : 'bg-surface-2/70')}>
+                        <span className="flex items-center gap-2 text-[12.5px] text-foreground">
+                          <span className="first-letter:uppercase">{rotulo}</span>
+                          {hoje && <span className="rounded-full bg-primary px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-primary-foreground">Hoje</span>}
+                        </span>
+                        <span className="flex items-center gap-3 text-[12px] tabular-nums">
+                          {e > 0 && <span className="text-success-fg">+{formatCurrency(e)}</span>}
+                          {sai > 0 && <span className="text-danger-fg">−{formatCurrency(sai)}</span>}
+                          <span className="border-l border-border pl-3 text-foreground-muted" title={isSingleAccount ? 'Saldo de fechamento do dia (apenas efetivados)' : 'Saldo do dia (entradas − saídas)'}>
+                            {isSingleAccount ? 'saldo' : 'dia'} <span className={cn('font-medium', saldoDia >= 0 ? 'text-foreground' : 'text-danger-fg')}>{formatCurrency(saldoDia)}</span>
+                          </span>
+                        </span>
+                      </div>
+                      {itens.map((t) => {
+                        const key = `${t.tabela_origem}-${t.id}-${t.tipo}`;
+                        const isTransfer = t.tabela_origem === 'transferencia';
+                        const st = statusInfo(t);
+                        const marcado = isSelected(key);
+                        const aberto = !isTransfer && (t.status === 'pendente' || t.status === 'atrasado');
+                        const { base, serie } = serieDe(t.descricao);
+                        const conta = t.conta_id ? contaById.get(t.conta_id) : undefined;
+                        const quem = t.cliente?.nome || (t.fornecedor && !t.fornecedor.startsWith('[') ? t.fornecedor : undefined);
+                        return (
+                          <div
+                            key={key}
+                            onClick={() => handleRowClick(t)}
+                            className={cn('group grid grid-cols-[22px_minmax(0,2.2fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_112px_132px_76px] items-center gap-4 border-b border-border px-5 py-3 last:border-b-0 hover:bg-surface-2/50',
+                              !isTransfer && 'cursor-pointer', marcado && 'bg-primary/5')}
+                          >
+                            <span onClick={(ev) => ev.stopPropagation()}>
                               {!isTransfer && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-full text-foreground-muted hover:bg-surface-2 hover:text-foreground"
-                                  onClick={() => t.tipo === 'entrada' ? handleEditEntrada(t) : handleEditSaida(t)}
-                                  aria-label="Editar"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
+                                <Checkbox checked={marcado} onCheckedChange={() => toggleSelect(key)} aria-label={`Selecionar ${t.descricao}`}
+                                  className={cn('transition-opacity', !marcado && selectedIds.size === 0 && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100')} />
                               )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 rounded-full hover:bg-danger-bg"
-                                onClick={() => {
-                                  setDeletingItem({ id: t.id, tipo: t.tabela_origem });
-                                  setDeleteDialogOpen(true);
-                                }}
-                                aria-label="Excluir"
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
+                            </span>
+                            <div className="flex min-w-0 items-center gap-3">
+                              <TipoIcone t={t} />
+                              <span className="min-w-0">
+                                <span className="flex items-center gap-1.5 text-[14.5px] font-medium text-foreground">
+                                  <span className="truncate" title={t.descricao}>{base}</span>
+                                  {!!t.anexos?.length && <Paperclip className="h-3.5 w-3.5 shrink-0 text-foreground-muted" aria-label={`${t.anexos.length} anexo(s)`} />}
+                                  {serie && <span className="shrink-0 rounded-full bg-surface-2 px-1.5 text-[10.5px] text-foreground-muted" title="Recorrente">{serie}</span>}
+                                </span>
+                                <span className="flex items-center gap-1.5 truncate text-[12.5px] text-foreground-muted">
+                                  {isTransfer ? <>{t.conta_origem?.nome ?? '—'} → {t.conta_destino?.nome ?? '—'}</> : quem ? (
+                                    <>{t.cliente?.nome ? <User className="h-3 w-3 shrink-0" /> : <Store className="h-3 w-3 shrink-0" />}<span className="truncate">{quem}</span></>
+                                  ) : <span className="truncate">{t.tipo === 'entrada' ? 'Receita' : 'Despesa'}</span>}
+                                </span>
+                              </span>
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    });
-                    return rows;
-                  })()}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </SectionCard>
+                            <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-foreground">
+                              {t.categoria ? <><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: t.categoria.cor }} /><span className="truncate">{t.categoria.nome}</span></> : <span className="text-foreground-muted">—</span>}
+                            </span>
+                            <span className="min-w-0 text-[13px] text-foreground-muted">
+                              {conta ? <span className="flex min-w-0 items-center gap-1.5"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: conta.cor }} /><span className="truncate">{conta.nome}</span></span> : '—'}
+                            </span>
+                            <span><span className={cn('whitespace-nowrap rounded-full px-2.5 py-1 text-[11.5px]', st.cls)}>{st.txt}</span></span>
+                            <span className={cn('whitespace-nowrap text-right font-heading text-[15.5px] font-semibold tabular-nums', isTransfer ? 'text-foreground-muted' : t.tipo === 'entrada' ? 'text-success-fg' : 'text-danger-fg')}>
+                              {isTransfer ? '' : t.tipo === 'entrada' ? '+' : '−'}{formatCurrency(t.valor)}
+                            </span>
+                            <div className="flex items-center justify-end gap-0.5" onClick={(ev) => ev.stopPropagation()}>
+                              {aberto && (
+                                <button type="button" onClick={() => handleMobileConfirm(t)} title={ehFaturaCartao(t) ? 'Pagar fatura' : t.tipo === 'entrada' ? 'Dar baixa (marcar como recebido)' : 'Dar baixa (marcar como pago)'}
+                                  aria-label={t.tipo === 'entrada' ? 'Dar baixa — marcar como recebido' : 'Dar baixa — marcar como pago'}
+                                  className="grid h-8 w-8 place-items-center rounded-full text-success-fg opacity-0 transition-opacity hover:bg-success-bg focus-visible:opacity-100 group-hover:opacity-100">
+                                  <CheckCircle2 className="h-4 w-4" />
+                                </button>
+                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button type="button" aria-label="Mais ações" className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2 hover:text-foreground"><MoreHorizontal className="h-4 w-4" /></button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
+                                  {!isTransfer && <DropdownMenuItem onSelect={() => (t.tipo === 'entrada' ? handleEditEntrada(t) : handleEditSaida(t))} className="gap-2.5 rounded-xl py-2 text-[13.5px]"><Pencil className="h-4 w-4" />Editar</DropdownMenuItem>}
+                                  {!isTransfer && <DropdownMenuItem onSelect={() => handleDuplicate(t)} className="gap-2.5 rounded-xl py-2 text-[13.5px]"><Copy className="h-4 w-4" />Duplicar</DropdownMenuItem>}
+                                  {podeGerarCobranca(t) && <DropdownMenuItem onSelect={() => setCobrancaFor(t)} className="gap-2.5 rounded-xl py-2 text-[13.5px]"><Receipt className="h-4 w-4" />Gerar cobrança</DropdownMenuItem>}
+                                  {!isTransfer && <DropdownMenuSeparator />}
+                                  <DropdownMenuItem onSelect={() => { setDeletingItem({ id: t.id, tipo: t.tabela_origem }); setDeleteDialogOpen(true); }} className="gap-2.5 rounded-xl py-2 text-[13.5px] text-danger-fg focus:bg-danger-bg focus:text-danger-fg"><Trash2 className="h-4 w-4" />Excluir</DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
         )}
 
-        {/* ===== ENTRADA MODAL (modern layout) ===== */}
-        <Sheet open={entradaModalOpen} onOpenChange={setEntradaModalOpen}>
-          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[760px] sm:mx-auto">
-            {/* Header AURO */}
-            <div className="px-5 pt-1 pb-1">
-              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[hsl(var(--success))]">
-                <span className="h-2 w-2 rounded-full bg-[hsl(var(--success))]" />Receita
-              </div>
-              <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
-                {editingItem ? 'Editar entrada' : 'Nova entrada'}
-              </h2>
-            </div>
-
-            <form onSubmit={handleSubmitEntrada} className="p-5 pt-3 space-y-4">
-              {/* Valor — grande e verde */}
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Valor *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={formEntrada.valor || ''}
-                  onChange={(e) => setFormEntrada(prev => ({ ...prev, valor: parseFloat(e.target.value) || 0 }))}
-                  placeholder="R$ 0,00"
-                  required
-                  className="h-14 text-2xl font-semibold tabular-nums text-[hsl(var(--success))]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descrição *</Label>
-                <Input
-                  value={formEntrada.descricao}
-                  onChange={(e) => setFormEntrada(prev => ({ ...prev, descricao: e.target.value }))}
-                  placeholder="Ex: Gestão de Redes — Janeiro"
-                  required
-                />
-              </div>
-
-              {/* Quick date + date pickers */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Datas</Label>
-                  <QuickDateButtons onSelect={(d) => setFormEntrada(prev => ({ ...prev, data_competencia: d, data_vencimento: d }))} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <DatePickerField
-                    label="Competência"
-                    value={formEntrada.data_competencia}
-                    onChange={(d) => setFormEntrada(prev => ({ ...prev, data_competencia: d }))}
-                  />
-                  <DatePickerField
-                    label="Vencimento"
-                    value={formEntrada.data_vencimento}
-                    onChange={(d) => setFormEntrada(prev => ({ ...prev, data_vencimento: d }))}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs">Cliente</Label>
-                <Select value={formEntrada.cliente_id || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, cliente_id: v === 'none' ? undefined : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhum</SelectItem>
-                    {clientes.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs">Categoria</Label>
-                <Select value={formEntrada.categoria_id || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, categoria_id: v === 'none' ? undefined : v }))}>
-                  <SelectTrigger>
-                    {(() => {
-                      const sel = categoriasReceita.find(c => c.id === formEntrada.categoria_id);
-                      return sel
-                        ? <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[5px]" style={{ background: sel.cor }} />{sel.nome}</span>
-                        : <SelectValue placeholder="Selecionar categoria" />;
-                    })()}
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhuma</SelectItem>
-                    {categoriasReceita.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[5px]" style={{ background: c.cor }} />{c.nome}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs">Conta</Label>
-                <Select value={formEntrada.conta_id || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, conta_id: v === 'none' ? undefined : v }))}>
-                  <SelectTrigger>
-                    {(() => {
-                      const sel = contas.find(c => c.id === formEntrada.conta_id);
-                      return sel
-                        ? <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full" style={{ background: sel.cor }} />{sel.nome}</span>
-                        : <SelectValue placeholder="Selecionar conta" />;
-                    })()}
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhuma</SelectItem>
-                    {/* Só contas ativas (arquivadas somem), mas mantém a já escolhida ao editar */}
-                    {contas.filter(c => c.ativa || c.id === formEntrada.conta_id).map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full" style={{ background: c.cor }} />{c.nome}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs">Forma de pagamento</Label>
-                <Select value={formEntrada.forma_pagamento || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, forma_pagamento: v === 'none' ? undefined : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecionar forma" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhuma</SelectItem>
-                    {FORMA_PAGAMENTO_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2 col-span-2">
-                  <Label className="text-xs">Status</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['pendente', 'recebido', 'atrasado'] as const).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setFormEntrada(prev => ({
-                          ...prev,
-                          status: s,
-                          data_recebimento: s === 'recebido' ? (prev.data_recebimento || prev.data_vencimento) : prev.data_recebimento,
-                        }))}
-                        className={cn(
-                          'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors',
-                          formEntrada.status === s
-                            ? 'border-transparent bg-primary text-primary-foreground'
-                            : 'border-border/60 bg-surface/60 text-foreground-muted',
-                        )}
-                      >
-                        {s === 'recebido' ? 'Recebido' : s === 'pendente' ? 'Pendente' : 'Atrasado'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {formEntrada.status === 'recebido' && (
-                  <DatePickerField
-                    label="Data Recebimento"
-                    value={formEntrada.data_recebimento}
-                    onChange={(d) => setFormEntrada(prev => ({ ...prev, data_recebimento: d }))}
-                  />
-                )}
-              </div>
-
-              {/* Juros/Multa, Tarifa e Imposto - shown when 'recebido' */}
-              {formEntrada.status === 'recebido' && (
-                <div className="grid grid-cols-3 gap-3 rounded-xl border border-border bg-warning-bg p-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-[hsl(var(--warning-fg))]">Juros/Multa</Label>
-                    <Input type="number" step="0.01" min="0" value={entradaValorJuros} onChange={(e) => setEntradaValorJuros(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-[hsl(var(--danger-fg))]">Tarifa</Label>
-                    <Input type="number" step="0.01" min="0" value={entradaValorTarifa} onChange={(e) => setEntradaValorTarifa(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-[hsl(var(--warning-fg))]">Imposto</Label>
-                    <Input type="number" step="0.01" min="0" value={entradaValorImposto} onChange={(e) => setEntradaValorImposto(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
-                  </div>
-                  <p className="col-span-3 text-[10px] text-muted-foreground">
-                    Juros/Multa cria receita extra. Tarifa e Imposto criam despesas automáticas (Imposto na categoria Impostos).
-                  </p>
-                </div>
-              )}
-
-              {/* Recurrence (only for new) */}
-              {!editingItem && (
-                <RecurrenceSection
-                  recurrence={entradaRecurrence}
-                  setRecurrence={setEntradaRecurrence}
-                  frequency={entradaFrequency}
-                  setFrequency={setEntradaFrequency}
-                  repeatTimes={entradaRepeatTimes}
-                  setRepeatTimes={setEntradaRepeatTimes}
-                />
-              )}
-
-              {editingItem && editingItem.tabela_origem === 'receitas' && (
-                <LinkedAuxiliaryList origemId={editingItem.id} origemTipo="receita" />
-              )}
-
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-2">
-                <div>
-                  {editingItem && formEntrada.cliente_id && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const cliente = clientes.find(c => c.id === formEntrada.cliente_id);
-                        setReceiptData({
-                          id: editingItem.id,
-                          descricao: formEntrada.descricao,
-                          valor: formEntrada.valor,
-                          clienteNome: cliente?.nome || '',
-                          clienteCnpj: cliente?.cpf_cnpj || undefined,
-                          formaPagamento: formEntrada.forma_pagamento,
-                          dataVencimento: formEntrada.data_vencimento,
-                          dataRecebimento: formEntrada.data_recebimento,
-                          tipo: 'receita',
-                        });
-                        setReceiptOpen(true);
-                      }}
-                    >
-                      <FileText className="h-4 w-4 mr-1" />
-                      Recibo
-                    </Button>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setEntradaModalOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                    {isSaving ? <><LoadingSpinner size="sm" className="mr-2" />Salvando...</> : (editingItem ? 'Atualizar' : 'Adicionar')}
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </SheetContent>
-        </Sheet>
-
-        {/* ===== SAÍDA MODAL (modern layout) ===== */}
-        <Sheet open={saidaModalOpen} onOpenChange={setSaidaModalOpen}>
-          <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[760px] sm:mx-auto">
-            {/* Header AURO */}
-            <div className="px-5 pt-1 pb-1">
-              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[hsl(var(--danger))]">
-                <span className="h-2 w-2 rounded-full bg-[hsl(var(--danger))]" />Despesa
-              </div>
-              <h2 className="mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-foreground">
-                {editingItem ? 'Editar saída' : 'Nova saída'}
-              </h2>
-            </div>
-
-            <form onSubmit={handleSubmitSaida} className="p-5 pt-3 space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Valor *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={formSaida.valor || ''}
-                  onChange={(e) => setFormSaida(prev => ({ ...prev, valor: parseFloat(e.target.value) || 0 }))}
-                  placeholder="R$ 0,00"
-                  required
-                  className="h-14 text-2xl font-semibold tabular-nums text-[hsl(var(--danger))]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Descrição *</Label>
-                <Input
-                  value={formSaida.descricao}
-                  onChange={(e) => setFormSaida(prev => ({ ...prev, descricao: e.target.value }))}
-                  placeholder="Ex: Meta Ads — cliente Verano"
-                  required
-                />
-              </div>
-
-              {/* Quick date + date pickers */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Datas</Label>
-                  <QuickDateButtons onSelect={(d) => setFormSaida(prev => ({ ...prev, data_competencia: d, data_vencimento: d }))} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <DatePickerField
-                    label="Competência"
-                    value={formSaida.data_competencia}
-                    onChange={(d) => setFormSaida(prev => ({ ...prev, data_competencia: d }))}
-                  />
-                  <DatePickerField
-                    label="Vencimento"
-                    value={formSaida.data_vencimento}
-                    onChange={(d) => setFormSaida(prev => ({ ...prev, data_vencimento: d }))}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-xs">Fornecedor</Label>
-                  <Input
-                    value={formSaida.fornecedor || ''}
-                    onChange={(e) => setFormSaida(prev => ({ ...prev, fornecedor: e.target.value }))}
-                    placeholder="Ex: Meta Platforms"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Vincular a cliente</Label>
-                  <Select value={formSaida.cliente_id || 'none'} onValueChange={(v) => setFormSaida(prev => ({ ...prev, cliente_id: v === 'none' ? undefined : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
-                      {clientes.filter(c => c.status === 'ativo').map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-xs">Categoria</Label>
-                  <Select value={formSaida.categoria_id || 'none'} onValueChange={(v) => setFormSaida(prev => ({ ...prev, categoria_id: v === 'none' ? undefined : v }))}>
-                    <SelectTrigger>
-                      {(() => {
-                        const sel = categoriasDespesa.find(c => c.id === formSaida.categoria_id);
-                        return sel
-                          ? <span className="flex items-center gap-2 min-w-0"><span className="h-3.5 w-3.5 shrink-0 rounded-[5px]" style={{ background: sel.cor }} /><span className="truncate">{sel.nome}</span></span>
-                          : <SelectValue placeholder="Categoria" />;
-                      })()}
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhuma</SelectItem>
-                      {categoriasDespesa.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[5px]" style={{ background: c.cor }} />{c.nome}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Conta</Label>
-                  <Select
-                    value={formSaida.conta_id || 'none'}
-                    onValueChange={(v) => {
-                      const novaConta = v === 'none' ? undefined : v;
-                      const isCartao = activeContas.some(c => c.id === novaConta && c.tipo === 'cartao_credito');
-                      setFormSaida(prev => ({
-                        ...prev,
-                        conta_id: novaConta,
-                        // Cartão → forma trava em 'cartao_credito'. Saindo do cartão, limpa se estava travada.
-                        forma_pagamento: isCartao ? 'cartao_credito' : (prev.forma_pagamento === 'cartao_credito' ? undefined : prev.forma_pagamento),
-                      }));
-                    }}
-                  >
-                    <SelectTrigger>
-                      {(() => {
-                        const sel = contas.find(c => c.id === formSaida.conta_id);
-                        return sel
-                          ? <span className="flex items-center gap-2 min-w-0"><span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: sel.cor }} /><span className="truncate">{sel.nome}</span>{sel.tipo === 'cartao_credito' && <span className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Cartão crédito</span>}</span>
-                          : <SelectValue placeholder="Conta" />;
-                      })()}
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhuma</SelectItem>
-                      {contas.filter(c => c.ativa || c.id === formSaida.conta_id).map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-full" style={{ background: c.cor }} /><span className="truncate">{c.nome}</span>{c.tipo === 'cartao_credito' && <span className="ml-auto rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Crédito</span>}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Forma de pagamento</Label>
-                  <Select
-                    value={saidaContaIsCartao ? 'cartao_credito' : (formSaida.forma_pagamento || 'none')}
-                    onValueChange={(v) => setFormSaida(prev => ({ ...prev, forma_pagamento: v === 'none' ? undefined : v }))}
-                    disabled={saidaContaIsCartao}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Selecionar forma" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhuma</SelectItem>
-                      {/* 'Cartão Crédito' só aparece quando a conta é um cartão de crédito */}
-                      {FORMA_PAGAMENTO_OPTIONS.filter(o => saidaContaIsCartao || o.value !== 'cartao_credito').map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  {saidaContaIsCartao && <p className="text-[10px] text-foreground-muted">Definido automaticamente: conta é cartão de crédito.</p>}
-                </div>
-              </div>
-
-              {/* Cartão de crédito: parcelas + aviso de fatura (sem Pago/Pendente) */}
-              {saidaContaIsCartao && (
-                <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/[0.06] p-3">
-                  <div className="flex items-start gap-2 text-[12px] leading-snug text-foreground">
-                    <CreditCard className="h-4 w-4 shrink-0 text-primary mt-0.5" />
-                    <span>Este lançamento entra na <b>fatura do cartão</b>. A baixa acontece quando você <b>pagar a fatura</b> — não precisa marcar Pago/Pendente.</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Parcelas</Label>
-                    <div className="flex items-center gap-2.5">
-                      <Input
-                        type="number"
-                        min={1}
-                        max={48}
-                        step={1}
-                        value={saidaParcelas}
-                        onChange={(e) => setSaidaParcelas(Math.max(1, Math.min(48, parseInt(e.target.value, 10) || 1)))}
-                        className="h-10 w-20 text-center tabular-nums"
-                      />
-                      <span className="text-xs text-foreground-muted">
-                        {saidaParcelas > 1 && formSaida.valor > 0
-                          ? `${saidaParcelas}× de ${formatCurrency(formSaida.valor / saidaParcelas)} · 1ª na fatura atual`
-                          : 'À vista (1 parcela)'}
-                      </span>
+        {/* ===== Filtros ===== */}
+        <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+          <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[640px]')}>
+            <ModalShell>
+              <ModalHeader title="Filtros" onClose={() => setFiltersOpen(false)} />
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                <Bloco title="Período">
+                  <Segmented<'mes' | 'periodo' | 'tudo'> value={modoPeriodo} onChange={setModoPeriodo} opts={[['mes', 'Mês'], ['periodo', 'Personalizado'], ['tudo', 'Tudo']]} />
+                  {modoPeriodo === 'mes' && (
+                    <div className="mt-3 flex items-center justify-between gap-2 rounded-full border border-border bg-surface p-1">
+                      <button type="button" aria-label="Mês anterior" onClick={() => navMes(-1)} className="grid h-9 w-9 place-items-center rounded-full hover:bg-surface-2"><ChevronLeft className="h-4 w-4" /></button>
+                      <span className="text-[14px] text-foreground first-letter:uppercase">{monthLabel}</span>
+                      <button type="button" aria-label="Próximo mês" onClick={() => navMes(1)} className="grid h-9 w-9 place-items-center rounded-full hover:bg-surface-2"><ChevronRight className="h-4 w-4" /></button>
                     </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label className="text-xs">Tipo de despesa</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {DESPESA_TIPO_OPTIONS.map((o) => (
-                    <button
-                      key={o.value}
-                      type="button"
-                      onClick={() => setFormSaida(prev => ({ ...prev, tipo: o.value as 'fixa' | 'variavel' }))}
-                      className={cn(
-                        'no-touch-min rounded-xl border py-2.5 text-sm font-semibold transition-colors',
-                        formSaida.tipo === o.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted',
-                      )}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {!saidaContaIsCartao && (<>
-              <div className="space-y-2">
-                <Label className="text-xs">Status</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['pendente', 'pago', 'atrasado'] as const).map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setFormSaida(prev => ({
-                        ...prev,
-                        status: s,
-                        data_pagamento: s === 'pago' ? (prev.data_pagamento || prev.data_vencimento) : prev.data_pagamento,
-                      }))}
-                      className={cn(
-                        'no-touch-min rounded-xl border py-2.5 text-sm font-semibold capitalize transition-colors',
-                        formSaida.status === s ? 'border-transparent bg-primary text-primary-foreground' : 'border-border/60 bg-surface/60 text-foreground-muted',
-                      )}
-                    >
-                      {s === 'pago' ? 'Pago' : s === 'pendente' ? 'Pendente' : 'Atrasado'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {formSaida.status === 'pago' && (
-                <DatePickerField
-                  label="Data Pagamento"
-                  value={formSaida.data_pagamento}
-                  onChange={(d) => setFormSaida(prev => ({ ...prev, data_pagamento: d }))}
-                />
-              )}
-
-              {/* Juros/Multa, Tarifa e Imposto - shown when 'pago' */}
-              {formSaida.status === 'pago' && (
-                <div className="grid grid-cols-3 gap-3 rounded-xl border border-border bg-warning-bg p-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-[hsl(var(--warning-fg))]">Juros/Multa</Label>
-                    <Input type="number" step="0.01" min="0" value={saidaValorJuros} onChange={(e) => setSaidaValorJuros(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-[hsl(var(--danger-fg))]">Tarifa</Label>
-                    <Input type="number" step="0.01" min="0" value={saidaValorTarifa} onChange={(e) => setSaidaValorTarifa(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium text-[hsl(var(--warning-fg))]">Imposto</Label>
-                    <Input type="number" step="0.01" min="0" value={saidaValorImposto} onChange={(e) => setSaidaValorImposto(e.target.value)} placeholder="0,00" className="h-9 text-sm" />
-                  </div>
-                  <p className="col-span-3 text-[10px] text-muted-foreground">
-                    Juros/Multa, Tarifa e Imposto criam despesas automáticas (Imposto na categoria Impostos).
+                  )}
+                  {modoPeriodo === 'periodo' && (
+                    <div className="mt-3">
+                      <DateRangePicker
+                        from={dateRangeStart}
+                        to={dateRangeEnd}
+                        onApply={(de, ate) => { setDateRangeStart(de); setDateRangeEnd(ate); setDateFilterMode('range'); }}
+                        onClear={() => setModoPeriodo('mes')}
+                      />
+                    </div>
+                  )}
+                </Bloco>
+                <Bloco title="Filtrar pela data de">
+                  <Segmented<'vencimento' | 'competencia' | 'efetivacao'> value={dataBase} onChange={setDataBase} opts={[['vencimento', 'Vencimento'], ['competencia', 'Competência'], ['efetivacao', 'Pagamento']]} />
+                  <p className="mt-2 text-[12px] text-foreground-muted">
+                    {dataBase === 'competencia' ? 'Mês a que o lançamento pertence (o mesmo do DRE).' : dataBase === 'efetivacao' ? 'Só o que já foi recebido ou pago, pela data da baixa.' : 'Quando vence. É o padrão do caixa.'}
                   </p>
-                </div>
-              )}
-              </>)}
+                </Bloco>
+                <Bloco title="Categorias" extra={categoriaFilter.length > 0 ? <button type="button" onClick={() => setCategoriaFilter([])} className="text-[12px] text-foreground-muted hover:text-foreground">Limpar ({categoriaFilter.length})</button> : undefined}>
+                  <div className="space-y-3">
+                    {categoriaGrupos.map(g => (
+                      <div key={g.titulo ?? 'cats'}>
+                        {g.titulo && <p className="mb-1.5 text-[11.5px] text-foreground-muted">{g.titulo}</p>}
+                        <div className="flex flex-wrap gap-1.5">
+                          {g.itens.map(c => {
+                            const on = categoriaFilter.includes(c.id);
+                            return (
+                              <button key={c.id} type="button" onClick={() => toggleCategoria(c.id)} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12.5px]', on ? 'border-foreground bg-foreground text-background' : 'border-border text-foreground hover:bg-surface-2')}>
+                                <span className="h-2 w-2 rounded-full" style={{ background: c.cor }} />{c.nome}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => toggleCategoria(SEM_CATEGORIA)} className={cn('h-8 rounded-full border border-dashed px-3 text-[12.5px]', categoriaFilter.includes(SEM_CATEGORIA) ? 'border-foreground bg-foreground text-background' : 'border-border-strong text-foreground-muted')}>Sem categoria</button>
+                  </div>
+                </Bloco>
+              </div>
+              <ModalFooter left={<button type="button" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDataBase('vencimento'); setModoPeriodo('mes'); }} className={btn.ghost}>Limpar tudo</button>}>
+                <button type="button" onClick={() => setFiltersOpen(false)} className={btn.primary}>Ver {filteredTransacoes.length} lançamentos</button>
+              </ModalFooter>
+            </ModalShell>
+          </SheetContent>
+        </Sheet>
 
-              {/* Recurrence (only for new) — não aparece pra cartão (usa Parcelas) */}
-              {!editingItem && !saidaContaIsCartao && (
-                <RecurrenceSection
-                  recurrence={saidaRecurrence}
-                  setRecurrence={setSaidaRecurrence}
-                  frequency={saidaFrequency}
-                  setFrequency={setSaidaFrequency}
-                  repeatTimes={saidaRepeatTimes}
-                  setRepeatTimes={setSaidaRepeatTimes}
-                />
-              )}
-
-              {editingItem && editingItem.tabela_origem === 'despesas' && (
-                <LinkedAuxiliaryList origemId={editingItem.id} origemTipo="despesa" />
-              )}
-
-              {/* Footer */}
-              <div className="flex items-center justify-between pt-2">
-                <div>
-                  {editingItem && (formSaida.cliente_id || formSaida.fornecedor) && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const cliente = clientes.find(c => c.id === formSaida.cliente_id);
-                        setReceiptData({
-                          id: editingItem.id,
-                          descricao: formSaida.descricao,
-                          valor: formSaida.valor,
-                          clienteNome: cliente?.nome || formSaida.fornecedor || '',
-                          clienteCnpj: cliente?.cpf_cnpj || undefined,
-                          dataVencimento: formSaida.data_vencimento,
-                          dataPagamento: formSaida.data_pagamento,
-                          tipo: 'despesa',
-                        });
-                        setReceiptOpen(true);
-                      }}
-                    >
-                      <FileText className="h-4 w-4 mr-1" />
-                      Recibo
-                    </Button>
+        {/* ===== Nova / editar ENTRADA ===== */}
+        <Sheet open={entradaModalOpen} onOpenChange={setEntradaModalOpen}>
+          <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[940px]')}>
+            <form onSubmit={handleSubmitEntrada} className="flex max-h-[92dvh] flex-col md:max-h-[88dvh]">
+              <ModalHeader
+                eyebrow={<span className="flex items-center gap-1.5 text-success-fg"><span className="h-2 w-2 rounded-full bg-success-fg" />Receita</span>}
+                title={editingItem ? 'Editar entrada' : 'Nova entrada'}
+                onClose={() => setEntradaModalOpen(false)}
+              >
+                {!editingItem && <Segmented<'entrada' | 'saida'> size="sm" className="hidden sm:flex" value="entrada" onChange={(v) => v === 'saida' && trocarTipo('saida')} opts={[['entrada', 'Entrada'], ['saida', 'Saída']]} />}
+              </ModalHeader>
+              <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="space-y-3 p-4 md:p-5">
+                  {!editingItem && <Segmented<'entrada' | 'saida'> className="sm:hidden" value="entrada" onChange={(v) => v === 'saida' && trocarTipo('saida')} opts={[['entrada', 'Entrada'], ['saida', 'Saída']]} />}
+                  <Secao n={1} title="O quê">
+                    <Campo label="Valor"><ValorInput valor={formEntrada.valor} onChange={(n) => setFormEntrada(prev => ({ ...prev, valor: n }))} tom="entrada" /></Campo>
+                    <Campo label="Descrição"><Input value={formEntrada.descricao} onChange={(e) => setFormEntrada(prev => ({ ...prev, descricao: e.target.value }))} placeholder="Ex.: Gestão de redes — novembro" required /></Campo>
+                  </Secao>
+                  <Secao n={2} title="Quando" extra={<QuickDatas className="hidden sm:flex" onSelect={(d) => setFormEntrada(prev => ({ ...prev, data_competencia: d, data_vencimento: d }))} />}>
+                    <div className="grid grid-cols-2 gap-3">
+                      <DatePickerField label="Vencimento" value={formEntrada.data_vencimento} onChange={(d) => setFormEntrada(prev => ({ ...prev, data_vencimento: d }))} />
+                      <DatePickerField label="Competência (mês do DRE)" value={formEntrada.data_competencia} onChange={(d) => setFormEntrada(prev => ({ ...prev, data_competencia: d }))} />
+                    </div>
+                    <QuickDatas className="sm:hidden" onSelect={(d) => setFormEntrada(prev => ({ ...prev, data_competencia: d, data_vencimento: d }))} />
+                  </Secao>
+                  <Secao n={3} title="Quem e onde">
+                    <Campo label="Cliente">
+                      <Select value={formEntrada.cliente_id || 'none'} onValueChange={(v) => setFormEntrada(prev => ({ ...prev, cliente_id: v === 'none' ? undefined : v }))}>
+                        <SelectTrigger><SelectValue placeholder="Selecionar cliente" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Nenhum</SelectItem>
+                          {clientes.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </Campo>
+                    <div>
+                      <span className="mb-1.5 block text-[12.5px] text-foreground-muted">Categoria</span>
+                      <Chips opcoes={categoriaOpcoes(categoriasReceita)} valor={formEntrada.categoria_id} onChange={(v) => setFormEntrada(prev => ({ ...prev, categoria_id: v }))} />
+                    </div>
+                    <div>
+                      <span className="mb-1.5 block text-[12.5px] text-foreground-muted">Entra na conta</span>
+                      {/* Só contas ativas (arquivadas somem), mas mantém a já escolhida ao editar */}
+                      <ContasPick contas={contas.filter(c => c.ativa || c.id === formEntrada.conta_id)} valor={formEntrada.conta_id} onChange={(id) => setFormEntrada(prev => ({ ...prev, conta_id: id }))} />
+                    </div>
+                    <div>
+                      <span className="mb-1.5 block text-[12.5px] text-foreground-muted">Forma de pagamento</span>
+                      <Chips opcoes={FORMA_PAGAMENTO_OPTIONS.filter(o => o.value !== 'cartao_credito' || formEntrada.forma_pagamento === 'cartao_credito').map(o => ({ value: o.value, label: FORMA_LABEL[o.value] ?? o.label }))} valor={formEntrada.forma_pagamento} onChange={(v) => setFormEntrada(prev => ({ ...prev, forma_pagamento: v }))} />
+                    </div>
+                  </Secao>
+                  <Secao n={4} title="Situação">
+                    <Segmented<'pendente' | 'recebido' | 'atrasado'>
+                      value={formEntrada.status as 'pendente' | 'recebido' | 'atrasado'}
+                      onChange={(v) => setFormEntrada(prev => ({ ...prev, status: v, data_recebimento: v === 'recebido' ? (prev.data_recebimento || prev.data_vencimento) : prev.data_recebimento }))}
+                      opts={[['pendente', 'A receber'], ['recebido', 'Recebido'], ['atrasado', 'Atrasado']]}
+                    />
+                    {entradaEfetivada && (<>
+                      <DatePickerField label="Recebido em" value={formEntrada.data_recebimento} onChange={(d) => setFormEntrada(prev => ({ ...prev, data_recebimento: d }))} />
+                      <div className="flex items-center justify-between gap-3 rounded-2xl bg-surface-2/60 px-3.5 py-3">
+                        <span><span className="block text-[14px] text-foreground">Juros, tarifa ou imposto</span><span className="block text-[12px] text-foreground-muted">Juros/multa cria receita extra; tarifa e imposto criam despesas ligadas a esta</span></span>
+                        <Switch checked={mostrarExtrasEntrada} onCheckedChange={(v) => { setExtrasEntrada(v); if (!v) { setEntradaValorJuros(''); setEntradaValorTarifa(''); setEntradaValorImposto(''); } }} />
+                      </div>
+                      {mostrarExtrasEntrada && (
+                        <div className="grid grid-cols-3 gap-2">
+                          <Campo label="Juros/multa"><Input type="number" step="0.01" min="0" value={entradaValorJuros} onChange={(e) => setEntradaValorJuros(e.target.value)} placeholder="0,00" /></Campo>
+                          <Campo label="Tarifa"><Input type="number" step="0.01" min="0" value={entradaValorTarifa} onChange={(e) => setEntradaValorTarifa(e.target.value)} placeholder="0,00" /></Campo>
+                          <Campo label="Imposto"><Input type="number" step="0.01" min="0" value={entradaValorImposto} onChange={(e) => setEntradaValorImposto(e.target.value)} placeholder="0,00" /></Campo>
+                        </div>
+                      )}
+                    </>)}
+                  </Secao>
+                  {!editingItem && (
+                    <Secao n={5} title="Repetir">
+                      <Segmented<'unico' | 'recorrente'> value={entradaRecurrence} onChange={setEntradaRecurrence} opts={[['unico', 'Só esta vez'], ['recorrente', 'Repetir']]} />
+                      {entradaRecurrence === 'recorrente' && (
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                          <Segmented<string> value={entradaFrequency} onChange={setEntradaFrequency} opts={RECURRENCE_OPTIONS.map(o => [o.value, o.label] as [string, string])} />
+                          <Stepper valor={entradaRepeatTimes} min={2} max={60} onChange={setEntradaRepeatTimes} rotulo={(n) => `${n} vezes`} />
+                        </div>
+                      )}
+                    </Secao>
+                  )}
+                  {editingItem && editingItem.tabela_origem === 'receitas' && (
+                    <LinkedAuxiliaryList origemId={editingItem.id} origemTipo="receita" />
                   )}
                 </div>
-                <div className="flex gap-2">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setSaidaModalOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={isSaving} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                    {isSaving ? <><LoadingSpinner size="sm" className="mr-2" />Salvando...</> : (editingItem ? 'Atualizar' : 'Adicionar')}
-                  </Button>
-                </div>
+                <ResumoLateral
+                  tom="entrada"
+                  valor={formEntrada.valor}
+                  subtitulo={formEntrada.descricao || 'Sem descrição'}
+                  linhas={[
+                    ['Vence', dataBR(formEntrada.data_vencimento)],
+                    ['Cliente', clientes.find(c => c.id === formEntrada.cliente_id)?.nome ?? '—'],
+                    ['Categoria', nomeCategoria(formEntrada.categoria_id, 'entrada') ?? '—'],
+                    ['Conta', nomeConta(formEntrada.conta_id) ?? '—'],
+                    ['Situação', formEntrada.status === 'recebido' ? 'recebido' : formEntrada.status === 'atrasado' ? 'atrasado' : 'a receber'],
+                    ...(!editingItem && entradaRecurrence === 'recorrente' ? [['Repete', `${entradaRepeatTimes}× ${RECURRENCE_OPTIONS.find(o => o.value === entradaFrequency)?.label.toLowerCase()}`] as [string, string]] : []),
+                  ]}
+                  nota={entradaEfetivada
+                    ? `O saldo da ${nomeConta(formEntrada.conta_id) ?? 'conta'} aumenta na hora.`
+                    : !editingItem && entradaRecurrence === 'recorrente'
+                      ? `Criamos ${entradaRepeatTimes} lançamentos ${freqPlural[entradaFrequency] ?? ''}; você dá baixa em cada um quando receber.`
+                      : 'Fica a receber e aparece na Início e no Calendário até a baixa.'}
+                />
               </div>
+              <ModalFooter left={editingItem && formEntrada.cliente_id ? (
+                <button type="button" onClick={() => {
+                  const cliente = clientes.find(c => c.id === formEntrada.cliente_id);
+                  setReceiptData({ id: editingItem.id, descricao: formEntrada.descricao, valor: formEntrada.valor, clienteNome: cliente?.nome || '', clienteCnpj: cliente?.cpf_cnpj || undefined, formaPagamento: formEntrada.forma_pagamento, dataVencimento: formEntrada.data_vencimento, dataRecebimento: formEntrada.data_recebimento, tipo: 'receita' });
+                  setReceiptOpen(true);
+                }} className={btn.ghost}><FileText className="h-4 w-4" />Recibo</button>
+              ) : undefined}>
+                <button type="button" onClick={() => setEntradaModalOpen(false)} className={btn.outline}>Cancelar</button>
+                <button type="submit" disabled={isSaving} className={btn.primary}>
+                  {isSaving ? <><LoadingSpinner size="sm" className="mr-1" />Salvando…</> : editingItem ? 'Salvar' : 'Adicionar entrada'}
+                </button>
+              </ModalFooter>
             </form>
           </SheetContent>
         </Sheet>
 
-        {/* Detalhe do lançamento (bottom sheet) */}
+        {/* ===== Nova / editar SAÍDA ===== */}
+        <Sheet open={saidaModalOpen} onOpenChange={setSaidaModalOpen}>
+          <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[940px]')}>
+            <form onSubmit={handleSubmitSaida} className="flex max-h-[92dvh] flex-col md:max-h-[88dvh]">
+              <ModalHeader
+                eyebrow={<span className="flex items-center gap-1.5 text-danger-fg"><span className="h-2 w-2 rounded-full bg-danger-fg" />Despesa</span>}
+                title={editingItem ? 'Editar saída' : 'Nova saída'}
+                onClose={() => setSaidaModalOpen(false)}
+              >
+                {!editingItem && <Segmented<'entrada' | 'saida'> size="sm" className="hidden sm:flex" value="saida" onChange={(v) => v === 'entrada' && trocarTipo('entrada')} opts={[['entrada', 'Entrada'], ['saida', 'Saída']]} />}
+              </ModalHeader>
+              <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="space-y-3 p-4 md:p-5">
+                  {!editingItem && <Segmented<'entrada' | 'saida'> className="sm:hidden" value="saida" onChange={(v) => v === 'entrada' && trocarTipo('entrada')} opts={[['entrada', 'Entrada'], ['saida', 'Saída']]} />}
+                  <Secao n={1} title="O quê">
+                    <Campo label="Valor"><ValorInput valor={formSaida.valor} onChange={(n) => setFormSaida(prev => ({ ...prev, valor: n }))} tom="saida" /></Campo>
+                    <Campo label="Descrição"><Input value={formSaida.descricao} onChange={(e) => setFormSaida(prev => ({ ...prev, descricao: e.target.value }))} placeholder="Ex.: Meta Ads — cliente Verano" required /></Campo>
+                  </Secao>
+                  <Secao n={2} title="Quando" extra={<QuickDatas className="hidden sm:flex" onSelect={(d) => setFormSaida(prev => ({ ...prev, data_competencia: d, data_vencimento: d }))} />}>
+                    <div className="grid grid-cols-2 gap-3">
+                      <DatePickerField label="Vencimento" value={formSaida.data_vencimento} onChange={(d) => setFormSaida(prev => ({ ...prev, data_vencimento: d }))} />
+                      <DatePickerField label="Competência (mês do DRE)" value={formSaida.data_competencia} onChange={(d) => setFormSaida(prev => ({ ...prev, data_competencia: d }))} />
+                    </div>
+                    <QuickDatas className="sm:hidden" onSelect={(d) => setFormSaida(prev => ({ ...prev, data_competencia: d, data_vencimento: d }))} />
+                  </Secao>
+                  <Secao n={3} title="Quem e onde">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <Campo label="Fornecedor"><Input value={formSaida.fornecedor || ''} onChange={(e) => setFormSaida(prev => ({ ...prev, fornecedor: e.target.value }))} placeholder="Ex.: Meta Platforms" /></Campo>
+                      <Campo label="Vincular a cliente" hint="Para ver o custo por cliente">
+                        <Select value={formSaida.cliente_id || 'none'} onValueChange={(v) => setFormSaida(prev => ({ ...prev, cliente_id: v === 'none' ? undefined : v }))}>
+                          <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhum</SelectItem>
+                            {clientes.filter(c => c.status === 'ativo' || c.id === formSaida.cliente_id).map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </Campo>
+                    </div>
+                    <div>
+                      <span className="mb-1.5 block text-[12.5px] text-foreground-muted">Categoria</span>
+                      <Chips opcoes={categoriaOpcoes(categoriasDespesa)} valor={formSaida.categoria_id} onChange={(v) => setFormSaida(prev => ({ ...prev, categoria_id: v }))} />
+                    </div>
+                    <div>
+                      <span className="mb-1.5 block text-[12.5px] text-foreground-muted">Sai da conta</span>
+                      <ContasPick
+                        contas={contas.filter(c => c.ativa || c.id === formSaida.conta_id)}
+                        valor={formSaida.conta_id}
+                        onChange={(novaConta) => {
+                          const isCartao = activeContas.some(c => c.id === novaConta && c.tipo === 'cartao_credito');
+                          setFormSaida(prev => ({
+                            ...prev,
+                            conta_id: novaConta,
+                            // Cartão → forma trava em 'cartao_credito'. Saindo do cartão, limpa se estava travada.
+                            forma_pagamento: isCartao ? 'cartao_credito' : (prev.forma_pagamento === 'cartao_credito' ? undefined : prev.forma_pagamento),
+                          }));
+                        }}
+                      />
+                    </div>
+                    {saidaContaIsCartao ? (
+                      <div className="space-y-3 rounded-2xl bg-primary/[0.06] p-3.5">
+                        <p className="flex gap-2 text-[12.5px] leading-snug text-foreground">
+                          <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                          <span>Entra na <b className="font-semibold">fatura do cartão</b>. A baixa acontece quando você <b className="font-semibold">pagar a fatura</b> — não precisa marcar Pago/Pendente.</span>
+                        </p>
+                        {!editingItem && (
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <span className="text-[13px] text-foreground">Parcelas
+                              <span className="block text-[12px] text-foreground-muted">{saidaParcelas > 1 && formSaida.valor > 0 ? `${saidaParcelas}× de ${formatCurrency(formSaida.valor / saidaParcelas)} · 1ª na fatura atual` : 'À vista (1 parcela)'}</span>
+                            </span>
+                            <Stepper valor={saidaParcelas} min={1} max={48} onChange={setSaidaParcelas} rotulo={(n) => (n === 1 ? 'à vista' : `${n}×`)} />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="mb-1.5 block text-[12.5px] text-foreground-muted">Forma de pagamento</span>
+                        {/* 'Cartão Crédito' só aparece quando a conta é um cartão de crédito */}
+                        <Chips opcoes={FORMA_PAGAMENTO_OPTIONS.filter(o => o.value !== 'cartao_credito').map(o => ({ value: o.value, label: FORMA_LABEL[o.value] ?? o.label }))} valor={formSaida.forma_pagamento} onChange={(v) => setFormSaida(prev => ({ ...prev, forma_pagamento: v }))} />
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span className="text-[12.5px] text-foreground-muted">Tipo de despesa</span>
+                      <Segmented<'fixa' | 'variavel'> className="w-56" value={formSaida.tipo} onChange={(v) => setFormSaida(prev => ({ ...prev, tipo: v }))} opts={DESPESA_TIPO_OPTIONS.map(o => [o.value, o.label] as ['fixa' | 'variavel', string])} />
+                    </div>
+                  </Secao>
+                  {!saidaContaIsCartao && (
+                    <Secao n={4} title="Situação">
+                      <Segmented<'pendente' | 'pago' | 'atrasado'>
+                        value={formSaida.status as 'pendente' | 'pago' | 'atrasado'}
+                        onChange={(v) => setFormSaida(prev => ({ ...prev, status: v, data_pagamento: v === 'pago' ? (prev.data_pagamento || prev.data_vencimento) : prev.data_pagamento }))}
+                        opts={[['pendente', 'A pagar'], ['pago', 'Pago'], ['atrasado', 'Atrasado']]}
+                      />
+                      {saidaEfetivada && (<>
+                        <DatePickerField label="Pago em" value={formSaida.data_pagamento} onChange={(d) => setFormSaida(prev => ({ ...prev, data_pagamento: d }))} />
+                        <div className="flex items-center justify-between gap-3 rounded-2xl bg-surface-2/60 px-3.5 py-3">
+                          <span><span className="block text-[14px] text-foreground">Juros, tarifa ou imposto</span><span className="block text-[12px] text-foreground-muted">Viram despesas automáticas ligadas a esta (imposto na categoria Impostos)</span></span>
+                          <Switch checked={mostrarExtrasSaida} onCheckedChange={(v) => { setExtrasSaida(v); if (!v) { setSaidaValorJuros(''); setSaidaValorTarifa(''); setSaidaValorImposto(''); } }} />
+                        </div>
+                        {mostrarExtrasSaida && (
+                          <div className="grid grid-cols-3 gap-2">
+                            <Campo label="Juros/multa"><Input type="number" step="0.01" min="0" value={saidaValorJuros} onChange={(e) => setSaidaValorJuros(e.target.value)} placeholder="0,00" /></Campo>
+                            <Campo label="Tarifa"><Input type="number" step="0.01" min="0" value={saidaValorTarifa} onChange={(e) => setSaidaValorTarifa(e.target.value)} placeholder="0,00" /></Campo>
+                            <Campo label="Imposto"><Input type="number" step="0.01" min="0" value={saidaValorImposto} onChange={(e) => setSaidaValorImposto(e.target.value)} placeholder="0,00" /></Campo>
+                          </div>
+                        )}
+                      </>)}
+                    </Secao>
+                  )}
+                  {/* Recorrência (só ao criar) — não aparece pra cartão (usa Parcelas) */}
+                  {!editingItem && !saidaContaIsCartao && (
+                    <Secao n={5} title="Repetir">
+                      <Segmented<'unico' | 'recorrente'> value={saidaRecurrence} onChange={setSaidaRecurrence} opts={[['unico', 'Só esta vez'], ['recorrente', 'Repetir']]} />
+                      {saidaRecurrence === 'recorrente' && (
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                          <Segmented<string> value={saidaFrequency} onChange={setSaidaFrequency} opts={RECURRENCE_OPTIONS.map(o => [o.value, o.label] as [string, string])} />
+                          <Stepper valor={saidaRepeatTimes} min={2} max={60} onChange={setSaidaRepeatTimes} rotulo={(n) => `${n} vezes`} />
+                        </div>
+                      )}
+                    </Secao>
+                  )}
+                  {editingItem && editingItem.tabela_origem === 'despesas' && (
+                    <LinkedAuxiliaryList origemId={editingItem.id} origemTipo="despesa" />
+                  )}
+                </div>
+                <ResumoLateral
+                  tom="saida"
+                  valor={saidaContaIsCartao && saidaParcelas > 1 && !editingItem ? formSaida.valor / saidaParcelas : formSaida.valor}
+                  subtitulo={`${formSaida.descricao || 'Sem descrição'}${saidaContaIsCartao && saidaParcelas > 1 && !editingItem ? ` · ${saidaParcelas}× de ${formatCurrency(formSaida.valor / saidaParcelas)}` : ''}`}
+                  linhas={[
+                    ['Vence', dataBR(formSaida.data_vencimento)],
+                    ['Fornecedor', formSaida.fornecedor && !formSaida.fornecedor.startsWith('[') ? formSaida.fornecedor : '—'],
+                    ['Categoria', nomeCategoria(formSaida.categoria_id, 'saida') ?? '—'],
+                    ['Conta', nomeConta(formSaida.conta_id) ?? '—'],
+                    ['Situação', saidaContaIsCartao ? 'na fatura' : formSaida.status === 'pago' ? 'pago' : formSaida.status === 'atrasado' ? 'atrasado' : 'a pagar'],
+                    ...(!editingItem && !saidaContaIsCartao && saidaRecurrence === 'recorrente' ? [['Repete', `${saidaRepeatTimes}× ${RECURRENCE_OPTIONS.find(o => o.value === saidaFrequency)?.label.toLowerCase()}`] as [string, string]] : []),
+                  ]}
+                  nota={saidaContaIsCartao
+                    ? 'A compra entra na fatura do cartão e só sai do banco quando você pagar a fatura.'
+                    : saidaEfetivada
+                      ? `O saldo da ${nomeConta(formSaida.conta_id) ?? 'conta'} diminui na hora.`
+                      : !editingItem && saidaRecurrence === 'recorrente'
+                        ? `Criamos ${saidaRepeatTimes} lançamentos ${freqPlural[saidaFrequency] ?? ''}; você dá baixa em cada um quando pagar.`
+                        : 'Fica a pagar e aparece na Início e no Calendário até a baixa.'}
+                />
+              </div>
+              <ModalFooter left={editingItem && (formSaida.cliente_id || formSaida.fornecedor) ? (
+                <button type="button" onClick={() => {
+                  const cliente = clientes.find(c => c.id === formSaida.cliente_id);
+                  setReceiptData({ id: editingItem.id, descricao: formSaida.descricao, valor: formSaida.valor, clienteNome: cliente?.nome || formSaida.fornecedor || '', clienteCnpj: cliente?.cpf_cnpj || undefined, dataVencimento: formSaida.data_vencimento, dataPagamento: formSaida.data_pagamento, tipo: 'despesa' });
+                  setReceiptOpen(true);
+                }} className={btn.ghost}><FileText className="h-4 w-4" />Recibo</button>
+              ) : undefined}>
+                <button type="button" onClick={() => setSaidaModalOpen(false)} className={btn.outline}>Cancelar</button>
+                <button type="submit" disabled={isSaving} className={btn.primary}>
+                  {isSaving ? <><LoadingSpinner size="sm" className="mr-1" />Salvando…</> : editingItem ? 'Salvar' : 'Adicionar saída'}
+                </button>
+              </ModalFooter>
+            </form>
+          </SheetContent>
+        </Sheet>
+
+        {/* Detalhe do lançamento */}
         {detailItem && (() => {
           const cats = detailItem.tipo === 'entrada' ? categoriasReceita : categoriasDespesa;
           const cat = cats.find(c => c.id === detailItem.categoria_id);
-          const conta = contas.find(c => c.id === detailItem.conta_id);
-          const cliente = clientes.find(c => c.id === (detailItem as any).cliente_id);
-          const forma = FORMA_PAGAMENTO_OPTIONS.find(o => o.value === (detailItem as any).forma_pagamento);
+          const conta = detailItem.conta_id ? contaById.get(detailItem.conta_id) : undefined;
+          const cliente = clientes.find(c => c.id === detailItem.cliente_id);
+          const forma = detailItem.forma_pagamento ? (FORMA_LABEL[detailItem.forma_pagamento] ?? detailItem.forma_pagamento) : undefined;
           return (
             <TransactionDetailSheet
+              key={`${detailItem.tabela_origem}-${detailItem.id}`}
               transaction={detailItem}
               contaNome={conta?.nome}
+              contaCor={conta?.cor}
               categoriaNome={cat?.nome}
               categoriaCor={cat?.cor}
               clienteNome={cliente?.nome}
-              formaLabel={forma?.label}
+              formaLabel={forma}
               onOpenChange={(o) => { if (!o) setDetailItem(null); }}
               onEdit={handleEditFromDetail}
               onDelete={handleMobileDelete}
@@ -2388,6 +1690,9 @@ export default function FluxoCaixa() {
               onCobrancaChange={() => { refetchFluxo(); }}
               onSerieChange={() => { refetchFluxo(); }}
               onPagarFatura={ehFaturaCartao(detailItem) && detailItem.status !== 'pago' ? (t) => abrirPagarFatura(t.id) : undefined}
+              onDarBaixa={handleDarBaixa}
+              onDuplicate={handleDuplicate}
+              onRecibo={temParteParaRecibo(detailItem) ? abrirRecibo : undefined}
             />
           );
         })()}
@@ -2415,42 +1720,34 @@ export default function FluxoCaixa() {
           onDone={() => { refetchFluxo(); }}
         />
 
-        {/* Receipt Generator */}
+        {/* Recibo */}
         <ReceiptGenerator open={receiptOpen} onOpenChange={setReceiptOpen} data={receiptData} />
 
-        {/* Report Dialog */}
-        <FluxoCaixaReport
-          open={reportOpen}
-          onOpenChange={setReportOpen}
-          transacoes={transacoes}
-          contas={contas}
-        />
+        {/* Relatório */}
+        <FluxoCaixaReport open={reportOpen} onOpenChange={setReportOpen} transacoes={transacoes} contas={contas} />
 
-        {/* Delete Confirmation */}
-        <ConfirmDialog
+        {/* Excluir */}
+        <ExcluirSheet
           open={deleteDialogOpen}
           onOpenChange={setDeleteDialogOpen}
-          title={`Excluir ${deletingItem?.tipo === 'receitas' ? 'Entrada' : 'Saída'}`}
-          description="Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita."
-          confirmLabel="Excluir"
-          variant="destructive"
+          titulo={deletingItem?.tipo === 'transferencia' ? 'Excluir esta transferência?' : 'Excluir este lançamento?'}
+          descricao={itemExcluir
+            ? <><b className="font-medium text-foreground">{itemExcluir.descricao}</b> · {formatCurrency(itemExcluir.valor)} · {formatDate(itemExcluir.data_vencimento)}. Não dá para desfazer.</>
+            : 'Esta ação não pode ser desfeita.'}
           onConfirm={handleDelete}
           isLoading={isSaving}
         />
-
-        {/* Bulk Delete Confirmation */}
-        <ConfirmDialog
+        <ExcluirSheet
           open={bulkDeleteDialogOpen}
           onOpenChange={setBulkDeleteDialogOpen}
-          title="Excluir Lançamentos"
-          description={`Tem certeza que deseja excluir ${selectedIds.size} lançamentos? Esta ação não pode ser desfeita.`}
-          confirmLabel="Excluir Todos"
-          variant="destructive"
+          titulo={`Excluir ${selectedEntradas.length + selectedSaidas.length} lançamentos?`}
+          descricao="Todos os lançamentos selecionados serão apagados. Não dá para desfazer."
+          confirmLabel="Excluir todos"
           onConfirm={handleBulkDelete}
           isLoading={isSaving}
         />
 
-        {/* Import Dialog */}
+        {/* Importar */}
         <FileImportDialog
           open={importDialogOpen}
           onOpenChange={setImportDialogOpen}
@@ -2459,116 +1756,89 @@ export default function FluxoCaixa() {
           }}
         />
 
-        {/* Multi-select bar */}
-        <MultiSelectBar
-          selectedCount={selectedIds.size}
+        {/* Ações em massa */}
+        <BarraSelecao
+          count={selectedEntradas.length + selectedSaidas.length}
+          soma={somaSelecao}
           onClear={clearSelection}
-          onDelete={() => setBulkDeleteDialogOpen(true)}
-          onExport={handleExport}
           statusOptions={multiSelectStatusOptions}
-          onStatusChange={handleBulkStatusChange}
-          clienteOptions={hasEntradas ? clienteOptions : undefined}
-          onClienteChange={hasEntradas ? handleBulkClienteChange : undefined}
-          showFornecedor={hasSaidas}
-          onFornecedorChange={hasSaidas ? handleBulkFornecedorChange : undefined}
+          onStatus={handleBulkStatusChange}
           contaOptions={activeContas.map(c => ({ value: c.id, label: c.nome, color: c.cor }))}
-          onContaChange={handleBulkContaChange}
+          onConta={handleBulkContaChange}
+          formaOptions={formaOpcoesBulk}
+          onForma={handleBulkForma}
+          categoriaOptions={bulkCategoriaTipo ? categoriaOpcoes(bulkCategoriaTipo === 'receitas' ? categoriasReceita : categoriasDespesa) : undefined}
+          onCategoria={bulkCategoriaTipo ? handleBulkCategoria : undefined}
+          clienteOptions={hasEntradas ? clienteOptions : undefined}
+          onCliente={hasEntradas ? handleBulkClienteChange : undefined}
+          showFornecedor={hasSaidas}
+          onFornecedor={hasSaidas ? handleBulkFornecedorChange : undefined}
+          onExport={handleExport}
+          onDelete={() => setBulkDeleteDialogOpen(true)}
+          disabled={isSaving}
         />
 
-
-        {/* Transfer Dialog */}
-        <Dialog open={transferModalOpen} onOpenChange={setTransferModalOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nova Transferência</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Conta Origem</Label>
-                <Select
-                  value={transferData.conta_origem_id}
-                  onValueChange={(value) => setTransferData(prev => ({ ...prev, conta_origem_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a conta de origem" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeContas.filter(c => c.id !== transferData.conta_destino_id).map((conta) => (
-                      <SelectItem key={conta.id} value={conta.id}>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: conta.cor }} />
-                          {conta.nome}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        {/* Transferência */}
+        <Sheet open={transferModalOpen} onOpenChange={setTransferModalOpen}>
+          <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[720px]')}>
+            <ModalShell>
+              <ModalHeader eyebrow="Entre suas contas · não entra no DRE" title="Transferir" onClose={() => setTransferModalOpen(false)} />
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-5">
+                <ValorInput valor={transferData.valor} onChange={(n) => setTransferData(prev => ({ ...prev, valor: n }))} tom="neutro" autoFocus />
+                <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                  {([['Sai de', 'conta_origem_id', 'conta_destino_id'], null, ['Entra em', 'conta_destino_id', 'conta_origem_id']] as const).map((lado, i) => lado === null ? (
+                    <button key="swap" type="button" onClick={() => setTransferData(prev => ({ ...prev, conta_origem_id: prev.conta_destino_id, conta_destino_id: prev.conta_origem_id }))} aria-label="Inverter contas"
+                      className="mx-auto grid h-10 w-10 place-items-center self-center rounded-full border border-border bg-surface text-foreground-muted hover:text-foreground">
+                      <ArrowRightLeft className="h-4 w-4 rotate-90 sm:rotate-0" />
+                    </button>
+                  ) : (
+                    <section key={i} className="rounded-[20px] border border-border bg-surface p-3">
+                      <p className="mb-2 px-1 text-[11.5px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">{lado[0]}</p>
+                      <div className="space-y-1.5">
+                        {activeContas.map(c => {
+                          const sel = transferData[lado[1]] === c.id;
+                          const bloqueada = transferData[lado[2]] === c.id;
+                          return (
+                            <button key={c.id} type="button" disabled={bloqueada} onClick={() => setTransferData(prev => ({ ...prev, [lado[1]]: c.id }))}
+                              className={cn('flex w-full items-center gap-2.5 rounded-2xl border px-3 py-2.5 text-left transition-colors disabled:opacity-35', sel ? 'border-foreground bg-foreground text-background' : 'border-border hover:bg-surface-2')}>
+                              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.cor }} />
+                              <span className="min-w-0 flex-1 truncate text-[13.5px]">{c.nome}</span>
+                              <span className={cn('text-[12px] tabular-nums', sel ? 'text-background/70' : 'text-foreground-muted')}>{c.tipo === 'cartao_credito' ? 'cartão' : formatCurrency(Number(c.saldo_atual || 0))}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 gap-3 rounded-[20px] border border-border bg-surface p-4 sm:grid-cols-2">
+                  <DatePickerField label="Data" value={transferData.data_transferencia} onChange={(d) => setTransferData(prev => ({ ...prev, data_transferencia: d }))} />
+                  <Campo label="Descrição (opcional)"><Input value={transferData.descricao || ''} onChange={(e) => setTransferData(prev => ({ ...prev, descricao: e.target.value }))} placeholder="Ex.: Reserva de emergência" /></Campo>
+                </div>
+                {transferData.conta_origem_id && transferData.conta_destino_id && (() => {
+                  const o = contaById.get(transferData.conta_origem_id);
+                  const d = contaById.get(transferData.conta_destino_id);
+                  if (!o || !d) return null;
+                  const so = Number(o.saldo_atual || 0) - (transferData.valor || 0);
+                  const sd = Number(d.saldo_atual || 0) + (transferData.valor || 0);
+                  return (
+                    <div className="rounded-2xl bg-surface-2/70 p-3.5 text-[13px]">
+                      <p className="mb-1.5 text-[12px] text-foreground-muted">Depois da transferência</p>
+                      <div className="flex justify-between gap-2"><span className="flex items-center gap-1.5 text-foreground"><span className="h-2 w-2 rounded-full" style={{ background: o.cor }} />{o.nome}</span><span className={cn('tabular-nums', so < 0 ? 'text-danger-fg' : 'text-foreground')}>{formatCurrency(so)}</span></div>
+                      <div className="mt-1 flex justify-between gap-2"><span className="flex items-center gap-1.5 text-foreground"><span className="h-2 w-2 rounded-full" style={{ background: d.cor }} />{d.nome}</span><span className="tabular-nums text-foreground">{formatCurrency(sd)}</span></div>
+                    </div>
+                  );
+                })()}
               </div>
-
-              <div className="space-y-2">
-                <Label>Conta Destino</Label>
-                <Select
-                  value={transferData.conta_destino_id}
-                  onValueChange={(value) => setTransferData(prev => ({ ...prev, conta_destino_id: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a conta de destino" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeContas.filter(c => c.id !== transferData.conta_origem_id).map((conta) => (
-                      <SelectItem key={conta.id} value={conta.id}>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: conta.cor }} />
-                          {conta.nome}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Valor</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={transferData.valor || ''}
-                  onChange={(e) => setTransferData(prev => ({ ...prev, valor: parseFloat(e.target.value) || 0 }))}
-                  placeholder="0,00"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <DatePickerField
-                  label="Data"
-                  value={transferData.data_transferencia}
-                  onChange={(d) => setTransferData(prev => ({ ...prev, data_transferencia: d }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Descrição (opcional)</Label>
-                <Input
-                  value={transferData.descricao || ''}
-                  onChange={(e) => setTransferData(prev => ({ ...prev, descricao: e.target.value }))}
-                  placeholder="Ex: Reserva de emergência"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setTransferModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleTransfer}
-                disabled={!transferData.conta_origem_id || !transferData.conta_destino_id || transferData.valor <= 0}
-              >
-                Transferir
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+              <ModalFooter>
+                <button type="button" onClick={() => setTransferModalOpen(false)} className={btn.outline}>Cancelar</button>
+                <button type="button" onClick={handleTransfer} disabled={!transferData.conta_origem_id || !transferData.conta_destino_id || transferData.valor <= 0} className={btn.primary}>
+                  <Check className="h-4 w-4" />Transferir {transferData.valor > 0 ? formatCurrency(transferData.valor) : ''}
+                </button>
+              </ModalFooter>
+            </ModalShell>
+          </SheetContent>
+        </Sheet>
     </main>
   );
 }

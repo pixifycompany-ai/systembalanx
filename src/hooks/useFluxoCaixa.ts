@@ -125,6 +125,10 @@ interface UseFluxoCaixaReturn {
   updateMultipleCliente: (ids: string[], clienteId: string) => Promise<boolean>;
   updateMultipleFornecedor: (ids: string[], fornecedor: string) => Promise<boolean>;
   updateMultipleConta: (receitaIds: string[], despesaIds: string[], contaId: string) => Promise<boolean>;
+  /** Troca a forma de pagamento de vários lançamentos (receitas e/ou despesas). */
+  updateMultipleForma: (receitaIds: string[], despesaIds: string[], forma: string) => Promise<boolean>;
+  /** Troca a categoria de vários lançamentos do MESMO tipo. */
+  updateMultipleCategoria: (ids: string[], tipo: 'receitas' | 'despesas', categoriaId: string) => Promise<boolean>;
 }
 
 interface TransferenciaInternal {
@@ -906,6 +910,50 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
     }
   };
 
+  // Forma de pagamento em lote. Linhas de sistema do cartão (fatura / pagamento da fatura)
+  // não mudam; a regra "cartão de crédito só em conta cartão" é aplicada na tela.
+  const updateMultipleForma = async (receitaIds: string[], despesaIds: string[], forma: string): Promise<boolean> => {
+    try {
+      const despAlvo = despesas.filter(d => despesaIds.includes(d.id) && !MARCAS_SISTEMA.has(d.fornecedor ?? '')).map(d => d.id);
+      if (receitaIds.length > 0) {
+        const { error } = await supabase.from('receitas').update({ forma_pagamento: forma }).in('id', receitaIds);
+        if (error) throw error;
+      }
+      if (despAlvo.length > 0) {
+        const { error } = await supabase.from('despesas').update({ forma_pagamento: forma }).in('id', despAlvo);
+        if (error) throw error;
+      }
+      await fetchData();
+      invalidateDerived();
+      const total = receitaIds.length + despAlvo.length;
+      toast({ title: `Forma de pagamento atualizada em ${total} ${total === 1 ? 'lançamento' : 'lançamentos'}!` });
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar forma de pagamento';
+      toast({ title: 'Erro', description: message, variant: 'destructive' });
+      return false;
+    }
+  };
+
+  // Categoria em lote (receitas OU despesas). Linhas de sistema do cartão ficam de fora.
+  const updateMultipleCategoria = async (ids: string[], tipo: 'receitas' | 'despesas', categoriaId: string): Promise<boolean> => {
+    try {
+      const alvo = tipo === 'despesas'
+        ? despesas.filter(d => ids.includes(d.id) && !MARCAS_SISTEMA.has(d.fornecedor ?? '')).map(d => d.id)
+        : ids;
+      if (!alvo.length) return false;
+      const { error } = await supabase.from(tipo).update({ categoria_id: categoriaId }).in('id', alvo);
+      if (error) throw error;
+      await fetchData();
+      invalidateDerived();
+      toast({ title: `Categoria atualizada em ${alvo.length} ${alvo.length === 1 ? 'lançamento' : 'lançamentos'}!` });
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao atualizar categoria';
+      toast({ title: 'Erro', description: message, variant: 'destructive' });
+      return false;
+    }
+  };
 
   return {
     transacoes,
@@ -929,5 +977,7 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
     updateMultipleCliente,
     updateMultipleFornecedor,
     updateMultipleConta,
+    updateMultipleForma,
+    updateMultipleCategoria,
   };
 }

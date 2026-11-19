@@ -1,28 +1,12 @@
 import { useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { parseISO } from 'date-fns';
-import { Check, Trash2, ArrowUp, ArrowDown, ArrowLeftRight, User, Store, Paperclip } from 'lucide-react';
+import { Check, Trash2, User, Store, Paperclip } from 'lucide-react';
 import { EyeIcon, DocumentDuplicateIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatCurrency } from '@/utils/formatters';
 import type { TransacaoUnificada } from '@/types/fluxoCaixa';
 import { cn } from '@/lib/utils';
-
-function statusLabel(t: TransacaoUnificada): string {
-  if (t.tabela_origem === 'transferencia') return 'Transferência';
-  const map: Record<string, string> = { recebido: 'Recebido', pago: 'Pago', pendente: 'Pendente', atrasado: 'Atrasado' };
-  return map[t.status] || t.status;
-}
-
-function metaVencimento(dateStr?: string): string {
-  if (!dateStr) return '';
-  const d = parseISO(dateStr); d.setHours(0, 0, 0, 0);
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const diff = Math.ceil((d.getTime() - today.getTime()) / 86400000);
-  if (diff < 0) return `atrasado ${Math.abs(diff)}d`;
-  if (diff === 0) return 'vence hoje';
-  if (diff === 1) return 'vence amanhã';
-  return `vence em ${diff}d`;
-}
+import { TipoIcone } from './TipoIcone';
+import { serieDe, statusInfo } from './lancamento';
 
 interface SwipeableTransactionCardProps {
   transaction: TransacaoUnificada;
@@ -156,21 +140,16 @@ export function SwipeableTransactionCard({
   const rightReady = rightPillWidth >= THRESHOLD;
 
   const isEntrada = t.tipo === 'entrada';
-  const iconTint = isTransfer
-    ? 'bg-info-bg text-info-fg'
-    : isEntrada ? 'bg-success-bg text-success-fg' : 'bg-danger-bg text-danger-fg';
   const valueTint = isTransfer
     ? 'text-foreground-muted'
-    : isEntrada ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]';
-  const TipoIcon = isTransfer ? ArrowLeftRight : isEntrada ? ArrowUp : ArrowDown;
+    : isEntrada ? 'text-success-fg' : 'text-danger-fg';
   const valorLabel = `${isTransfer ? '' : (isEntrada ? '+' : '−')}${formatCurrency(t.valor)}`;
-  const parte = !isTransfer ? (t.cliente?.nome || t.fornecedor) : undefined;
-  const metaTexto = [t.categoria?.nome, contaNome].filter(Boolean).join(' · ');
-  // Linha pequena sob o valor: em aberto mostra o vencimento (tinta de alerta); quitado mostra o status.
-  const statusTexto = isSettled ? statusLabel(t) : (metaVencimento(t.data_vencimento) || statusLabel(t));
-  const statusTint = isSettled
-    ? 'text-foreground-muted'
-    : t.status === 'atrasado' ? 'text-[hsl(var(--danger-fg))]' : 'text-[hsl(var(--warning-fg))]';
+  const parte = !isTransfer ? (t.cliente?.nome || (t.fornecedor && !t.fornecedor.startsWith('[') ? t.fornecedor : undefined)) : undefined;
+  const st = statusInfo(t);
+  const { base } = serieDe(t.descricao);
+  const subTexto = isTransfer
+    ? [t.conta_origem?.nome, t.conta_destino?.nome].filter(Boolean).join(' → ')
+    : [parte, contaNome].filter(Boolean).join(' · ');
 
   return (
     <div className="group relative overflow-hidden">
@@ -207,34 +186,25 @@ export function SwipeableTransactionCard({
         onClick={handleClick}
         onContextMenu={handleContextMenu}
       >
-        <div className="flex items-center gap-3 border-b border-border py-3 group-last:border-b-0">
-          <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-[13px]', iconTint)}>
-            <TipoIcon className="h-[18px] w-[18px]" strokeWidth={2.2} />
-          </span>
+        <div className="flex items-center gap-3 border-b border-border py-3">
+          <TipoIcone t={t} className="h-9 w-9" />
 
           <div className="flex min-w-0 flex-1 flex-col gap-[3px]">
-            <p className="flex min-w-0 items-center gap-1 text-[14px] font-semibold leading-tight text-foreground">
-              {!!t.anexos?.length && <Paperclip className="h-3.5 w-3.5 shrink-0 text-primary" aria-label={`${t.anexos.length} anexo(s)`} />}
-              <span className="truncate">{t.descricao}</span>
+            <p className="flex min-w-0 items-center gap-1 text-[14.5px] font-medium leading-tight text-foreground">
+              <span className="truncate">{base}</span>
+              {!!t.anexos?.length && <Paperclip className="h-3.5 w-3.5 shrink-0 text-foreground-muted" aria-label={`${t.anexos.length} anexo(s)`} />}
             </p>
-            <div className="flex min-w-0 items-center gap-1.5">
-              {parte && (
-                <span className="inline-flex min-w-0 max-w-[60%] shrink-0 items-center gap-1 rounded-full bg-surface-2 px-2 py-[1px] text-[10.5px] font-medium text-foreground-muted">
-                  {t.cliente?.nome ? <User className="h-2.5 w-2.5 shrink-0" /> : <Store className="h-2.5 w-2.5 shrink-0" />}
-                  <span className="truncate">{parte}</span>
-                </span>
-              )}
-              {metaTexto && (
-                <span className="min-w-0 truncate text-[12px] text-foreground-muted">{metaTexto}</span>
-              )}
-            </div>
+            <p className="flex min-w-0 items-center gap-1.5 truncate text-[12.5px] text-foreground-muted">
+              {parte && (t.cliente?.nome ? <User className="h-3 w-3 shrink-0" /> : <Store className="h-3 w-3 shrink-0" />)}
+              <span className="truncate">{subTexto || t.categoria?.nome || ''}</span>
+            </p>
           </div>
 
-          <div className="flex shrink-0 flex-col items-end gap-[3px]">
-            <span className={cn('whitespace-nowrap font-heading text-[15px] font-semibold tabular-nums tracking-[-0.02em]', valueTint)}>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span className={cn('whitespace-nowrap font-heading text-[14.5px] font-semibold tabular-nums tracking-[-0.02em]', valueTint)}>
               {valorLabel}
             </span>
-            <span className={cn('whitespace-nowrap text-[11px] font-semibold', statusTint)}>{statusTexto}</span>
+            <span className={cn('whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px]', st.cls)}>{st.txt}</span>
           </div>
         </div>
       </div>
@@ -244,19 +214,17 @@ export function SwipeableTransactionCard({
         <div className="fixed inset-0 z-[70]" onClick={() => setMenuOpen(false)}>
           <div className="absolute inset-0 bg-black/50" />
           <div
-            className="absolute inset-x-3 bottom-4 overflow-hidden rounded-[20px] border border-border bg-surface shadow-2xl"
+            className="absolute inset-x-3 bottom-4 overflow-hidden rounded-[24px] border border-border bg-surface shadow-2xl"
             onClick={(e) => e.stopPropagation()}
             style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
           >
             {/* Preview do lançamento */}
             <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-              <span className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-[13px]', iconTint)}>
-                <TipoIcon className="h-[18px] w-[18px]" strokeWidth={2.2} />
-              </span>
+              <TipoIcone t={t} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-foreground">{t.descricao}</p>
+                <p className="truncate text-sm font-semibold text-foreground">{base}</p>
                 <p className="truncate text-[12px] text-foreground-muted">
-                  {[contaNome, statusLabel(t), typeof saldoCorrente === 'number' && isSettled ? `saldo ${formatCurrency(saldoCorrente)}` : null].filter(Boolean).join(' · ')}
+                  {[contaNome, st.txt, typeof saldoCorrente === 'number' && isSettled ? `saldo ${formatCurrency(saldoCorrente)}` : null].filter(Boolean).join(' · ')}
                 </p>
               </div>
               <span className={cn('whitespace-nowrap font-heading text-[15px] font-semibold tabular-nums tracking-[-0.02em]', valueTint)}>

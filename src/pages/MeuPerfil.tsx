@@ -2,39 +2,49 @@ import { useState, useRef, useEffect, useCallback, ChangeEvent, ReactNode } from
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
+import { useTheme } from '@/contexts/ThemeContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { DetailSheet } from '@/components/shared/DetailSheet';
+import { Sheet as SheetUI, SheetContent } from '@/components/ui/sheet';
 import { BalanxLoader } from '@/components/shared/BalanxLoader';
 import { toast } from 'sonner';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import {
+  AlertTriangle, Bell, BellRing, Camera, Check, ChevronRight, Copy, Loader2, Lock, LogOut, Mail, MessageSquareText,
+  Moon, RefreshCw, ShieldCheck, Smartphone, Sparkles, Trash2, User,
+} from 'lucide-react';
 import { MfaManager } from '@/components/auth/MfaManager';
 import { GoogleAgendaPainel } from '@/components/perfil/GoogleAgendaPainel';
 import { statusGoogle } from '@/lib/googleAgenda';
-import { CalendarDays, MessageCircle, Smartphone } from 'lucide-react';
 import { AtalhoIphonePainel } from '@/components/perfil/AtalhoIphonePainel';
 import { WhatsAppPainel } from '@/components/perfil/WhatsAppPainel';
-import {
-  EnvelopeIcon, LockClosedIcon, BellAlertIcon, PaperAirplaneIcon,
-  ChevronRightIcon, ArrowRightOnRectangleIcon, CameraIcon, ArrowPathIcon,
-  CreditCardIcon, CheckCircleIcon,
-} from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 import { useTenant } from '@/contexts/TenantContext';
-import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
+import { PageHeader, Segmented, ModalHeader, ModalShell, Campo } from '@/components/reskin/kit';
+import { btn, modalCls } from '@/components/reskin/estilos';
 
-type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas' | 'google' | 'atalho' | 'whatsapp';
+/* Logos (Simple Icons, CC0; Asaas: símbolo do logo oficial) */
+const LOGO = {
+  asaas: <svg viewBox="0 0 20.4 17" className="h-[15px] w-[18px] fill-current" aria-hidden><path fillRule="evenodd" d="M5.98205 10.2322L10.1409 2.69007L14.2997 10.2122C13.1319 9.68231 11.6566 9.41707 10.0791 9.41707C8.60379 9.41707 7.17003 9.6823 5.98144 10.2322M8.05167 2.30256L0 16.6326H2.45848L3.46243 14.7777C4.63023 12.6376 6.6381 11.4757 10.0797 11.4757C13.5214 11.4757 15.6729 12.6376 16.8407 14.7984L17.8239 16.6332H20.3643L11.8009 1.42655C11.3912 0.692898 10.8177 0.386904 9.87491 0.386904H2.97085L4.02493 1.45879C4.66691 2.09755 5.1707 2.30256 6.0652 2.30256H8.05167Z" /></svg>,
+  wpp: <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-current" aria-hidden><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>,
+  gcal: <svg viewBox="0 0 24 24" className="h-[17px] w-[17px] fill-current" aria-hidden><path d="M18.316 5.684H24v12.632h-5.684V5.684zM5.684 24h12.632v-5.684H5.684V24zM18.316 5.684V0H1.895A1.894 1.894 0 0 0 0 1.895v16.421h5.684V5.684h12.632zm-7.207 6.25v-.065c.272-.144.5-.349.687-.617s.279-.595.279-.982c0-.379-.099-.72-.3-1.025a2.05 2.05 0 0 0-.832-.714 2.703 2.703 0 0 0-1.197-.257c-.6 0-1.094.156-1.481.467-.386.311-.65.671-.793 1.078l1.085.452c.086-.249.224-.461.413-.633.189-.172.445-.257.767-.257.33 0 .602.088.816.264a.86.86 0 0 1 .322.703c0 .33-.12.589-.36.778-.24.19-.535.284-.886.284h-.567v1.085h.633c.407 0 .748.109 1.02.327.272.218.407.499.407.843 0 .336-.129.614-.387.832s-.565.327-.924.327c-.351 0-.651-.103-.897-.311-.248-.208-.422-.502-.521-.881l-1.096.452c.178.616.505 1.082.977 1.401.472.319.984.478 1.538.477a2.84 2.84 0 0 0 1.293-.291c.382-.193.684-.458.902-.794.218-.336.327-.72.327-1.149 0-.429-.115-.797-.344-1.105a2.067 2.067 0 0 0-.881-.689zm2.093-1.931l.602.913L15 10.045v5.744h1.187V8.446h-.827l-2.158 1.557zM22.105 0h-3.289v5.184H24V1.895A1.894 1.894 0 0 0 22.105 0zm-3.289 23.5l4.684-4.684h-4.684V23.5zM0 22.105C0 23.152.848 24 1.895 24h3.289v-5.184H0v3.289z" /></svg>,
+  apple: <svg viewBox="0 0 24 24" className="h-[17px] w-[17px] fill-current" aria-hidden><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" /></svg>,
+};
+
+const SECOES = [['conta', 'Conta'], ['seguranca', 'Segurança'], ['notificacoes', 'Notificações'], ['cobranca', 'Cobrança'], ['integracoes', 'Integrações'], ['perigo', 'Zona de perigo']] as const;
+
+type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas' | 'regras' | 'google' | 'atalho' | 'whatsapp';
 
 export default function MeuPerfil() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { profile, avatarSignedUrl, loading, updateNome, updatePushEnabled, uploadAvatar } = useProfile();
   const { activeTenant } = useTenant();
+  const { theme, setTheme } = useTheme();
+  const [secaoAtiva, setSecaoAtiva] = useState<string>('conta');
+  const irPara = (id: string) => { setSecaoAtiva(id); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   const fileRef = useRef<HTMLInputElement>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   // WhatsApp da empresa (só leitura; quem grava é a função whatsapp-conexao).
@@ -326,349 +336,334 @@ export default function MeuPerfil() {
   };
 
   const initials = (profile?.nome || user?.email || '?').slice(0, 2).toUpperCase();
+  const plano = planoLabel(activeTenant);
+  const fechar = () => setSheet(null);
 
   if (loading) return <BalanxLoader fullscreen={false} />;
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <MobilePageHeader eyebrow="Conta" title="Meu Perfil" />
+    <div className="mx-auto w-full max-w-[1180px] py-4 md:py-6">
+      <PageHeader eyebrow="Conta" title="Meu perfil" className="mb-5" />
 
-      {/* Cartão do perfil: avatar + nome + plano */}
+      {/* Você + plano */}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarPick} />
-      <div className="mb-5 flex items-center gap-3.5 rounded-[20px] border border-border bg-surface p-4 md:mb-6 md:rounded-3xl md:p-5">
-        <button onClick={() => fileRef.current?.click()} className="relative shrink-0" aria-label="Trocar avatar">
-          <Avatar className="h-14 w-14">
+      <div className="mb-6 flex flex-wrap items-center gap-4 rounded-[26px] border border-border bg-surface p-5">
+        <button type="button" onClick={() => fileRef.current?.click()} className="relative shrink-0" aria-label="Trocar foto">
+          <Avatar className="h-16 w-16">
             {avatarSignedUrl && <AvatarImage src={avatarSignedUrl} alt={profile?.nome ?? ''} />}
-            <AvatarFallback className="bg-foreground font-semibold text-background">{initials}</AvatarFallback>
+            <AvatarFallback className="bg-foreground text-[20px] font-semibold text-background">{initials}</AvatarFallback>
           </Avatar>
-          <span className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full border-2 border-surface bg-primary text-primary-foreground">
-            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <CameraIcon className="h-3 w-3" />}
+          <span className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full bg-primary text-white ring-2 ring-surface">
+            {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
           </span>
         </button>
-        <button onClick={() => setSheet('nome')} className="min-w-0 flex-1 text-left">
-          <div className="truncate text-[16px] font-semibold tracking-[-0.01em] text-foreground md:text-[17px]">{profile?.nome || 'Seu nome'}</div>
-          <div className="mt-0.5 truncate text-[12.5px] text-foreground-muted">
-            {planoLabel(activeTenant) ? `Plano ${planoLabel(activeTenant)}` : 'Trocar avatar · ajustamos o tamanho pra você'}
-            {activeTenant?.nome ? ` · ${activeTenant.nome}` : ''}
-          </div>
+        <button type="button" onClick={() => setSheet('nome')} className="min-w-0 flex-1 text-left">
+          <p className="truncate font-heading text-[24px] font-light tracking-[-0.02em] text-foreground">{profile?.nome || 'Seu nome'}</p>
+          <p className="truncate text-[13px] text-foreground-muted">{user?.email}{activeTenant?.nome ? ` · ${activeTenant.nome}` : ''}</p>
         </button>
-        <button onClick={() => setSheet('nome')} className="shrink-0 text-[13px] font-semibold text-primary hover:underline">
-          Editar
-        </button>
-      </div>
-
-      <div className="space-y-5 md:space-y-6">
-        {/* Grupo: acesso */}
-        <SetGroup title="Acesso">
-          <SetRow icon={<EnvelopeIcon className="h-[18px] w-[18px]" />} title="E-mail de login" sub={user?.email || ''} onClick={() => setSheet('email')} chevron />
-          <SetRow icon={<LockClosedIcon className="h-[18px] w-[18px]" />} title="Alterar senha" sub="Atualize sua senha de acesso" onClick={() => setSheet('senha')} chevron />
-          <SetRow icon={<ShieldCheck className="h-[18px] w-[18px]" />} title="Verificação em duas etapas (2FA)" sub="Código do autenticador além da senha" onClick={() => setSheet('mfa')} chevron />
-        </SetGroup>
-
-        {/* Grupo: notificações */}
-        <SetGroup title="Notificações">
-          <SetRow
-            icon={<BellAlertIcon className="h-[18px] w-[18px]" />}
-            title="Avisos de vencimento"
-            sub="Push diário às 8h no iPhone"
-            right={<Switch checked={!!profile?.push_enabled} disabled={pushSaving} onCheckedChange={handleTogglePush} />}
-          />
-          {profile?.push_enabled && (
-            <>
-              <SetRow icon={<PaperAirplaneIcon className="h-[18px] w-[18px]" />} title="Enviar notificação de teste" onClick={enviarTeste} chevron />
-              <SetRow icon={<ArrowPathIcon className="h-[18px] w-[18px]" />} title="Reinstalar push" onClick={reinstalarPush} chevron />
-            </>
-          )}
-        </SetGroup>
-
-        {/* Grupo: cobrança (Asaas) */}
-        <SetGroup title="Cobrança">
-          <SetRow
-            icon={<CreditCardIcon className="h-[18px] w-[18px]" />}
-            title="Cobrança automática (Asaas)"
-            sub={asaasStatus?.connected
-              ? `Conectado${asaasStatus.accountName ? ` · ${asaasStatus.accountName}` : ''}${asaasStatus.env === 'sandbox' ? ' (sandbox)' : ''}`
-              : 'Conecte sua conta Asaas para cobrar seus clientes'}
-            right={asaasStatus?.connected ? <CheckCircleIcon className="h-5 w-5 text-[hsl(var(--success-fg))]" /> : undefined}
-            onClick={() => setSheet('asaas')}
-            chevron
-          />
-          <SetRow
-            icon={<MessageCircle className="h-[18px] w-[18px]" />}
-            title="WhatsApp da empresa"
-            sub={whatsNumero ? `Conectado · ${whatsNumero}` : 'Cobranças e lembretes saem do seu número'}
-            right={whatsNumero ? <CheckCircleIcon className="h-5 w-5 text-[hsl(var(--success-fg))]" /> : undefined}
-            onClick={() => setSheet('whatsapp')}
-            chevron
-          />
-        </SetGroup>
-
-        {/* Grupo: integrações */}
-        <SetGroup title="Integrações">
-          <SetRow
-            icon={<CalendarDays className="h-[18px] w-[18px]" />}
-            title="Google Agenda e Tarefas"
-            sub={googleEmail ? `Conectado · ${googleEmail}` : 'Vencimentos, compromissos e tarefas no seu Google'}
-            right={googleEmail ? <CheckCircleIcon className="h-5 w-5 text-[hsl(var(--success-fg))]" /> : undefined}
-            onClick={() => setSheet('google')}
-            chevron
-          />
-          <SetRow
-            icon={<Smartphone className="h-[18px] w-[18px]" />}
-            title="Atalho do iPhone"
-            sub="Toque 2x atrás do celular e fale com a IARA"
-            onClick={() => setSheet('atalho')}
-            chevron
-          />
-        </SetGroup>
-
-        {/* Sessão */}
-        <div className="space-y-3">
-          <Button
-            variant="outline"
-            onClick={() => signOut()}
-            className="h-12 w-full gap-2 rounded-full font-semibold text-[hsl(var(--danger-fg))] hover:text-[hsl(var(--danger-fg))]"
-          >
-            <ArrowRightOnRectangleIcon className="h-4 w-4" /> Sair da conta
-          </Button>
-
-          {/* Zona de perigo — excluir conta */}
-          <button
-            onClick={() => { setConfirmText(''); setSheet('excluir'); }}
-            className="mb-2 w-full text-center text-[13px] font-medium text-foreground-muted underline underline-offset-2 transition-colors hover:text-[hsl(var(--danger-fg))]"
-          >
-            Excluir minha conta
-          </button>
-        </div>
-      </div>
-
-      {/* Sheet: nome */}
-      <DetailSheet open={sheet === 'nome'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Identidade" title="Seu nome">
-        <div className="space-y-3 pb-2">
-          <Label>Nome</Label>
-          <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" />
-          <Button className="w-full" onClick={handleSaveNome} disabled={savingNome || !nome.trim()}>
-            {savingNome && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar
-          </Button>
-        </div>
-      </DetailSheet>
-
-      {/* Sheet: Cobrança (Asaas) */}
-      <DetailSheet open={sheet === 'asaas'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Cobrança" title="Conta Asaas">
-        {asaasStatus?.connected ? (
-          <div className="space-y-4 pb-2">
-            <div className="rounded-[16px] bg-success-bg p-3.5 text-sm">
-              <div className="flex items-center gap-2 font-semibold text-success-fg"><CheckCircleIcon className="h-4 w-4" /> Conectado</div>
-              <p className="mt-1 text-foreground-muted">{asaasStatus.accountName || 'Conta Asaas'} · {asaasStatus.env === 'sandbox' ? 'Sandbox (teste)' : 'Produção'}</p>
-            </div>
-            <p className="text-xs text-foreground-muted">As cobranças dos seus clientes vão pra ESTA conta Asaas — o dinheiro cai direto pra você.</p>
-
-            {/* Webhook: baixa automática */}
-            <div className="rounded-[16px] border border-border bg-surface-2 p-3.5 space-y-2.5">
-              <p className="text-xs font-semibold text-foreground">Baixa automática (webhook)</p>
-              <p className="text-[11px] text-foreground-muted">No Asaas → <b>Configurações → Integrações → Webhooks</b>, cadastre esta URL e cole o token no campo de autenticação. Aí, quando o cliente pagar, a receita baixa sozinha.</p>
-              <div className="space-y-1">
-                <Label className="text-[11px]">URL do webhook</Label>
-                <div className="flex gap-2">
-                  <Input readOnly value={webhookUrl} className="text-[11px]" onFocus={(e) => e.currentTarget.select()} />
-                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(webhookUrl); toast.success('URL copiada'); }}>Copiar</Button>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px]">Token (autenticação)</Label>
-                <div className="flex gap-2">
-                  <Input readOnly value={asaasStatus.webhookToken || '—'} className="text-[11px]" onFocus={(e) => e.currentTarget.select()} />
-                  <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(asaasStatus.webhookToken || ''); toast.success('Token copiado'); }}>Copiar</Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Mensagem padrão do WhatsApp */}
-            <div className="rounded-[16px] border border-border bg-surface-2 p-3.5 space-y-2">
-              <p className="text-xs font-semibold text-foreground">Mensagem padrão do WhatsApp</p>
-              <p className="text-[11px] text-foreground-muted">Usada ao enviar a cobrança. Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{link}'}</b> <b>{'{prazo}'}</b> <b>{'{dias}'}</b> (ex.: "vence em 7 dias", "vence hoje", "está vencida há 5 dias"). Aceita *negrito*, _itálico_ e quebra de linha.</p>
-              <Textarea value={whatsappTpl} onChange={(e) => setWhatsappTpl(e.target.value)} rows={8} className="font-mono text-[12px] leading-relaxed" />
-              <Button size="sm" className="w-full" onClick={salvarWhatsappTpl} disabled={savingTpl}>
-                {savingTpl && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar mensagem
-              </Button>
-            </div>
-
-            {/* E-mail de cobrança (assunto + corpo) */}
-            <div className="rounded-[16px] border border-border bg-surface-2 p-3.5 space-y-2">
-              <p className="text-xs font-semibold text-foreground">E-mail de cobrança</p>
-              <p className="text-[11px] text-foreground-muted">Usado no envio por e-mail (manual e automático). O layout (botão de pagamento, valor, vencimento, PIX e NF em anexo) já vem pronto — aqui você define o <b>assunto</b> e a <b>mensagem de abertura</b>. Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{link}'}</b> <b>{'{pix}'}</b> <b>{'{titular}'}</b> <b>{'{prazo}'}</b> <b>{'{dias}'}</b> (ex.: "vence em 7 dias", "vence hoje", "está vencida há 5 dias").</p>
-              <div>
-                <Label className="text-[11px]">Assunto</Label>
-                <Input value={emailAssunto} onChange={(e) => setEmailAssunto(e.target.value)} placeholder={EMAIL_ASSUNTO_PADRAO} className="mt-1 text-[13px]" />
-              </div>
-              <div>
-                <Label className="text-[11px]">Mensagem de abertura</Label>
-                <Textarea value={emailCorpo} onChange={(e) => setEmailCorpo(e.target.value)} rows={4} className="mt-1 text-[12px] leading-relaxed" />
-              </div>
-              <Button size="sm" className="w-full" onClick={salvarEmailTpl} disabled={savingEmailTpl}>
-                {savingEmailTpl && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar e-mail
-              </Button>
-            </div>
-
-            {/* Chave PIX (para cobranças enviadas por PIX em vez do link Asaas) */}
-            <div className="rounded-[16px] border border-border bg-surface-2 p-3.5 space-y-2">
-              <p className="text-xs font-semibold text-foreground">Recebimento por PIX (chave própria)</p>
-              <p className="text-[11px] text-foreground-muted">Usada nas cobranças marcadas como "enviar chave PIX". O cliente paga na sua chave (fora do Asaas) e você dá baixa com "Identificar pagamento manual".</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label className="text-[11px]">Chave PIX</Label>
-                  <Input value={pixChave} onChange={(e) => setPixChave(e.target.value)} placeholder="e-mail, telefone, CNPJ ou aleatória" className="mt-1 text-[13px]" />
-                </div>
-                <div>
-                  <Label className="text-[11px]">Em nome de (titular)</Label>
-                  <Input value={pixTitular} onChange={(e) => setPixTitular(e.target.value)} placeholder="Nome / empresa" className="mt-1 text-[13px]" />
-                </div>
-              </div>
-              <Label className="text-[11px]">Mensagem PIX no WhatsApp</Label>
-              <p className="text-[11px] text-foreground-muted">Placeholders: <b>{'{cliente}'}</b> <b>{'{descricao}'}</b> <b>{'{valor}'}</b> <b>{'{vencimento}'}</b> <b>{'{pix}'}</b> <b>{'{titular}'}</b> <b>{'{prazo}'}</b> <b>{'{dias}'}</b> (ex.: "vence em 7 dias", "vence hoje", "está vencida há 5 dias").</p>
-              <Textarea value={whatsappTplPix} onChange={(e) => setWhatsappTplPix(e.target.value)} rows={8} className="font-mono text-[12px] leading-relaxed" />
-              <Button size="sm" className="w-full" onClick={salvarPix} disabled={savingPix}>
-                {savingPix && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar PIX
-              </Button>
-            </div>
-
-            {/* Envio automático por WhatsApp (regra global) */}
-            <div className="rounded-[16px] border border-border bg-surface-2 p-3.5 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold text-foreground">Envio automático por WhatsApp</p>
-                  <p className="text-[11px] text-foreground-muted">Regra padrão. Cada contrato pode ter exceção própria.</p>
-                </div>
-                <Switch checked={autoCfg.enabled} onCheckedChange={(v) => setAutoCfg((p) => ({ ...p, enabled: v }))} />
-              </div>
-
-              {autoCfg.enabled && (
-                <div className="space-y-2.5 border-t border-border pt-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <Label className="text-xs font-normal">Enviar <b>X dias antes</b> do vencimento</Label>
-                    <Input type="number" min="0" value={autoCfg.antesDias} onChange={(e) => setAutoCfg((p) => ({ ...p, antesDias: parseInt(e.target.value) || 0 }))} className="h-8 w-16 text-center text-sm" />
-                  </div>
-                  <p className="-mt-1 text-[10px] text-foreground-muted">0 = não envia lembrete antecipado.</p>
-                  <div className="flex items-center justify-between gap-3">
-                    <Label className="text-xs font-normal">Enviar <b>no dia</b> do vencimento</Label>
-                    <Switch checked={autoCfg.noDia} onCheckedChange={(v) => setAutoCfg((p) => ({ ...p, noDia: v }))} />
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <Label className="text-xs font-normal">Reenviar <b>todo dia em atraso</b></Label>
-                    <Switch checked={autoCfg.atrasoDiario} onCheckedChange={(v) => setAutoCfg((p) => ({ ...p, atrasoDiario: v }))} />
-                  </div>
-                  {autoCfg.atrasoDiario && (
-                    <div className="flex items-center justify-between gap-3">
-                      <Label className="text-xs font-normal">Parar após <b>N dias</b> de atraso</Label>
-                      <Input type="number" min="0" value={autoCfg.atrasoMax} onChange={(e) => setAutoCfg((p) => ({ ...p, atrasoMax: parseInt(e.target.value) || 0 }))} className="h-8 w-16 text-center text-sm" />
-                    </div>
-                  )}
-                  <p className="text-[10px] text-foreground-muted">O disparo roda 1x/dia de manhã. Cobranças que exigem nota fiscal só são enviadas com o PDF anexado.</p>
-                </div>
-              )}
-
-              <Button size="sm" className="w-full" onClick={salvarAutoCfg} disabled={savingAuto}>
-                {savingAuto && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Salvar regras
-              </Button>
-            </div>
-
-            <Button variant="outline" className="w-full text-[hsl(var(--danger-fg))]" onClick={handleDesconectarAsaas} disabled={asaasConnecting}>
-              {asaasConnecting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Desconectar
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-3 pb-2">
-            <p className="text-xs text-foreground-muted">Cole a chave de API da sua conta Asaas. Ela fica guardada com segurança e é usada só pra criar as cobranças dos seus clientes — o dinheiro cai direto na sua conta.</p>
-            <Label>Ambiente</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {(['production', 'sandbox'] as const).map((e) => (
-                <button key={e} type="button" onClick={() => setAsaasEnv(e)} className={cn('h-10 rounded-full border text-[13px] font-semibold transition-colors', asaasEnv === e ? 'border-transparent bg-foreground text-background' : 'border-border bg-surface text-foreground-muted hover:bg-surface-2')}>
-                  {e === 'production' ? 'Produção' : 'Sandbox (teste)'}
-                </button>
-              ))}
-            </div>
-            <Label>Chave de API (access token)</Label>
-            <Input type="password" value={asaasKey} onChange={(e) => setAsaasKey(e.target.value)} placeholder="$aact_..." autoComplete="off" />
-            <Button className="w-full" onClick={handleConectarAsaas} disabled={asaasConnecting || !asaasKey.trim()}>
-              {asaasConnecting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Conectar e testar
-            </Button>
-            <p className="text-[11px] text-foreground-muted">Pegue a chave no Asaas → Configurações → Integrações → API. Comece no Sandbox pra testar sem cobrar de verdade.</p>
+        {plano && (
+          <div className="flex basis-full items-center gap-3 rounded-2xl bg-surface-2/70 px-4 py-2.5 sm:basis-auto">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span>
+              <span className="block text-[13.5px] font-semibold text-foreground">Plano {plano}</span>
+              <span className="block text-[12px] text-foreground-muted">{activeTenant?.cortesia || activeTenant?.status_assinatura === 'ativa' ? 'tudo liberado' : 'veja em Assinatura'}</span>
+            </span>
           </div>
         )}
-      </DetailSheet>
+        <button type="button" onClick={() => setSheet('nome')} className={cn(btn.outline, 'max-sm:hidden')}>Editar perfil</button>
+      </div>
 
-      {/* Sheet: email */}
-      <DetailSheet open={sheet === 'email'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Acesso" title="E-mail de login">
-        <div className="space-y-3 pb-2">
-          <p className="text-xs text-foreground-muted">Trocar o e-mail dispara uma verificação para o novo endereço.</p>
-          <Label>E-mail</Label>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
+        {/* Navegação das seções (desktop) */}
+        <nav className="hidden md:block" aria-label="Seções do perfil">
+          <div className="sticky top-6 space-y-0.5">
+            {SECOES.map(([id, r]) => (
+              <button key={id} type="button" onClick={() => irPara(id)}
+                className={cn('block w-full rounded-xl px-3 py-2 text-left text-[14px] transition-colors',
+                  secaoAtiva === id ? 'bg-foreground text-background' : id === 'perigo' ? 'text-danger-fg hover:bg-danger-bg' : 'text-foreground-muted hover:bg-surface-2 hover:text-foreground')}>
+                {r}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        <div className="max-w-[760px] space-y-6">
+          <Grupo id="conta" titulo="Conta">
+            <Linha icon={<User className="h-4 w-4" />} titulo="Nome e foto" sub={`${profile?.nome || 'Sem nome'}${activeTenant?.nome ? ` · ${activeTenant.nome}` : ''}`} onClick={() => setSheet('nome')} />
+            <Linha icon={<Moon className="h-4 w-4" />} titulo="Aparência" direita={
+              <Segmented<'light' | 'dark'> size="sm" value={theme} onChange={setTheme} opts={[['light', 'Claro'], ['dark', 'Escuro']]} />
+            } />
+          </Grupo>
+
+          <Grupo id="seguranca" titulo="Segurança">
+            <Linha icon={<Mail className="h-4 w-4" />} titulo="E-mail de login" sub={user?.email || ''} onClick={() => setSheet('email')} />
+            <Linha icon={<Lock className="h-4 w-4" />} titulo="Senha" sub="Atualize sua senha de acesso" onClick={() => setSheet('senha')} />
+            <Linha icon={<ShieldCheck className="h-4 w-4" />} titulo="Verificação em duas etapas" sub="Código do app autenticador além da senha" onClick={() => setSheet('mfa')} />
+          </Grupo>
+
+          <Grupo id="notificacoes" titulo="Notificações no celular">
+            <div className="flex items-center gap-3 px-4 py-3.5">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-surface-2 text-foreground-muted"><BellRing className="h-4 w-4" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14.5px] text-foreground">Avisos de vencimento e da IARA</span>
+                <span className="block text-[12.5px] text-foreground-muted">Todo dia às 8h, o que vence hoje</span>
+              </span>
+              <Switch checked={!!profile?.push_enabled} disabled={pushSaving} onCheckedChange={handleTogglePush} aria-label="Notificações no celular" />
+            </div>
+            {profile?.push_enabled && (
+              <div className="flex flex-wrap gap-2 border-t border-border px-4 py-3">
+                <button type="button" onClick={enviarTeste} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3.5 text-[13px] text-foreground hover:bg-surface-2"><Bell className="h-3.5 w-3.5" />Enviar teste</button>
+                <button type="button" onClick={reinstalarPush} disabled={pushSaving} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3.5 text-[13px] text-foreground-muted hover:bg-surface-2 disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" />Reinstalar</button>
+              </div>
+            )}
+          </Grupo>
+
+          <Grupo id="cobranca" titulo="Cobrança">
+            <Linha
+              icon={<span className="text-[#0038E5]">{LOGO.asaas}</span>}
+              titulo="Asaas"
+              sub={asaasStatus?.connected
+                ? `${asaasStatus.accountName || 'Conta Asaas'} · ${asaasStatus.env === 'sandbox' ? 'Sandbox (teste)' : 'Pix, boleto e cartão'}`
+                : 'Conecte sua conta Asaas para cobrar seus clientes'}
+              direita={asaasStatus?.connected ? <Ok /> : <Pend txt="Conectar" />}
+              onClick={() => setSheet('asaas')}
+            />
+            <Linha
+              icon={<span className="text-[#25D366]">{LOGO.wpp}</span>}
+              titulo="WhatsApp da empresa"
+              sub={whatsNumero || 'Cobranças e lembretes saem do seu número'}
+              direita={whatsNumero ? <Ok /> : <Pend txt="Conectar" />}
+              onClick={() => setSheet('whatsapp')}
+            />
+            {asaasStatus?.connected && (
+              <Linha
+                icon={<MessageSquareText className="h-4 w-4" />}
+                titulo="Lembretes e mensagens"
+                sub={autoCfg.enabled
+                  ? [autoCfg.antesDias > 0 && `${autoCfg.antesDias} dia${autoCfg.antesDias > 1 ? 's' : ''} antes`, autoCfg.noDia && 'no dia', autoCfg.atrasoDiario && 'todo dia em atraso'].filter(Boolean).join(' · ') || 'Envio automático ligado'
+                  : 'Envio automático desligado · mensagens, e-mail e Pix'}
+                onClick={() => setSheet('regras')}
+              />
+            )}
+          </Grupo>
+
+          <section id="integracoes" className="scroll-mt-6">
+            <p className="mb-2 px-1 text-[12px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">Integrações</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button type="button" onClick={() => setSheet('google')} className="flex items-start gap-3 rounded-[22px] border border-border bg-surface p-4 text-left hover:border-border-strong">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-[#4285F4]">{LOGO.gcal}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14.5px] text-foreground">Google Agenda e Tarefas</span>
+                  <span className="block truncate text-[12.5px] text-foreground-muted">{googleEmail || 'Vencimentos, compromissos e tarefas no seu Google'}</span>
+                </span>
+                {googleEmail ? <Ok /> : googleEmail === null ? <Pend txt="Conectar" /> : null}
+              </button>
+              <button type="button" onClick={() => setSheet('atalho')} className="flex items-start gap-3 rounded-[22px] border border-border bg-surface p-4 text-left hover:border-border-strong">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-foreground">{LOGO.apple}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14.5px] text-foreground">Atalho do iPhone</span>
+                  <span className="block truncate text-[12.5px] text-foreground-muted">Toque 2x atrás do celular e fale com a IARA</span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-foreground-subtle" />
+              </button>
+              <div className="flex items-start gap-3 rounded-[22px] border border-dashed border-border p-4">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-foreground-muted"><Smartphone className="h-4 w-4" /></span>
+                <span>
+                  <span className="block text-[14.5px] text-foreground">Instalar o app</span>
+                  <span className="block text-[12.5px] text-foreground-muted">No celular: compartilhar → "Adicionar à Tela de Início"</span>
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <Grupo id="perigo" titulo="Zona de perigo">
+            <Linha icon={<LogOut className="h-4 w-4" />} titulo="Sair da conta" sub="Neste aparelho" onClick={() => signOut()} />
+            <Linha icon={<Trash2 className="h-4 w-4" />} titulo="Excluir minha conta" sub="Apaga seus dados para sempre" onClick={() => { setConfirmText(''); setSheet('excluir'); }} perigo />
+          </Grupo>
+        </div>
+      </div>
+
+      {/* ===== Modais ===== */}
+      <Modal open={sheet === 'nome'} onClose={fechar} eyebrow="Conta" title="Seu perfil">
+        <div className="flex items-center gap-4">
+          <button type="button" onClick={() => fileRef.current?.click()} className="relative shrink-0" aria-label="Trocar foto">
+            <Avatar className="h-20 w-20">
+              {avatarSignedUrl && <AvatarImage src={avatarSignedUrl} alt={profile?.nome ?? ''} />}
+              <AvatarFallback className="bg-foreground text-[24px] font-semibold text-background">{initials}</AvatarFallback>
+            </Avatar>
+            <span className="absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full bg-primary text-white ring-4 ring-background">
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+            </span>
+          </button>
+          <span className="text-[12.5px] text-foreground-muted">Toque na foto para trocar. Ajustamos o tamanho para você.</span>
+        </div>
+        <Campo label="Seu nome"><Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Seu nome" /></Campo>
+        <Rodape onCancel={fechar}>
+          <button type="button" className={btn.primary} onClick={handleSaveNome} disabled={savingNome || !nome.trim()}>
+            {savingNome && <Loader2 className="h-4 w-4 animate-spin" />}Salvar
+          </button>
+        </Rodape>
+      </Modal>
+
+      <Modal open={sheet === 'email'} onClose={fechar} eyebrow="Segurança" title="E-mail de login">
+        <Campo label="E-mail" hint="Mandamos um link de confirmação para o novo endereço. Até confirmar, vale o atual.">
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Button className="w-full" onClick={handleSaveEmail} disabled={savingEmail || email === user?.email}>
-            {savingEmail && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Atualizar e-mail
-          </Button>
-        </div>
-      </DetailSheet>
+        </Campo>
+        <Rodape onCancel={fechar}>
+          <button type="button" className={btn.primary} onClick={handleSaveEmail} disabled={savingEmail || email === user?.email}>
+            {savingEmail && <Loader2 className="h-4 w-4 animate-spin" />}Enviar confirmação
+          </button>
+        </Rodape>
+      </Modal>
 
-      {/* Sheet: senha */}
-      <DetailSheet open={sheet === 'senha'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Acesso" title="Alterar senha">
-        <div className="space-y-3 pb-2">
-          <div className="space-y-1.5">
-            <Label>Senha atual</Label>
-            <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Nova senha</Label>
-            <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Confirmar nova senha</Label>
-            <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
-          </div>
-          <Button className="w-full" onClick={handleChangePassword} disabled={savingPassword || !currentPassword || !newPassword}>
-            {savingPassword && <Loader2 className="h-4 w-4 animate-spin mr-2" />}Alterar senha
-          </Button>
-        </div>
-      </DetailSheet>
+      <Modal open={sheet === 'senha'} onClose={fechar} eyebrow="Segurança" title="Alterar senha">
+        <Campo label="Senha atual"><Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" /></Campo>
+        <Campo label="Nova senha"><Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" /></Campo>
+        <ForcaSenha senha={newPassword} />
+        <Campo label="Repita a nova senha"><Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" /></Campo>
+        <Rodape onCancel={fechar}>
+          <button type="button" className={btn.primary} onClick={handleChangePassword} disabled={savingPassword || !currentPassword || !newPassword}>
+            {savingPassword && <Loader2 className="h-4 w-4 animate-spin" />}Trocar senha
+          </button>
+        </Rodape>
+      </Modal>
 
-      {/* Sheet: Google Agenda e Tarefas */}
-      <DetailSheet open={sheet === 'google'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Integrações" title="Google Agenda e Tarefas">
-        <GoogleAgendaPainel onChange={carregarGoogle} />
-      </DetailSheet>
-
-      {/* Sheet: WhatsApp da empresa */}
-      <DetailSheet open={sheet === 'whatsapp'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Cobrança" title="WhatsApp da empresa">
-        <WhatsAppPainel onChange={carregarWhats} />
-      </DetailSheet>
-
-      {/* Sheet: Atalho do iPhone (IARA por voz) */}
-      <DetailSheet open={sheet === 'atalho'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Integrações" title="Atalho do iPhone">
-        <AtalhoIphonePainel />
-      </DetailSheet>
-
-      {/* Sheet: 2FA (MFA TOTP) */}
-      <DetailSheet open={sheet === 'mfa'} onOpenChange={(o) => !o && setSheet(null)} eyebrow="Acesso" title="Verificação em duas etapas">
+      <Modal open={sheet === 'mfa'} onClose={fechar} eyebrow="Segurança" title="Verificação em duas etapas">
         <MfaManager />
-      </DetailSheet>
+      </Modal>
 
-      {/* Sheet: excluir conta (LGPD) */}
-      <DetailSheet open={sheet === 'excluir'} onOpenChange={(o) => { if (!o && !deleting) setSheet(null); }} eyebrow="Zona de perigo" title="Excluir minha conta">
-        <div className="space-y-4 pb-2">
-          <div className="rounded-[16px] bg-danger-bg p-3.5 text-[13px] leading-relaxed text-foreground">
-            Isso apaga <b>permanentemente</b> a sua conta e <b>todos os dados</b>: lançamentos, contas, contratos, clientes, categorias, cartões, metas e o seu login. Se houver assinatura ativa, ela é cancelada. <b>Não dá pra desfazer.</b>
+      {/* Asaas: conexão e webhook */}
+      <Modal open={sheet === 'asaas'} onClose={fechar} eyebrow="Cobrança" title="Conta Asaas">
+        {asaasStatus?.connected ? (
+          <>
+            <div className="flex items-center gap-3 rounded-2xl bg-success-bg p-3 text-success-fg">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#0038E5] text-white">{LOGO.asaas}</span>
+              <span>
+                <span className="block text-[14px] font-semibold">Conectado{asaasStatus.accountName ? ` · ${asaasStatus.accountName}` : ''}</span>
+                <span className="block text-[12px] opacity-90">{asaasStatus.env === 'sandbox' ? 'Sandbox (teste)' : 'Produção'} · o dinheiro cai direto na sua conta</span>
+              </span>
+            </div>
+            <div className="space-y-2.5 rounded-2xl border border-border p-3.5">
+              <p className="text-[13.5px] font-medium text-foreground">Baixa automática (webhook)</p>
+              <p className="text-[12px] text-foreground-muted">No Asaas → <b className="font-medium">Configurações → Integrações → Webhooks</b>, cadastre esta URL e cole o token no campo de autenticação. Quando o cliente pagar, a receita baixa sozinha.</p>
+              <Copiavel label="URL do webhook" valor={webhookUrl} aviso="URL copiada" />
+              <Copiavel label="Token (autenticação)" valor={asaasStatus.webhookToken || ''} aviso="Token copiado" />
+            </div>
+            <button type="button" onClick={() => setSheet('regras')} className="flex w-full items-center gap-3 rounded-2xl border border-border p-3.5 text-left hover:bg-surface-2/50">
+              <MessageSquareText className="h-4 w-4 text-foreground-muted" />
+              <span className="flex-1 text-[13.5px] text-foreground">Lembretes, mensagens, e-mail e Pix</span>
+              <ChevronRight className="h-4 w-4 text-foreground-subtle" />
+            </button>
+            <button type="button" className={cn(btn.danger, 'px-0')} onClick={handleDesconectarAsaas} disabled={asaasConnecting}>
+              {asaasConnecting && <Loader2 className="h-4 w-4 animate-spin" />}Desconectar o Asaas
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-[13px] text-foreground-muted">Cole a chave de API da sua conta Asaas. Ela fica guardada com segurança e é usada só para criar as cobranças dos seus clientes — o dinheiro cai direto na sua conta.</p>
+            <Campo label="Ambiente">
+              <Segmented<'production' | 'sandbox'> value={asaasEnv} onChange={setAsaasEnv} opts={[['production', 'Produção'], ['sandbox', 'Sandbox (teste)']]} />
+            </Campo>
+            <Campo label="Chave de API (access token)" hint="Asaas → Configurações → Integrações → API. Comece no Sandbox para testar sem cobrar de verdade.">
+              <Input type="password" value={asaasKey} onChange={(e) => setAsaasKey(e.target.value)} placeholder="$aact_..." autoComplete="off" />
+            </Campo>
+            <Rodape onCancel={fechar}>
+              <button type="button" className={btn.primary} onClick={handleConectarAsaas} disabled={asaasConnecting || !asaasKey.trim()}>
+                {asaasConnecting && <Loader2 className="h-4 w-4 animate-spin" />}Conectar e testar
+              </button>
+            </Rodape>
+          </>
+        )}
+      </Modal>
+
+      {/* Lembretes automáticos e mensagens (regra padrão) */}
+      <Modal open={sheet === 'regras'} onClose={fechar} eyebrow="Cobrança" title="Lembretes e mensagens" largo>
+        <Bloco titulo="Envio automático por WhatsApp" extra={<Switch checked={autoCfg.enabled} onCheckedChange={(v) => setAutoCfg((p) => ({ ...p, enabled: v }))} aria-label="Envio automático" />}>
+          <p className="text-[12px] text-foreground-muted">Regra padrão para toda cobrança sem regra própria (cada contrato pode ter exceção).</p>
+          {autoCfg.enabled && (
+            <div className="mt-3 divide-y divide-border overflow-hidden rounded-2xl border border-border">
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <span><span className="block text-[14px] text-foreground">Dias antes do vencimento</span><span className="block text-[12px] text-foreground-muted">0 = não envia lembrete antecipado</span></span>
+                <Input type="number" min="0" value={autoCfg.antesDias} onChange={(e) => setAutoCfg((p) => ({ ...p, antesDias: parseInt(e.target.value) || 0 }))} className="h-9 w-16 text-center" />
+              </div>
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <span className="text-[14px] text-foreground">No dia do vencimento</span>
+                <Switch checked={autoCfg.noDia} onCheckedChange={(v) => setAutoCfg((p) => ({ ...p, noDia: v }))} />
+              </div>
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <span className="text-[14px] text-foreground">Todo dia em atraso</span>
+                <Switch checked={autoCfg.atrasoDiario} onCheckedChange={(v) => setAutoCfg((p) => ({ ...p, atrasoDiario: v }))} />
+              </div>
+              {autoCfg.atrasoDiario && (
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <span><span className="block text-[14px] text-foreground">Parar depois de N dias de atraso</span><span className="block text-[12px] text-foreground-muted">0 = não para</span></span>
+                  <Input type="number" min="0" value={autoCfg.atrasoMax} onChange={(e) => setAutoCfg((p) => ({ ...p, atrasoMax: parseInt(e.target.value) || 0 }))} className="h-9 w-16 text-center" />
+                </div>
+              )}
+            </div>
+          )}
+          <p className="mt-2 text-[11.5px] text-foreground-subtle">O disparo roda 1x por dia, de manhã. Cobranças que exigem nota fiscal só saem com o PDF anexado.</p>
+          <SalvarBtn onClick={salvarAutoCfg} saving={savingAuto}>Salvar regras</SalvarBtn>
+        </Bloco>
+
+        <Bloco titulo="Mensagem padrão do WhatsApp">
+          <Placeholders extra={['{prazo}', '{dias}']} itens={['{cliente}', '{descricao}', '{valor}', '{vencimento}', '{link}']} />
+          <Textarea value={whatsappTpl} onChange={(e) => setWhatsappTpl(e.target.value)} rows={8} className="mt-2 font-mono text-[12px] leading-relaxed" />
+          <p className="mt-1 text-[11.5px] text-foreground-subtle">Aceita *negrito*, _itálico_ e quebra de linha. {'{prazo}'} vira "vence em 7 dias", "vence hoje" ou "está vencida há 5 dias".</p>
+          <SalvarBtn onClick={salvarWhatsappTpl} saving={savingTpl}>Salvar mensagem</SalvarBtn>
+        </Bloco>
+
+        <Bloco titulo="E-mail de cobrança">
+          <p className="text-[12px] text-foreground-muted">O layout (botão de pagamento, valor, vencimento, Pix e NF em anexo) já vem pronto. Aqui você define o assunto e a abertura.</p>
+          <Placeholders itens={['{cliente}', '{descricao}', '{valor}', '{vencimento}', '{link}', '{pix}', '{titular}']} extra={['{prazo}', '{dias}']} />
+          <div className="mt-2 space-y-3">
+            <Campo label="Assunto"><Input value={emailAssunto} onChange={(e) => setEmailAssunto(e.target.value)} placeholder={EMAIL_ASSUNTO_PADRAO} /></Campo>
+            <Campo label="Mensagem de abertura"><Textarea value={emailCorpo} onChange={(e) => setEmailCorpo(e.target.value)} rows={4} className="text-[13px] leading-relaxed" /></Campo>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Para confirmar, digite <b>EXCLUIR</b></Label>
-            <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="EXCLUIR" autoCapitalize="characters" autoComplete="off" />
+          <SalvarBtn onClick={salvarEmailTpl} saving={savingEmailTpl}>Salvar e-mail</SalvarBtn>
+        </Bloco>
+
+        <Bloco titulo="Recebimento por Pix (chave própria)">
+          <p className="text-[12px] text-foreground-muted">Usada nas cobranças marcadas como "enviar chave Pix". O cliente paga na sua chave (fora do Asaas) e você dá baixa com "Identificar pagamento manual".</p>
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Campo label="Chave Pix"><Input value={pixChave} onChange={(e) => setPixChave(e.target.value)} placeholder="e-mail, telefone, CNPJ ou aleatória" /></Campo>
+            <Campo label="Em nome de (titular)"><Input value={pixTitular} onChange={(e) => setPixTitular(e.target.value)} placeholder="Nome / empresa" /></Campo>
           </div>
-          <Button
-            onClick={handleExcluirConta}
-            disabled={deleting || confirmText.trim().toUpperCase() !== 'EXCLUIR'}
-            className="h-12 w-full rounded-full bg-destructive font-semibold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50"
-          >
-            {deleting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Excluindo tudo…</> : 'Excluir minha conta para sempre'}
-          </Button>
+          <p className="mb-1 mt-3 text-[12.5px] text-foreground-muted">Mensagem Pix no WhatsApp</p>
+          <Placeholders itens={['{cliente}', '{descricao}', '{valor}', '{vencimento}', '{pix}', '{titular}']} extra={['{prazo}', '{dias}']} />
+          <Textarea value={whatsappTplPix} onChange={(e) => setWhatsappTplPix(e.target.value)} rows={8} className="mt-2 font-mono text-[12px] leading-relaxed" />
+          <SalvarBtn onClick={salvarPix} saving={savingPix}>Salvar Pix</SalvarBtn>
+        </Bloco>
+      </Modal>
+
+      <Modal open={sheet === 'whatsapp'} onClose={fechar} eyebrow="Cobrança" title="WhatsApp da empresa">
+        <WhatsAppPainel onChange={carregarWhats} />
+      </Modal>
+
+      <Modal open={sheet === 'google'} onClose={fechar} eyebrow="Integrações" title="Google Agenda e Tarefas">
+        <GoogleAgendaPainel onChange={carregarGoogle} />
+      </Modal>
+
+      <Modal open={sheet === 'atalho'} onClose={fechar} eyebrow="Integrações" title="Atalho do iPhone">
+        <AtalhoIphonePainel />
+      </Modal>
+
+      {/* Excluir conta (LGPD) */}
+      <Modal open={sheet === 'excluir'} onClose={() => { if (!deleting) fechar(); }} eyebrow="Zona de perigo" title="Excluir minha conta">
+        <div className="rounded-2xl bg-danger-bg p-4 text-danger-fg">
+          <p className="flex items-center gap-2 text-[14px] font-semibold"><AlertTriangle className="h-4 w-4" />Isso não tem volta</p>
+          <p className="mt-1 text-[12.5px] leading-relaxed">Apaga <b>permanentemente</b> a sua conta e <b>todos os dados</b>: lançamentos, contas, contratos, clientes, categorias, cartões, metas e o seu login. Se houver assinatura ativa, ela é cancelada.</p>
         </div>
-      </DetailSheet>
+        <Campo label={<>Para confirmar, digite <b className="font-semibold text-foreground">EXCLUIR</b></>}>
+          <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="EXCLUIR" autoCapitalize="characters" autoComplete="off" />
+        </Campo>
+        <Rodape onCancel={fechar} cancelDisabled={deleting}>
+          <button type="button" onClick={handleExcluirConta} disabled={deleting || confirmText.trim().toUpperCase() !== 'EXCLUIR'}
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-danger-fg px-5 text-[13.5px] font-medium text-white hover:opacity-90 disabled:opacity-40">
+            {deleting ? <><Loader2 className="h-4 w-4 animate-spin" />Excluindo tudo…</> : 'Excluir para sempre'}
+          </button>
+        </Rodape>
+      </Modal>
     </div>
   );
 }
@@ -685,33 +680,112 @@ function planoLabel(t: TenantInfo): string {
   return t.status_assinatura || '';
 }
 
-function SetGroup({ title, children }: { title: string; children: ReactNode }) {
+/* ===== Peças do perfil ===== */
+function Grupo({ id, titulo, children }: { id: string; titulo: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-2">
-      <h2 className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">{title}</h2>
-      <div className="overflow-hidden rounded-[20px] border border-border bg-surface">
-        {children}
-      </div>
+    <section id={id} className="scroll-mt-6">
+      <p className="mb-2 px-1 text-[12px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">{titulo}</p>
+      <div className="overflow-hidden rounded-[22px] border border-border bg-surface">{children}</div>
     </section>
   );
 }
 
-function SetRow({ icon, title, sub, right, chevron, onClick }: {
-  icon: ReactNode; title: string; sub?: string; right?: ReactNode; chevron?: boolean; onClick?: () => void;
-}) {
-  const Comp: any = onClick ? 'button' : 'div';
+function Linha({ icon, titulo, sub, direita, onClick, perigo }: { icon: ReactNode; titulo: string; sub?: ReactNode; direita?: ReactNode; onClick?: () => void; perigo?: boolean }) {
+  const conteudo = (
+    <>
+      <span className={cn('grid h-9 w-9 shrink-0 place-items-center rounded-xl', perigo ? 'bg-danger-bg text-danger-fg' : 'bg-surface-2 text-foreground-muted')}>{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className={cn('block text-[14.5px]', perigo ? 'text-danger-fg' : 'text-foreground')}>{titulo}</span>
+        {sub && <span className="block truncate text-[12.5px] text-foreground-muted">{sub}</span>}
+      </span>
+      {direita}
+      {onClick && <ChevronRight className="h-4 w-4 shrink-0 text-foreground-subtle" />}
+    </>
+  );
+  const cls = 'flex w-full items-center gap-3 border-t border-border px-4 py-3.5 text-left first:border-t-0';
+  return onClick
+    ? <button type="button" onClick={onClick} className={cn(cls, 'hover:bg-surface-2/50')}>{conteudo}</button>
+    : <div className={cls}>{conteudo}</div>;
+}
+
+const Ok = ({ txt = 'Conectado' }: { txt?: string }) => (
+  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-success-bg px-2 py-0.5 text-[11.5px] text-success-fg"><Check className="h-3 w-3" />{txt}</span>
+);
+const Pend = ({ txt }: { txt: string }) => <span className="shrink-0 rounded-full bg-warning-bg px-2 py-0.5 text-[11.5px] text-warning-fg">{txt}</span>;
+
+/** Modal do perfil: centralizado no desktop, de baixo no celular. */
+function Modal({ open, onClose, eyebrow, title, children, largo }: { open: boolean; onClose: () => void; eyebrow: string; title: string; children: ReactNode; largo?: boolean }) {
   return (
-    <Comp
-      onClick={onClick}
-      className={cn('flex w-full items-center gap-3 border-b border-border px-3.5 py-3 text-left last:border-b-0', onClick && 'transition-colors hover:bg-foreground/[0.04]')}
-    >
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-surface-2 text-foreground">{icon}</span>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[14px] font-semibold text-foreground">{title}</div>
-        {sub && <div className="truncate text-[12px] text-foreground-muted">{sub}</div>}
+    <SheetUI open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent side="bottom" showHandle showClose={false} className={modalCls(largo ? 'sm:max-w-[680px]' : 'sm:max-w-[560px]')}>
+        <ModalShell>
+          <ModalHeader eyebrow={eyebrow} title={title} onClose={onClose} />
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5 pb-safe">{children}</div>
+        </ModalShell>
+      </SheetContent>
+    </SheetUI>
+  );
+}
+
+function Rodape({ onCancel, children, cancelDisabled }: { onCancel: () => void; children: ReactNode; cancelDisabled?: boolean }) {
+  return (
+    <div className="flex justify-end gap-2 pt-1">
+      <button type="button" onClick={onCancel} disabled={cancelDisabled} className={btn.outline}>Cancelar</button>
+      {children}
+    </div>
+  );
+}
+
+function Bloco({ titulo, extra, children }: { titulo: string; extra?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="rounded-[20px] border border-border bg-surface p-4">
+      <div className="mb-2 flex items-center justify-between gap-3"><p className="text-[14px] font-medium text-foreground">{titulo}</p>{extra}</div>
+      {children}
+    </section>
+  );
+}
+
+function SalvarBtn({ onClick, saving, children }: { onClick: () => void; saving: boolean; children: ReactNode }) {
+  return (
+    <div className="mt-3 flex justify-end">
+      <button type="button" onClick={onClick} disabled={saving} className={cn(btn.primary, 'h-9 px-4')}>
+        {saving && <Loader2 className="h-4 w-4 animate-spin" />}{children}
+      </button>
+    </div>
+  );
+}
+
+function Placeholders({ itens, extra = [] }: { itens: string[]; extra?: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {[...itens, ...extra].map((p) => <code key={p} className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-foreground-muted">{p}</code>)}
+    </div>
+  );
+}
+
+function Copiavel({ label, valor, aviso }: { label: string; valor: string; aviso: string }) {
+  return (
+    <Campo label={label}>
+      <div className="flex gap-2">
+        <Input readOnly value={valor || '—'} className="text-[12px]" onFocus={(e) => e.currentTarget.select()} />
+        <button type="button" className={cn(btn.outline, 'h-10 shrink-0 px-3')} onClick={() => { navigator.clipboard?.writeText(valor); toast.success(aviso); }}>
+          <Copy className="h-3.5 w-3.5" />Copiar
+        </button>
       </div>
-      {right}
-      {chevron && <ChevronRightIcon className="h-4 w-4 shrink-0 text-foreground-muted" />}
-    </Comp>
+    </Campo>
+  );
+}
+
+function ForcaSenha({ senha }: { senha: string }) {
+  const forca = Math.min(4, [/.{8,}/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((r) => r.test(senha)).length);
+  return (
+    <div>
+      <div className="flex gap-1">
+        {[0, 1, 2, 3].map((i) => (
+          <span key={i} className={cn('h-1.5 flex-1 rounded-full', i < forca ? (forca < 2 ? 'bg-danger-fg' : forca < 4 ? 'bg-warning-fg' : 'bg-success-fg') : 'bg-surface-2')} />
+        ))}
+      </div>
+      <p className="mt-1.5 text-[12px] text-foreground-muted">{['Use 8+ caracteres, maiúscula, número e símbolo', 'Fraca', 'Razoável', 'Boa', 'Forte'][forca]}</p>
+    </div>
   );
 }

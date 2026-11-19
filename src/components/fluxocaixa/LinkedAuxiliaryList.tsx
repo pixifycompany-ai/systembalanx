@@ -77,20 +77,20 @@ export function LinkedAuxiliaryList({ origemId, origemTipo, refreshKey = 0, onCh
   if (rows.length === 0) return null;
 
   return (
-    <div className="rounded-md border border-border/60 bg-muted/20 p-3">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+    <div className="rounded-[20px] border border-border bg-surface p-4">
+      <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">
         Lançamentos vinculados ({rows.length})
       </p>
-      <div className="space-y-1.5">
+      <div className="divide-y divide-border">
         {rows.map(row => (
-          <div key={`${row.table}-${row.id}`} className="flex items-center gap-2 rounded bg-card px-2.5 py-1.5 text-sm">
+          <div key={`${row.table}-${row.id}`} className="flex items-center gap-2 py-2 text-[13px] first:pt-0 last:pb-0">
             {row.tipo === 'entrada' ? (
               <TrendingUp className="h-3.5 w-3.5 text-[hsl(var(--success-fg))] shrink-0" />
             ) : (
               <TrendingDown className="h-3.5 w-3.5 text-[hsl(var(--danger-fg))] shrink-0" />
             )}
-            <span className="flex-1 truncate">{row.descricao}</span>
-            <span className="text-xs text-muted-foreground tabular-nums">
+            <span className="flex-1 truncate text-foreground">{row.descricao}</span>
+            <span className="text-[12px] text-foreground-muted tabular-nums">
               {format(parseISO(row.data), 'dd/MM/yy', { locale: ptBR })}
             </span>
             <span className={cn(
@@ -102,7 +102,7 @@ export function LinkedAuxiliaryList({ origemId, origemTipo, refreshKey = 0, onCh
             <button
               type="button"
               onClick={() => handleDelete(row)}
-              className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+              className="grid h-7 w-7 place-items-center rounded-full text-foreground-muted transition-colors hover:bg-danger-bg hover:text-danger-fg"
               aria-label="Excluir lançamento vinculado"
             >
               <Trash2 className="h-3.5 w-3.5" />

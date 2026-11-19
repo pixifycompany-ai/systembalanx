@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
-import { format, parseISO } from 'date-fns';
+import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Pencil, Trash2, Download } from 'lucide-react';
-import { PlusIcon } from '@heroicons/react/24/outline';
+import {
+  CalendarClock, Check, ChevronLeft, ChevronRight, CreditCard, Download, FileText, Pencil, Plus, Repeat, Search, Trash2, Wallet, X,
+} from 'lucide-react';
 import { exportToCSV } from '@/utils/exportCSV';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { DatePickerField } from '@/components/shared/DatePickerField';
+import { Segmented, Campo } from '@/components/reskin/kit';
+import { btn, modalCls } from '@/components/reskin/estilos';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/utils/formatters';
-import { rotuloCompetencia } from '@/utils/faturaCalculator';
+import { melhorDiaDeCompra, rotuloCompetencia } from '@/utils/faturaCalculator';
 import { useDespesas } from '@/hooks/useDespesas';
+import { cn } from '@/lib/utils';
 import type { ContaDB } from '@/hooks/useContas';
 import type { FaturaDB, FaturaPagamentoDB } from '@/hooks/useFaturas';
 
@@ -29,6 +31,8 @@ interface FaturaDetailDialogProps {
   /** Quando true, abre direto o formulário de novo lançamento. */
   startInCreate?: boolean;
   onRefresh?: () => void | Promise<void>;
+  /** Limite usado do cartão (todas as faturas em aberto). Mostra o bloco de limite. */
+  usado?: number;
 }
 
 interface LancamentoLite {
@@ -39,10 +43,24 @@ interface LancamentoLite {
   data_vencimento: string;
   categoria_id: string | null;
   fornecedor: string | null;
+  parcela_num?: number | null;
+  parcela_total?: number | null;
+  fatura_id?: string | null;
   categoria?: { nome: string; cor: string } | null;
 }
 
 const isoToday = () => new Date().toISOString().slice(0, 10);
+const SEM_CAT = '__sem__';
+const COR_SEM = '#94A3B8';
+
+// Extrato do banco vem em MAIÚSCULAS: mostra em caixa normal, preservando siglas comuns.
+const SIGLAS: Record<string, string> = { iof: 'IOF', ai: 'AI', openai: 'OpenAI', chatgpt: 'ChatGPT', pix: 'Pix', ltda: 'Ltda', me: 'ME', sa: 'SA' };
+const bonito = (s: string | null | undefined) => {
+  const t = (s || '').trim();
+  if (!t || t !== t.toUpperCase() || !/[A-Z]/.test(t)) return t;
+  return t.toLowerCase().split(/(\s+)/).map((w) => SIGLAS[w] || (w.trim() ? w[0].toUpperCase() + w.slice(1) : w)).join('');
+};
+const diaLongo = (iso: string) => format(parseISO(iso), "EEE, d 'de' MMM", { locale: ptBR });
 
 export function FaturaDetailDialog({
   open,
@@ -54,6 +72,7 @@ export function FaturaDetailDialog({
   onPagar,
   startInCreate = false,
   onRefresh,
+  usado,
 }: FaturaDetailDialogProps) {
   const { categorias, createDespesa, createDespesaParcelada, updateDespesa, deleteDespesa } = useDespesas();
 
@@ -80,6 +99,11 @@ export function FaturaDetailDialog({
 
   const [lancamentos, setLancamentos] = useState<LancamentoLite[]>([]);
   const [loadingLancs, setLoadingLancs] = useState(false);
+  const [aba, setAba] = useState<'lanc' | 'parc' | 'pag'>('lanc');
+  const [busca, setBusca] = useState('');
+  const [catFiltro, setCatFiltro] = useState<string | null>(null);
+  const [ordem, setOrdem] = useState<'data' | 'valor'>('data');
+  const [futuras, setFuturas] = useState<LancamentoLite[] | null>(null);
 
   // Form state (criar/editar lançamento)
   const [formOpen, setFormOpen] = useState(false);
@@ -99,21 +123,43 @@ export function FaturaDetailDialog({
     setLoadingLancs(true);
     const { data } = await supabase
       .from('despesas')
-      .select('id, descricao, valor, data_competencia, data_vencimento, categoria_id, fornecedor, categoria:categorias(nome, cor)')
+      .select('id, descricao, valor, data_competencia, data_vencimento, categoria_id, fornecedor, parcela_num, parcela_total, categoria:categorias(nome, cor)')
       .eq('fatura_id', faturaId)
       .order('data_competencia', { ascending: false });
-    setLancamentos((data as any[]) || []);
+    setLancamentos((data as unknown as LancamentoLite[]) || []);
     setLoadingLancs(false);
   };
+
+  // Faturas seguintes (ainda não pagas): parcelas já comprometidas.
+  const faturasFuturas = useMemo(
+    () => (fatura ? cartaoFaturas.filter((f) => f.competencia > fatura.competencia && f.status !== 'paga').sort((a, b) => a.competencia.localeCompare(b.competencia)) : []),
+    [cartaoFaturas, fatura],
+  );
+  const futurasKey = faturasFuturas.map((f) => f.id).join(',');
 
   useEffect(() => {
     if (!open || !fatura) return;
     fetchLancamentos(fatura.id);
+    setCatFiltro(null);
+    setBusca('');
+    setFuturas(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, fatura?.id]);
+
+  useEffect(() => {
+    if (!open || aba !== 'parc' || futuras !== null) return;
+    if (!futurasKey) { setFuturas([]); return; }
+    supabase
+      .from('despesas')
+      .select('id, descricao, valor, data_competencia, data_vencimento, categoria_id, fornecedor, parcela_num, parcela_total, fatura_id')
+      .in('fatura_id', futurasKey.split(','))
+      .then(({ data }) => setFuturas((data as unknown as LancamentoLite[]) || []));
+  }, [open, aba, futuras, futurasKey]);
 
   useEffect(() => {
     if (open) {
       setIdxOverride(null); // volta pra fatura atual a cada abertura
+      setAba('lanc');
       if (startInCreate) {
         setTimeout(() => openCreate(), 50);
       }
@@ -138,6 +184,7 @@ export function FaturaDetailDialog({
 
   const openCreate = () => {
     resetForm();
+    setAba('lanc');
     setFormOpen(true);
   };
 
@@ -181,6 +228,7 @@ export function FaturaDetailDialog({
 
       setFormOpen(false);
       resetForm();
+      setFuturas(null);
       await onRefresh?.();
       if (fatura) await fetchLancamentos(fatura.id);
     } finally {
@@ -192,6 +240,7 @@ export function FaturaDetailDialog({
     if (!deleteState) return;
     await deleteDespesa(deleteState.id);
     setDeleteState(null);
+    setFuturas(null);
     await onRefresh?.();
     if (fatura) await fetchLancamentos(fatura.id);
   };
@@ -267,45 +316,80 @@ export function FaturaDetailDialog({
     w.document.close();
   };
 
-  const sheetClass = 'p-0 max-h-[94dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[1180px] sm:mx-auto';
+  // ---- derivados ----
+  const porCategoria = useMemo(() => {
+    const m = new Map<string, { nome: string; cor: string; valor: number }>();
+    for (const l of lancamentos) {
+      const k = l.categoria_id || SEM_CAT;
+      const cur = m.get(k) || { nome: l.categoria?.nome || 'Sem categoria', cor: l.categoria?.cor || COR_SEM, valor: 0 };
+      cur.valor += Number(l.valor);
+      m.set(k, cur);
+    }
+    return [...m.entries()].sort((a, b) => b[1].valor - a[1].valor);
+  }, [lancamentos]);
 
-  const Header = () => (
-    <div className="flex items-center gap-2.5 px-5 pt-1 pb-3">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-surface-2 text-foreground">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-      </span>
-      <div className="min-w-0">
-        <p className="text-[13px] text-foreground-muted">Faturas</p>
-        <h2 className="truncate text-[20px] font-semibold tracking-[-0.03em] text-foreground">{cartao.nome}</h2>
+  const filtrados = useMemo(() => {
+    const t = busca.trim().toLowerCase();
+    return lancamentos.filter((l) => (!catFiltro || (l.categoria_id || SEM_CAT) === catFiltro)
+      && (!t || `${l.descricao} ${l.fornecedor || ''}`.toLowerCase().includes(t)));
+  }, [lancamentos, busca, catFiltro]);
+
+  const grupos: [string, LancamentoLite[]][] = useMemo(() => {
+    if (ordem === 'valor') return [['', [...filtrados].sort((a, b) => Number(b.valor) - Number(a.valor))]];
+    const m = new Map<string, LancamentoLite[]>();
+    for (const l of filtrados) m.set(l.data_competencia, [...(m.get(l.data_competencia) || []), l]);
+    return [...m.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [filtrados, ordem]);
+
+  const futurasPorFatura = useMemo(() => faturasFuturas.map((f) => ({
+    fatura: f,
+    itens: (futuras || []).filter((l) => l.fatura_id === f.id),
+  })), [faturasFuturas, futuras]);
+
+  const Topo = ({ comNavegacao }: { comNavegacao: boolean }) => (
+    <div className="flex flex-wrap items-center gap-3 border-b border-border bg-surface px-5 py-4 md:px-6">
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-white" style={{ background: cartao.cor || '#0B1226' }}><CreditCard className="h-5 w-5" /></span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12.5px] text-foreground-muted">Fatura{cartao.bandeira ? ` · ${cartao.bandeira}` : ''}</p>
+        <h2 className="truncate font-heading text-[22px] font-light tracking-[-0.02em] text-foreground">{cartao.nome}</h2>
       </div>
+      {comNavegacao && fatura && (
+        <div className="order-last flex w-full items-center justify-between gap-1 rounded-full border border-border bg-surface p-1 md:order-none md:w-auto">
+          <button type="button" disabled={idx >= cartaoFaturas.length - 1} onClick={() => setIdx(i => i + 1)} aria-label="Fatura anterior" className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2 disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
+          <span className="min-w-[96px] px-1 text-center leading-tight"><span className="block text-[10px] uppercase tracking-[0.08em] text-foreground-muted">Competência</span><span className="block text-[13px] font-semibold capitalize text-foreground">{format(parseISO(fatura.competencia), 'MMM/yyyy', { locale: ptBR })}</span></span>
+          <button type="button" disabled={idx <= 0} onClick={() => setIdx(i => i - 1)} aria-label="Próxima fatura" className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2 disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
+        </div>
+      )}
+      <button type="button" onClick={() => onOpenChange(false)} aria-label="Fechar" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-foreground-muted hover:text-foreground"><X className="h-4 w-4" /></button>
     </div>
+  );
+
+  const formulario = formOpen && (
+    <LancamentoFormInline
+      categorias={categorias}
+      form={form}
+      setForm={setForm}
+      editing={editing}
+      saving={saving}
+      onCancel={() => { setFormOpen(false); resetForm(); }}
+      onSave={handleSave}
+    />
   );
 
   if (!fatura) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" showHandle className={sheetClass}>
-          <Header />
-          <div className="px-5 pb-6">
-            <div className="mb-4 rounded-[20px] border border-border px-4 py-8 text-center text-sm text-foreground-muted">
-              Nenhuma fatura ainda. Crie um lançamento para abrir a primeira fatura deste cartão.
+        <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[640px]')}>
+          <SheetTitle className="sr-only">Fatura de {cartao.nome}</SheetTitle>
+          <div className="flex max-h-[92dvh] flex-col md:max-h-[88dvh]">
+            <Topo comNavegacao={false} />
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+              <div className="rounded-[20px] border border-dashed border-border px-4 py-10 text-center">
+                <p className="font-heading text-[18px] font-light text-foreground">Nenhuma fatura ainda</p>
+                <p className="text-[13px] text-foreground-muted">Lance a primeira compra para abrir a fatura deste cartão.</p>
+              </div>
+              {formulario || <button type="button" onClick={openCreate} className={cn(btn.primary, 'w-full')}><Plus className="h-4 w-4" />Lançar compra</button>}
             </div>
-            {!formOpen && (
-              <Button onClick={openCreate} size="lg" className="w-full">
-                <PlusIcon className="h-4 w-4" strokeWidth={2.4} /> Novo lançamento
-              </Button>
-            )}
-            {formOpen && (
-              <LancamentoFormInline
-                categorias={categorias}
-                form={form}
-                setForm={setForm}
-                editing={editing}
-                saving={saving}
-                onCancel={() => { setFormOpen(false); resetForm(); }}
-                onSave={handleSave}
-              />
-            )}
           </div>
         </SheetContent>
       </Sheet>
@@ -314,179 +398,193 @@ export function FaturaDetailDialog({
 
   const total = Number(fatura.valor_total);
   const pago = Number(fatura.valor_pago);
-  const restante = total - pago;
-  const pct = total > 0 ? Math.min(100, Math.max(0, Math.round((pago / total) * 100))) : 0;
+  const restante = Math.max(total - pago, 0);
+  const pct = total > 0 ? Math.min(100, Math.max(0, (pago / total) * 100)) : 0;
   const pagsFatura = pagamentos.filter(p => p.fatura_id === fatura.id);
-  const statusTone = fatura.status === 'paga' ? 'success' : restante > 0 ? 'danger' : 'muted';
+  const hoje = new Date();
+  const diasFecha = differenceInCalendarDays(parseISO(fatura.data_fechamento), hoje);
+  const diasVence = differenceInCalendarDays(parseISO(fatura.data_vencimento), hoje);
+  const paga = fatura.status === 'paga' || restante <= 0.009;
+  const selo = paga ? ['Paga', 'bg-success-bg text-success-fg']
+    : diasVence < 0 ? ['Vencida', 'bg-danger-bg text-danger-fg']
+    : diasFecha <= 0 ? ['Fechada', 'bg-warning-bg text-warning-fg']
+    : [`Aberta · fecha em ${diasFecha} ${diasFecha === 1 ? 'dia' : 'dias'}`, 'bg-info-bg text-info-fg'];
+  const relativo = (d: number) => (d === 0 ? 'hoje' : d > 0 ? `daqui a ${d} ${d === 1 ? 'dia' : 'dias'}` : `há ${-d} ${d === -1 ? 'dia' : 'dias'}`);
+  const limite = Number(cartao.limite || 0);
+  const melhorDia = cartao.dia_fechamento ? melhorDiaDeCompra(cartao.dia_fechamento) : null;
 
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" showHandle className={sheetClass}>
-          {/* Top bar: título + navegação de competência (pr p/ não colidir com o X) */}
-          <div className="flex flex-wrap items-center gap-2.5 pl-5 pr-14 pt-1 pb-3 md:pl-7 md:pr-16 md:pt-2">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-surface-2 text-foreground">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/><path d="M9 8h6M9 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-            </span>
-            <div className="min-w-0">
-              <p className="text-[13px] text-foreground-muted">Faturas</p>
-              <h2 className="truncate text-[20px] font-semibold tracking-[-0.03em] text-foreground md:text-[24px]">{cartao.nome}</h2>
-            </div>
-            <div className="ml-auto flex items-center gap-1 rounded-full border border-border bg-surface p-1">
-              <button
-                disabled={idx >= cartaoFaturas.length - 1}
-                onClick={() => setIdx(i => i + 1)}
-                aria-label="Competência anterior"
-                className="no-touch-min grid h-8 w-8 place-items-center rounded-full bg-surface-2 text-foreground transition-colors hover:bg-surface-3 disabled:opacity-30"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <div className="min-w-[110px] px-1 text-center">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Competência</p>
-                <p className="text-[14px] font-semibold text-foreground">{rotuloCompetencia(fatura.competencia)}</p>
-              </div>
-              <button
-                disabled={idx <= 0}
-                onClick={() => setIdx(i => i - 1)}
-                aria-label="Próxima competência"
-                className="no-touch-min grid h-8 w-8 place-items-center rounded-full bg-surface-2 text-foreground transition-colors hover:bg-surface-3 disabled:opacity-30"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+        <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[1100px]')}>
+          <SheetTitle className="sr-only">Fatura de {cartao.nome}</SheetTitle>
+          <div className="flex max-h-[92dvh] flex-col md:h-[88dvh] md:max-h-[88dvh]">
+            <Topo comNavegacao />
 
-          <div className="px-5 pb-6 md:flex md:items-start md:gap-6 md:px-7 md:pb-7">
-            {/* COLUNA ESQUERDA: resumo + pagar + novo lançamento */}
-            <div className="space-y-3.5 md:sticky md:top-2 md:w-[316px] md:shrink-0 md:self-start">
-              <div className="rounded-[20px] border border-border bg-surface p-4 md:rounded-3xl md:p-5">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Em aberto</p>
-                <p className={`mt-1.5 font-heading text-[30px] font-semibold leading-none tracking-[-0.02em] tabular-nums md:text-[34px] ${restante > 0 ? 'text-[hsl(var(--danger-fg))]' : 'text-[hsl(var(--success-fg))]'}`}>
-                  {formatCurrency(restante)}
-                </p>
+            <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-[340px_minmax(0,1fr)] md:overflow-hidden">
+              {/* coluna do resumo */}
+              <aside className="space-y-3 border-b border-border bg-background p-4 md:overflow-y-auto md:border-b-0 md:border-r md:p-5">
+                <section className="rounded-[22px] border border-border bg-surface p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[12px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">Em aberto</p>
+                    <span className={cn('rounded-full px-2.5 py-0.5 text-[11.5px]', selo[1])}>{selo[0]}</span>
+                  </div>
+                  <p className={cn('mt-1 font-heading text-[34px] font-semibold tabular-nums tracking-[-0.03em]', paga ? 'text-success-fg' : 'text-foreground')}>{formatCurrency(restante)}</p>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-success-fg" style={{ width: `${pct}%` }} /></div>
+                  <p className="mt-1.5 text-[12.5px] text-foreground-muted">Pago <b className="font-semibold text-foreground">{formatCurrency(pago)}</b> de {formatCurrency(total)}</p>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-2xl bg-surface-2/70 p-3"><p className="text-[11.5px] text-foreground-muted">Fecha em</p><p className="text-[15px] font-semibold text-foreground">{format(parseISO(fatura.data_fechamento), 'dd/MM')}</p><p className="text-[11.5px] text-foreground-muted">{relativo(diasFecha)}</p></div>
+                    <div className="rounded-2xl bg-surface-2/70 p-3"><p className="text-[11.5px] text-foreground-muted">Vence em</p><p className={cn('text-[15px] font-semibold', !paga && diasVence < 0 ? 'text-danger-fg' : 'text-foreground')}>{format(parseISO(fatura.data_vencimento), 'dd/MM')}</p><p className="text-[11.5px] text-foreground-muted">{relativo(diasVence)}</p></div>
+                  </div>
+                  {melhorDia && <p className="mt-3 rounded-2xl bg-primary/5 px-3 py-2 text-[12px] text-foreground-muted"><CalendarClock className="mr-1 inline h-3.5 w-3.5 text-primary" />Melhor dia de compra: <b className="font-semibold text-foreground">{melhorDia}</b> (a compra cai na fatura seguinte)</p>}
+                  {!paga && <button type="button" onClick={() => onPagar(fatura)} className={cn(btn.primary, 'mt-3 h-11 w-full text-[14px]')}><Wallet className="h-4 w-4" />Pagar fatura</button>}
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    <button type="button" onClick={openCreate} className="flex h-10 items-center justify-center gap-1 rounded-full border border-border text-[12.5px] text-foreground hover:bg-surface-2"><Plus className="h-3.5 w-3.5" />Lançar</button>
+                    <button type="button" onClick={baixarCsv} disabled={lancamentos.length === 0} className="flex h-10 items-center justify-center gap-1 rounded-full border border-border text-[12.5px] text-foreground hover:bg-surface-2 disabled:opacity-40"><Download className="h-3.5 w-3.5" />CSV</button>
+                    <button type="button" onClick={baixarPdf} disabled={lancamentos.length === 0} className="flex h-10 items-center justify-center gap-1 rounded-full border border-border text-[12.5px] text-foreground hover:bg-surface-2 disabled:opacity-40"><FileText className="h-3.5 w-3.5" />PDF</button>
+                  </div>
+                </section>
 
-                {/* Progresso pago/total */}
-                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-2">
-                  <div className="h-full rounded-full bg-[hsl(var(--success))] transition-all" style={{ width: `${pct}%` }} />
-                </div>
-                <p className="mt-1.5 text-[12px] text-foreground-muted">
-                  Pago <b className="text-foreground">{formatCurrency(pago)}</b> de {formatCurrency(total)} · {pct}%
-                </p>
-
-                <div className="mt-4 grid grid-cols-2 gap-y-3 border-t border-border pt-3.5">
-                  <Summary lab="Vencimento" val={format(parseISO(fatura.data_vencimento), 'dd/MM/yyyy')} />
-                  <Summary lab="Fechamento" val={format(parseISO(fatura.data_fechamento), 'dd/MM/yyyy')} />
-                  <Summary lab="Status" val={fatura.status.replace('_', ' ')} capitalize tone={statusTone} />
-                  <Summary lab="Lançamentos" val={String(lancamentos.length)} />
-                </div>
-
-                {restante > 0 && (
-                  <Button onClick={() => onPagar(fatura)} size="lg" className="mt-4 w-full">
-                    Pagar fatura
-                  </Button>
+                {limite > 0 && usado !== undefined && (
+                  <section className="rounded-[22px] border border-border bg-surface p-4">
+                    <div className="flex items-baseline justify-between"><p className="text-[12px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">Limite</p><p className="text-[12.5px] text-foreground-muted">{formatCurrency(limite)}</p></div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-2"><div className={cn('h-full rounded-full', usado / limite > 0.8 ? 'bg-danger-fg' : 'bg-primary')} style={{ width: `${Math.min(100, Math.max(2, (usado / limite) * 100))}%` }} /></div>
+                    <div className="mt-1.5 flex justify-between text-[12.5px]"><span className="text-foreground-muted">Usado <b className="font-semibold text-foreground">{formatCurrency(usado)}</b></span><span className="text-foreground-muted">Livre <b className="font-semibold text-success-fg">{formatCurrency(Math.max(limite - usado, 0))}</b></span></div>
+                    {usado > restante + 0.009 && <p className="mt-1 text-[11.5px] text-foreground-subtle">Inclui {formatCurrency(usado - restante)} de parcelas e faturas futuras</p>}
+                  </section>
                 )}
-              </div>
 
-              {!formOpen && (
-                <Button onClick={openCreate} variant="outline" size="lg" className="w-full">
-                  <PlusIcon className="h-4 w-4" strokeWidth={2.4} /> Novo lançamento
-                </Button>
-              )}
-
-              {/* Exportar lançamentos da fatura */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={baixarCsv}
-                  disabled={lancamentos.length === 0}
-                  className="no-touch-min flex h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-surface text-[13px] font-semibold text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-40"
-                >
-                  <Download className="h-3.5 w-3.5" /> CSV
-                </button>
-                <button
-                  onClick={baixarPdf}
-                  disabled={lancamentos.length === 0}
-                  className="no-touch-min flex h-10 items-center justify-center gap-1.5 rounded-full border border-border bg-surface text-[13px] font-semibold text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-40"
-                >
-                  <Download className="h-3.5 w-3.5" /> PDF
-                </button>
-              </div>
-            </div>
-
-            {/* COLUNA DIREITA: form + lançamentos + pagamentos */}
-            <div className="mt-4 min-w-0 flex-1 space-y-4 md:mt-0">
-              {formOpen && (
-                <LancamentoFormInline
-                  categorias={categorias}
-                  form={form}
-                  setForm={setForm}
-                  editing={editing}
-                  saving={saving}
-                  onCancel={() => { setFormOpen(false); resetForm(); }}
-                  onSave={handleSave}
-                />
-              )}
-
-              <div>
-                <div className="flex items-baseline justify-between px-0.5 pb-1.5">
-                  <h4 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Lançamentos</h4>
-                  <span className="text-[12px] text-foreground-muted">{lancamentos.length} {lancamentos.length === 1 ? 'item' : 'itens'}</span>
-                </div>
-                {loadingLancs ? (
-                  <p className="py-3 text-center text-sm text-foreground-muted">Carregando…</p>
-                ) : lancamentos.length === 0 ? (
-                  <p className="rounded-[20px] border border-border bg-surface py-8 text-center text-sm text-foreground-muted">Sem lançamentos nesta fatura.</p>
-                ) : (
-                  <div className="rounded-[20px] border border-border bg-surface px-3.5">
-                    {lancamentos.map((l) => (
-                      <div key={l.id} className="group flex items-center gap-3 border-b border-border py-3 last:border-b-0">
-                        <span
-                          className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px]"
-                          style={{ background: `color-mix(in srgb, ${l.categoria?.cor || 'hsl(var(--primary))'} 14%, transparent)` }}
-                        >
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: l.categoria?.cor || 'hsl(var(--primary))' }} />
+                {porCategoria.length > 0 && (
+                  <section className="rounded-[22px] border border-border bg-surface p-4">
+                    <div className="mb-2 flex items-center justify-between"><p className="text-[12px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">Por categoria</p>{catFiltro && <button type="button" onClick={() => setCatFiltro(null)} className="text-[12px] text-primary">limpar filtro</button>}</div>
+                    {porCategoria.map(([k, c]) => (
+                      <button key={k} type="button" onClick={() => { setCatFiltro(catFiltro === k ? null : k); setAba('lanc'); }} className={cn('mb-1.5 block w-full rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-surface-2', catFiltro === k && 'bg-surface-2')}>
+                        <span className="flex items-center justify-between gap-2 text-[13px]">
+                          <span className="flex min-w-0 items-center gap-2"><i className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.cor }} /><span className="truncate text-foreground">{c.nome}</span></span>
+                          <span className="shrink-0 font-semibold tabular-nums text-foreground">{formatCurrency(c.valor)}</span>
                         </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[14px] font-semibold text-foreground">{l.descricao}</p>
-                          <p className="truncate text-[12px] text-foreground-muted">
-                            {format(parseISO(l.data_competencia), "dd 'de' MMM", { locale: ptBR })}
-                            {l.categoria?.nome ? ` · ${l.categoria.nome}` : ''}
-                            {l.fornecedor ? ` · ${l.fornecedor}` : ''}
-                          </p>
-                        </div>
-                        <span className="shrink-0 whitespace-nowrap font-heading text-[15px] font-semibold tabular-nums tracking-[-0.01em] text-foreground">{formatCurrency(Number(l.valor))}</span>
-                        <div className="flex shrink-0 items-center gap-0.5 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
-                          <button onClick={() => openEdit(l)} aria-label="Editar" className="no-touch-min grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface-2 hover:text-foreground">
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button onClick={() => setDeleteState(l)} aria-label="Excluir" className="no-touch-min grid h-8 w-8 place-items-center rounded-full text-[hsl(var(--danger-fg))] hover:bg-danger-bg">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
+                        <span className="mt-1 block h-1 overflow-hidden rounded-full bg-surface-2"><span className="block h-full rounded-full" style={{ width: `${(c.valor / porCategoria[0][1].valor) * 100}%`, background: c.cor }} /></span>
+                      </button>
                     ))}
-                  </div>
+                  </section>
                 )}
-              </div>
+              </aside>
 
-              {pagsFatura.length > 0 && (
-                <div>
-                  <h4 className="px-0.5 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Pagamentos</h4>
-                  <div className="rounded-[20px] border border-border bg-surface px-3.5">
-                    {pagsFatura.map(p => {
-                      const conta = contas.find(c => c.id === p.conta_id);
-                      return (
-                        <div key={p.id} className="flex items-center justify-between gap-3 border-b border-border py-3 last:border-b-0">
-                          <div className="min-w-0">
-                            <p className="truncate text-[14px] font-semibold text-foreground">{conta?.nome || 'Conta'}</p>
-                            <p className="text-[12px] text-foreground-muted">{format(parseISO(p.data_pagamento), 'dd/MM/yyyy')}</p>
-                          </div>
-                          <span className="shrink-0 font-heading text-[15px] font-semibold tabular-nums text-[hsl(var(--success-fg))]">{formatCurrency(Number(p.valor))}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+              {/* coluna dos lançamentos */}
+              <div className="flex min-h-0 flex-col bg-surface">
+                <div className="space-y-3 border-b border-border p-4 md:px-5">
+                  <Segmented<'lanc' | 'parc' | 'pag'> value={aba} onChange={setAba} opts={[
+                    ['lanc', <span key="l">Lançamentos <span className="text-[11px] opacity-70">{lancamentos.length}</span></span>],
+                    ['parc', 'Parcelas futuras'],
+                    ['pag', <span key="p">Pagamentos{pagsFatura.length ? <span className="text-[11px] opacity-70"> {pagsFatura.length}</span> : null}</span>],
+                  ]} />
+                  {aba === 'lanc' && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-background px-3">
+                        <Search className="h-4 w-4 shrink-0 text-foreground-muted" />
+                        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar compra ou fornecedor" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-foreground-muted" />
+                      </label>
+                      <div className="flex gap-1 rounded-full border border-border p-1">
+                        {(['data', 'valor'] as const).map((o) => <button key={o} type="button" onClick={() => setOrdem(o)} className={cn('h-7 rounded-full px-3 text-[12.5px]', ordem === o ? 'bg-foreground text-background' : 'text-foreground-muted')}>{o === 'data' ? 'Por dia' : 'Maior valor'}</button>)}
+                      </div>
+                      {catFiltro && (() => { const c = porCategoria.find(([k]) => k === catFiltro)?.[1]; return c ? <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-surface-2 px-3 text-[12.5px] text-foreground"><i className="h-2 w-2 rounded-full" style={{ background: c.cor }} />{c.nome}<button type="button" onClick={() => setCatFiltro(null)} aria-label="Tirar filtro"><X className="h-3.5 w-3.5" /></button></span> : null; })()}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 md:px-5">
+                  {aba === 'lanc' && (
+                    <>
+                      {formulario && <div className="pt-4">{formulario}</div>}
+                      {loadingLancs ? (
+                        <p className="py-10 text-center text-[13.5px] text-foreground-muted">Carregando…</p>
+                      ) : (
+                        <>
+                          {grupos.map(([dia, itens]) => (
+                            <div key={dia || 'valor'}>
+                              {dia && (
+                                <div className="sticky top-0 z-10 -mx-4 flex items-center justify-between bg-surface/95 px-4 pb-1.5 pt-4 backdrop-blur md:-mx-5 md:px-5">
+                                  <p className="text-[12px] font-semibold text-foreground-muted first-letter:uppercase">{diaLongo(dia)}</p>
+                                  <p className="text-[12px] tabular-nums text-foreground-muted">{formatCurrency(itens.reduce((s, l) => s + Number(l.valor), 0))}</p>
+                                </div>
+                              )}
+                              {!dia && <div className="h-3" />}
+                              {itens.map((l) => {
+                                const cor = l.categoria?.cor || COR_SEM;
+                                const forn = bonito(l.fornecedor);
+                                return (
+                                  <div key={l.id} className="group flex items-center gap-3 rounded-2xl px-2 py-2.5 hover:bg-surface-2/60">
+                                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[11px] font-semibold uppercase text-white" style={{ background: cor }}>{(forn || bonito(l.descricao) || '?').slice(0, 2)}</span>
+                                    <span className="min-w-0 flex-1">
+                                      <span className="flex items-center gap-2"><span className="truncate text-[14px] text-foreground">{bonito(l.descricao)}</span>
+                                        {l.parcela_total && l.parcela_total > 1 && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-1.5 py-[1px] text-[10.5px] font-medium text-primary"><Repeat className="h-2.5 w-2.5" />{l.parcela_num}/{l.parcela_total}</span>}</span>
+                                      <span className="block truncate text-[12px] text-foreground-muted">{[forn, l.categoria?.nome || 'Sem categoria', ordem === 'valor' ? diaLongo(l.data_competencia) : ''].filter(Boolean).join(' · ')}</span>
+                                    </span>
+                                    <span className="shrink-0 text-[14.5px] font-semibold tabular-nums text-foreground">{formatCurrency(Number(l.valor))}</span>
+                                    <span className="flex shrink-0 gap-0.5 md:opacity-0 md:group-hover:opacity-100">
+                                      <button type="button" onClick={() => openEdit(l)} aria-label="Editar" className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-surface hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                                      <button type="button" onClick={() => setDeleteState(l)} aria-label="Excluir" className="grid h-8 w-8 place-items-center rounded-full text-foreground-muted hover:bg-danger-bg hover:text-danger-fg"><Trash2 className="h-3.5 w-3.5" /></button>
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ))}
+                          {!filtrados.length && (
+                            <div className="py-12 text-center">
+                              <p className="text-[13.5px] text-foreground-muted">{lancamentos.length ? 'Nada encontrado com esse filtro.' : 'Sem lançamentos nesta fatura.'}</p>
+                              {!lancamentos.length && !formOpen && <button type="button" onClick={openCreate} className={cn(btn.outline, 'mt-3')}><Plus className="h-4 w-4" />Lançar compra</button>}
+                            </div>
+                          )}
+                          {filtrados.length > 0 && (
+                            <div className="mt-3 flex justify-between border-t border-border pt-3 text-[13px]"><span className="text-foreground-muted">{filtrados.length} lançamento{filtrados.length === 1 ? '' : 's'}{catFiltro || busca ? ' (filtrados)' : ''}</span><span className="font-semibold tabular-nums text-foreground">{formatCurrency(filtrados.reduce((s, l) => s + Number(l.valor), 0))}</span></div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {aba === 'parc' && (
+                    <div className="space-y-3 pt-4">
+                      <p className="text-[12.5px] text-foreground-muted">O que já está lançado nas próximas faturas (parcelas e compras futuras).</p>
+                      {futuras === null ? <p className="py-8 text-center text-[13.5px] text-foreground-muted">Carregando…</p>
+                        : futurasPorFatura.length === 0 ? <p className="rounded-[20px] border border-dashed border-border py-10 text-center text-[13.5px] text-foreground-muted">Nenhuma fatura futura em aberto.</p>
+                        : futurasPorFatura.map(({ fatura: f, itens }) => (
+                          <section key={f.id} className="rounded-[20px] border border-border p-4">
+                            <div className="mb-2 flex items-baseline justify-between"><p className="text-[14px] font-semibold capitalize text-foreground">{format(parseISO(f.competencia), 'MMM/yyyy', { locale: ptBR })} <span className="text-[12px] font-normal normal-case text-foreground-muted">· vence {format(parseISO(f.data_vencimento), 'dd/MM')}</span></p><p className="text-[14px] font-semibold tabular-nums text-foreground">{formatCurrency(Number(f.valor_total) - Number(f.valor_pago))}</p></div>
+                            {itens.length ? itens.map((l) => (
+                              <div key={l.id} className="flex items-center justify-between gap-3 border-t border-border py-2 text-[13px] first:border-t-0">
+                                <span className="min-w-0 truncate text-foreground">{bonito(l.descricao)} {l.parcela_total && l.parcela_total > 1 && <span className="ml-1 rounded-full bg-primary/10 px-1.5 text-[10.5px] text-primary">{l.parcela_num}/{l.parcela_total}</span>}</span>
+                                <span className="shrink-0 tabular-nums text-foreground-muted">{formatCurrency(Number(l.valor))}</span>
+                              </div>
+                            )) : <p className="text-[12.5px] text-foreground-muted">Sem itens lançados ainda.</p>}
+                          </section>
+                        ))}
+                    </div>
+                  )}
+
+                  {aba === 'pag' && (
+                    <div className="pt-4">
+                      {pagsFatura.length === 0 ? (
+                        <div className="rounded-[20px] border border-dashed border-border py-10 text-center">
+                          <p className="font-heading text-[18px] font-light text-foreground">Nenhum pagamento ainda</p>
+                          <p className="text-[13px] text-foreground-muted">Quando pagar, aparece aqui com a conta e a data.</p>
+                          {!paga && <button type="button" onClick={() => onPagar(fatura)} className={cn(btn.primary, 'mt-4')}>Pagar fatura</button>}
+                        </div>
+                      ) : pagsFatura.map((p) => {
+                        const conta = contas.find(c => c.id === p.conta_id);
+                        return (
+                          <div key={p.id} className="flex items-center gap-3 border-t border-border py-2.5 text-[13.5px] first:border-t-0">
+                            <span className="grid h-8 w-8 place-items-center rounded-full bg-success-bg text-success-fg"><Check className="h-4 w-4" /></span>
+                            <span className="flex-1"><span className="block text-foreground">Pago com {conta?.nome || 'conta'}</span><span className="block text-[12px] text-foreground-muted">{format(parseISO(p.data_pagamento), 'dd/MM/yyyy')}</span></span>
+                            <span className="font-semibold tabular-nums text-foreground">{formatCurrency(Number(p.valor))}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </SheetContent>
@@ -505,25 +603,7 @@ export function FaturaDetailDialog({
   );
 }
 
-function Summary({ lab, val, danger, capitalize, tone }: { lab: string; val: string; strong?: boolean; danger?: boolean; capitalize?: boolean; tone?: 'success' | 'danger' | 'muted' }) {
-  const color = danger || tone === 'danger'
-    ? 'text-[hsl(var(--danger-fg))]'
-    : tone === 'success'
-      ? 'text-[hsl(var(--success-fg))]'
-      : tone === 'muted'
-        ? 'text-foreground-muted'
-        : 'text-foreground';
-  return (
-    <div>
-      <p className="text-[11px] text-foreground-muted">{lab}</p>
-      <p className={`mt-0.5 text-[13.5px] font-semibold tabular-nums ${color} ${capitalize ? 'capitalize' : ''}`}>
-        {val}
-      </p>
-    </div>
-  );
-}
-
-// ----------------- Form inline (AURO) -----------------
+// ----------------- Form inline -----------------
 
 function LancamentoFormInline({
   categorias,
@@ -536,6 +616,7 @@ function LancamentoFormInline({
 }: {
   categorias: { id: string; nome: string; tipo: string; cor?: string }[];
   form: { descricao: string; valor: string | number; data_competencia: string; categoria_id: string; fornecedor: string; parcelas: number };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setForm: (updater: any) => void;
   editing: LancamentoLite | null;
   saving: boolean;
@@ -543,105 +624,54 @@ function LancamentoFormInline({
   onSave: () => void;
 }) {
   const catSel = categorias.find(c => c.id === form.categoria_id);
+  type F = typeof form;
+  const valorNum = typeof form.valor === 'string' ? parseFloat(form.valor) : form.valor;
   return (
-    <section className="space-y-2">
-      <h4 className="px-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">
-        {editing ? 'Editar lançamento' : 'Novo lançamento'}
-      </h4>
-    <div className="space-y-3.5 rounded-[20px] border border-border bg-surface p-4">
-
-      <div className="space-y-1.5">
-        <Label>Descrição *</Label>
-        <Input
-          value={form.descricao}
-          onChange={(e) => setForm((p: any) => ({ ...p, descricao: e.target.value }))}
-          placeholder="Ex: Assinatura Netflix"
-        />
-      </div>
-
+    <section className="space-y-3 rounded-[20px] border border-foreground/20 bg-background p-4">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">{editing ? 'Editar lançamento' : 'Nova compra no cartão'}</p>
+      <Campo label="Descrição">
+        <Input value={form.descricao} onChange={(e) => setForm((p: F) => ({ ...p, descricao: e.target.value }))} placeholder="Ex.: Assinatura Netflix" />
+      </Campo>
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label>Valor *</Label>
-          <Input
-            type="number"
-            step="0.01"
-            value={form.valor}
-            onChange={(e) => setForm((p: any) => ({ ...p, valor: e.target.value }))}
-            placeholder="R$ 0,00"
-            className="h-12 font-heading text-lg font-semibold tabular-nums"
-          />
-        </div>
-        {!editing && (
-          <div className="space-y-1.5">
-            <Label>Parcelas</Label>
-            <Input
-              type="number"
-              min="1"
-              max="48"
-              step="1"
-              value={form.parcelas}
-              onChange={(e) => setForm((p: any) => ({ ...p, parcelas: parseInt(e.target.value) || 1 }))}
-              placeholder="1"
-              className="h-12"
-            />
+        <Campo label="Valor">
+          <div className="flex h-10 items-center rounded-xl border border-input bg-surface-2 px-3 focus-within:ring-2 focus-within:ring-ring">
+            <span className="mr-1 text-foreground-muted">R$</span>
+            <input type="number" step="0.01" inputMode="decimal" value={form.valor} onChange={(e) => setForm((p: F) => ({ ...p, valor: e.target.value }))} placeholder="0,00" className="min-w-0 flex-1 bg-transparent font-semibold tabular-nums outline-none" />
           </div>
+        </Campo>
+        {!editing && (
+          <Campo label="Parcelas" hint={form.parcelas > 1 && valorNum > 0 ? `${form.parcelas}× de ${formatCurrency(valorNum / form.parcelas)}` : 'à vista'}>
+            <Input type="number" min="1" max="48" step="1" value={form.parcelas} onChange={(e) => setForm((p: F) => ({ ...p, parcelas: Math.max(1, Math.min(48, parseInt(e.target.value) || 1)) }))} />
+          </Campo>
         )}
       </div>
-
-      <DatePickerField
-        label="Data da compra"
-        required
-        showQuickButtons
-        value={form.data_competencia}
-        onChange={(v) => setForm((p: any) => ({ ...p, data_competencia: v }))}
-      />
-
-      <div className="space-y-1.5">
-        <Label>Categoria</Label>
-        <Select
-          value={form.categoria_id || 'none'}
-          onValueChange={(v) => setForm((p: any) => ({ ...p, categoria_id: v === 'none' ? '' : v }))}
-        >
-          <SelectTrigger>
-            {catSel
-              ? <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[5px]" style={{ background: catSel.cor || 'hsl(var(--primary))' }} />{catSel.nome}</span>
-              : <SelectValue placeholder="Selecionar categoria" />}
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Sem categoria</SelectItem>
-            {categorias.map(c => (
-              <SelectItem key={c.id} value={c.id}>
-                <span className="flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[5px]" style={{ background: c.cor || 'hsl(var(--primary))' }} />{c.nome}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <DatePickerField label="Data da compra" required showQuickButtons value={form.data_competencia} onChange={(v) => setForm((p: F) => ({ ...p, data_competencia: v }))} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Campo label="Categoria">
+          <Select value={form.categoria_id || 'none'} onValueChange={(v) => setForm((p: F) => ({ ...p, categoria_id: v === 'none' ? '' : v }))}>
+            <SelectTrigger>
+              {catSel
+                ? <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full" style={{ background: catSel.cor || COR_SEM }} />{catSel.nome}</span>
+                : <SelectValue placeholder="Selecionar categoria" />}
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Sem categoria</SelectItem>
+              {categorias.map(c => (
+                <SelectItem key={c.id} value={c.id}>
+                  <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full" style={{ background: c.cor || COR_SEM }} />{c.nome}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Campo>
+        <Campo label="Fornecedor">
+          <Input value={form.fornecedor} onChange={(e) => setForm((p: F) => ({ ...p, fornecedor: e.target.value }))} placeholder="Opcional" />
+        </Campo>
       </div>
-
-      <div className="space-y-1.5">
-        <Label>Fornecedor</Label>
-        <Input
-          value={form.fornecedor}
-          onChange={(e) => setForm((p: any) => ({ ...p, fornecedor: e.target.value }))}
-          placeholder="Opcional"
-        />
+      <div className="flex justify-end gap-2 pt-1">
+        <button type="button" className={btn.outline} onClick={onCancel} disabled={saving}>Cancelar</button>
+        <button type="button" className={btn.primary} onClick={onSave} disabled={saving || !form.descricao.trim() || !form.valor}>{saving ? 'Salvando…' : editing ? 'Salvar' : 'Adicionar'}</button>
       </div>
-
-      <div className="flex gap-2.5 pt-1">
-        <Button type="button" variant="outline" size="lg" className="flex-1" onClick={onCancel} disabled={saving}>
-          Cancelar
-        </Button>
-        <Button
-          type="button"
-          size="lg"
-          className="flex-[2]"
-          onClick={onSave}
-          disabled={saving || !form.descricao.trim() || !form.valor}
-        >
-          {saving ? 'Salvando…' : editing ? 'Salvar' : 'Adicionar'}
-        </Button>
-      </div>
-    </div>
     </section>
   );
 }

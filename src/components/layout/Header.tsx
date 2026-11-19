@@ -1,51 +1,31 @@
 import { useLocation } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { OlhoValores } from '@/components/shared/OlhoValores';
+import { rotaInfo } from './navItems';
 
-const routeLabels: Record<string, { group: string; label: string }> = {
-  '/': { group: 'Visão geral', label: 'Dashboard' },
-  '/calendario': { group: 'Visão geral', label: 'Calendário' },
-  '/fluxo-caixa': { group: 'Financeiro', label: 'Fluxo de Caixa' },
-  '/relatorios': { group: 'Análise', label: 'Relatórios' },
-  '/analises': { group: 'Análise', label: 'Análises' },
-  '/clientes': { group: 'Comercial', label: 'Clientes' },
-  '/contratos': { group: 'Comercial', label: 'Contratos' },
-  '/contas': { group: 'Cadastros', label: 'Contas Bancárias' },
-  '/categorias': { group: 'Cadastros', label: 'Categorias' },
-  '/configuracoes': { group: 'Sistema', label: 'Configurações' },
-};
-
+/** Barra de cima do desktop: breadcrumb + ocultar valores + notificações. No celular cada tela traz o próprio título. */
 export function Header() {
-  const location = useLocation();
-  const route = routeLabels[location.pathname];
-  const showBreadcrumb = location.pathname !== '/';
+  const { pathname } = useLocation();
+  const rota = rotaInfo(pathname);
 
   return (
     <header
-      // Transparente, sem borda nem desfoque: a grade do fundo passa por trás (antes o
-      // backdrop-blur + border-b criavam uma "faixa" separada em todas as telas).
-      // Obs.: #root/body têm overflow-x:hidden, então o sticky não fixa — o cabeçalho
-      // rola junto com a página.
-      className="sticky top-0 z-40 hidden md:flex items-center justify-between gap-2 px-3 md:px-6 bg-transparent"
-      style={{
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        height: 'calc(3.5rem + env(safe-area-inset-top, 0px))',
-      }}
+      // Transparente, sem borda nem desfoque: a grade do fundo passa por trás.
+      className="sticky top-0 z-40 hidden items-center justify-between gap-3 bg-transparent px-10 md:flex"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)', height: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }}
     >
-      {/* Desktop: trigger do sidebar + breadcrumb. Mobile: sem hambúrguer/título (o cabeçalho da tela já traz o título, igual mockup) */}
-      <div className="hidden md:flex items-center gap-2 min-w-0 flex-1">
-        {showBreadcrumb && route && (
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm min-w-0">
-            <span className="text-foreground-muted">{route.group}</span>
-            <span className="text-foreground-subtle">/</span>
-            <span className="text-foreground font-medium truncate">{route.label}</span>
+      <div className="min-w-0 flex-1">
+        {rota && (
+          <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[13px]">
+            <span className="text-foreground-muted">{rota.grupo}</span>
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-foreground-subtle" />
+            <span className="truncate text-foreground">{rota.label}</span>
           </nav>
         )}
       </div>
-      <div className="md:hidden flex-1" />
-
-      <div className="flex items-center gap-1 md:gap-2 shrink-0">
-        <OlhoValores />
+      <div className="flex shrink-0 items-center gap-1.5">
+        <OlhoValores className="h-9 w-9 rounded-full border-0 bg-transparent text-foreground-muted hover:bg-surface-2 hover:text-foreground [&>svg]:h-[18px] [&>svg]:w-[18px]" />
         <NotificationBell />
       </div>
     </header>

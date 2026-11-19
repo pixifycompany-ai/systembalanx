@@ -17,8 +17,8 @@ export const SECTION_LABEL_CLS = 'text-[11px] font-semibold uppercase tracking-[
 export function SheetHeading({ eyebrow, title, subtitle, className }: { eyebrow?: ReactNode; title: ReactNode; subtitle?: ReactNode; className?: string }) {
   return (
     <div className={cn('pb-1', className)}>
-      {eyebrow && <p className="text-[13px] text-foreground-muted">{eyebrow}</p>}
-      <h2 className="mt-0.5 font-heading text-[22px] font-semibold tracking-[-0.02em] text-foreground">{title}</h2>
+      {eyebrow && <p className="text-[12px] text-foreground-muted">{eyebrow}</p>}
+      <h2 className="mt-0.5 font-heading text-[24px] font-light tracking-[-0.03em] text-foreground">{title}</h2>
       {subtitle && <div className="mt-1 text-[13px] leading-relaxed text-foreground-muted">{subtitle}</div>}
     </div>
   );

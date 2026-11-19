@@ -88,7 +88,7 @@ export function GoogleAgendaPainel({ onChange }: { onChange?: () => void }) {
           <li>• O que mudar lá (horário de um compromisso, tarefa concluída) volta para o BALANX.</li>
           <li>• Dá para desconectar quando quiser.</li>
         </ul>
-        <Button className="h-12 w-full rounded-full font-semibold" onClick={conectar} disabled={busy === 'conectar'}>
+        <Button className="h-12 w-full rounded-full font-medium bg-foreground text-background hover:bg-foreground/90" onClick={conectar} disabled={busy === 'conectar'}>
           {busy === 'conectar' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Conectar com o Google
         </Button>
       </div>

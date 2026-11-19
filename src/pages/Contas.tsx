@@ -1,26 +1,23 @@
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { format, startOfMonth, endOfMonth, differenceInCalendarDays, parseISO } from 'date-fns';
+import {
+  AlertTriangle, Archive, ArchiveRestore, ArrowDownRight, ArrowUpRight, Check, ChevronDown, CreditCard, Landmark, MoreHorizontal,
+  Pencil, PiggyBank, Plus, Scale, Trash2, TrendingUp,
+} from 'lucide-react';
 import { useActionParam } from '@/hooks/useActionParam';
-import { IconButton } from '@/components/shared/IconButton';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { PageHeader, Segmented, Secao, Campo, ModalHeader, ModalFooter, ModalShell } from '@/components/reskin/kit';
+import { btn, modalCls } from '@/components/reskin/estilos';
+import { supabase } from '@/integrations/supabase/client';
 import { useContas, type ContaDB, type ContaFormData } from '@/hooks/useContas';
 import { useFaturas, type FaturaDB } from '@/hooks/useFaturas';
 import { formatCurrency } from '@/utils/formatters';
-import { Plus, Pencil, Trash2, Building2, Archive, ArchiveRestore, Scale } from 'lucide-react';
-import { BuildingLibraryIcon, CreditCardIcon, HomeIcon } from '@heroicons/react/24/outline';
-import { HeroStatCard } from '@/components/shared/HeroStatCard';
-import { SectionCard } from '@/components/shared/SectionCard';
-import { StatusBadge } from '@/components/shared/StatusBadge';
-import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
 import { CartaoCard } from '@/components/cartoes/CartaoCard';
 import { CartaoFormDialog } from '@/components/cartoes/CartaoFormDialog';
 import { FaturaDetailDialog } from '@/components/cartoes/FaturaDetailDialog';
@@ -28,14 +25,16 @@ import { PagarFaturaDialog } from '@/components/cartoes/PagarFaturaDialog';
 import { CartaoCsvImportDialog } from '@/components/cartoes/CartaoCsvImportDialog';
 import { getFaturaAtual } from '@/utils/faturaCalculator';
 import { ConferirSaldoSheet } from '@/components/contas/ConferirSaldoSheet';
+import { cn } from '@/lib/utils';
 
 const CONTA_TIPOS = [
   { value: 'corrente', label: 'Corrente' },
   { value: 'poupanca', label: 'Poupança' },
   { value: 'investimento', label: 'Investimento' },
 ] as const;
+type ContaTipoForm = (typeof CONTA_TIPOS)[number]['value'];
 
-const CORES = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
+const CORES = ['#0B1226', '#3B82F6', '#8B5CF6', '#F97316', '#10B981', '#EF4444', '#EC4899', '#06B6D4', '#F59E0B', '#64748B'];
 
 const defaultFormData: ContaFormData = {
   nome: '',
@@ -46,9 +45,41 @@ const defaultFormData: ContaFormData = {
   ativa: true,
 };
 
+const tipoLabel = (t: string) => CONTA_TIPOS.find((x) => x.value === t)?.label ?? 'Conta';
+const IconeConta = ({ tipo, className }: { tipo: string; className?: string }) =>
+  tipo === 'investimento' ? <TrendingUp className={className} /> : tipo === 'poupanca' ? <PiggyBank className={className} /> : <Landmark className={className} />;
+
+/** Entradas/saídas efetivadas no mês por conta + última conferência com o banco. */
+function useMovimentoContas() {
+  return useQuery({
+    queryKey: ['contas-movimento-mes'],
+    staleTime: 30_000,
+    queryFn: async () => {
+      const ini = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+      const fim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+      const [rec, desp, conf] = await Promise.all([
+        supabase.from('receitas').select('conta_id, valor').eq('status', 'recebido').gte('data_recebimento', ini).lte('data_recebimento', fim).not('conta_id', 'is', null),
+        supabase.from('despesas').select('conta_id, valor').eq('status', 'pago').gte('data_pagamento', ini).lte('data_pagamento', fim).not('conta_id', 'is', null),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from('conferencias_saldo').select('conta_id, created_at, diferenca').order('created_at', { ascending: false }).limit(200),
+      ]);
+      const mov = new Map<string, { entrou: number; saiu: number }>();
+      const pegar = (id: string) => { const m = mov.get(id) || { entrou: 0, saiu: 0 }; mov.set(id, m); return m; };
+      for (const r of (rec.data || []) as { conta_id: string; valor: number }[]) pegar(r.conta_id).entrou += Number(r.valor) || 0;
+      for (const d of (desp.data || []) as { conta_id: string; valor: number }[]) pegar(d.conta_id).saiu += Number(d.valor) || 0;
+      const ultima = new Map<string, { quando: string; bateu: boolean }>();
+      for (const c of ((conf?.data || []) as { conta_id: string; created_at: string; diferenca: number }[])) {
+        if (!ultima.has(c.conta_id)) ultima.set(c.conta_id, { quando: c.created_at, bateu: Math.abs(Number(c.diferenca)) < 0.01 });
+      }
+      return { mov, ultima };
+    },
+  });
+}
+
 export default function Contas() {
   const { contas, isLoading, createConta, updateConta, deleteConta, setContaArquivada, deleteCartao, countContaLinks, getBankAccounts, getCreditCards, refetch } = useContas();
   const { faturas, pagamentos, refetch: refetchFaturas } = useFaturas();
+  const { data: movimento, refetch: refetchMovimento } = useMovimentoContas();
 
   const todasContasBancarias = getBankAccounts();
   // Arquivada = inativa: sai das listas e do saldo total, mas o histórico fica.
@@ -93,11 +124,10 @@ export default function Contas() {
   }, [creditCards, faturas]);
 
   // Limite USADO por cartão = soma do que está em aberto em TODAS as faturas
-  // não pagas (parcelas futuras também ocupam limite). Derivado das faturas
-  // (mesma fonte do card) → consistente e atualiza ao pagar/lançar.
+  // não pagas (parcelas futuras também ocupam limite).
   const usadoPorCartao = useMemo(() => {
     const map = new Map<string, number>();
-    faturas.forEach((f: any) => {
+    faturas.forEach((f) => {
       if (f.status === 'paga') return;
       const restante = Number(f.valor_total) - Number(f.valor_pago);
       map.set(f.cartao_id, (map.get(f.cartao_id) || 0) + Math.max(restante, 0));
@@ -111,7 +141,7 @@ export default function Contas() {
       setFormData({
         nome: conta.nome,
         banco: conta.banco || '',
-        tipo: conta.tipo as any,
+        tipo: conta.tipo,
         saldo_inicial: conta.saldo_inicial,
         cor: conta.cor,
         ativa: conta.ativa,
@@ -177,333 +207,199 @@ export default function Contas() {
     const f = faturaAtualPorCartao.get(c.id);
     return sum + (f ? Math.max(Number(f.valor_total) - Number(f.valor_pago), 0) : 0);
   }, 0);
+  const livreCartoes = creditCards.reduce((s, c) => s + Math.max(Number(c.limite || 0) - (usadoPorCartao.get(c.id) || 0), 0), 0);
 
   const novoCartao = () => { setEditingCartao(null); setIsCartaoFormOpen(true); };
-
-  // Mobile: contas agrupadas por tipo (corrente / poupança / investimento), com total do grupo.
-  const gruposContas = CONTA_TIPOS
-    .map((t) => {
-      const itens = bankAccounts.filter((c) => c.tipo === t.value);
-      return { key: t.value as string, label: t.label as string, itens, total: itens.reduce((s, c) => s + (c.saldo_atual || 0), 0) };
-    })
-    .concat((() => {
-      const outros = bankAccounts.filter((c) => !CONTA_TIPOS.some((t) => t.value === c.tipo));
-      return [{ key: 'outros', label: 'Outras', itens: outros, total: outros.reduce((s, c) => s + (c.saldo_atual || 0), 0) }];
-    })())
-    .filter((g) => g.itens.length > 0);
+  const temLinks = !!deleteConfirm.links && (deleteConfirm.links.receitas + deleteConfirm.links.despesas + deleteConfirm.links.transferencias) > 0;
 
   return (
     <main className="container py-4 md:py-6">
-      <MobilePageHeader
-        eyebrow="Sistema"
-        title={tab === 'contas' ? 'Contas' : 'Cartões'}
-        actions={
-          tab === 'contas' ? (
-            <div className="flex items-center gap-2">
-              {bankAccounts.length > 0 && (
-                <Button variant="outline" onClick={() => setConferirConta('')} aria-label="Conferir saldo com o banco">
-                  <Scale className="h-4 w-4" /><span className="hidden sm:inline">Conferir com o banco</span>
-                </Button>
-              )}
-              <Button onClick={() => handleOpenForm()} aria-label="Nova Conta Bancária">
-                <Plus className="h-4 w-4" />Nova conta
-              </Button>
-            </div>
-          ) : (
-            <Button onClick={novoCartao} aria-label="Novo Cartão de Crédito">
-              <Plus className="h-4 w-4" />Novo cartão
-            </Button>
-          )
-        }
-      />
+      <div className="mx-auto max-w-[1180px] space-y-5">
+        <PageHeader eyebrow="Sistema" title="Contas e cartões">
+          {tab === 'contas' && bankAccounts.length > 0 && (
+            <button type="button" onClick={() => setConferirConta('')} aria-label="Conferir saldo com o banco" className={btn.outline}>
+              <Scale className="h-4 w-4" /><span className="hidden sm:inline">Conferir com o banco</span>
+            </button>
+          )}
+          <button type="button" onClick={() => (tab === 'contas' ? handleOpenForm() : novoCartao())} className={btn.primary}>
+            <Plus className="h-4 w-4" />{tab === 'contas' ? 'Nova conta' : 'Novo cartão'}
+          </button>
+        </PageHeader>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as 'contas' | 'cartoes')}>
-        <TabsList className="grid w-full grid-cols-2 md:inline-grid md:w-auto">
-          <TabsTrigger value="contas" className="gap-1.5 md:px-6">
-            <BuildingLibraryIcon className="h-[15px] w-[15px]" />Contas
-          </TabsTrigger>
-          <TabsTrigger value="cartoes" className="gap-1.5 md:px-6">
-            <CreditCardIcon className="h-[15px] w-[15px]" />Cartões
-          </TabsTrigger>
-        </TabsList>
+        {/* resumo = abas */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" role="tablist">
+          {([
+            ['contas', <PiggyBank key="p" className="h-4 w-4" />, `Contas · ${bankAccounts.length}`, saldoContasAtivas, 'saldo somado de hoje'],
+            ['cartoes', <CreditCard key="c" className="h-4 w-4" />, `Cartões · ${creditCards.length}`, totalCartoes, creditCards.length ? `em faturas abertas · ${formatCurrency(livreCartoes)} de limite livre` : 'nenhum cartão cadastrado'],
+          ] as const).map(([v, ic, rot, valor, sub]) => {
+            const on = tab === v;
+            return (
+              <button key={v} type="button" role="tab" aria-selected={on} onClick={() => setTab(v)} className={cn('rounded-[22px] border p-4 text-left transition-colors', on ? 'border-foreground bg-foreground text-background' : 'border-border bg-surface hover:border-border-strong')}>
+                <span className={cn('flex items-center gap-2 text-[13px]', on ? 'text-background/70' : 'text-foreground-muted')}>{ic}{rot}</span>
+                <span className="mt-1 block font-heading text-[26px] font-semibold tabular-nums tracking-[-0.02em]">{formatCurrency(valor)}</span>
+                <span className={cn('text-[12px]', on ? 'text-background/60' : 'text-foreground-muted')}>{sub}</span>
+              </button>
+            );
+          })}
+        </div>
 
-        {/* TAB CONTAS BANCÁRIAS */}
-        <TabsContent value="contas" className="mt-4 space-y-4 md:mt-6 md:space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
-            <HeroStatCard
-              eyebrow="Saldo total em contas"
-              value={saldoContasAtivas}
-              subtitle={`${bankAccounts.length} ${bankAccounts.length === 1 ? 'conta ativa' : 'contas ativas'}`}
-              className="md:col-span-2 xl:col-span-1 [&>div]:h-full"
-            />
-
-            {/* DESKTOP: cartões lisos em grid */}
-            {bankAccounts.map((conta) => (
-              <div
-                key={conta.id}
-                className={cn(
-                  'hidden flex-col rounded-[20px] border border-border bg-surface p-5 transition-colors hover:border-border-strong md:flex md:rounded-3xl',
-                  !conta.ativa && 'opacity-60',
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px]"
-                    style={{ background: `color-mix(in srgb, ${conta.cor} 16%, transparent)`, color: conta.cor }}
-                  >
-                    <Building2 className="h-[18px] w-[18px]" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-semibold text-foreground">{conta.nome}</p>
-                    <p className="truncate text-[12px] text-foreground-muted">
-                      {[conta.banco, CONTA_TIPOS.find(t => t.value === conta.tipo)?.label].filter(Boolean).join(' · ')}
-                    </p>
-                  </div>
-                  <div className="-mr-1.5 -mt-1 flex shrink-0 gap-0.5">
-                    <IconButton label="Editar conta" tooltipSide="top" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => handleOpenForm(conta)}>
-                      <Pencil className="h-4 w-4" />
-                    </IconButton>
-                    <IconButton label="Arquivar conta" tooltipSide="top" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => setArchiveConfirm(conta)}>
-                      <Archive className="h-4 w-4" />
-                    </IconButton>
-                    <IconButton label="Excluir conta" tooltipSide="top" variant="danger-ghost" className="h-8 w-8 rounded-full" onClick={() => handleAskDelete(conta)}>
-                      <Trash2 className="h-4 w-4" />
-                    </IconButton>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Saldo atual</p>
-                  <p className="mt-1 font-heading text-[28px] font-semibold leading-none tabular-nums tracking-[-0.02em] text-foreground">
-                    {formatCurrency(conta.saldo_atual || 0)}
-                  </p>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between gap-2 border-t border-border pt-3">
-                  <span className="text-[12px] text-foreground-muted">
-                    Saldo inicial <span className="tabular-nums text-foreground">{formatCurrency(conta.saldo_inicial)}</span>
-                  </span>
-                  {!conta.ativa ? <StatusBadge status="inativo" /> : (
-                    <button type="button" onClick={() => setConferirConta(conta.id)} className="inline-flex items-center gap-1 text-[12px] font-medium text-foreground-muted hover:text-foreground">
-                      <Scale className="h-3.5 w-3.5" /> Conferir com o banco
-                    </button>
-                  )}
-                </div>
+        {tab === 'contas' ? (
+          <>
+            {bankAccounts.length === 0 ? (
+              <div className="rounded-[24px] border border-dashed border-border px-6 py-14 text-center">
+                <p className="text-[15px] text-foreground">Nenhuma conta cadastrada</p>
+                <p className="mt-1 text-[13px] text-foreground-muted">Cadastre a conta do banco com o saldo de hoje para começar.</p>
+                <button type="button" onClick={() => handleOpenForm()} className={cn(btn.primary, 'mt-4')}><Plus className="h-4 w-4" />Nova conta</button>
               </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {bankAccounts.map((c) => {
+                  const m = movimento?.mov.get(c.id);
+                  const conf = movimento?.ultima.get(c.id);
+                  const dias = conf ? differenceInCalendarDays(new Date(), parseISO(conf.quando)) : null;
+                  return (
+                    <div key={c.id} className="rounded-[24px] border border-border bg-surface p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-white" style={{ background: c.cor }}><IconeConta tipo={c.tipo} className="h-5 w-5" /></span>
+                        <span className="min-w-0 flex-1"><span className="block truncate text-[15.5px] font-semibold text-foreground">{c.nome}</span><span className="block truncate text-[12.5px] text-foreground-muted">{[c.banco, tipoLabel(c.tipo)].filter(Boolean).join(' · ')}</span></span>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button type="button" aria-label={`Opções de ${c.nome}`} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-foreground-muted hover:bg-surface-2"><MoreHorizontal className="h-4 w-4" /></button>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-52 rounded-2xl border border-border bg-surface p-1.5">
+                            <button type="button" onClick={() => handleOpenForm(c)} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13.5px] text-foreground hover:bg-surface-2"><Pencil className="h-4 w-4 text-foreground-muted" />Editar conta</button>
+                            <button type="button" onClick={() => setConferirConta(c.id)} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13.5px] text-foreground hover:bg-surface-2"><Scale className="h-4 w-4 text-foreground-muted" />Conferir com o banco</button>
+                            <button type="button" onClick={() => setArchiveConfirm(c)} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13.5px] text-foreground hover:bg-surface-2"><Archive className="h-4 w-4 text-foreground-muted" />Arquivar</button>
+                            <div className="my-1 h-px bg-border" />
+                            <button type="button" onClick={() => handleAskDelete(c)} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13.5px] text-danger-fg hover:bg-danger-bg"><Trash2 className="h-4 w-4" />Excluir</button>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <p className="mt-4 text-[12px] text-foreground-muted">Saldo hoje</p>
+                      <p className={cn('font-heading text-[28px] font-semibold tabular-nums tracking-[-0.03em]', (c.saldo_atual || 0) < 0 ? 'text-danger-fg' : 'text-foreground')}>{formatCurrency(c.saldo_atual || 0)}</p>
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px]">
+                        <span className="flex items-center gap-1 text-success-fg"><ArrowUpRight className="h-3.5 w-3.5" />{formatCurrency(m?.entrou || 0)}</span>
+                        <span className="flex items-center gap-1 text-danger-fg"><ArrowDownRight className="h-3.5 w-3.5" />{formatCurrency(m?.saiu || 0)}</span>
+                        <span className="text-foreground-subtle">no mês</span>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
+                        {dias === null
+                          ? <span className="flex items-center gap-1.5 text-[12px] text-warning-fg"><AlertTriangle className="h-3.5 w-3.5" />nunca conferida</span>
+                          : !conf?.bateu || dias > 7
+                            ? <span className="flex items-center gap-1.5 text-[12px] text-warning-fg"><AlertTriangle className="h-3.5 w-3.5" />{conf?.bateu ? `conferida há ${dias} dias` : `diferença na conferência de ${format(parseISO(conf!.quando), 'dd/MM')}`}</span>
+                            : <span className="flex items-center gap-1.5 text-[12px] text-success-fg"><Check className="h-3.5 w-3.5" />{dias === 0 ? 'conferida hoje' : `conferida há ${dias} ${dias === 1 ? 'dia' : 'dias'}`}</span>}
+                        <button type="button" onClick={() => setConferirConta(c.id)} className={btn.mini}>Conferir</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Contas arquivadas: fora das seleções e do saldo total; histórico preservado */}
+            {contasArquivadas.length > 0 && (
+              <div className="space-y-2">
+                <button type="button" onClick={() => setVerArquivadas((v) => !v)} className="flex items-center gap-1.5 text-[13px] text-foreground-muted hover:text-foreground">
+                  <Archive className="h-4 w-4" />Contas arquivadas ({contasArquivadas.length}) <ChevronDown className={cn('h-4 w-4 transition-transform', verArquivadas && 'rotate-180')} />
+                </button>
+                {verArquivadas && (
+                  <>
+                    <p className="text-[12px] text-foreground-muted">Não aparecem na seleção de conta dos lançamentos nem no saldo total. Os lançamentos antigos continuam nos relatórios.</p>
+                    {contasArquivadas.map((c) => (
+                      <div key={c.id} className="flex items-center gap-3 rounded-2xl border border-dashed border-border p-3">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white opacity-70" style={{ background: c.cor }}><IconeConta tipo={c.tipo} className="h-4 w-4" /></span>
+                        <span className="min-w-0 flex-1"><span className="block truncate text-[14px] text-foreground">{c.nome}</span><span className="block truncate text-[12px] text-foreground-muted">{[c.banco, `saldo ${formatCurrency(c.saldo_atual || 0)}`].filter(Boolean).join(' · ')}</span></span>
+                        <button type="button" onClick={() => setContaArquivada(c.id, false)} className={cn(btn.mini, 'inline-flex items-center gap-1.5')}><ArchiveRestore className="h-3.5 w-3.5" />Reativar</button>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        ) : creditCards.length === 0 ? (
+          <div className="rounded-[24px] border border-dashed border-border px-6 py-14 text-center">
+            <p className="text-[15px] text-foreground">Nenhum cartão cadastrado</p>
+            <p className="mt-1 text-[13px] text-foreground-muted">Cadastre o cartão para acompanhar faturas, parcelas e limite.</p>
+            <button type="button" onClick={novoCartao} className={cn(btn.primary, 'mt-4')}><Plus className="h-4 w-4" />Novo cartão</button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {creditCards.map(cartao => (
+              <CartaoCard
+                key={cartao.id}
+                cartao={cartao}
+                faturaAtual={faturaAtualPorCartao.get(cartao.id) || null}
+                usado={usadoPorCartao.get(cartao.id) ?? 0}
+                onEdit={() => { setEditingCartao(cartao); setIsCartaoFormOpen(true); }}
+                onImportCsv={() => setCsvImportCartao(cartao)}
+                onDelete={() => setDeleteCartaoConfirm({ open: true, cartao })}
+                onLancamentos={() => { setDetailStartCreate(false); setDetailCartao(cartao); }}
+                onNovoLancamento={() => { setDetailStartCreate(true); setDetailCartao(cartao); }}
+                onPagar={() => {
+                  const f = faturaAtualPorCartao.get(cartao.id);
+                  if (f) setPagarState({ cartao, fatura: f });
+                }}
+              />
             ))}
           </div>
-
-          {bankAccounts.length === 0 ? (
-            <SectionCard>
-              <EmptyState
-                title="Nenhuma conta cadastrada"
-                description="Adicione suas contas bancárias para começar."
-                action={<Button onClick={() => handleOpenForm()}><Plus className="h-4 w-4" />Nova Conta</Button>}
-              />
-            </SectionCard>
-          ) : (
-            /* MOBILE: lista agrupada por tipo */
-            <div className="space-y-4 md:hidden">
-              {gruposContas.map((g) => (
-                <section key={g.key}>
-                  <div className="flex items-baseline justify-between px-0.5 pb-1.5 pt-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">{g.label}</span>
-                    <span className="text-[12px] tabular-nums text-foreground-muted">{formatCurrency(g.total)}</span>
-                  </div>
-                  <div className="rounded-[20px] border border-border bg-surface px-3.5">
-                    {g.itens.map((conta) => (
-                      <button
-                        key={conta.id}
-                        type="button"
-                        onClick={() => handleOpenForm(conta)}
-                        className={cn(
-                          'flex w-full items-center gap-3 border-b border-border py-3 text-left last:border-b-0',
-                          !conta.ativa && 'opacity-60',
-                        )}
-                      >
-                        <span
-                          className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px]"
-                          style={{ background: `color-mix(in srgb, ${conta.cor} 16%, transparent)`, color: conta.cor }}
-                        >
-                          <HomeIcon className="h-[18px] w-[18px]" strokeWidth={1.7} />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[14px] font-semibold text-foreground">{conta.nome}</span>
-                          <span className="block truncate text-[12px] text-foreground-muted">
-                            {conta.banco || CONTA_TIPOS.find(t => t.value === conta.tipo)?.label}
-                          </span>
-                        </span>
-                        <span className="flex shrink-0 flex-col items-end gap-0.5">
-                          <span className="whitespace-nowrap font-heading text-[15px] font-semibold tabular-nums tracking-[-0.01em] text-foreground">
-                            {formatCurrency(conta.saldo_atual || 0)}
-                          </span>
-                          {!conta.ativa && <span className="text-[11px] font-semibold text-foreground-muted">Inativa</span>}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
-
-          {/* Contas arquivadas: fora das seleções e do saldo total; histórico preservado */}
-          {contasArquivadas.length > 0 && (
-            <SectionCard
-              title={`Arquivadas (${contasArquivadas.length})`}
-              description="Não aparecem na seleção de conta dos lançamentos nem no saldo total. Os lançamentos antigos continuam nos relatórios."
-              action={
-                <Button variant="outline" size="sm" onClick={() => setVerArquivadas((v) => !v)}>
-                  {verArquivadas ? 'Ocultar' : 'Mostrar'}
-                </Button>
-              }
-            >
-              {verArquivadas && (
-                <div className="rounded-[16px] border border-border px-3.5">
-                  {contasArquivadas.map((conta) => (
-                    <div key={conta.id} className="flex items-center gap-3 border-b border-border py-3 last:border-b-0">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-surface-2 text-foreground-muted">
-                        <Archive className="h-[18px] w-[18px]" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14px] font-semibold text-foreground">{conta.nome}</span>
-                        <span className="block truncate text-[12px] text-foreground-muted">
-                          {[conta.banco, `saldo ${formatCurrency(conta.saldo_atual || 0)}`].filter(Boolean).join(' · ')}
-                        </span>
-                      </span>
-                      <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={() => setContaArquivada(conta.id, false)}>
-                        <ArchiveRestore className="h-4 w-4" />Reativar
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </SectionCard>
-          )}
-        </TabsContent>
-
-        {/* TAB CARTÕES */}
-        <TabsContent value="cartoes" className="mt-4 space-y-4 md:mt-6 md:space-y-6">
-          <HeroStatCard
-            eyebrow="Total em faturas abertas"
-            value={totalCartoes}
-            subtitle={`${creditCards.length} ${creditCards.length === 1 ? 'cartão ativo' : 'cartões ativos'}`}
-            className="md:max-w-md"
-          />
-
-          {creditCards.length === 0 ? (
-            <SectionCard>
-              <EmptyState
-                title="Nenhum cartão cadastrado"
-                description="Cadastre seus cartões de crédito para acompanhar faturas."
-                action={
-                  <Button onClick={novoCartao}>
-                    <Plus className="h-4 w-4" /> Novo Cartão
-                  </Button>
-                }
-              />
-            </SectionCard>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 xl:grid-cols-3">
-              {creditCards.map(cartao => (
-                <CartaoCard
-                  key={cartao.id}
-                  cartao={cartao}
-                  faturaAtual={faturaAtualPorCartao.get(cartao.id) || null}
-                  usado={usadoPorCartao.get(cartao.id) ?? 0}
-                  onEdit={() => { setEditingCartao(cartao); setIsCartaoFormOpen(true); }}
-                  onImportCsv={() => setCsvImportCartao(cartao)}
-                  onDelete={() => setDeleteCartaoConfirm({ open: true, cartao })}
-                  onLancamentos={() => { setDetailStartCreate(false); setDetailCartao(cartao); }}
-                  onNovoLancamento={() => { setDetailStartCreate(true); setDetailCartao(cartao); }}
-                  onPagar={() => {
-                    const f = faturaAtualPorCartao.get(cartao.id);
-                    if (f) setPagarState({ cartao, fatura: f });
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
 
       <ConferirSaldoSheet
         open={conferirConta !== null}
-        onOpenChange={(v) => { if (!v) setConferirConta(null); }}
+        onOpenChange={(v) => { if (!v) { setConferirConta(null); refetchMovimento(); } }}
         contas={bankAccounts}
         contaInicial={conferirConta || null}
         onAjustado={() => refetch()}
       />
 
-      {/* Conta bancária dialog */}
+      {/* Conta bancária: criar / editar */}
       <Sheet open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[480px] sm:mx-auto">
-          <div className="pb-1">
-            <div className="text-[13px] text-foreground-muted">Cadastro</div>
-            <h2 className="mt-0.5 text-[24px] font-semibold tracking-[-0.03em] text-foreground">{editingConta ? 'Editar conta' : 'Nova conta'}</h2>
-          </div>
-
-          <div className="space-y-5 pt-4">
-            <FormSection title="Identificação">
-              <div className="space-y-2">
-                <Label>Nome da conta</Label>
-                <Input value={formData.nome} onChange={(e) => setFormData(p => ({ ...p, nome: e.target.value }))} placeholder="Ex: Bradesco PJ" />
+        <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[560px]')}>
+          <ModalShell>
+            <ModalHeader eyebrow="Cadastro" title={editingConta ? 'Editar conta' : 'Nova conta'} onClose={() => setIsFormOpen(false)} />
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-5">
+              <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3">
+                <span className="grid h-11 w-11 place-items-center rounded-2xl text-white" style={{ background: formData.cor }}><IconeConta tipo={formData.tipo} className="h-5 w-5" /></span>
+                <span className="min-w-0"><span className="block truncate text-[15px] font-semibold text-foreground">{formData.nome || 'Conta'}</span><span className="block truncate text-[12px] text-foreground-muted">{[formData.banco, tipoLabel(formData.tipo)].filter(Boolean).join(' · ')}</span></span>
               </div>
-              <div className="space-y-2">
-                <Label>Banco</Label>
-                <Input value={formData.banco || ''} onChange={(e) => setFormData(p => ({ ...p, banco: e.target.value }))} placeholder="Ex: Bradesco" />
-              </div>
-              <div className="space-y-2">
-                <Label>Tipo</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {CONTA_TIPOS.map(t => (
-                    <button
-                      key={t.value}
-                      type="button"
-                      onClick={() => setFormData(p => ({ ...p, tipo: t.value as any }))}
-                      className={cn(CHOICE_BASE, formData.tipo === t.value ? CHOICE_ON : CHOICE_OFF)}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </FormSection>
-
-            <FormSection title="Saldo e aparência">
-              <div className="space-y-2">
-                <Label>Saldo inicial</Label>
-                <Input type="number" step="0.01" value={formData.saldo_inicial || ''} placeholder="R$ 0,00"
-                  onChange={(e) => setFormData(p => ({ ...p, saldo_inicial: parseFloat(e.target.value) || 0 }))} />
-              </div>
-              <div className="space-y-2">
-                <Label>Cor</Label>
-                <div className="flex flex-wrap gap-2">
-                  {CORES.map(cor => (
-                    <button key={cor} type="button" aria-label={`Cor ${cor}`}
-                      className={cn('no-touch-min h-9 w-9 rounded-full transition-transform', formData.cor === cor ? 'ring-2 ring-foreground ring-offset-2 ring-offset-surface' : 'hover:scale-105')}
-                      style={{ backgroundColor: cor }} onClick={() => setFormData(p => ({ ...p, cor }))} />
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-center justify-between border-t border-border pt-3.5">
+              <Secao n={1} title="Identificação">
+                <Campo label="Nome da conta"><Input value={formData.nome} onChange={(e) => setFormData(p => ({ ...p, nome: e.target.value }))} placeholder="Ex.: Inter PJ" /></Campo>
+                <Campo label="Banco"><Input value={formData.banco || ''} onChange={(e) => setFormData(p => ({ ...p, banco: e.target.value }))} placeholder="Ex.: Inter" /></Campo>
+                <Campo label="Tipo">
+                  <Segmented<ContaTipoForm> value={(CONTA_TIPOS.some((t) => t.value === formData.tipo) ? formData.tipo : 'corrente') as ContaTipoForm} onChange={(v) => setFormData(p => ({ ...p, tipo: v }))} opts={CONTA_TIPOS.map((t) => [t.value, t.label])} />
+                </Campo>
+              </Secao>
+              <Secao n={2} title="Saldo e aparência">
+                <Campo label="Saldo inicial" hint="É o ponto de partida: os lançamentos efetivados somam e subtraem a partir dele.">
+                  <div className="flex h-10 items-center rounded-xl border border-input bg-surface-2 px-3 focus-within:ring-2 focus-within:ring-ring">
+                    <span className="mr-1 text-foreground-muted">R$</span>
+                    <input type="number" step="0.01" inputMode="decimal" value={formData.saldo_inicial || ''} placeholder="0,00"
+                      onChange={(e) => setFormData(p => ({ ...p, saldo_inicial: parseFloat(e.target.value) || 0 }))} className="min-w-0 flex-1 bg-transparent font-semibold tabular-nums outline-none" />
+                  </div>
+                </Campo>
                 <div>
-                  <Label>Conta ativa</Label>
-                  <p className="mt-0.5 text-[12px] text-foreground-muted">Desligada = arquivada (some das seleções, histórico mantido)</p>
+                  <p className="mb-2 text-[12.5px] text-foreground-muted">Cor</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CORES.map(cor => (
+                      <button key={cor} type="button" aria-label={`Cor ${cor}`}
+                        className={cn('no-touch-min h-9 w-9 rounded-full transition-transform', formData.cor === cor ? 'ring-2 ring-foreground ring-offset-2 ring-offset-surface' : 'hover:scale-105')}
+                        style={{ backgroundColor: cor }} onClick={() => setFormData(p => ({ ...p, cor }))} />
+                    ))}
+                  </div>
                 </div>
-                <Switch checked={formData.ativa} onCheckedChange={(c) => setFormData(p => ({ ...p, ativa: c }))} />
-              </div>
-            </FormSection>
-          </div>
-
-          <div className="flex gap-2.5 pt-5">
-            <Button type="button" variant="outline" size="lg" className="flex-1" onClick={() => setIsFormOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="button" size="lg" className="flex-[2]" onClick={handleSubmit} disabled={!formData.nome.trim()}>
-              {editingConta ? 'Salvar' : 'Criar'}
-            </Button>
-          </div>
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-surface-2/60 px-3.5 py-3">
+                  <span><span className="block text-[14px] text-foreground">Conta ativa</span><span className="block text-[12px] text-foreground-muted">Desligada = arquivada (some das seleções, histórico mantido)</span></span>
+                  <Switch checked={formData.ativa} onCheckedChange={(c) => setFormData(p => ({ ...p, ativa: c }))} />
+                </div>
+              </Secao>
+            </div>
+            <ModalFooter left={editingConta ? <button type="button" onClick={() => { setIsFormOpen(false); handleAskDelete(editingConta); }} className={btn.danger}><Trash2 className="h-4 w-4" />Excluir</button> : undefined}>
+              <button type="button" className={btn.outline} onClick={() => setIsFormOpen(false)}>Cancelar</button>
+              <button type="button" className={btn.primary} onClick={handleSubmit} disabled={!formData.nome.trim()}>{editingConta ? 'Salvar' : 'Criar conta'}</button>
+            </ModalFooter>
+          </ModalShell>
         </SheetContent>
       </Sheet>
 
@@ -525,6 +421,7 @@ export default function Contas() {
           pagamentos={pagamentos}
           contas={contas}
           startInCreate={detailStartCreate}
+          usado={usadoPorCartao.get(detailCartao.id) ?? 0}
           onRefresh={async () => { await refetchFaturas(); refetch(); }}
           onPagar={(f) => { setPagarState({ cartao: detailCartao, fatura: f }); }}
         />
@@ -533,7 +430,7 @@ export default function Contas() {
       {pagarState && (
         <PagarFaturaDialog
           open={!!pagarState}
-          onOpenChange={(o) => { if (!o) { setPagarState(null); refetchFaturas(); refetch(); } }}
+          onOpenChange={(o) => { if (!o) { setPagarState(null); refetchFaturas(); refetch(); refetchMovimento(); } }}
           cartao={pagarState.cartao}
           fatura={pagarState.fatura}
           contasBancarias={bankAccounts}
@@ -559,7 +456,7 @@ export default function Contas() {
         open={deleteConfirm.open}
         onOpenChange={(open) => setDeleteConfirm({ open, conta: open ? deleteConfirm.conta : null, links: open ? deleteConfirm.links : null })}
         onConfirm={handleDelete}
-        title={deleteConfirm.links && (deleteConfirm.links.receitas + deleteConfirm.links.despesas + deleteConfirm.links.transferencias) > 0 ? 'Arquivar Conta' : 'Excluir Conta'}
+        title={temLinks ? 'Arquivar conta' : 'Excluir conta'}
         description={(() => {
           const l = deleteConfirm.links;
           const nome = deleteConfirm.conta?.nome ?? '';
@@ -573,8 +470,8 @@ export default function Contas() {
           ].filter(Boolean).join(', ');
           return `"${nome}" possui ${partes} e não pode ser excluída. Você pode arquivá-la: ela sai das listas de seleção (novos lançamentos), mas o histórico é preservado. Dá pra reativar depois editando a conta.`;
         })()}
-        confirmLabel={deleteConfirm.links && (deleteConfirm.links.receitas + deleteConfirm.links.despesas + deleteConfirm.links.transferencias) > 0 ? 'Arquivar' : 'Excluir'}
-        variant={deleteConfirm.links && (deleteConfirm.links.receitas + deleteConfirm.links.despesas + deleteConfirm.links.transferencias) > 0 ? 'default' : 'destructive'}
+        confirmLabel={temLinks ? 'Arquivar' : 'Excluir'}
+        variant={temLinks ? 'default' : 'destructive'}
       />
 
       <ConfirmDialog
@@ -586,7 +483,7 @@ export default function Contas() {
             setDeleteCartaoConfirm({ open: false, cartao: null });
           }
         }}
-        title="Excluir Cartão de Crédito"
+        title="Excluir cartão de crédito"
         description={`Excluir "${deleteCartaoConfirm.cartao?.nome}" e TODOS os lançamentos, faturas e pagamentos vinculados? Esta ação não pode ser desfeita.`}
         confirmLabel="Excluir tudo"
         variant="destructive"
@@ -600,22 +497,6 @@ export default function Contas() {
           onImportComplete={() => { refetch(); refetchFaturas(); }}
         />
       )}
-
     </main>
-  );
-}
-
-
-const CHOICE_BASE = 'no-touch-min h-10 rounded-full border text-[13px] font-semibold transition-colors';
-const CHOICE_ON = 'border-foreground bg-foreground text-background';
-const CHOICE_OFF = 'border-border bg-surface text-foreground hover:border-border-strong';
-
-/** Bloco de campos do formulário: label de seção em caixa alta + campos agrupados. */
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-2">
-      <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">{title}</h3>
-      <div className="space-y-3.5 rounded-[20px] border border-border p-4">{children}</div>
-    </section>
   );
 }

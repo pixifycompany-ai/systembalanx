@@ -30,26 +30,24 @@ interface KpiStatCardProps {
   /** Célula navy de destaque (ex.: saldo). Só uma por tela. */
   highlight?: boolean;
   onClick?: () => void;
+  /** Conteúdo extra no rodapé do cartão (ex.: barra da meta). Fica fora da área clicável. */
+  children?: React.ReactNode;
 }
 
-export function KpiStatCard({ label, value, icon: Icon, delta, invertDelta, hint, highlight, onClick }: KpiStatCardProps) {
+export function KpiStatCard({ label, value, icon: Icon, delta, invertDelta, hint, highlight, onClick, children }: KpiStatCardProps) {
   const temDelta = typeof delta === 'number' && Number.isFinite(delta);
   const bom = temDelta && (invertDelta ? delta! <= 0 : delta! >= 0);
   const Wrapper = onClick ? 'button' : 'div';
 
-  return (
-    <Wrapper
-      type={onClick ? 'button' : undefined}
-      onClick={onClick}
-      className={cn(
-        'group relative isolate flex w-full min-w-0 flex-col gap-3.5 overflow-hidden rounded-[20px] p-5 text-left transition-colors md:rounded-3xl md:p-[22px]',
-        highlight ? 'border-0 text-white' : 'border border-border bg-surface text-foreground',
-        onClick && 'cursor-pointer',
-        onClick && !highlight && 'hover:border-border-strong',
-      )}
-      style={highlight ? { background: NAVY_SURFACE_BG, boxShadow: NAVY_SURFACE_SHADOW } : undefined}
-    >
-      {highlight && <HexWatermark className="-right-10 -top-8 bottom-auto h-48" />}
+  const classes = cn(
+    'group relative isolate flex w-full min-w-0 flex-col gap-3 overflow-hidden rounded-[24px] p-5 text-left transition-colors',
+    highlight ? 'border-0 text-white' : 'border border-border bg-surface text-foreground',
+    onClick && !children && 'cursor-pointer',
+    onClick && !highlight && 'hover:border-border-strong',
+  );
+  const estilo = highlight ? { background: NAVY_SURFACE_BG, boxShadow: NAVY_SURFACE_SHADOW } : undefined;
+  const conteudo = (
+    <>
 
       <div className="flex items-center justify-between gap-2">
         <span
@@ -95,6 +93,25 @@ export function KpiStatCard({ label, value, icon: Icon, delta, invertDelta, hint
           )}
         </div>
       )}
+    </>
+  );
+
+  if (children) {
+    return (
+      <div className={classes} style={estilo}>
+        {highlight && <HexWatermark className="-right-10 -top-8 bottom-auto h-48" />}
+        {onClick
+          ? <button type="button" onClick={onClick} className="flex w-full min-w-0 flex-col gap-3 text-left">{conteudo}</button>
+          : <div className="flex min-w-0 flex-col gap-3">{conteudo}</div>}
+        <div className="mt-auto">{children}</div>
+      </div>
+    );
+  }
+
+  return (
+    <Wrapper type={onClick ? 'button' : undefined} onClick={onClick} className={classes} style={estilo}>
+      {highlight && <HexWatermark className="-right-10 -top-8 bottom-auto h-48" />}
+      {conteudo}
     </Wrapper>
   );
 }

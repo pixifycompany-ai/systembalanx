@@ -21,7 +21,7 @@ interface DetailSheetProps {
  * Bottom sheet padrão estilo iOS: handle bar, header com eyebrow + título grande,
  * botão de fechar circular. Sobe de baixo para cima com a animação nativa do Radix.
  *
- * Em desktop continua sendo sheet, mas centralizado e com largura limitada.
+ * No desktop vira janela centralizada (o SheetContent cuida disso para side="bottom").
  */
 export function DetailSheet({
   open,
@@ -46,13 +46,13 @@ export function DetailSheet({
           isDark
             ? 'bg-[hsl(var(--navy-card))] text-white border-white/10'
             : 'bg-surface text-foreground',
-          'md:max-w-lg md:left-1/2 md:-translate-x-1/2 md:rounded-3xl md:bottom-4',
+          'md:max-w-lg md:pt-3',
           className,
         )}
         style={{ maxHeight }}
       >
         {/* Handle bar */}
-        <div className="flex justify-center pt-2 pb-1 shrink-0">
+        <div className="flex justify-center pt-2 pb-1 shrink-0 md:hidden">
           <div className={cn('h-1 w-10 rounded-full', isDark ? 'bg-white/20' : 'bg-foreground/15')} />
         </div>
 

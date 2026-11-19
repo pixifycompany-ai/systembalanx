@@ -55,11 +55,11 @@ export function CobrancaDoLancamento({ receita, onChange, onVinculo }: Props) {
 
   return (
     <>
-      <div className="overflow-hidden rounded-[20px] border border-border bg-surface px-4 py-3">
-        <div className="text-[12px] text-foreground-muted">Cobrança</div>
+      <div className="overflow-hidden rounded-[20px] border border-border bg-surface p-4">
+        <div className="text-[11.5px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">Cobrança no Asaas</div>
         {cob ? (
           <>
-            <div className="mt-0.5 flex items-center justify-between gap-3">
+            <div className="mt-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-foreground">{cob.descricao || 'Cobrança'}</div>
                 <div className="text-[12px] text-foreground-muted">

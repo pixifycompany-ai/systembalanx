@@ -59,29 +59,29 @@ export function RevenueAreaChart({ data3m, data6m, data12m, className, onMesClic
   return (
     <section
       className={cn(
-        'flex h-[320px] flex-col overflow-hidden rounded-[20px] border border-border bg-surface p-4 md:h-[400px] md:rounded-3xl md:p-6',
+        'flex h-[320px] flex-col overflow-hidden rounded-[24px] border border-border bg-surface p-4 md:h-[400px] md:p-5',
         className,
       )}
     >
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-foreground md:text-[17px]">Receitas × Despesas</h2>
+          <h2 className="text-[15px] font-semibold text-foreground">Receitas × Despesas</h2>
           <div className="mt-1 flex items-center gap-3 text-[12px] text-foreground-muted">
             <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: COR_RECEITA }} />Receitas</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: COR_DESPESA }} />Despesas</span>
           </div>
         </div>
-        <div className="flex items-center gap-1.5" role="group" aria-label="Período do gráfico">
+        <div className="flex gap-1 rounded-full border border-border bg-surface p-1" role="group" aria-label="Período do gráfico">
           {PERIODOS.map((p) => (
             <button
               key={p.value}
               type="button"
               onClick={() => setPeriod(p.value)}
               className={cn(
-                'h-8 rounded-full px-3 text-[12px] font-semibold transition-colors',
+                'h-8 rounded-full px-3 text-[13px] transition-colors',
                 period === p.value
-                  ? 'bg-foreground text-background'
-                  : 'border border-border bg-surface text-foreground-muted hover:text-foreground',
+                  ? 'bg-foreground font-medium text-background'
+                  : 'text-foreground-muted hover:text-foreground',
               )}
               aria-pressed={period === p.value}
             >

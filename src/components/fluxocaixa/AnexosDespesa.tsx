@@ -65,8 +65,8 @@ export function AnexosDespesa({ despesaId, inicial, onChange }: Props) {
 
   return (
     <div className="overflow-hidden rounded-[20px] border border-border bg-surface">
-      <div className="flex items-baseline justify-between gap-2 px-4 pt-3">
-        <div className="text-[12px] text-foreground-muted">Anexos · {anexos.length}/{MAX_ANEXOS_DESPESA}</div>
+      <div className="flex items-baseline justify-between gap-2 px-4 pt-4">
+        <div className="text-[11.5px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">Anexos · {anexos.length}/{MAX_ANEXOS_DESPESA}</div>
         <div className="text-[11px] text-foreground-subtle">Somem quando a despesa for paga</div>
       </div>
 

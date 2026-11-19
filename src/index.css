@@ -617,3 +617,30 @@
 @keyframes voicewave { 0%, 100% { height: 7px; } 50% { height: 30px; } }
 .vwave { display: flex; align-items: center; justify-content: center; gap: 3px; height: 36px; }
 .vwave i { width: 3px; border-radius: 99px; background: linear-gradient(180deg, hsl(var(--primary) / 0.85), hsl(var(--primary))); animation: voicewave 1s ease-in-out infinite; }
+
+/* ===== IARA (tela nova): onda do microfone e texto "brilhando" enquanto pensa ===== */
+@keyframes iara-onda { 0%, 100% { transform: scaleY(0.25); } 50% { transform: scaleY(1); } }
+.iara-onda i { display: block; width: 3px; height: var(--h, 60%); border-radius: 99px; background: hsl(var(--danger-fg)); transform-origin: center; animation: iara-onda 0.9s ease-in-out infinite; }
+@keyframes iara-brilho { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.iara-brilho {
+  background: linear-gradient(90deg, hsl(var(--foreground-muted)) 0%, hsl(var(--foreground-muted)) 40%, hsl(var(--primary)) 50%, hsl(var(--foreground-muted)) 60%, hsl(var(--foreground-muted)) 100%);
+  background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: iara-brilho 2.2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .iara-onda i, .iara-brilho { animation: none; } .iara-brilho { color: hsl(var(--foreground-muted)); } }
+
+/* ===== Ícones mais finos na plataforma toda =====
+   Lucide vem com traço 2 e Heroicons (outline) com 1.5. CSS vence o atributo de apresentação
+   do SVG, então dá para afinar tudo aqui sem mexer em cada componente. Os que pedem um traço
+   próprio (ex.: o "+" do botão central) ficam um pouco mais grossos que o resto. */
+svg.lucide[stroke-width="2"],
+svg.lucide[stroke-width="1.8"],
+svg.lucide[stroke-width="2.2"] { stroke-width: 1.5; }
+svg.lucide[stroke-width="2.4"],
+svg.lucide[stroke-width="2.5"],
+svg.lucide[stroke-width="2.6"],
+svg.lucide[stroke-width="3"] { stroke-width: 2; }
+/* Ícones pequenos (≤ 14px) ficariam apagados com 1.5 */
+svg.lucide[stroke-width="2"]:is(.h-3, .h-3\.5, .w-3, .w-3\.5) { stroke-width: 1.75; }
+/* Heroicons (barra e menu do celular) */
+svg[data-slot="icon"][stroke-width="1.5"] { stroke-width: 1.25; }

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Pencil } from 'lucide-react';
+import { Pencil, Target } from 'lucide-react';
 
 interface ProgressGoalProps {
   title: string;
@@ -158,5 +158,51 @@ export function ProgressGoal({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/** Meta compacta (dentro do cartão "Recebido no mês"): barra + % + lápis para editar. */
+export function MetaInline({ current, target, subtitle, onEditTarget, className }: { current: number; target: number; subtitle?: string; onEditTarget?: (v: number) => void; className?: string }) {
+  const [aberto, setAberto] = useState(false);
+  const [valor, setValor] = useState(target.toString());
+  const pct = target > 0 ? (current / target) * 100 : 0;
+  const salvar = () => {
+    const v = parseFloat(valor.replace(/[^\d.,]/g, '').replace(',', '.'));
+    if (!isNaN(v) && v > 0 && onEditTarget) { onEditTarget(v); setAberto(false); }
+  };
+  return (
+    <div className={cn('pt-1', className)}>
+      <div className="flex items-center justify-between gap-2 text-[12px]">
+        <span className="flex min-w-0 items-center gap-1 text-foreground-muted">
+          <Target className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">Meta {formatCurrency(target)}</span>
+          {onEditTarget && (
+            <button type="button" onClick={() => { setValor(target.toString()); setAberto(true); }} aria-label="Editar meta" className="grid h-6 w-6 shrink-0 place-items-center rounded-full hover:bg-surface-2 hover:text-foreground">
+              <Pencil className="h-3 w-3" />
+            </button>
+          )}
+        </span>
+        <span className={cn('shrink-0 font-semibold tabular-nums', pct > 100 ? 'text-success-fg' : 'text-foreground')}>{formatPercentage(pct, 0)}</span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2">
+        <div className={cn('h-full rounded-full transition-all duration-500', pct > 100 ? 'bg-success' : 'bg-primary')} style={{ width: `${Math.min(pct, 100)}%` }} />
+      </div>
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogContent className="sm:max-w-[360px]">
+          <DialogHeader><DialogTitle>Meta de faturamento</DialogTitle></DialogHeader>
+          <div className="py-4">
+            {subtitle && <p className="mb-4 text-sm text-foreground-muted">Período: {subtitle}</p>}
+            <div className="space-y-2">
+              <Label htmlFor="meta-inline-valor">Valor da meta</Label>
+              <Input id="meta-inline-valor" type="text" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="Ex: 50000" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAberto(false)}>Cancelar</Button>
+            <Button onClick={salvar}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

@@ -110,7 +110,7 @@ export function WhatsAppPainel({ onChange }: { onChange?: () => void }) {
             <label className="mb-1 block text-[12px] font-semibold text-foreground-muted">WhatsApp da empresa (com DDD)</label>
             <Input inputMode="tel" placeholder="(65) 99999-0000" value={fone} onChange={(e) => setFone(e.target.value)} />
           </div>
-          <Button className="h-11 w-full rounded-full font-semibold" onClick={conectar} disabled={busy || fone.replace(/\D/g, '').length < 10}>
+          <Button className="h-11 w-full rounded-full font-medium bg-foreground text-background hover:bg-foreground/90" onClick={conectar} disabled={busy || fone.replace(/\D/g, '').length < 10}>
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Gerar código de conexão
           </Button>
           <p className="text-[11.5px] leading-snug text-foreground-muted">

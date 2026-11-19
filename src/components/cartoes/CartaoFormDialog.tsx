@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePickerField } from '@/components/shared/DatePickerField';
@@ -11,6 +10,8 @@ import type { ContaDB, ContaFormData } from '@/hooks/useContas';
 import { BRANDS, BrandMark, brandByName } from '@/lib/cardBrands';
 import { formatCurrency } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
+import { ModalHeader, ModalFooter, ModalShell, Secao } from '@/components/reskin/kit';
+import { btn, modalCls } from '@/components/reskin/estilos';
 
 const CORES = ['#3B82F6', '#7A2EA8', '#0EA5A5', '#1F9E5A', '#F59E0B', '#EF4444', '#EC4899', '#334155'];
 
@@ -98,19 +99,16 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" showHandle className="p-0 max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
-        <div className="px-5 pt-1 pb-1">
-          <div className="text-[13px] text-foreground-muted">Cadastro</div>
-          <h2 className="mt-0.5 text-[24px] font-semibold tracking-[-0.03em] text-foreground">{cartao ? 'Editar cartão' : 'Novo cartão'}</h2>
-        </div>
-
-        <div className="space-y-5 px-5 pt-4">
+      <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[560px]')}>
+        <ModalShell>
+        <ModalHeader eyebrow="Cadastro" title={cartao ? 'Editar cartão' : 'Novo cartão'} onClose={() => onOpenChange(false)} />
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-5">
           {/* Preview ao vivo do cartão (logo oficial + contraste automático) */}
           {(() => {
             const cor = form.cor || '#3a78cd';
             const b = brandByName(form.bandeira);
             return (
-              <div className="relative overflow-hidden rounded-[20px] p-4 text-white" style={cardFace(cor)}>
+              <div className="relative mx-auto w-full max-w-[340px] overflow-hidden rounded-[22px] p-5 text-white shadow-xl" style={cardFace(cor)}>
                 {b && <div className="absolute top-3.5 right-4"><BrandMark brand={b} bg={cor} height={20} /></div>}
                 <div className="text-[15px] font-semibold pr-16 truncate">{form.nome || 'Novo cartão'}</div>
                 <div className="text-[12px] text-white/75 truncate pr-16">
@@ -123,7 +121,7 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
             );
           })()}
 
-          <FormSection title="Identificação">
+          <Secao n={1} title="Identificação">
             <div className="space-y-2">
               <Label>Nome do Cartão *</Label>
               <Input
@@ -170,9 +168,9 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
                 })}
               </div>
             </div>
-          </FormSection>
+          </Secao>
 
-          <FormSection title="Limite e ciclo">
+          <Secao n={2} title="Limite e ciclo">
             <div className="space-y-2">
               <Label>Limite</Label>
               <Input
@@ -225,9 +223,9 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
                 </SelectContent>
               </Select>
             </div>
-          </FormSection>
+          </Secao>
 
-          <FormSection title="Aparência">
+          <Secao n={3} title="Aparência">
             <div className="space-y-2">
               <Label>Cor do cartão</Label>
               <div className="flex gap-2 flex-wrap">
@@ -255,28 +253,15 @@ export function CartaoFormDialog({ open, onOpenChange, cartao, contasBancarias, 
                 onCheckedChange={(c) => setForm(p => ({ ...p, ativa: c }))}
               />
             </div>
-          </FormSection>
+          </Secao>
         </div>
 
-        <div className="flex gap-2.5 px-5 py-5">
-          <Button type="button" variant="outline" size="lg" className="flex-1" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button type="button" size="lg" className="flex-[2]" onClick={handleSubmit} disabled={!valid}>
-            {cartao ? 'Salvar' : 'Criar cartão'}
-          </Button>
-        </div>
+        <ModalFooter>
+          <button type="button" className={btn.outline} onClick={() => onOpenChange(false)}>Cancelar</button>
+          <button type="button" className={btn.primary} onClick={handleSubmit} disabled={!valid}>{cartao ? 'Salvar' : 'Criar cartão'}</button>
+        </ModalFooter>
+        </ModalShell>
       </SheetContent>
     </Sheet>
-  );
-}
-
-/** Bloco de campos do formulário: label de seção em caixa alta + campos agrupados. */
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-2">
-      <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">{title}</h3>
-      <div className="space-y-3.5 rounded-[20px] border border-border p-4">{children}</div>
-    </section>
   );
 }

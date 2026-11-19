@@ -1,254 +1,128 @@
-import { useLocation, Link } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  ArrowLeftRight,
-  Users,
-  FileText,
-  Tag,
-  Wallet,
-  LogOut,
-  BarChart3,
-  CalendarDays,
-  FileBarChart,
-  UserCircle,
-  LineChart,
-  ShieldCheck,
-  Sparkles,
-  Receipt,
-  ListChecks,
-} from 'lucide-react';
-import { NavLink } from '@/components/NavLink';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { PixifyLogo } from '@/components/shared/PixifyLogo';
-import { useAuth } from '@/contexts/AuthContext';
-import { useProfile } from '@/hooks/useProfile';
-import { useTenant } from '@/contexts/TenantContext';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ChevronDown, ChevronsLeft, ChevronsRight, Eye, EyeOff, LogOut, Moon, Plus, Search, ShieldCheck, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PixifyLogo } from '@/components/shared/PixifyLogo';
+import { Switch } from '@/components/ui/switch';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useTenant } from '@/contexts/TenantContext';
+import { useProfile } from '@/hooks/useProfile';
 import { usePendencias } from '@/hooks/usePendencias';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarSeparator,
-  SidebarTrigger,
-  useSidebar,
-} from '@/components/ui/sidebar';
+import { alternarValores, useValoresOcultos } from '@/lib/ocultarValores';
+import { EmpresaSwitcher } from './EmpresaSwitcher';
+import { NAV_GRUPOS, NAV_TOPO, ativo, type NavItem } from './navItems';
 
-const navGroups = [
-  {
-    label: 'Principal',
-    items: [
-      { href: '/', label: 'Início', icon: LayoutDashboard },
-      { href: '/pendencias', label: 'Pendências', icon: ListChecks },
-      { href: '/iara', label: 'IARA · Assistente', icon: Sparkles },
-      { href: '/fluxo-caixa', label: 'Fluxo de Caixa', icon: ArrowLeftRight },
-      { href: '/calendario', label: 'Calendário', icon: CalendarDays },
-    ],
-  },
-  {
-    label: 'Análise',
-    items: [
-      { href: '/visao', label: 'Visão', icon: LineChart },
-      { href: '/analises', label: 'Análises', icon: BarChart3 },
-      { href: '/relatorios', label: 'Relatórios', icon: FileBarChart },
-    ],
-  },
-  {
-    label: 'Gestão',
-    items: [
-      { href: '/clientes', label: 'Clientes', icon: Users },
-      { href: '/contratos', label: 'Contratos', icon: FileText },
-      { href: '/cobrancas', label: 'Cobranças', icon: Receipt },
-    ],
-  },
-  {
-    label: 'Sistema',
-    items: [
-      { href: '/contas', label: 'Contas', icon: Wallet },
-      { href: '/categorias', label: 'Categorias', icon: Tag },
-      { href: '/perfil', label: 'Meu Perfil', icon: UserCircle },
-    ],
-  },
-];
+const CHAVE_RECOLHIDA = 'balanx.sidebar.recolhida';
+const lerRecolhida = () => { try { return localStorage.getItem(CHAVE_RECOLHIDA) === '1'; } catch { return false; } };
 
-// Estado ativo/hover no capricho AURO (azul), consistente em light e dark.
-// `!` vence os defaults do shadcn (data-[active]:bg-sidebar-accent).
-// Item ativo: pill com gradiente + borda interna + glow, barra de acento à
-// esquerda (before:) e ícone/tipografia em primary.
-// Layout no Tailwind; o visual do estado ATIVO (gradiente + glow + barra de
-// acento) fica na classe .sb-nav-item do index.css (garante que aplica).
-const itemClass =
-  'sb-nav-item group/nav relative my-0.5 h-9 rounded-xl px-3 font-medium text-sidebar-foreground transition-all duration-150 ' +
-  'hover:bg-sidebar-accent/55 hover:text-foreground ' +
-  '[&>a>svg]:h-[18px] [&>a>svg]:w-[18px] [&>a>svg]:transition-colors';
-
-function planLabel(t: ReturnType<typeof useTenant>['activeTenant']): string {
-  if (!t) return '';
-  if (t.cortesia) return 'Cortesia';
-  if (t.status_assinatura === 'ativa') return 'Plano ativo';
-  if (t.status_assinatura === 'trial') return 'Em teste';
-  if (t.status_assinatura === 'inadimplente') return 'Pagamento pendente';
-  return t.status_assinatura || '';
-}
-
-export function AppSidebar() {
-  const location = useLocation();
-  const { signOut } = useAuth();
-  const { state } = useSidebar();
-  const { profile, avatarSignedUrl } = useProfile();
-  const { activeTenant, isSuperadmin } = useTenant();
-  const isCollapsed = state === 'collapsed';
-  const { total: totalPendencias } = usePendencias();
-
-  const nome = profile?.nome?.trim() || 'Minha conta';
-  const inicial = (profile?.nome?.trim()?.[0] || 'B').toUpperCase();
-
+function Item({ it, atual, recolhida, badge, onClick }: { it: NavItem; atual: boolean; recolhida: boolean; badge?: number; onClick: () => void }) {
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="p-3">
-        {isCollapsed ? (
-          <div className="flex flex-col items-center gap-2">
-            <PixifyLogo size="sm" iconOnly />
-            <SidebarTrigger className="h-8 w-8 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground" />
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 overflow-hidden">
-            <PixifyLogo size="sm" />
-            <SidebarTrigger className="ml-auto h-8 w-8 shrink-0 rounded-lg bg-sidebar-accent/50 text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground" />
-          </div>
-        )}
-      </SidebarHeader>
-
-      <SidebarSeparator />
-
-      <SidebarContent>
-        {navGroups.map((group) => (
-          <SidebarGroup key={group.label} className="py-1.5">
-            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-semibold uppercase tracking-[0.13em] text-sidebar-foreground">
-              {group.label}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton asChild isActive={isActive} tooltip={item.label} className={itemClass}>
-                        <NavLink to={item.href} end>
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                          {item.href === '/pendencias' && totalPendencias > 0 && (
-                            <span className="ml-auto rounded-full bg-warning-bg px-1.5 py-px text-[10.5px] font-semibold tabular-nums text-warning-fg">
-                              {totalPendencias > 99 ? '99+' : totalPendencias}
-                            </span>
-                          )}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
-
-        {isSuperadmin && (
-          <SidebarGroup className="py-1.5">
-            <SidebarGroupLabel className="mb-1 h-auto px-3 text-[10px] font-semibold uppercase tracking-[0.13em] text-sidebar-foreground">
-              Plataforma
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname === '/superadmin'}
-                    tooltip="Superadmin"
-                    className={itemClass}
-                  >
-                    <NavLink to="/superadmin" end>
-                      <ShieldCheck className="h-4 w-4" />
-                      <span>Superadmin</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-      </SidebarContent>
-
-      <SidebarSeparator />
-
-      <SidebarFooter className="p-2">
-        {isCollapsed ? (
-          <div className="flex flex-col items-center gap-1.5">
-            <Link to="/perfil" aria-label="Meu perfil">
-              <Avatar url={avatarSignedUrl} inicial={inicial} />
-            </Link>
-            <SidebarMenuButton tooltip="Sair" onClick={() => signOut()} className="h-8 w-8 justify-center p-0">
-              <LogOut className="h-4 w-4" />
-            </SidebarMenuButton>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-sidebar-border/60 bg-sidebar-accent/40 p-2.5">
-            <Link to="/perfil" className="flex items-center gap-2.5 group">
-              <Avatar url={avatarSignedUrl} inicial={inicial} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-semibold text-sidebar-foreground group-hover:text-foreground">{nome}</div>
-                {activeTenant && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="truncate text-[11px] text-sidebar-foreground">{activeTenant.nome}</span>
-                    <span
-                      className={cn(
-                        'shrink-0 rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide',
-                        activeTenant.cortesia || activeTenant.status_assinatura === 'ativa'
-                          ? 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]'
-                          : activeTenant.status_assinatura === 'inadimplente'
-                          ? 'bg-[hsl(var(--danger))]/15 text-[hsl(var(--danger))]'
-                          : 'bg-primary/15 text-primary',
-                      )}
-                    >
-                      {planLabel(activeTenant)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </Link>
-            <div className="mt-2 flex items-center justify-between gap-2 border-t border-sidebar-border/50 pt-2">
-              <ThemeToggle />
-              <button
-                onClick={() => signOut()}
-                className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-medium text-sidebar-foreground hover:bg-[hsl(var(--danger))]/10 hover:text-[hsl(var(--danger))]"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                Sair
-              </button>
-            </div>
-          </div>
-        )}
-      </SidebarFooter>
-    </Sidebar>
+    <button
+      type="button"
+      onClick={onClick}
+      title={recolhida ? it.label : undefined}
+      aria-label={recolhida ? it.label : undefined}
+      aria-current={atual ? 'page' : undefined}
+      className={cn('relative flex h-9 w-full items-center gap-3 rounded-xl text-[13.5px] transition-colors', recolhida ? 'justify-center px-0' : 'px-3',
+        atual ? 'bg-foreground font-medium text-background' : 'text-foreground-muted hover:bg-surface-2 hover:text-foreground')}
+    >
+      <it.icon className="h-[18px] w-[18px] shrink-0" />
+      {!recolhida && <span className="min-w-0 flex-1 truncate text-left">{it.label}</span>}
+      {!!badge && (recolhida
+        ? <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-warning-fg" />
+        : <span className={cn('rounded-full px-1.5 py-px text-[10.5px] font-medium tabular-nums', atual ? 'bg-background/15 text-background' : 'bg-warning-bg text-warning-fg')}>{badge > 99 ? '99+' : badge}</span>)}
+    </button>
   );
 }
 
-function Avatar({ url, inicial }: { url: string | null; inicial: string }) {
-  if (url) {
-    return <img src={url} alt="" className="h-9 w-9 shrink-0 rounded-[11px] object-cover ring-1 ring-sidebar-border" />;
-  }
+/** Menu lateral do desktop (o celular usa a barra de baixo). */
+export function AppSidebar({ onBusca, onNovo }: { onBusca: () => void; onNovo: () => void }) {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const { isSuperadmin } = useTenant();
+  const { profile, avatarSignedUrl } = useProfile();
+  const { total: totalPendencias } = usePendencias();
+  const oculto = useValoresOcultos();
+  const [recolhida, setRecolhida] = useState(lerRecolhida);
+  const [usuario, setUsuario] = useState(false);
+
+  useEffect(() => { try { localStorage.setItem(CHAVE_RECOLHIDA, recolhida ? '1' : '0'); } catch { /* sem storage */ } }, [recolhida]);
+  useEffect(() => {
+    if (!usuario) return;
+    const f = () => setUsuario(false);
+    window.addEventListener('click', f);
+    return () => window.removeEventListener('click', f);
+  }, [usuario]);
+
+  const nome = profile?.nome?.trim() || 'Minha conta';
+  const inicial = (profile?.nome?.trim()?.[0] || 'B').toUpperCase();
+  const badgeDe = (href: string) => (href === '/pendencias' ? totalPendencias : undefined);
+  const Sep = () => <div className="mx-auto mb-1.5 h-px w-6 bg-border" />;
+
   return (
-    <div
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] text-[13px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
-      style={{ background: 'linear-gradient(140deg, hsl(var(--primary)), hsl(212 87% 42%))' }}
-    >
-      {inicial}
-    </div>
+    <aside className={cn('sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border bg-surface/70 backdrop-blur transition-[width] duration-200 md:flex', recolhida ? 'w-[76px]' : 'w-[264px]')}>
+      <div className={cn('flex items-center gap-2 px-4 pb-3 pt-4', recolhida && 'flex-col px-2')}>
+        <PixifyLogo size="sm" iconOnly={recolhida} />
+        <button type="button" onClick={() => setRecolhida((v) => !v)} aria-label={recolhida ? 'Expandir menu' : 'Recolher menu'} title={recolhida ? 'Expandir' : 'Recolher'}
+          className={cn('grid h-8 w-8 place-items-center rounded-lg text-foreground-muted hover:bg-surface-2 hover:text-foreground', !recolhida && 'ml-auto')}>
+          {recolhida ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
+        </button>
+      </div>
+
+      <div className={cn('space-y-2 px-3', recolhida && 'px-2')}>
+        <EmpresaSwitcher compacto={recolhida} />
+        <div className={cn('flex gap-2', recolhida && 'flex-col')}>
+          <button type="button" onClick={onBusca} title="Buscar ou perguntar (⌘K)" aria-label="Buscar"
+            className={cn('flex h-10 items-center gap-2 rounded-full border border-border bg-surface text-[13px] text-foreground-muted hover:text-foreground', recolhida ? 'w-full justify-center' : 'min-w-0 flex-1 px-3.5')}>
+            <Search className="h-4 w-4 shrink-0" />{!recolhida && <><span className="flex-1 truncate text-left">Buscar</span><kbd className="rounded-md border border-border px-1.5 text-[10.5px]">⌘K</kbd></>}
+          </button>
+          <button type="button" onClick={onNovo} title="Novo lançamento" aria-label="Novo lançamento"
+            className={cn('flex h-10 items-center justify-center gap-1.5 rounded-full bg-foreground text-[13.5px] font-medium text-background hover:opacity-90', recolhida ? 'w-full' : 'px-4')}>
+            <Plus className="h-4 w-4" />{!recolhida && 'Novo'}
+          </button>
+        </div>
+      </div>
+
+      <nav className={cn('mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto px-3 pb-3', recolhida && 'px-2')} aria-label="Menu principal">
+        <div className="space-y-0.5">
+          {NAV_TOPO.map((it) => <Item key={it.href} it={it} atual={ativo(pathname, it.href)} recolhida={recolhida} badge={badgeDe(it.href)} onClick={() => navigate(it.href)} />)}
+        </div>
+        {NAV_GRUPOS.map((g) => (
+          <div key={g.label} className="space-y-0.5">
+            {recolhida ? <Sep /> : <p className="px-3 pb-1 text-[11px] font-medium uppercase tracking-[0.1em] text-foreground-subtle">{g.label}</p>}
+            {g.items.map((it) => <Item key={it.href} it={it} atual={ativo(pathname, it.href)} recolhida={recolhida} onClick={() => navigate(it.href)} />)}
+          </div>
+        ))}
+        {isSuperadmin && (
+          <div className="space-y-0.5">
+            {recolhida ? <Sep /> : <p className="px-3 pb-1 text-[11px] font-medium uppercase tracking-[0.1em] text-foreground-subtle">Plataforma</p>}
+            <Item it={{ href: '/superadmin', label: 'Superadmin', icon: ShieldCheck }} atual={ativo(pathname, '/superadmin')} recolhida={recolhida} onClick={() => navigate('/superadmin')} />
+          </div>
+        )}
+      </nav>
+
+      {/* usuário */}
+      <div className={cn('relative border-t border-border p-3', recolhida && 'px-2')} onClick={(e) => e.stopPropagation()}>
+        <button type="button" onClick={() => setUsuario((v) => !v)} aria-expanded={usuario} aria-label="Menu da conta"
+          className={cn('flex w-full items-center gap-2.5 rounded-2xl p-1.5 text-left hover:bg-surface-2', recolhida && 'justify-center')}>
+          {avatarSignedUrl
+            ? <img src={avatarSignedUrl} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-border" />
+            : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-[13px] font-semibold text-foreground ring-1 ring-border">{inicial}</span>}
+          {!recolhida && <><span className="min-w-0 flex-1"><span className="block truncate text-[13.5px] text-foreground">{nome}</span><span className="block truncate text-[11.5px] text-foreground-muted">{user?.email}</span></span><ChevronDown className="h-4 w-4 text-foreground-muted" /></>}
+        </button>
+        {usuario && (
+          <div className={cn('absolute bottom-full z-50 mb-2 rounded-2xl border border-border bg-surface p-1.5 shadow-xl', recolhida ? 'left-2 w-64' : 'left-3 right-3')}>
+            <button type="button" onClick={() => { setUsuario(false); navigate('/perfil'); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13.5px] text-foreground hover:bg-surface-2"><UserCircle className="h-4 w-4 text-foreground-muted" />Meu perfil</button>
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] text-foreground hover:bg-surface-2"><Moon className="h-4 w-4 text-foreground-muted" /><span className="flex-1">Tema escuro</span><Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} aria-label="Tema escuro" /></label>
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-[13.5px] text-foreground hover:bg-surface-2">{oculto ? <EyeOff className="h-4 w-4 text-foreground-muted" /> : <Eye className="h-4 w-4 text-foreground-muted" />}<span className="flex-1">Ocultar valores</span><Switch checked={oculto} onCheckedChange={alternarValores} aria-label="Ocultar valores" /></label>
+            <div className="my-1 h-px bg-border" />
+            <button type="button" onClick={() => { setUsuario(false); void signOut(); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13.5px] text-danger-fg hover:bg-danger-bg"><LogOut className="h-4 w-4" />Sair</button>
+          </div>
+        )}
+      </div>
+    </aside>
   );
 }

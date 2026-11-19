@@ -1,14 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Upload, FileSpreadsheet, FileImage, Loader2, CheckCircle2, AlertCircle, AlertTriangle, Image } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Upload, FileSpreadsheet, FileImage, Loader2, CheckCircle2, AlertCircle, AlertTriangle, Sparkles } from 'lucide-react';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { ModalHeader, ModalShell } from '@/components/reskin/kit';
+import { btn, modalCls } from '@/components/reskin/estilos';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { TransactionPreviewTable, type ParsedTransaction, type PairedTransfer } from './TransactionPreviewTable';
@@ -615,29 +609,29 @@ export function FileImportDialog({ open, onOpenChange, onImportComplete }: FileI
     : 0;
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Importar Transações</DialogTitle>
-          <DialogDescription>
-            {step === 'upload' && 'Faça upload de um arquivo CSV, XLSX, PDF ou múltiplas imagens com suas transações.'}
-            {step === 'processing' && (multipleFiles.length > 1 
-              ? `Processando ${multipleFiles.length} imagens...` 
-              : 'Processando arquivo...'
-            )}
-            {step === 'preview' && 'Revise e edite as transações detectadas antes de importar.'}
-            {step === 'importing' && 'Importando transações...'}
-            {step === 'complete' && 'Importação concluída com sucesso!'}
-          </DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[920px]')}>
+      <ModalShell>
+        <ModalHeader
+          eyebrow={
+            step === 'upload' ? 'Passo 1 de 2 · envie o arquivo'
+            : step === 'processing' ? (multipleFiles.length > 1 ? `Lendo ${multipleFiles.length} imagens…` : 'Lendo o arquivo…')
+            : step === 'preview' ? 'Passo 2 de 2 · revise antes de importar'
+            : step === 'importing' ? 'Importando…'
+            : 'Importação concluída'
+          }
+          title="Importar lançamentos"
+          onClose={handleClose}
+        />
 
-        <div className="flex-1 overflow-auto py-4">
+        <div className="min-h-0 flex-1 overflow-auto p-4 md:p-5">
           {/* Upload Step */}
           {step === 'upload' && (
+            <div className="space-y-3">
             <div
               className={cn(
-                "border-2 border-dashed rounded-lg p-8 transition-colors cursor-pointer",
-                dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50",
+                "cursor-pointer rounded-[24px] border-2 border-dashed bg-surface px-6 py-10 transition-colors",
+                dragActive ? "border-primary bg-primary/5" : "border-border-strong hover:bg-surface-2/50",
                 error && "border-destructive"
               )}
               onDragEnter={handleDrag}
@@ -646,21 +640,14 @@ export function FileImportDialog({ open, onOpenChange, onImportComplete }: FileI
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
             >
-              <div className="flex flex-col items-center justify-center gap-4">
-                <div className="rounded-full bg-muted p-4">
-                  <Upload className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <div className="text-center">
-                  <p className="font-medium">Arraste arquivos aqui ou clique para selecionar</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    CSV, XLSX, PDF (único) ou até {MAX_IMAGES} imagens de uma vez
-                  </p>
-                </div>
-                <div className="flex items-center gap-4 text-muted-foreground">
-                  <FileSpreadsheet className="h-6 w-6" />
-                  <FileImage className="h-6 w-6" />
-                  <Image className="h-6 w-6" />
-                </div>
+              <div className="flex flex-col items-center justify-center gap-3 text-center">
+                <span className="grid h-14 w-14 place-items-center rounded-full bg-surface-2 text-foreground">
+                  <Upload className="h-6 w-6" />
+                </span>
+                <p className="text-[15px] font-medium text-foreground">Arraste o arquivo aqui ou toque para escolher</p>
+                <p className="text-[12.5px] text-foreground-muted">
+                  Extrato CSV, XLSX ou PDF (um por vez) · ou até {MAX_IMAGES} prints e fotos de comprovantes
+                </p>
                 {error && (
                   <div className="flex items-center gap-2 text-destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -676,6 +663,15 @@ export function FileImportDialog({ open, onOpenChange, onImportComplete }: FileI
                 className="hidden"
                 multiple
               />
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {([[<FileSpreadsheet key="a" className="h-4 w-4" />, 'Extrato do banco', 'CSV, XLSX ou PDF'], [<FileImage key="b" className="h-4 w-4" />, 'Comprovantes', 'Várias fotos de uma vez'], [<Sparkles key="c" className="h-4 w-4" />, 'Lido pela IARA', 'Você revisa antes de salvar']] as const).map(([ic, t, d]) => (
+                <div key={t} className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-3">
+                  <span className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-foreground-muted">{ic}</span>
+                  <span><span className="block text-[13px] text-foreground">{t}</span><span className="block text-[11.5px] text-foreground-muted">{d}</span></span>
+                </div>
+              ))}
+            </div>
             </div>
           )}
 
@@ -720,8 +716,9 @@ export function FileImportDialog({ open, onOpenChange, onImportComplete }: FileI
                 </>
               ) : (
                 <>
-                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                  <p className="text-muted-foreground">Analisando {file?.name}...</p>
+                  <span className="iara-brilho grid h-14 w-14 place-items-center rounded-full bg-foreground text-background"><Sparkles className="h-6 w-6" /></span>
+                  <p className="text-[15px] font-medium text-foreground">A IARA está lendo {file?.name}…</p>
+                  <p className="text-[12.5px] text-foreground-muted">Separando entradas, saídas e sugerindo categorias</p>
                 </>
               )}
             </div>
@@ -800,34 +797,33 @@ export function FileImportDialog({ open, onOpenChange, onImportComplete }: FileI
           )}
         </div>
 
-        <DialogFooter>
-          {step === 'upload' && (
-            <Button variant="outline" onClick={handleClose}>
-              Cancelar
-            </Button>
-          )}
-          
-          {step === 'preview' && (
-            <>
-              <Button variant="outline" onClick={resetState}>
-                Voltar
-              </Button>
-              <Button 
-                onClick={handleImport}
-                disabled={totalSelected === 0}
-              >
-                Importar ({totalSelected})
-              </Button>
-            </>
-          )}
-          
-          {step === 'complete' && (
-            <Button onClick={handleFinish}>
-              Fechar
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        {(step === 'upload' || step === 'preview' || step === 'complete') && (
+          <div className="flex items-center justify-between gap-2 border-t border-border bg-surface px-5 py-3.5 pb-safe md:px-6">
+            <span>
+              {step === 'preview' && (
+                <button type="button" onClick={resetState} className={btn.ghost}>Trocar arquivo</button>
+              )}
+            </span>
+            <div className="flex gap-2">
+              {step === 'upload' && (
+                <button type="button" onClick={handleClose} className={btn.outline}>Cancelar</button>
+              )}
+              {step === 'preview' && (
+                <>
+                  <button type="button" onClick={handleClose} className={btn.outline}>Cancelar</button>
+                  <button type="button" onClick={handleImport} disabled={totalSelected === 0} className={btn.primary}>
+                    Importar {totalSelected}
+                  </button>
+                </>
+              )}
+              {step === 'complete' && (
+                <button type="button" onClick={handleFinish} className={btn.primary}>Fechar</button>
+              )}
+            </div>
+          </div>
+        )}
+      </ModalShell>
+      </SheetContent>
+    </Sheet>
   );
 }

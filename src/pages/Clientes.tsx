@@ -1,164 +1,251 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  AlertTriangle, ArrowUpDown, Building2, Check, ChevronDown, FileText, LayoutGrid, List, Mail, MessageCircle, Pencil,
+  Phone, Plus, Search, Sparkles, Trash2, UserRound, X,
+} from 'lucide-react';
 import { useActionParam } from '@/hooks/useActionParam';
-import { StatusBadge } from '@/components/shared/StatusBadge';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { MultiSelectBar } from '@/components/shared/MultiSelectBar';
-import { MobilePageHeader } from '@/components/shared/MobilePageHeader';
-import { SectionCard } from '@/components/shared/SectionCard';
-import { ScrollPills, Pill } from '@/components/shared/ScrollPills';
-import { ClienteCard } from '@/components/clientes/ClienteCard';
+import { EMPRESA_FONTE_OPTIONS, type EmpresaFonte } from '@/components/shared/EmpresaFonteBadge';
 import { ClienteAvatar } from '@/components/clientes/ClienteAvatar';
-import { EmpresaFonteBadge, EMPRESA_FONTE_OPTIONS, type EmpresaFonte } from '@/components/shared/EmpresaFonteBadge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { Label } from '@/components/ui/label';
-import { formatPhone, formatCPFCNPJ, maskCpfCnpj, onlyDigits } from '@/utils/formatters';
+import { PageHeader, Segmented, Secao, Campo, Bloco, ModalHeader, ModalFooter, ModalShell } from '@/components/reskin/kit';
+import { btn, campoCls, modalCls } from '@/components/reskin/estilos';
+import { formatCurrency, formatPhone, formatCPFCNPJ, maskCpfCnpj, onlyDigits } from '@/utils/formatters';
 import { exportClientes } from '@/utils/exportCSV';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
-import { useClientes, type ClienteFormData } from '@/hooks/useClientes';
-import { Plus, Pencil, Trash2, LayoutGrid, List, Search, MoreHorizontal, Check } from 'lucide-react';
-import { CLIENTE_TIPO_OPTIONS } from '@/types/finance';
+import { useClientes, type ClienteDB, type ClienteFormData } from '@/hooks/useClientes';
+import { useClientesResumo, type ClienteNumeros } from '@/hooks/useClientesResumo';
 import { cn } from '@/lib/utils';
 
-const SECTION_LABEL = 'text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted';
-const CHOICE_BASE = 'no-touch-min h-10 rounded-full border text-[13px] font-semibold transition-colors';
-const CHOICE_ON = 'border-foreground bg-foreground text-background';
-const CHOICE_OFF = 'border-border bg-surface text-foreground hover:border-border-strong';
+const FORM_VAZIO: ClienteFormData = {
+  nome: '', email: '', telefone: '', cpf_cnpj: '', tipo: 'PJ', endereco: '', status: 'ativo', empresa_fonte: 'PIXIFY', canal_cobranca: 'whatsapp',
+};
+const corMarca = (m: string) => `hsl(var(--brand-${m.toLowerCase()}))`;
+const dataBR = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
+const RECORRENCIA: Record<string, string> = { mensal: 'mensal', trimestral: 'trimestral', semestral: 'semestral', anual: 'anual', unico: 'único', semanal: 'semanal', quinzenal: 'quinzenal' };
+const CANAL: Record<string, string> = { whatsapp: 'WhatsApp', email: 'e-mail', ambos: 'WhatsApp e e-mail' };
 
-/** Bloco de campos do formulário: label de seção em caixa alta + campos agrupados. */
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+function MarcaChip({ m }: { m?: EmpresaFonte | null }) {
+  if (!m) return null;
   return (
-    <section className="space-y-2">
-      <h3 className={cn(SECTION_LABEL, 'px-1')}>{title}</h3>
-      <div className="space-y-3.5 rounded-[20px] border border-border p-4">{children}</div>
-    </section>
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-[10.5px] font-medium tracking-[0.04em] text-foreground-muted">
+      <i className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: corMarca(m) }} />{m}
+    </span>
+  );
+}
+
+/* ---------- Ficha do cliente ---------- */
+function Ficha({ c, n, fechar, editar, excluir }: { c: ClienteDB; n: ClienteNumeros; fechar: () => void; editar: () => void; excluir: () => void }) {
+  const navigate = useNavigate();
+  const fone = c.telefone ? onlyDigits(c.telefone) : '';
+  const wa = fone ? `https://wa.me/${fone.length <= 11 ? `55${fone}` : fone}` : '';
+  return (
+    <ModalShell>
+      <div className="flex items-start gap-3 border-b border-border bg-surface px-5 py-4 md:px-6">
+        <ClienteAvatar nome={c.nome} className="h-12 w-12 rounded-full text-[15px]" />
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-2 text-[12.5px] text-foreground-muted">
+            {c.tipo === 'PJ' ? 'Empresa' : 'Pessoa física'}{c.cpf_cnpj && <> · <span className="tabular-nums">{formatCPFCNPJ(c.cpf_cnpj)}</span></>} <MarcaChip m={c.empresa_fonte} />
+            {c.status !== 'ativo' && <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10.5px]">Inativo</span>}
+          </p>
+          <h2 className="truncate font-heading text-[24px] font-light tracking-[-0.02em] text-foreground">{c.nome}</h2>
+        </div>
+        <button type="button" onClick={editar} className="hidden h-9 items-center gap-1.5 rounded-full border border-border px-3.5 text-[13px] text-foreground hover:bg-surface-2 sm:inline-flex"><Pencil className="h-3.5 w-3.5" /> Editar</button>
+        <button type="button" onClick={fechar} aria-label="Fechar" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-2 text-foreground-muted hover:text-foreground"><X className="h-4 w-4" /></button>
+      </div>
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-5">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          {([['MRR', n.mrr, 'text-foreground'], ['Recebido no ano', n.recebidoAno, 'text-success-fg'], ['Em aberto', n.aberto, 'text-foreground'], ['Atrasado', n.atrasado, n.atrasado ? 'text-danger-fg' : 'text-foreground-muted']] as const).map(([r, v, k]) => (
+            <div key={r} className="rounded-2xl border border-border bg-surface p-3">
+              <p className="text-[12px] text-foreground-muted">{r}</p>
+              <p className={cn('font-heading text-[18px] font-semibold tabular-nums', k)}>{formatCurrency(v)}</p>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <Bloco title={`Contratos ativos · ${n.contratos.length}`} extra={<button type="button" onClick={() => navigate('/contratos?action=novo')} className="text-[12.5px] text-primary hover:underline">+ Novo contrato</button>}>
+              {n.contratos.length ? n.contratos.map((k) => (
+                <div key={k.id} className="flex items-center gap-3 border-t border-border py-2.5 first:border-t-0 first:pt-0">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface-2 text-foreground-muted"><FileText className="h-4 w-4" /></span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-[13.5px] text-foreground">{k.descricao}</span><span className="block text-[12px] text-foreground-muted">{RECORRENCIA[k.recorrencia] ?? k.recorrencia}{k.dia_vencimento ? ` · vence dia ${k.dia_vencimento}` : ''}</span></span>
+                  <span className="text-[14px] font-semibold tabular-nums text-foreground">{formatCurrency(k.valor)}</span>
+                </div>
+              )) : <p className="text-[13px] text-foreground-muted">Nenhum contrato ativo.</p>}
+            </Bloco>
+            <Bloco title="Recebimentos recentes" extra={<button type="button" onClick={() => navigate('/cobrancas?action=novo')} className="text-[12.5px] text-primary hover:underline">+ Nova cobrança</button>}>
+              {n.recentes.length ? n.recentes.map((r) => {
+                const st = r.status === 'recebido' ? ['Recebido', 'bg-success-bg text-success-fg'] : r.status === 'atrasado' ? ['Atrasado', 'bg-danger-bg text-danger-fg'] : ['Em aberto', 'bg-info-bg text-info-fg'];
+                return (
+                  <div key={r.id} className="flex items-center gap-3 border-t border-border py-2.5 first:border-t-0 first:pt-0">
+                    <span className="w-11 shrink-0 text-[12.5px] tabular-nums text-foreground-muted">{dataBR(r.data_vencimento)}</span>
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] text-foreground">{r.descricao}</span>
+                    <span className={cn('rounded-full px-2 py-0.5 text-[11px]', st[1])}>{st[0]}</span>
+                    <span className="w-24 text-right text-[14px] font-semibold tabular-nums text-foreground">{formatCurrency(r.valor)}</span>
+                  </div>
+                );
+              }) : <p className="text-[13px] text-foreground-muted">Nenhum lançamento deste cliente ainda.</p>}
+            </Bloco>
+          </div>
+          <div className="space-y-3">
+            <Bloco title="Contato">
+              {([[<MessageCircle key="w" className="h-4 w-4" />, c.telefone ? formatPhone(c.telefone) : '', 'WhatsApp', wa], [<Mail key="m" className="h-4 w-4" />, c.email || '', 'E-mail', c.email ? `mailto:${c.email}` : '']] as const).map(([ic, v, r, href]) => (
+                <div key={r} className="flex items-center gap-3 border-t border-border py-2.5 first:border-t-0 first:pt-0">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-surface-2 text-foreground-muted">{ic}</span>
+                  <span className="min-w-0 flex-1"><span className={cn('block truncate text-[13.5px]', v ? 'text-foreground' : 'text-foreground-subtle')}>{v || 'não cadastrado'}</span><span className="block text-[12px] text-foreground-muted">{r}</span></span>
+                  {v ? <a href={href} target="_blank" rel="noreferrer" className={btn.mini + ' inline-flex items-center'}>Abrir</a> : <button type="button" onClick={editar} className={cn(btn.mini, 'text-primary')}>Adicionar</button>}
+                </div>
+              ))}
+              {c.endereco && <p className="mt-2 border-t border-border pt-2.5 text-[12.5px] text-foreground-muted">{c.endereco}</p>}
+            </Bloco>
+            <Bloco title="Cobrança">
+              <p className="text-[13.5px] text-foreground">Recebe por <b className="font-semibold">{CANAL[c.canal_cobranca || 'whatsapp']}</b></p>
+              <p className="text-[12px] text-foreground-muted">{n.ultimoPagamento ? `Último pagamento em ${dataBR(n.ultimoPagamento)}/${n.ultimoPagamento.slice(0, 4)}` : 'Ainda sem pagamentos'}</p>
+              {!c.telefone && !c.email && <p className="mt-2 rounded-xl bg-warning-bg px-3 py-2 text-[12px] text-warning-fg">Sem WhatsApp nem e-mail: as cobranças automáticas não saem.</p>}
+            </Bloco>
+          </div>
+        </div>
+      </div>
+      <ModalFooter left={<button type="button" onClick={excluir} className={btn.danger}><Trash2 className="h-4 w-4" />Excluir</button>}>
+        <button type="button" onClick={fechar} className={btn.outline}>Fechar</button>
+        <button type="button" onClick={editar} className={btn.primary}><Pencil className="h-4 w-4" />Editar</button>
+      </ModalFooter>
+    </ModalShell>
+  );
+}
+
+/* ---------- Criar / editar ---------- */
+function FormCliente({ editando, form, setForm, onSubmit, fechar, isSaving, excluir }: {
+  editando: boolean; form: ClienteFormData; setForm: React.Dispatch<React.SetStateAction<ClienteFormData>>;
+  onSubmit: (e: React.FormEvent) => void; fechar: () => void; isSaving: boolean; excluir?: () => void;
+}) {
+  const [busca, setBusca] = useState<'idle' | 'buscando' | 'ok' | 'erro'>('idle');
+  const doc = onlyDigits(form.cpf_cnpj || '');
+
+  // Com o CNPJ, busca os dados públicos da Receita (BrasilAPI) e completa só o que estiver vazio.
+  const buscarCnpj = async () => {
+    if (doc.length !== 14) return;
+    setBusca('buscando');
+    try {
+      const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${doc}`);
+      if (!r.ok) throw new Error('não encontrado');
+      const d = await r.json();
+      const endereco = [
+        [d.descricao_tipo_de_logradouro, d.logradouro].filter(Boolean).join(' '), d.numero, d.complemento, d.bairro,
+        d.municipio && d.uf ? `${d.municipio}/${d.uf}` : d.municipio, d.cep,
+      ].filter((x: unknown) => x && String(x).trim()).join(', ');
+      setForm((p) => ({
+        ...p,
+        nome: p.nome || d.nome_fantasia || d.razao_social || '',
+        email: p.email || (d.email ? String(d.email).toLowerCase() : ''),
+        telefone: p.telefone || onlyDigits(d.ddd_telefone_1 || '').slice(0, 11),
+        endereco: p.endereco || endereco,
+      }));
+      setBusca('ok');
+    } catch {
+      setBusca('erro');
+    }
+  };
+
+  return (
+    <form onSubmit={onSubmit} className="contents">
+      <ModalShell>
+        <ModalHeader eyebrow="Cadastro" title={editando ? 'Editar cliente' : 'Novo cliente'} onClose={fechar} />
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-5">
+          <Secao n={1} title="Identificação">
+            <Segmented<'PJ' | 'PF'> value={form.tipo} onChange={(v) => { setForm((p) => ({ ...p, tipo: v, cpf_cnpj: onlyDigits(p.cpf_cnpj || '').slice(0, v === 'PJ' ? 14 : 11) })); setBusca('idle'); }} opts={[['PJ', 'Empresa (CNPJ)'], ['PF', 'Pessoa física (CPF)']]} />
+            <Campo label={form.tipo === 'PJ' ? 'CNPJ' : 'CPF'} hint={form.tipo === 'PJ' ? 'Com o CNPJ, o BALANX busca nome, endereço e contato na Receita.' : undefined}>
+              <div className="flex gap-2">
+                <Input
+                  inputMode="numeric"
+                  value={maskCpfCnpj(form.cpf_cnpj || '', form.tipo)}
+                  onChange={(e) => { setForm((p) => ({ ...p, cpf_cnpj: onlyDigits(e.target.value).slice(0, p.tipo === 'PJ' ? 14 : 11) })); setBusca('idle'); }}
+                  placeholder={form.tipo === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
+                  maxLength={form.tipo === 'PJ' ? 18 : 14}
+                />
+                {form.tipo === 'PJ' && (
+                  <button type="button" onClick={buscarCnpj} disabled={doc.length !== 14 || busca === 'buscando'} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-foreground px-3.5 text-[12.5px] font-medium text-background hover:opacity-90 disabled:opacity-40">
+                    <Sparkles className="h-3.5 w-3.5" />{busca === 'buscando' ? 'Buscando…' : 'Buscar dados'}
+                  </button>
+                )}
+              </div>
+            </Campo>
+            {busca === 'ok' && <p className="flex items-center gap-1.5 rounded-xl bg-success-bg px-3 py-2 text-[12.5px] text-success-fg"><Check className="h-3.5 w-3.5" /> Dados da Receita preenchidos nos campos vazios.</p>}
+            {busca === 'erro' && <p className="rounded-xl bg-warning-bg px-3 py-2 text-[12.5px] text-warning-fg">Não achei esse CNPJ na Receita agora. Preencha à mão.</p>}
+            <Campo label="Nome que aparece nas cobranças">
+              <Input value={form.nome} onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))} placeholder="Nome fantasia ou nome da pessoa" required />
+            </Campo>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Campo label="Marca (empresa-fonte)">
+                <select value={form.empresa_fonte || 'PIXIFY'} onChange={(e) => setForm((p) => ({ ...p, empresa_fonte: e.target.value as EmpresaFonte }))} className={campoCls}>
+                  {EMPRESA_FONTE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </Campo>
+              <Campo label="Situação">
+                <Segmented<'ativo' | 'inativo'> value={form.status} onChange={(v) => setForm((p) => ({ ...p, status: v }))} opts={[['ativo', 'Ativo'], ['inativo', 'Inativo']]} />
+              </Campo>
+            </div>
+          </Secao>
+          <Secao n={2} title="Contato">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Campo label="WhatsApp">
+                <Input type="tel" inputMode="tel" autoComplete="tel" value={form.telefone || ''} maxLength={11}
+                  onChange={(e) => setForm((p) => ({ ...p, telefone: e.target.value.replace(/\D/g, '') }))} placeholder="DDD + número" />
+              </Campo>
+              <Campo label="E-mail">
+                <Input type="email" value={form.email || ''} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder="financeiro@empresa.com.br" />
+              </Campo>
+            </div>
+            <Campo label="Endereço">
+              <Input value={form.endereco || ''} onChange={(e) => setForm((p) => ({ ...p, endereco: e.target.value }))} placeholder="Rua, número, cidade - UF" />
+            </Campo>
+          </Secao>
+          <Secao n={3} title="Cobrança">
+            <Campo label="Enviar as cobranças por">
+              <Segmented<'whatsapp' | 'email' | 'ambos'> value={form.canal_cobranca || 'whatsapp'} onChange={(v) => setForm((p) => ({ ...p, canal_cobranca: v }))} opts={[['whatsapp', 'WhatsApp'], ['email', 'E-mail'], ['ambos', 'Os dois']]} />
+            </Campo>
+          </Secao>
+        </div>
+        <ModalFooter left={editando && excluir ? <button type="button" onClick={excluir} className={btn.danger}><Trash2 className="h-4 w-4" />Excluir</button> : undefined}>
+          <button type="button" onClick={fechar} className={btn.outline}>Cancelar</button>
+          <button type="submit" disabled={isSaving || !form.nome} className={btn.primary}>{isSaving ? 'Salvando…' : editando ? 'Salvar' : 'Cadastrar cliente'}</button>
+        </ModalFooter>
+      </ModalShell>
+    </form>
   );
 }
 
 export default function Clientes() {
-  const {
-    clientes,
-    isLoading,
-    createCliente,
-    updateCliente,
-    deleteCliente,
-    deleteMultipleClientes,
-  } = useClientes();
+  const { clientes, isLoading, createCliente, updateCliente, deleteCliente, deleteMultipleClientes } = useClientes();
+  const { numeros } = useClientesResumo();
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [empresaFilter, setEmpresaFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [busca, setBusca] = useState('');
+  const [status, setStatus] = useState<'ativos' | 'inativos' | 'todos'>('ativos');
+  const [marca, setMarca] = useState<EmpresaFonte | 'todas'>('todas');
+  const [ordem, setOrdem] = useState<'mrr' | 'atraso' | 'nome'>('nome');
+  const [vista, setVista] = useState<'cards' | 'lista'>('cards');
 
+  const [ficha, setFicha] = useState<ClienteDB | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  useActionParam('novo', () => handleNew());
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editingCliente, setEditingCliente] = useState<{ id: string } | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<ClienteFormData>(FORM_VAZIO);
   const [isSaving, setIsSaving] = useState(false);
-
-  const [formData, setFormData] = useState<ClienteFormData>({
-    nome: '',
-    email: '',
-    telefone: '',
-    cpf_cnpj: '',
-    tipo: 'PJ',
-    endereco: '',
-    status: 'ativo',
-    empresa_fonte: 'PIXIFY',
-    canal_cobranca: 'whatsapp',
-  });
-
-  const filteredClientes = useMemo(() => {
-    return clientes.filter((c) => {
-      const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
-      const matchesEmpresa = empresaFilter === 'all' || c.empresa_fonte === empresaFilter;
-      const term = searchTerm.toLowerCase();
-      const matchesSearch =
-        !term ||
-        c.nome.toLowerCase().includes(term) ||
-        (c.email && c.email.toLowerCase().includes(term)) ||
-        (c.cpf_cnpj && c.cpf_cnpj.includes(term));
-      return matchesStatus && matchesEmpresa && matchesSearch;
-    });
-  }, [clientes, statusFilter, empresaFilter, searchTerm]);
-
-  const { selectedIds, selectedItems, isSelected, isAllSelected, toggleSelect, toggleSelectAll, clearSelection } = useMultiSelect({
-    items: filteredClientes,
-    getItemId: (item) => item.id,
-  });
-
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
-  const handleBulkDelete = async () => {
-    setIsSaving(true);
-    const success = await deleteMultipleClientes(Array.from(selectedIds));
-    if (success) {
-      setBulkDeleteDialogOpen(false);
-      clearSelection();
-    }
-    setIsSaving(false);
-  };
+  const handleNew = () => { setEditingId(null); setFormData(FORM_VAZIO); setModalOpen(true); };
+  useActionParam('novo', () => handleNew());
 
-  const handleExport = () => {
-    const dataToExport = selectedItems.map((c) => ({
-      nome: c.nome,
-      email: c.email || '',
-      telefone: c.telefone || '',
-      cpf_cnpj: c.cpf_cnpj || '',
-      tipo: c.tipo,
-      status: c.status,
-    }));
-    exportClientes(dataToExport);
-  };
-
-  const handleNew = () => {
-    setEditingCliente(null);
+  const handleEdit = (c: ClienteDB) => {
+    setEditingId(c.id);
     setFormData({
-      nome: '',
-      email: '',
-      telefone: '',
-      cpf_cnpj: '',
-      tipo: 'PJ',
-      endereco: '',
-      status: 'ativo',
-      empresa_fonte: 'PIXIFY',
-      canal_cobranca: 'whatsapp',
+      nome: c.nome, email: c.email || '', telefone: c.telefone || '', cpf_cnpj: c.cpf_cnpj || '', tipo: c.tipo,
+      endereco: c.endereco || '', status: c.status, empresa_fonte: c.empresa_fonte || 'PIXIFY', canal_cobranca: c.canal_cobranca || 'whatsapp',
     });
-    setModalOpen(true);
-  };
-
-  const handleEdit = (cliente: typeof clientes[0]) => {
-    setEditingCliente({ id: cliente.id });
-    setFormData({
-      nome: cliente.nome,
-      email: cliente.email || '',
-      telefone: cliente.telefone || '',
-      cpf_cnpj: cliente.cpf_cnpj || '',
-      tipo: cliente.tipo,
-      endereco: cliente.endereco || '',
-      status: cliente.status,
-      empresa_fonte: cliente.empresa_fonte || 'PIXIFY',
-      canal_cobranca: cliente.canal_cobranca || 'whatsapp',
-    });
+    setFicha(null);
     setModalOpen(true);
   };
 
@@ -166,11 +253,8 @@ export default function Clientes() {
     e.preventDefault();
     if (!formData.nome) return;
     setIsSaving(true);
-    if (editingCliente) {
-      await updateCliente(editingCliente.id, formData);
-    } else {
-      await createCliente(formData);
-    }
+    if (editingId) await updateCliente(editingId, formData);
+    else await createCliente(formData);
     setModalOpen(false);
     setIsSaving(false);
   };
@@ -178,499 +262,224 @@ export default function Clientes() {
   const handleDelete = async () => {
     if (!deletingId) return;
     setIsSaving(true);
-    const success = await deleteCliente(deletingId);
-    if (success) setDeleteDialogOpen(false);
+    const ok = await deleteCliente(deletingId);
+    if (ok) { setDeletingId(null); setModalOpen(false); setFicha(null); }
     setIsSaving(false);
-    setDeletingId(null);
   };
 
-  // Mobile: lista agrupada por status (mantém a ordem alfabética do hook dentro do grupo)
-  const gruposMobile = [
-    { key: 'ativo', label: 'Ativos', itens: filteredClientes.filter((c) => c.status === 'ativo') },
-    { key: 'inativo', label: 'Inativos', itens: filteredClientes.filter((c) => c.status !== 'ativo') },
-  ].filter((g) => g.itens.length > 0);
+  const contagem = {
+    ativos: clientes.filter((c) => c.status === 'ativo').length,
+    inativos: clientes.filter((c) => c.status !== 'ativo').length,
+    todos: clientes.length,
+  };
 
-  const askDelete = (id: string) => {
-    setDeletingId(id);
-    setDeleteDialogOpen(true);
+  const lista = useMemo(() => {
+    const t = busca.trim().toLowerCase();
+    const td = onlyDigits(busca);
+    return clientes
+      .filter((c) => status === 'todos' || (status === 'ativos' ? c.status === 'ativo' : c.status !== 'ativo'))
+      .filter((c) => marca === 'todas' || c.empresa_fonte === marca)
+      .filter((c) => !t || c.nome.toLowerCase().includes(t) || (c.email || '').toLowerCase().includes(t) || (!!td && (c.cpf_cnpj || '').includes(td)))
+      .sort((a, b) => {
+        if (ordem === 'mrr') return numeros(b.id).mrr - numeros(a.id).mrr;
+        if (ordem === 'atraso') return numeros(b.id).atrasado - numeros(a.id).atrasado;
+        return a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
+      });
+  }, [clientes, status, marca, busca, ordem, numeros]);
+
+  const { selectedIds, selectedItems, isSelected, isAllSelected, toggleSelect, toggleSelectAll, clearSelection } = useMultiSelect({
+    items: lista,
+    getItemId: (item) => item.id,
+  });
+
+  const handleBulkDelete = async () => {
+    setIsSaving(true);
+    const ok = await deleteMultipleClientes(Array.from(selectedIds));
+    if (ok) { setBulkDeleteDialogOpen(false); clearSelection(); }
+    setIsSaving(false);
+  };
+
+  const handleExport = () => {
+    exportClientes(selectedItems.map((c) => ({ nome: c.nome, email: c.email || '', telefone: c.telefone || '', cpf_cnpj: c.cpf_cnpj || '', tipo: c.tipo, status: c.status })));
+  };
+
+  const comAtraso = clientes.filter((c) => numeros(c.id).atrasado > 0);
+  const totalAtraso = comAtraso.reduce((s, c) => s + numeros(c.id).atrasado, 0);
+  const semContato = clientes.filter((c) => c.status === 'ativo' && !c.telefone && !c.email).length;
+  const marcasUsadas = EMPRESA_FONTE_OPTIONS.filter((o) => clientes.some((c) => c.empresa_fonte === o.value));
+
+  const Selecao = ({ c }: { c: ClienteDB }) => {
+    const sel = isSelected(c.id);
+    return (
+      <button type="button" aria-label={sel ? `Desmarcar ${c.nome}` : `Selecionar ${c.nome}`} aria-pressed={sel}
+        onClick={(e) => { e.stopPropagation(); toggleSelect(c.id); }} className="no-touch-min shrink-0 rounded-full">
+        <ClienteAvatar nome={c.nome} selected={sel} className="h-11 w-11 rounded-full text-[14px]" />
+      </button>
+    );
   };
 
   return (
     <main className="container py-4 md:py-6">
-      <MobilePageHeader
-        eyebrow="Gestão"
-        title="Clientes"
-        actions={
-          <>
-            {/* Alternância grade/lista (desktop) */}
-            <div className="hidden h-10 items-center gap-1 rounded-full border border-border bg-surface p-1 md:inline-flex">
-              <button
-                type="button"
-                aria-label="Visualização em grade"
-                aria-pressed={viewMode === 'grid'}
-                onClick={() => setViewMode('grid')}
-                className={cn(
-                  'no-touch-min grid h-8 w-8 place-items-center rounded-full transition-colors',
-                  viewMode === 'grid' ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground',
-                )}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                aria-label="Visualização em lista"
-                aria-pressed={viewMode === 'list'}
-                onClick={() => setViewMode('list')}
-                className={cn(
-                  'no-touch-min grid h-8 w-8 place-items-center rounded-full transition-colors',
-                  viewMode === 'list' ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground',
-                )}
-              >
-                <List className="h-4 w-4" />
-              </button>
-            </div>
-            <Button onClick={handleNew} aria-label="Novo Cliente">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Novo cliente</span>
-              <span className="sm:hidden">Novo</span>
-            </Button>
-          </>
-        }
-      />
+      <div className="mx-auto max-w-[1180px] space-y-5">
+        <PageHeader eyebrow="Gestão" title="Clientes">
+          <button type="button" onClick={handleNew} aria-label="Novo cliente" className={btn.primary}><Plus className="h-4 w-4" /> Novo cliente</button>
+        </PageHeader>
 
-      {/* Busca + filtros em pílulas */}
-      <div className="mb-4 flex flex-col gap-3 md:mb-6 md:flex-row md:items-center md:justify-between">
-        <div className="relative w-full md:max-w-sm">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
-          <Input
-            type="search"
-            placeholder="Buscar nome, email ou documento..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-11 w-full rounded-full border-border bg-surface pl-10 pr-4"
-          />
-        </div>
-        <ScrollPills className="md:flex-wrap md:justify-end">
-          {([['all', 'Todos'], ['ativo', 'Ativos'], ['inativo', 'Inativos']] as const).map(([v, l]) => (
-            <Pill key={v} active={statusFilter === v} onClick={() => setStatusFilter(v)}>
-              {l}
-            </Pill>
-          ))}
-          <span aria-hidden className="mx-0.5 h-5 w-px shrink-0 self-center bg-border" />
-          <Pill active={empresaFilter === 'all'} onClick={() => setEmpresaFilter('all')}>
-            Todas as marcas
-          </Pill>
-          {EMPRESA_FONTE_OPTIONS.map((o) => (
-            <Pill key={o.value} active={empresaFilter === o.value} onClick={() => setEmpresaFilter(o.value)}>
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: `hsl(var(--brand-${o.value.toLowerCase()}))` }}
-              />
-              {o.label}
-            </Pill>
-          ))}
-        </ScrollPills>
-      </div>
+        {/* avisos úteis */}
+        {(comAtraso.length > 0 || semContato > 0) && (
+          <div className="flex flex-wrap gap-2">
+            {comAtraso.length > 0 && (
+              <button type="button" onClick={() => { setOrdem('atraso'); setStatus('todos'); }} className="inline-flex items-center gap-1.5 rounded-full bg-danger-bg px-3 py-1.5 text-[12.5px] text-danger-fg">
+                <AlertTriangle className="h-3.5 w-3.5" />{comAtraso.length} {comAtraso.length === 1 ? 'cliente com atraso' : 'clientes com atraso'} · {formatCurrency(totalAtraso)}
+              </button>
+            )}
+            {semContato > 0 && <span className="inline-flex items-center gap-1.5 rounded-full bg-warning-bg px-3 py-1.5 text-[12.5px] text-warning-fg"><Phone className="h-3.5 w-3.5" />{semContato} sem WhatsApp nem e-mail: as cobranças não saem</span>}
+          </div>
+        )}
 
-      {/* Conteúdo */}
-      {isLoading ? (
-        <>
-          <div className="space-y-2 md:hidden">
-            <div className="h-3 w-20 rounded-full bg-surface-2" />
-            <div className="rounded-[20px] border border-border bg-surface px-3.5">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex animate-pulse items-center gap-3 border-b border-border py-3 last:border-b-0">
-                  <div className="h-10 w-10 rounded-[13px] bg-surface-2" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-3 w-2/3 rounded-full bg-surface-2" />
-                    <div className="h-2.5 w-1/3 rounded-full bg-surface-2" />
-                  </div>
-                </div>
+        {/* barra única */}
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex h-10 w-full items-center gap-2 rounded-full border border-border bg-surface px-3.5 sm:w-72">
+            <Search className="h-4 w-4 text-foreground-muted" />
+            <input type="search" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome, e-mail, CNPJ ou CPF" className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-foreground-muted" />
+          </label>
+          <div className="flex gap-1 rounded-full border border-border bg-surface p-1">
+            {([['ativos', 'Ativos'], ['inativos', 'Inativos'], ['todos', 'Todos']] as const).map(([v, r]) => (
+              <button key={v} type="button" onClick={() => setStatus(v)} className={cn('inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px]', status === v ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground')}>{r}<span className="text-[11px] opacity-70">{contagem[v]}</span></button>
+            ))}
+          </div>
+          {marcasUsadas.length > 1 && (
+            <div className="flex max-w-full gap-1 overflow-x-auto rounded-full border border-border bg-surface p-1 scrollbar-hide">
+              {(['todas', ...marcasUsadas.map((o) => o.value)] as const).map((m) => (
+                <button key={m} type="button" onClick={() => setMarca(m as EmpresaFonte | 'todas')} className={cn('inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12.5px]', marca === m ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground')}>
+                  {m !== 'todas' && <i className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: corMarca(m) }} />}{m === 'todas' ? 'Todas as marcas' : m}
+                </button>
               ))}
             </div>
-          </div>
-          <div className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-44 animate-pulse rounded-[20px] border border-border bg-surface" />
-            ))}
-          </div>
-        </>
-      ) : filteredClientes.length === 0 ? (
-        <SectionCard>
-          <EmptyState
-            title="Nenhum cliente encontrado"
-            description="Adicione seu primeiro cliente para começar a gerenciar suas receitas."
-            action={
-              <Button onClick={handleNew}>
-                <Plus className="h-4 w-4" />
-                Novo Cliente
-              </Button>
-            }
-          />
-        </SectionCard>
-      ) : (
-        <>
-          {/* MOBILE: lista agrupada por status */}
-          <div className="space-y-4 md:hidden">
-            {gruposMobile.map((g) => (
-              <section key={g.key}>
-                <div className="flex items-baseline justify-between px-0.5 pb-1.5 pt-1">
-                  <span className={SECTION_LABEL}>{g.label}</span>
-                  <span className="text-[12px] text-foreground-muted">
-                    {g.itens.length} {g.itens.length === 1 ? 'cliente' : 'clientes'}
-                  </span>
-                </div>
-                <div className="rounded-[20px] border border-border bg-surface px-3.5">
-                  {g.itens.map((cliente) => {
-                    const selected = isSelected(cliente.id);
-                    return (
-                      <div
-                        key={cliente.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => handleEdit(cliente)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleEdit(cliente); }
-                        }}
-                        className="flex cursor-pointer items-center gap-3 border-b border-border py-3 last:border-b-0"
-                      >
-                        <button
-                          type="button"
-                          aria-label={`Selecionar ${cliente.nome}`}
-                          aria-pressed={selected}
-                          onClick={(e) => { e.stopPropagation(); toggleSelect(cliente.id); }}
-                          className="no-touch-min shrink-0 rounded-[13px]"
-                        >
-                          <ClienteAvatar nome={cliente.nome} selected={selected} />
-                        </button>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex min-w-0 items-center gap-1.5">
-                            <span className="truncate text-[14px] font-semibold text-foreground">{cliente.nome}</span>
-                          </div>
-                          <div className="mt-0.5 truncate text-[12px] text-foreground-muted">
-                            {cliente.empresa_fonte ? `${cliente.empresa_fonte} · ` : ''}
-                            {cliente.telefone
-                              ? formatPhone(cliente.telefone)
-                              : cliente.email || (cliente.tipo === 'PJ' ? 'Empresa' : 'Pessoa Física')}
-                          </div>
-                        </div>
-                        <StatusBadge status={cliente.status} className="shrink-0" />
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              type="button"
-                              aria-label="Ações"
-                              onClick={(e) => e.stopPropagation()}
-                              className="no-touch-min -mr-1.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem onClick={() => handleEdit(cliente)}>
-                              <Pencil className="mr-2 h-3.5 w-3.5" /> Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toggleSelect(cliente.id)}>
-                              <Check className="mr-2 h-3.5 w-3.5" /> {selected ? 'Desmarcar' : 'Selecionar'}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => askDelete(cliente.id)} className="text-danger-fg focus:text-danger-fg">
-                              <Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-          </div>
-
-          {/* DESKTOP */}
-          <div className="hidden md:block">
-            {viewMode === 'list' ? (
-              <SectionCard
-                flush
-                title="Todos os clientes"
-                description={`${filteredClientes.length} ${filteredClientes.length === 1 ? 'cliente' : 'clientes'}`}
-              >
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="w-12 pl-6">
-                        <Checkbox checked={isAllSelected} onCheckedChange={toggleSelectAll} aria-label="Selecionar todos" />
-                      </TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Contato</TableHead>
-                      <TableHead>Marca</TableHead>
-                      <TableHead className="text-right">Status</TableHead>
-                      <TableHead className="w-24 pr-6 text-right">
-                        <span className="sr-only">Ações</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredClientes.map((cliente) => (
-                      <TableRow
-                        key={cliente.id}
-                        data-state={isSelected(cliente.id) ? 'selected' : undefined}
-                        onClick={() => handleEdit(cliente)}
-                        className="cursor-pointer border-b-0 border-t border-border"
-                      >
-                        <TableCell className="pl-6" onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={isSelected(cliente.id)}
-                            onCheckedChange={() => toggleSelect(cliente.id)}
-                            aria-label={`Selecionar ${cliente.nome}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex min-w-0 items-center gap-3">
-                            <ClienteAvatar nome={cliente.nome} />
-                            <div className="min-w-0">
-                              <p className="truncate font-semibold text-foreground">{cliente.nome}</p>
-                              <p className="truncate text-[12px] text-foreground-muted">
-                                {cliente.tipo === 'PJ' ? 'Empresa' : 'Pessoa Física'}
-                                {cliente.cpf_cnpj && <span className="tabular-nums"> · {formatCPFCNPJ(cliente.cpf_cnpj)}</span>}
-                              </p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="min-w-0 text-[13px]">
-                            <p className="max-w-[260px] truncate text-foreground">{cliente.email || '—'}</p>
-                            {cliente.telefone && (
-                              <p className="tabular-nums text-[12px] text-foreground-muted">{formatPhone(cliente.telefone)}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <EmpresaFonteBadge empresa={cliente.empresa_fonte} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <StatusBadge status={cliente.status} />
-                        </TableCell>
-                        <TableCell className="pr-6" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Editar" onClick={() => handleEdit(cliente)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="danger-ghost" size="icon" className="h-8 w-8" aria-label="Excluir" onClick={() => askDelete(cliente.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </SectionCard>
-            ) : (
-              <div className="grid grid-cols-2 gap-4 xl:grid-cols-3 2xl:grid-cols-4">
-                {filteredClientes.map((cliente) => (
-                  <ClienteCard
-                    key={cliente.id}
-                    cliente={cliente}
-                    isSelected={isSelected(cliente.id)}
-                    onToggleSelect={() => toggleSelect(cliente.id)}
-                    onEdit={() => handleEdit(cliente)}
-                    onDelete={() => askDelete(cliente.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Create/Edit Modal */}
-      <Sheet open={modalOpen} onOpenChange={setModalOpen}>
-        <SheetContent side="bottom" showHandle className="max-h-[92dvh] overflow-y-auto rounded-t-[26px] border-t border-border bg-surface sm:max-w-[520px] sm:mx-auto">
-          <div className="pb-1">
-            <div className="text-[13px] text-foreground-muted">Cadastro</div>
-            <h2 className="mt-0.5 text-[24px] font-semibold tracking-[-0.03em] text-foreground">
-              {editingCliente ? 'Editar cliente' : 'Novo cliente'}
-            </h2>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5 pt-4">
-            <FormSection title="Identificação">
-              <div className="space-y-2">
-                <Label htmlFor="nome">Nome</Label>
-                <Input
-                  id="nome"
-                  value={formData.nome}
-                  onChange={(e) => setFormData((p) => ({ ...p, nome: e.target.value }))}
-                  placeholder="Ex: Loja Verano"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Tipo</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {CLIENTE_TIPO_OPTIONS.map((o) => (
-                    <button
-                      key={o.value}
-                      type="button"
-                      onClick={() => setFormData((p) => ({ ...p, tipo: o.value as 'PF' | 'PJ' }))}
-                      className={cn(CHOICE_BASE, formData.tipo === o.value ? CHOICE_ON : CHOICE_OFF)}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="cpf_cnpj">{formData.tipo === 'PJ' ? 'CNPJ' : 'CPF'}</Label>
-                <Input
-                  id="cpf_cnpj"
-                  inputMode="numeric"
-                  value={maskCpfCnpj(formData.cpf_cnpj || '', formData.tipo)}
-                  onChange={(e) => setFormData((p) => ({ ...p, cpf_cnpj: onlyDigits(e.target.value).slice(0, p.tipo === 'PJ' ? 14 : 11) }))}
-                  placeholder={formData.tipo === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
-                  maxLength={formData.tipo === 'PJ' ? 18 : 14}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Marca (empresa-fonte)</Label>
-                <Select
-                  value={formData.empresa_fonte || 'PIXIFY'}
-                  onValueChange={(v: EmpresaFonte) => setFormData((p) => ({ ...p, empresa_fonte: v }))}
-                >
-                  <SelectTrigger>
-                    {(() => {
-                      const sel = EMPRESA_FONTE_OPTIONS.find(o => o.value === (formData.empresa_fonte || 'PIXIFY'));
-                      return sel
-                        ? <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: `hsl(var(--brand-${sel.value.toLowerCase()}))` }} />{sel.label}</span>
-                        : <SelectValue />;
-                    })()}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EMPRESA_FONTE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        <span className="flex items-center gap-2">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: `hsl(var(--brand-${o.value.toLowerCase()}))` }} />
-                          {o.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['ativo', 'inativo'] as const).map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setFormData((p) => ({ ...p, status: s }))}
-                      className={cn(CHOICE_BASE, formData.status === s ? CHOICE_ON : CHOICE_OFF)}
-                    >
-                      {s === 'ativo' ? 'Ativo' : 'Inativo'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </FormSection>
-
-            <FormSection title="Contato">
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email || ''}
-                    onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
-                    placeholder="contato@…"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="telefone">Telefone</Label>
-                  <Input
-                    id="telefone"
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    value={formData.telefone || ''}
-                    onChange={(e) => setFormData((p) => ({ ...p, telefone: e.target.value.replace(/\D/g, '') }))}
-                    placeholder="(11) …"
-                    maxLength={11}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="endereco">Endereço</Label>
-                <Input
-                  id="endereco"
-                  value={formData.endereco || ''}
-                  onChange={(e) => setFormData((p) => ({ ...p, endereco: e.target.value }))}
-                  placeholder="Rua, número, cidade - estado"
-                />
-              </div>
-            </FormSection>
-
-            <FormSection title="Cobrança">
-              <div className="space-y-2">
-                <Label>Cobrança preferida por</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {([['whatsapp', 'WhatsApp'], ['email', 'E-mail'], ['ambos', 'Ambos']] as const).map(([v, l]) => (
-                    <button key={v} type="button" onClick={() => setFormData((p) => ({ ...p, canal_cobranca: v }))}
-                      className={cn(CHOICE_BASE, (formData.canal_cobranca || 'whatsapp') === v ? CHOICE_ON : CHOICE_OFF)}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </FormSection>
-
-            <div className="flex gap-2.5 pt-1">
-              <Button type="button" variant="outline" size="lg" className="flex-1" onClick={() => setModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" size="lg" className="flex-[2]" disabled={isSaving}>
-                {isSaving ? 'Salvando…' : editingCliente ? 'Atualizar' : 'Criar'}
-              </Button>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <div className="relative">
+              <select aria-label="Ordenar" value={ordem} onChange={(e) => setOrdem(e.target.value as typeof ordem)} className="h-10 appearance-none rounded-full border border-border bg-surface pl-8 pr-8 text-[13px] text-foreground outline-none">
+                <option value="nome">Nome (A–Z)</option><option value="mrr">Maior MRR</option><option value="atraso">Em atraso</option>
+              </select>
+              <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground-muted" />
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground-muted" />
             </div>
-          </form>
+            <div className="flex gap-1 rounded-full border border-border bg-surface p-1">
+              <button type="button" onClick={() => setVista('cards')} aria-label="Cartões" aria-pressed={vista === 'cards'} className={cn('grid h-8 w-8 place-items-center rounded-full', vista === 'cards' ? 'bg-foreground text-background' : 'text-foreground-muted')}><LayoutGrid className="h-4 w-4" /></button>
+              <button type="button" onClick={() => setVista('lista')} aria-label="Lista" aria-pressed={vista === 'lista'} className={cn('grid h-8 w-8 place-items-center rounded-full', vista === 'lista' ? 'bg-foreground text-background' : 'text-foreground-muted')}><List className="h-4 w-4" /></button>
+            </div>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-44 animate-pulse rounded-[22px] border border-border bg-surface" />)}
+          </div>
+        ) : lista.length === 0 ? (
+          <div className="rounded-[24px] border border-dashed border-border px-6 py-14 text-center">
+            <p className="text-[15px] text-foreground">{clientes.length ? 'Nenhum cliente com esses filtros.' : 'Nenhum cliente ainda.'}</p>
+            <p className="mt-1 text-[13px] text-foreground-muted">{clientes.length ? 'Limpe a busca ou troque o filtro.' : 'Cadastre o primeiro para lançar receitas e cobrar.'}</p>
+            {!clientes.length && <button type="button" onClick={handleNew} className={cn(btn.primary, 'mt-4')}><Plus className="h-4 w-4" />Novo cliente</button>}
+          </div>
+        ) : vista === 'cards' ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {lista.map((c) => {
+              const n = numeros(c.id);
+              return (
+                <div key={c.id} role="button" tabIndex={0} onClick={() => setFicha(c)} onKeyDown={(e) => { if (e.key === 'Enter') setFicha(c); }}
+                  className={cn('group flex cursor-pointer flex-col rounded-[22px] border bg-surface p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg', isSelected(c.id) ? 'border-foreground' : 'border-border', c.status !== 'ativo' && 'opacity-60')}>
+                  <div className="flex items-start gap-3">
+                    <Selecao c={c} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[15.5px] font-semibold text-foreground">{c.nome}</span>
+                      <span className="flex items-center gap-1 truncate text-[12px] text-foreground-muted">{c.tipo === 'PJ' ? <Building2 className="h-3 w-3 shrink-0" /> : <UserRound className="h-3 w-3 shrink-0" />}{c.cpf_cnpj ? formatCPFCNPJ(c.cpf_cnpj) : c.tipo === 'PJ' ? 'Empresa' : 'Pessoa física'}</span>
+                    </span>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-surface-2/60 p-3">
+                    <span><span className="block text-[11px] text-foreground-muted">MRR</span><span className="block text-[15px] font-semibold tabular-nums text-foreground">{n.mrr ? formatCurrency(n.mrr) : '—'}</span></span>
+                    <span>{n.atrasado
+                      ? <><span className="block text-[11px] text-danger-fg">Atrasado</span><span className="block text-[15px] font-semibold tabular-nums text-danger-fg">{formatCurrency(n.atrasado)}</span></>
+                      : <><span className="block text-[11px] text-foreground-muted">Em aberto</span><span className="block text-[15px] font-semibold tabular-nums text-foreground">{n.aberto ? formatCurrency(n.aberto) : '—'}</span></>}</span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2"><MarcaChip m={c.empresa_fonte} />{c.status !== 'ativo' && <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10.5px] text-foreground-muted">Inativo</span>}</span>
+                    <span className="flex gap-1">
+                      {c.telefone && <span title={formatPhone(c.telefone)} className="grid h-8 w-8 place-items-center rounded-full border border-border text-foreground-muted"><MessageCircle className="h-3.5 w-3.5" /></span>}
+                      {c.email && <span title={c.email} className="grid h-8 w-8 place-items-center rounded-full border border-border text-foreground-muted"><Mail className="h-3.5 w-3.5" /></span>}
+                      {!c.telefone && !c.email && <span className="rounded-full bg-warning-bg px-2 py-1 text-[11px] text-warning-fg">sem contato</span>}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-[24px] border border-border bg-surface [&>div:last-child]:rounded-b-[24px]">
+            <div className="hidden grid-cols-[22px_minmax(0,2fr)_minmax(0,1.4fr)_110px_110px_110px] items-center gap-3 border-b border-border px-5 py-2.5 text-[12px] text-foreground-muted md:grid">
+              <button type="button" onClick={toggleSelectAll} aria-label="Selecionar todos" className={cn('grid h-5 w-5 place-items-center rounded-md border', isAllSelected ? 'border-foreground bg-foreground text-background' : 'border-border-strong')}>{isAllSelected && <Check className="h-3.5 w-3.5" />}</button>
+              <span>Cliente</span><span>Contato</span><span>Marca</span><span className="text-right">MRR</span><span className="text-right">Situação</span>
+            </div>
+            {lista.map((c) => {
+              const n = numeros(c.id);
+              const sel = isSelected(c.id);
+              return (
+                <div key={c.id} role="button" tabIndex={0} onClick={() => setFicha(c)} onKeyDown={(e) => { if (e.key === 'Enter') setFicha(c); }}
+                  className={cn('grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border px-4 py-3 text-left last:border-b-0 hover:bg-surface-2/50 md:grid-cols-[22px_minmax(0,2fr)_minmax(0,1.4fr)_110px_110px_110px] md:px-5', sel && 'bg-primary/5', c.status !== 'ativo' && 'opacity-60')}>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); toggleSelect(c.id); }} aria-label={`Selecionar ${c.nome}`} className={cn('hidden h-5 w-5 place-items-center rounded-md border md:grid', sel ? 'border-foreground bg-foreground text-background' : 'border-border-strong')}>{sel && <Check className="h-3.5 w-3.5" />}</button>
+                  <span className="flex min-w-0 items-center gap-3">
+                    <ClienteAvatar nome={c.nome} className="h-9 w-9 rounded-full text-[12.5px]" />
+                    <span className="min-w-0"><span className="block truncate text-[14.5px] font-semibold text-foreground">{c.nome}</span><span className="block truncate text-[12px] text-foreground-muted">{c.cpf_cnpj ? formatCPFCNPJ(c.cpf_cnpj) : c.tipo === 'PJ' ? 'Empresa' : 'Pessoa física'}</span></span>
+                  </span>
+                  <span className="hidden truncate text-[12.5px] text-foreground-muted md:block">{c.telefone ? formatPhone(c.telefone) : c.email || <span className="text-warning-fg">sem contato</span>}</span>
+                  <span className="hidden md:block"><MarcaChip m={c.empresa_fonte} /></span>
+                  <span className="hidden text-right text-[14px] font-semibold tabular-nums text-foreground md:block">{n.mrr ? formatCurrency(n.mrr) : '—'}</span>
+                  <span className={cn('text-right text-[13.5px] font-semibold tabular-nums', n.atrasado ? 'text-danger-fg' : 'text-foreground-muted')}>{n.atrasado ? formatCurrency(n.atrasado) : 'em dia'}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Ficha */}
+      <Sheet open={!!ficha} onOpenChange={(o) => !o && setFicha(null)}>
+        <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[880px]')}>
+          {ficha && <Ficha c={ficha} n={numeros(ficha.id)} fechar={() => setFicha(null)} editar={() => handleEdit(ficha)} excluir={() => setDeletingId(ficha.id)} />}
+        </SheetContent>
+      </Sheet>
+
+      {/* Criar / editar */}
+      <Sheet open={modalOpen} onOpenChange={setModalOpen}>
+        <SheetContent side="bottom" showHandle showClose={false} className={modalCls('sm:max-w-[640px]')}>
+          {modalOpen && (
+            <FormCliente editando={!!editingId} form={formData} setForm={setFormData} onSubmit={handleSubmit} fechar={() => setModalOpen(false)} isSaving={isSaving}
+              excluir={editingId ? () => setDeletingId(editingId) : undefined} />
+          )}
         </SheetContent>
       </Sheet>
 
       <ConfirmDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        title="Excluir Cliente"
+        open={!!deletingId}
+        onOpenChange={(o) => { if (!o) setDeletingId(null); }}
+        title="Excluir cliente"
         description="Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita."
         confirmLabel="Excluir"
         variant="destructive"
         onConfirm={handleDelete}
         isLoading={isSaving}
       />
-
       <ConfirmDialog
         open={bulkDeleteDialogOpen}
         onOpenChange={setBulkDeleteDialogOpen}
-        title="Excluir Clientes"
+        title="Excluir clientes"
         description={`Tem certeza que deseja excluir ${selectedIds.size} clientes? Esta ação não pode ser desfeita.`}
-        confirmLabel="Excluir Todos"
+        confirmLabel="Excluir todos"
         variant="destructive"
         onConfirm={handleBulkDelete}
         isLoading={isSaving}
       />
-
-      <MultiSelectBar
-        selectedCount={selectedIds.size}
-        onClear={clearSelection}
-        onDelete={() => setBulkDeleteDialogOpen(true)}
-        onExport={handleExport}
-      />
+      <MultiSelectBar selectedCount={selectedIds.size} onClear={clearSelection} onDelete={() => setBulkDeleteDialogOpen(true)} onExport={handleExport} />
     </main>
   );
 }

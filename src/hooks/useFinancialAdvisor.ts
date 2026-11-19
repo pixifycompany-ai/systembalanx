@@ -18,6 +18,15 @@ export interface ChatMessage {
   anexos?: string[];
 }
 
+/** O que a pessoa está vendo quando chama a IARA de outra tela (relatório, indicador…).
+ *  Vai junto da pergunta para a IARA explicar exatamente aqueles números. */
+export interface ContextoTela {
+  tela: string;
+  titulo: string;
+  periodo?: string;
+  dados?: unknown;
+}
+
 /** Arquivo anexado a uma pergunta (imagem ou PDF), lido pela IARA. */
 export interface AnexoIara {
   nome: string;
@@ -29,7 +38,7 @@ interface UseFinancialAdvisorReturn {
   messages: ChatMessage[];
   isLoading: boolean;
   error: string | null;
-  sendMessage: (content: string, anexos?: AnexoIara[]) => Promise<void>;
+  sendMessage: (content: string, anexos?: AnexoIara[], contextoTela?: ContextoTela | null) => Promise<void>;
   clearChat: () => void;
   /** Remove o card de prévia de uma mensagem (após criar/cancelar). */
   clearLancamentos: (messageId: string) => void;
@@ -62,7 +71,7 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sendMessage = useCallback(async (content: string, anexos: AnexoIara[] = []) => {
+  const sendMessage = useCallback(async (content: string, anexos: AnexoIara[] = [], contextoTela: ContextoTela | null = null) => {
     if (!content.trim() && !anexos.length) return;
     const texto = content.trim() || 'Leia o arquivo anexado.';
 
@@ -111,6 +120,7 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
             .map(m => ({ role: m.role, content: m.anexos?.length ? `${m.content}\n[anexo enviado antes: ${m.anexos.join(', ')}]` : m.content }))
             .concat([{ role: 'user', content: texto }]),
           anexos,
+          ...(contextoTela ? { contexto_tela: contextoTela } : {}),
         }),
       });
 
