@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import { Campo, MenuAcoes, ModalFooter, ModalHeader, ModalShell, PageHeader, Secao, Segmented } from '@/components/reskin/kit';
+import { Campo, ModalFooter, ModalHeader, ModalShell, PageHeader, Secao, Segmented } from '@/components/reskin/kit';
 import { btn, modalCls } from '@/components/reskin/estilos';
 import { supabase } from '@/integrations/supabase/client';
 import { useContas, type ContaDB, type ContaFormData } from '@/hooks/useContas';
@@ -218,10 +218,9 @@ export default function Contas() {
         <PageHeader
           eyebrow="Dinheiro"
           title="Contas e cartões"
-          mobileAction={<MenuAcoes itens={[
-            { label: tab === 'contas' ? 'Nova conta' : 'Novo cartão', icon: <Plus className="h-4 w-4" />, onClick: () => (tab === 'contas' ? handleOpenForm() : novoCartao()), destaque: true },
-            ...(tab === 'contas' && bankAccounts.length > 0 ? [{ label: 'Conferir saldo com o banco', icon: <Scale className="h-4 w-4" />, onClick: () => setConferirConta('') }] : []),
-          ]} />}
+          mobileAction={tab === 'contas' && bankAccounts.length > 0 ? (
+            <button type="button" onClick={() => setConferirConta('')} aria-label="Conferir saldo com o banco" title="Conferir com o banco" className={btn.icon}><Scale className="h-4 w-4" /></button>
+          ) : undefined}
         >
           {tab === 'contas' && bankAccounts.length > 0 && (
             <button type="button" onClick={() => setConferirConta('')} aria-label="Conferir saldo com o banco" className={cn(btn.outline, 'max-sm:hidden')}>

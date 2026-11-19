@@ -715,7 +715,6 @@ export default function Contratos() {
           eyebrow="Clientes"
           title="Contratos"
           mobileAction={<MenuAcoes itens={[
-            { label: 'Novo contrato', icon: <Plus className="h-4 w-4" />, onClick: handleNew, destaque: true },
             { label: 'Importar contrato (PDF)', icon: <Upload className="h-4 w-4" />, onClick: () => setImportDialogOpen(true) },
             { label: 'Exportar lista (CSV)', icon: <Download className="h-4 w-4" />, onClick: handleExportLista },
             { label: 'Sincronizar cobranças', icon: <RefreshCw className="h-4 w-4" />, onClick: () => sincronizarCobrancas(), disabled: cobrLoading },

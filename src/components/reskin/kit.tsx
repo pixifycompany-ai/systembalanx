@@ -4,6 +4,7 @@ import { MoreHorizontal, X } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { HexWatermark } from '@/components/shared/NavySurface';
+import { OlhoValores } from '@/components/shared/OlhoValores';
 import { NAVY_SURFACE_BG, NAVY_SURFACE_SHADOW } from '@/components/shared/navyTokens';
 
 /**
@@ -18,7 +19,11 @@ export function PageHeader({ eyebrow, title, children, className, mobileAction }
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           {eyebrow && <p className="text-[13px] text-foreground-muted">{eyebrow}</p>}
-          <h1 className="font-heading text-[38px] font-light leading-none tracking-[-0.04em] text-foreground md:text-[46px]">{title}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="min-w-0 pr-[0.06em] font-heading text-[32px] font-light leading-[1.05] tracking-[-0.04em] text-foreground [overflow-wrap:anywhere] sm:text-[38px] md:text-[46px] md:leading-none">{title}</h1>
+            {/* No desktop o olhinho fica no topo (Header); no celular, ao lado do título. */}
+            <OlhoValores className="no-touch-min h-8 w-8 shrink-0 rounded-full border-0 bg-transparent text-foreground-muted hover:bg-surface-2 md:hidden [&_svg]:h-[18px] [&_svg]:w-[18px]" />
+          </div>
         </div>
         {mobileAction && <div className="flex shrink-0 items-center gap-2 sm:hidden">{mobileAction}</div>}
       </div>

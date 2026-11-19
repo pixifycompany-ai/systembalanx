@@ -1071,9 +1071,6 @@ export default function FluxoCaixa() {
           eyebrow="Dinheiro"
           title="Fluxo de caixa"
           mobileAction={<MenuAcoes itens={[
-            { label: 'Nova entrada', icon: <Plus className="h-4 w-4 text-success-fg" />, onClick: handleNewEntrada, destaque: true },
-            { label: 'Nova saída', icon: <TrendingDown className="h-4 w-4 text-danger-fg" />, onClick: handleNewSaida },
-            { label: 'Transferir entre contas', icon: <ArrowRightLeft className="h-4 w-4" />, onClick: () => setTransferModalOpen(true), disabled: activeContas.length < 2 },
             { label: 'Importar extrato ou print', icon: <Upload className="h-4 w-4" />, onClick: () => setImportDialogOpen(true) },
             { label: 'Relatório do período', icon: <BarChart3 className="h-4 w-4" />, onClick: () => setReportOpen(true) },
           ]} />}

@@ -7,6 +7,7 @@ import {
   Plus, Receipt, TrendingDown, TrendingUp, Upload,
 } from 'lucide-react';
 import { Sparkle } from '@/components/shared/Sparkle';
+import { OlhoValores } from '@/components/shared/OlhoValores';
 import { NotificationBell } from '@/components/layout/NotificationBell';
 import { DetailSheet } from '@/components/shared/DetailSheet';
 import { MetaInline } from '@/components/dashboard/ProgressGoal';
@@ -151,9 +152,12 @@ export default function Dashboard() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[13px] text-foreground-muted">{dataExtenso}</p>
-          <h1 className="font-heading text-[38px] font-light leading-none tracking-[-0.04em] text-foreground md:text-[46px]">
+          <div className="flex items-center gap-2">
+            <h1 className="font-heading text-[38px] font-light leading-none tracking-[-0.04em] text-foreground md:text-[46px]">
             {greeting()}, <span className="font-serif italic tracking-normal">{primeiroNome}</span>
           </h1>
+            <OlhoValores className="no-touch-min h-8 w-8 shrink-0 rounded-full border-0 bg-transparent text-foreground-muted hover:bg-surface-2 md:hidden [&_svg]:h-[18px] [&_svg]:w-[18px]" />
+          </div>
         </div>
         <div className="flex items-center gap-2 max-sm:w-full">
           {/* Sino só no celular — no desktop o topo já tem um */}
@@ -161,7 +165,7 @@ export default function Dashboard() {
           <span className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-surface px-3.5 text-[13px] text-foreground max-sm:flex-1">{metaSubtitle}</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" className="inline-flex h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-[14px] font-medium text-background hover:opacity-90">
+              <button type="button" className="inline-flex h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-[14px] font-medium text-background hover:opacity-90 max-sm:hidden">
                 <Plus className="h-4 w-4" />Novo<ChevronDown className="h-3.5 w-3.5 opacity-70" />
               </button>
             </DropdownMenuTrigger>

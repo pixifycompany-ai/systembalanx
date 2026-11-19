@@ -202,7 +202,7 @@ export default function Categorias() {
 
   return (
     <main className="mx-auto w-full max-w-[1180px] space-y-5 py-4 md:py-6">
-      <PageHeader eyebrow="Ajustes" title="Categorias" mobileAction={<button type="button" onClick={handleNew} aria-label="Nova categoria" className="grid h-10 w-10 place-items-center rounded-full bg-foreground text-background"><Plus className="h-[18px] w-[18px]" /></button>}>
+      <PageHeader eyebrow="Ajustes" title="Categorias">
         <button type="button" onClick={handleNew} aria-label="Nova categoria" className={cn(btn.primary, 'max-sm:hidden')}>
           <Plus className="h-4 w-4" />Nova categoria
         </button>

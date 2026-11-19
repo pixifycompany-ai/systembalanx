@@ -721,7 +721,6 @@ export default function Cobrancas() {
             {regrasConteudo}
           </Popover>
           <MenuAcoes itens={[
-            { label: 'Nova cobrança', icon: <Plus className="h-4 w-4" />, onClick: abrirAvulsa, destaque: true },
             { label: 'Sincronizar com o Asaas', icon: <RefreshCw className="h-4 w-4" />, onClick: () => sincronizar(), disabled: loading },
           ]} />
         </>}
