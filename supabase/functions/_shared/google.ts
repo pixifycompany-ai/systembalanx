@@ -7,8 +7,18 @@ export const ESCOPOS = [
   "https://www.googleapis.com/auth/userinfo.email",
   "https://www.googleapis.com/auth/calendar.app.created",
   "https://www.googleapis.com/auth/calendar.events.readonly",
+  // Gravar compromissos em qualquer agenda da pessoa (não só a "BALANX") e listar as agendas dela.
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
   "https://www.googleapis.com/auth/tasks",
 ].join(" ");
+
+/** A conexão tem permissão para gravar em outras agendas e listá-las? */
+export function podeOutrasAgendas(escopos: string | null | undefined) {
+  const s = String(escopos || "").split(/\s+/);
+  return s.includes("https://www.googleapis.com/auth/calendar.events")
+    && s.includes("https://www.googleapis.com/auth/calendar.calendarlist.readonly");
+}
 
 export const CAL = "https://www.googleapis.com/calendar/v3";
 export const TASKS = "https://tasks.googleapis.com/tasks/v1";

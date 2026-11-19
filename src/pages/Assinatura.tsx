@@ -21,7 +21,9 @@ const fmt = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
 export default function Assinatura() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { activeTenant, acessoAtivo, trialDias, role, refresh } = useTenant();
+  const { activeTenant, tenantDoPlano, acessoAtivo, trialDias, role, refresh, switchTenant } = useTenant();
+  // Empresa extra: quem assina é a empresa principal da conta.
+  const principal = activeTenant?.conta_principal_id && tenantDoPlano && tenantDoPlano.id !== activeTenant.id ? tenantDoPlano : null;
   const [ciclo, setCiclo] = useState<'mensal' | 'anual'>('anual');
   const [cpfCnpj, setCpfCnpj] = useState('');
   // Mensalidade só por cartão (crédito/débito) ou PIX — boleto não é oferecido
@@ -95,6 +97,20 @@ export default function Assinatura() {
           title={<>Plano <span className="font-serif italic font-normal tracking-normal">{PLAN.nome}</span></>}
         />
         <p className="mb-5 text-[14px] leading-relaxed text-foreground-muted md:mb-6">{PLAN.descricao}</p>
+
+        {principal && (
+          <div className="mb-5 rounded-[24px] border border-border bg-surface p-5">
+            <p className="text-[15px] font-semibold text-foreground">Esta empresa usa o plano de {principal.nome}</p>
+            <p className="mt-1 text-[13.5px] leading-relaxed text-foreground-muted">
+              Empresas extras da sua conta não têm teste nem assinatura separados: o acesso acompanha a empresa principal.
+              {acessoAtivo ? ' Está tudo liberado.' : ' Para voltar a usar, regularize a assinatura dela.'}
+            </p>
+            <button type="button" onClick={async () => { await switchTenant(principal.id); window.location.replace('/assinatura'); }}
+              className="mt-3 inline-flex h-10 items-center rounded-full bg-foreground px-4 text-[13.5px] font-medium text-background hover:opacity-90">
+              Ir para {principal.nome}
+            </button>
+          </div>
+        )}
 
         {!cortesia && !assinaturaAtiva && (
           <FotoBanner

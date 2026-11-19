@@ -265,7 +265,7 @@ export default function MeuPerfil() {
     setUploading(true);
     const { error } = await uploadAvatar(file);
     setUploading(false);
-    if (error) toast.error('Erro ao enviar avatar');
+    if (error) toast.error('Não deu para enviar a foto', { description: error.message });
     else toast.success('Avatar atualizado');
   };
 

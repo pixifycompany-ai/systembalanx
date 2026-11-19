@@ -20,6 +20,8 @@ export interface Tenant {
   ciclo: string | null;
   asaas_customer_id: string | null;
   asaas_subscription_id: string | null;
+  /** Empresa extra: o acesso segue o da empresa principal da conta. */
+  conta_principal_id?: string | null;
   created_at: string;
 }
 
@@ -55,6 +57,8 @@ interface TenantContextType {
   canWrite: boolean;
   acessoAtivo: boolean;
   trialDias: number | null;
+  /** Empresa que paga/define o acesso da empresa ativa (ela mesma, ou a principal da conta). */
+  tenantDoPlano: Tenant | null;
   loading: boolean;
   switchTenant: (tenantId: string) => Promise<void>;
   refresh: () => Promise<void>;
@@ -108,6 +112,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
   const activeMembership = memberships.find((m) => m.tenant_id === activeId) || null;
   const role = activeMembership?.papel ?? null;
+  // Empresa extra segue a principal; se a pessoa não enxerga mais a principal, vale a própria.
+  const principalId = activeMembership?.tenant?.conta_principal_id ?? null;
+  const tenantDoPlano = (principalId && memberships.find((m) => m.tenant_id === principalId)?.tenant) || activeMembership?.tenant || null;
   const canWrite = role === 'owner' || role === 'admin' || role === 'financeiro' || isSuperadmin;
   // Continua "carregando" enquanto a auth resolve OU enquanto ainda não carregamos ESTE usuário
   const effectiveLoading = authLoading || loading || (!!user && loadedFor !== user.id);
@@ -120,8 +127,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
         role,
         isSuperadmin,
         canWrite,
-        acessoAtivo: tenantTemAcesso(activeMembership?.tenant ?? null),
-        trialDias: trialDiasRestantes(activeMembership?.tenant ?? null),
+        acessoAtivo: tenantTemAcesso(tenantDoPlano),
+        trialDias: trialDiasRestantes(tenantDoPlano),
+        tenantDoPlano,
         loading: effectiveLoading,
         switchTenant,
         refresh: load,

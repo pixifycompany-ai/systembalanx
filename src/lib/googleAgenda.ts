@@ -67,6 +67,16 @@ export function sincronizarGoogleEmSegundoPlano() {
 
 export const listasTarefasGoogle = () => chamar<{ listas: ListaTarefas[] }>('google-sync', { action: 'listas' });
 
+export interface AgendaGoogle { id: string; titulo: string; cor: string | null; balanx: boolean; principal: boolean }
+/** Agendas do Google onde dá para gravar compromissos (a BALANX vem primeiro). */
+export const agendasGoogle = () => chamar<{ agendas: AgendaGoogle[]; sem_permissao: boolean }>('google-sync', { action: 'agendas' });
+
+/** A conexão já autorizou gravar em outras agendas? */
+export function podeOutrasAgendas(escopos: string | null | undefined) {
+  const s = String(escopos || '').split(/\s+/);
+  return s.includes('https://www.googleapis.com/auth/calendar.events') && s.includes('https://www.googleapis.com/auth/calendar.calendarlist.readonly');
+}
+
 /** Listas sincronizadas com nome, na ordem: padrão primeiro. */
 export function listasEscolhidas(integ: IntegracaoGoogle | null): { id: string; nome: string }[] {
   if (!integ?.tasklist_id) return [];

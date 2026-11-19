@@ -10,7 +10,7 @@ import { Campo, ModalFooter, ModalHeader, ModalShell, Segmented } from '@/compon
 import { btn, campoCls, modalCls } from '@/components/reskin/estilos';
 import { useClientes } from '@/hooks/useClientes';
 import type { AgendaItem, NovoAgendaItem } from '@/hooks/useAgenda';
-import { listasEscolhidas, statusGoogle } from '@/lib/googleAgenda';
+import { agendasGoogle, conectarGoogle, listasEscolhidas, statusGoogle, type AgendaGoogle } from '@/lib/googleAgenda';
 
 const LEMBRETES = [
   { v: '', l: 'Padrão do Google' }, { v: '0', l: 'Na hora' }, { v: '10', l: '10 min antes' },
@@ -44,14 +44,26 @@ export function AgendaItemSheet({ aberto, onOpenChange, item, tipoNovo, dataNova
   const [busy, setBusy] = useState(false);
   const [lista, setLista] = useState('');
   const [listas, setListas] = useState<{ id: string; nome: string }[]>([]);
+  // Agendas do Google para o compromisso ('' = agenda BALANX).
+  const [agenda, setAgenda] = useState('');
+  const [agendas, setAgendas] = useState<AgendaGoogle[]>([]);
+  const [semPermAgendas, setSemPermAgendas] = useState(false);
+  const [googleOn, setGoogleOn] = useState(false);
   useEffect(() => {
     if (!aberto) return;
+    setAgenda(item?.google_calendar_id || '');
     statusGoogle().then((s) => {
       const ls = listasEscolhidas(s);
       setListas(ls);
       setLista(item?.google_tasklist_id || ls[0]?.id || '');
-    }).catch(() => setListas([]));
+      setGoogleOn(!!s);
+      if (!s) { setAgendas([]); return; }
+      agendasGoogle().then((r) => { setAgendas(r.agendas); setSemPermAgendas(r.sem_permissao); }).catch(() => { setAgendas([]); setSemPermAgendas(false); });
+    }).catch(() => { setListas([]); setGoogleOn(false); });
   }, [aberto, item]);
+  const agendaBalanx = agendas.find((a) => a.balanx)?.id;
+  // Agenda escolhida que não aparece mais na lista (apagada/sem acesso) continua visível para não trocar sozinha.
+  const agendaSel = agenda && agenda !== agendaBalanx ? agenda : (agendaBalanx || '');
 
   useEffect(() => {
     if (!aberto) return;
@@ -71,16 +83,18 @@ export function AgendaItemSheet({ aberto, onOpenChange, item, tipoNovo, dataNova
     if (!titulo.trim()) { toast.error('Dê um título'); return; }
     if (tipo === 'compromisso' && !data) { toast.error('Escolha a data'); return; }
     let dados: NovoAgendaItem;
+    // Só grava a agenda quando a lista carregou (sem Google, não mexe no campo).
+    const agendaDados = agendas.length ? { google_calendar_id: agendaSel && agendaSel !== agendaBalanx ? agendaSel : null } : {};
     if (tipo === 'tarefa') {
       dados = { tipo, titulo: titulo.trim(), notas: notas.trim() || null, data: data || null, inicio: null, fim: null, dia_inteiro: false, cliente_id: clienteId || null,
         ...(listas.length ? { google_tasklist_id: lista || null } : {}) };
     } else if (diaInteiro) {
-      dados = { tipo, titulo: titulo.trim(), notas: notas.trim() || null, data, inicio: null, fim: null, dia_inteiro: true, lembrete_min: lembrete === '' ? null : Number(lembrete), cliente_id: clienteId || null };
+      dados = { tipo, titulo: titulo.trim(), notas: notas.trim() || null, data, inicio: null, fim: null, dia_inteiro: true, lembrete_min: lembrete === '' ? null : Number(lembrete), cliente_id: clienteId || null, ...agendaDados };
     } else {
       const ini = new Date(`${data}T${hIni || '09:00'}`);
       let fim = new Date(`${data}T${hFim || hIni}`);
       if (fim <= ini) fim = new Date(ini.getTime() + 3600000);
-      dados = { tipo, titulo: titulo.trim(), notas: notas.trim() || null, data: null, inicio: ini.toISOString(), fim: fim.toISOString(), dia_inteiro: false, lembrete_min: lembrete === '' ? null : Number(lembrete), cliente_id: clienteId || null };
+      dados = { tipo, titulo: titulo.trim(), notas: notas.trim() || null, data: null, inicio: ini.toISOString(), fim: fim.toISOString(), dia_inteiro: false, lembrete_min: lembrete === '' ? null : Number(lembrete), cliente_id: clienteId || null, ...agendaDados };
     }
     setBusy(true);
     try { await onSalvar({ ...dados, id: item?.id }); onOpenChange(false); toast.success(item ? 'Salvo' : tipo === 'tarefa' ? 'Tarefa criada' : 'Compromisso criado'); }
@@ -124,6 +138,21 @@ export function AgendaItemSheet({ aberto, onOpenChange, item, tipoNovo, dataNova
                     <div className="grid grid-cols-2 gap-3">
                       <Campo label="Início"><input type="time" value={hIni} onChange={(e) => setHIni(e.target.value)} className={campoCls} /></Campo>
                       <Campo label="Fim"><input type="time" value={hFim} onChange={(e) => setHFim(e.target.value)} className={campoCls} /></Campo>
+                    </div>
+                  )}
+                  {googleOn && agendas.length > 0 && (
+                    <Campo label="Salvar na agenda" hint={semPermAgendas ? undefined : 'Aparece nessa agenda do seu Google Agenda.'}>
+                      <select className={campoCls} value={agendaSel} onChange={(e) => setAgenda(e.target.value)} disabled={semPermAgendas && agendas.length <= 1}>
+                        {agendas.map((a) => <option key={a.id} value={a.id}>{a.balanx ? 'BALANX' : a.principal ? `${a.titulo} (principal)` : a.titulo}</option>)}
+                        {agenda && agenda !== agendaBalanx && !agendas.some((a) => a.id === agenda) && <option value={agenda}>Agenda atual</option>}
+                      </select>
+                    </Campo>
+                  )}
+                  {googleOn && semPermAgendas && (
+                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-info-bg px-3.5 py-3 text-[12.5px] text-info-fg">
+                      <span>Para salvar em outras agendas do Google, autorize de novo a conexão.</span>
+                      <button type="button" onClick={() => { conectarGoogle().catch((e) => toast.error('Não deu para conectar', { description: e instanceof Error ? e.message : '' })); }}
+                        className="shrink-0 rounded-full bg-foreground px-3 py-1.5 text-[12.5px] font-medium text-background">Autorizar</button>
                     </div>
                   )}
                   <Campo label="Lembrete">

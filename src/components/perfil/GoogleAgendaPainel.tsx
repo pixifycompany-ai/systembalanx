@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { formatDate } from '@/utils/formatters';
 import {
-  conectarGoogle, desconectarGoogle, listasTarefasGoogle, salvarOpcoesGoogle, sincronizarGoogle, statusGoogle,
+  conectarGoogle, desconectarGoogle, listasTarefasGoogle, podeOutrasAgendas, salvarOpcoesGoogle, sincronizarGoogle, statusGoogle,
   type IntegracaoGoogle, type ListaTarefas, type OpcoesGoogle,
 } from '@/lib/googleAgenda';
 
@@ -106,6 +106,12 @@ export function GoogleAgendaPainel({ onChange }: { onChange?: () => void }) {
       {integ.ultimo_erro && (
         <div className="rounded-[16px] bg-danger-bg px-3.5 py-3 text-[13px] text-danger-fg">
           {integ.ultimo_erro === 'reconectar' ? 'O Google pediu para autorizar de novo. Toque em Reconectar.' : `Última tentativa falhou: ${integ.ultimo_erro}`}
+        </div>
+      )}
+      {!podeOutrasAgendas(integ.escopos) && (
+        <div className="flex items-center justify-between gap-3 rounded-[16px] bg-info-bg px-3.5 py-3 text-[13px] text-info-fg">
+          <span>Novo: salve compromissos em qualquer agenda do seu Google, não só na BALANX. Toque em Autorizar e aceite as permissões da Agenda.</span>
+          <button type="button" onClick={conectar} disabled={!!busy} className="shrink-0 rounded-full bg-foreground px-3.5 py-1.5 text-[12.5px] font-medium text-background">Autorizar</button>
         </div>
       )}
       <div className="overflow-hidden rounded-[18px] border border-border">

@@ -21,6 +21,8 @@ export interface AgendaItem {
   google_event_id: string | null;
   /** Lista do Google Tarefas (vazio = lista padrão). */
   google_tasklist_id?: string | null;
+  /** Agenda do Google do compromisso (vazio = agenda BALANX). */
+  google_calendar_id?: string | null;
   cliente?: { nome: string } | null;
 }
 export type NovoAgendaItem = Partial<Omit<AgendaItem, 'id' | 'cliente'>> & Pick<AgendaItem, 'tipo' | 'titulo'>;

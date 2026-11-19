@@ -7,7 +7,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { CAL, FUSO, TASKS, gapi, tokenValido } from "../_shared/google.ts";
+import { CAL, FUSO, TASKS, gapi, podeOutrasAgendas, tokenValido } from "../_shared/google.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -131,21 +131,69 @@ function compromissoParaEvento(c: any) {
 }
 
 async function enviarCompromissos(admin: any, integ: any, token: string) {
-  const cal = encodeURIComponent(integ.calendar_id);
+  const outras = podeOutrasAgendas(integ.escopos);
   const { data } = await admin.from("agenda_itens").select("*").eq("user_id", integ.user_id).eq("tipo", "compromisso");
   let n = 0;
   for (const c of data || []) {
     if (c.google_event_id && c.google_sync_em && new Date(c.updated_at) <= new Date(c.google_sync_em)) continue;
+    // Agenda escolhida (vazio = BALANX). Sem permissão para outras agendas, fica na BALANX.
+    const alvo: string = (outras && c.google_calendar_id) || integ.calendar_id;
+    const atual: string = c.google_calendar_sync || integ.calendar_id;
     const ev = compromissoParaEvento(c);
-    // Veio do Google (id dele) → atualiza esse; criado aqui → id fixo.
-    const r = c.origem === "google" && c.google_event_id
-      ? await gapi(token, `${CAL}/calendars/${cal}/events/${encodeURIComponent(c.google_event_id)}`, { method: "PUT", body: JSON.stringify(ev) })
+    let eventId: string | null = c.google_event_id;
+    // Trocou de agenda: move o evento no Google (mantém o mesmo id e quem foi convidado).
+    if (eventId && atual !== alvo) {
+      const mv = await gapi(token, `${CAL}/calendars/${encodeURIComponent(atual)}/events/${encodeURIComponent(eventId)}/move?destination=${encodeURIComponent(alvo)}`, { method: "POST" });
+      if (!mv.ok && mv.status !== 404) continue; // tenta de novo na próxima sincronização
+      if (mv.status === 404) eventId = null; // sumiu da agenda antiga: recria na nova
+    }
+    const cal = encodeURIComponent(alvo);
+    // Já existe (veio do Google ou foi movido) → atualiza esse; criado aqui → id fixo.
+    const r = eventId && (c.origem === "google" || atual !== alvo)
+      ? await gapi(token, `${CAL}/calendars/${cal}/events/${encodeURIComponent(eventId)}`, { method: "PUT", body: JSON.stringify(ev) })
       : await gravarEvento(token, cal, await idEvento("compromisso", c.id), ev);
     if (!r.ok) continue;
-    await admin.from("agenda_itens").update({ google_event_id: r.json.id, google_sync_em: new Date().toISOString() }).eq("id", c.id);
+    await admin.from("agenda_itens").update({ google_event_id: r.json.id, google_calendar_sync: alvo, google_sync_em: new Date().toISOString() }).eq("id", c.id);
     n++;
   }
   return n;
+}
+
+/** Compromissos guardados em OUTRAS agendas (fora da BALANX): lê as mudanças feitas no Google. */
+async function receberOutrasAgendas(admin: any, integ: any, token: string) {
+  if (!podeOutrasAgendas(integ.escopos)) return 0;
+  const desde = new Date(Date.now() - 60 * 86400000).toISOString();
+  const { data } = await admin.from("agenda_itens").select("*").eq("user_id", integ.user_id).eq("tipo", "compromisso")
+    .not("google_event_id", "is", null).not("google_calendar_sync", "is", null).neq("google_calendar_sync", integ.calendar_id)
+    .or(`inicio.gte.${desde},data.gte.${desde.slice(0, 10)}`).limit(150);
+  let recebidos = 0;
+  for (const item of data || []) {
+    // Mudou aqui e ainda não foi enviado: o BALANX manda primeiro.
+    if (item.google_sync_em && new Date(item.updated_at) > new Date(item.google_sync_em)) continue;
+    const r = await gapi(token, `${CAL}/calendars/${encodeURIComponent(item.google_calendar_sync)}/events/${encodeURIComponent(item.google_event_id)}`);
+    if (r.status === 404 || r.status === 410 || (r.ok && r.json.status === "cancelled")) {
+      await admin.from("agenda_itens").delete().eq("id", item.id); recebidos++; continue;
+    }
+    if (!r.ok) continue;
+    const ev = r.json;
+    const diaInteiro = !!ev.start?.date;
+    const dados: any = {
+      titulo: String(ev.summary || "(sem título)").slice(0, 200),
+      notas: ev.description || null,
+      dia_inteiro: diaInteiro,
+      data: diaInteiro ? ev.start.date : null,
+      inicio: diaInteiro ? null : ev.start?.dateTime,
+      fim: diaInteiro ? null : ev.end?.dateTime,
+    };
+    const igual = item.titulo === dados.titulo && (item.notas || null) === dados.notas && item.dia_inteiro === dados.dia_inteiro
+      && (item.data || null) === dados.data
+      && (item.inicio ? new Date(item.inicio).getTime() : null) === (dados.inicio ? new Date(dados.inicio).getTime() : null)
+      && (item.fim ? new Date(item.fim).getTime() : null) === (dados.fim ? new Date(dados.fim).getTime() : null);
+    if (igual) continue;
+    await admin.from("agenda_itens").update({ ...dados, google_sync_em: new Date(Date.now() + 1000).toISOString() }).eq("id", item.id);
+    recebidos++;
+  }
+  return recebidos;
 }
 
 /** Mudanças feitas no Google (na agenda BALANX) → compromissos. */
@@ -165,6 +213,8 @@ async function receberEventos(admin: any, integ: any, token: string) {
       const priv = ev.extendedProperties?.private || {};
       if (priv.origem && priv.origem !== "compromisso") continue; // eventos do financeiro: só ida
       const { data: item } = await admin.from("agenda_itens").select("*").eq("google_event_id", ev.id).eq("user_id", integ.user_id).maybeSingle();
+      // Compromisso que mora em outra agenda (foi movido para lá): o que acontece na BALANX não vale para ele.
+      if (item && item.google_calendar_sync && item.google_calendar_sync !== integ.calendar_id) continue;
       if (ev.status === "cancelled") {
         if (item) { await admin.from("agenda_itens").delete().eq("id", item.id); recebidos++; }
         continue;
@@ -368,7 +418,8 @@ async function reconciliarAgenda(admin: any, integ: any, token: string, prazo: n
 async function limparApagados(admin: any, integ: any, token: string) {
   const { data } = await admin.from("agenda_apagados").select("*").eq("user_id", integ.user_id).limit(200);
   for (const a of data || []) {
-    if (a.google_event_id && integ.calendar_id) await gapi(token, `${CAL}/calendars/${encodeURIComponent(integ.calendar_id)}/events/${encodeURIComponent(a.google_event_id)}`, { method: "DELETE" });
+    const agenda = a.google_calendar_id || integ.calendar_id;
+    if (a.google_event_id && agenda) await gapi(token, `${CAL}/calendars/${encodeURIComponent(agenda)}/events/${encodeURIComponent(a.google_event_id)}`, { method: "DELETE" });
     const lista = a.google_tasklist_id || integ.tasklist_id;
     if (a.google_task_id && lista) await gapi(token, `${TASKS}/lists/${encodeURIComponent(lista)}/tasks/${encodeURIComponent(a.google_task_id)}`, { method: "DELETE" });
     await admin.from("agenda_apagados").delete().eq("id", a.id);
@@ -387,7 +438,7 @@ async function sincronizarUm(admin: any, integ: any) {
     const token = await tokenValido(admin, integ);
     await limparDuplicados(admin, integ, token);
     await limparApagados(admin, integ, token);
-    const recebidos = integ.calendar_id ? await receberEventos(admin, integ, token) : 0;
+    const recebidos = integ.calendar_id ? (await receberEventos(admin, integ, token)) + (await receberOutrasAgendas(admin, integ, token)) : 0;
     const comp = integ.calendar_id && integ.opcoes?.compromissos !== false ? await enviarCompromissos(admin, integ, token) : 0;
     const fin = integ.calendar_id ? await enviarFinanceiro(admin, integ, token) : { enviados: 0, removidos: 0 };
     const tar = await sincronizarTarefas(admin, integ, token);
@@ -433,6 +484,27 @@ serve(async (req) => {
       const r = await gapi(token, `${TASKS}/users/@me/lists?maxResults=100`);
       if (!r.ok) return json({ listas: [] });
       return json({ listas: (r.json.items || []).map((l: any) => ({ id: l.id, titulo: l.title, balanx: l.id === integ.tasklist_id })) });
+    } catch (e) {
+      return json({ error: e instanceof Error ? e.message : "erro" }, 400);
+    }
+  }
+
+  // Agendas onde a pessoa pode gravar (para escolher onde salvar o compromisso).
+  if (body.action === "agendas") {
+    const balanx = { id: integ.calendar_id, titulo: "BALANX", cor: null, balanx: true, principal: false };
+    if (!integ.calendar_id) return json({ agendas: [], sem_permissao: !podeOutrasAgendas(integ.escopos) });
+    if (!podeOutrasAgendas(integ.escopos)) return json({ agendas: [balanx], sem_permissao: true });
+    try {
+      const token = await tokenValido(admin, integ);
+      const r = await gapi(token, `${CAL}/users/me/calendarList?minAccessRole=writer&maxResults=250`);
+      if (!r.ok) return json({ agendas: [balanx], sem_permissao: r.status === 403 });
+      const lista = (r.json.items || []).map((c: any) => ({
+        id: c.id, titulo: c.id === integ.calendar_id ? "BALANX" : (c.summaryOverride || c.summary || "Agenda"),
+        cor: c.backgroundColor || null, balanx: c.id === integ.calendar_id, principal: !!c.primary,
+      }));
+      if (!lista.some((a: any) => a.balanx)) lista.unshift(balanx);
+      lista.sort((a: any, b: any) => (a.balanx ? -1 : b.balanx ? 1 : a.principal ? -1 : b.principal ? 1 : a.titulo.localeCompare(b.titulo)));
+      return json({ agendas: lista, sem_permissao: false });
     } catch (e) {
       return json({ error: e instanceof Error ? e.message : "erro" }, 400);
     }

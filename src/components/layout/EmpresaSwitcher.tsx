@@ -17,7 +17,7 @@ function Avatar({ nome, idx, className }: { nome: string; idx: number; className
 
 /** Empresa ativa + troca entre as empresas da conta (memberships). */
 export function EmpresaSwitcher({ compacto }: { compacto?: boolean }) {
-  const { memberships, activeTenant, trialDias, switchTenant } = useTenant();
+  const { memberships, activeTenant, tenantDoPlano, trialDias, switchTenant } = useTenant();
   const navigate = useNavigate();
   const [aberto, setAberto] = useState(false);
   useEffect(() => {
@@ -28,7 +28,7 @@ export function EmpresaSwitcher({ compacto }: { compacto?: boolean }) {
   }, [aberto]);
   if (!activeTenant) return null;
   const idxAtivo = Math.max(0, memberships.findIndex((m) => m.tenant_id === activeTenant.id));
-  const st = statusPlano(activeTenant, trialDias);
+  const st = statusPlano(tenantDoPlano ?? activeTenant, trialDias);
   const varias = memberships.length > 1;
   // Troca de empresa: recarrega para nenhum dado em cache da empresa anterior aparecer.
   const trocar = async (id: string) => { await switchTenant(id); window.location.replace('/'); };
@@ -54,7 +54,9 @@ export function EmpresaSwitcher({ compacto }: { compacto?: boolean }) {
         <div className={cn('absolute z-50 rounded-2xl border border-border bg-surface p-1.5 shadow-xl', compacto ? 'left-full top-0 ml-2 w-64' : 'left-0 right-0 top-full mt-1.5')}>
           <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">{varias ? 'Suas empresas' : 'Sua empresa'}</p>
           {memberships.map((m, k) => {
-            const s = statusPlano(m.tenant, null);
+            // Empresa extra mostra o estado da principal (é ele que vale para o acesso).
+            const principal = m.tenant.conta_principal_id ? memberships.find((x) => x.tenant_id === m.tenant.conta_principal_id)?.tenant : null;
+            const s = principal ? { ...statusPlano(principal, null), txt: `Plano de ${principal.nome}` } : statusPlano(m.tenant, null);
             const atual = m.tenant_id === activeTenant.id;
             return (
               <button key={m.tenant_id} type="button" onClick={() => { setAberto(false); if (!atual) void trocar(m.tenant_id); }} className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-surface-2">
