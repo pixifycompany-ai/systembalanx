@@ -13,13 +13,14 @@ import { BalanxLoader } from '@/components/shared/BalanxLoader';
 import { toast } from 'sonner';
 import {
   AlertTriangle, Bell, BellRing, Camera, Check, ChevronRight, Copy, Loader2, Lock, LogOut, Mail, MessageSquareText,
-  Moon, RefreshCw, ShieldCheck, Smartphone, Sparkles, Trash2, User,
+  Moon, NotebookPen, RefreshCw, ShieldCheck, Smartphone, Sparkles, Trash2, User,
 } from 'lucide-react';
 import { MfaManager } from '@/components/auth/MfaManager';
 import { GoogleAgendaPainel } from '@/components/perfil/GoogleAgendaPainel';
 import { statusGoogle } from '@/lib/googleAgenda';
 import { AtalhoIphonePainel } from '@/components/perfil/AtalhoIphonePainel';
 import { WhatsAppPainel } from '@/components/perfil/WhatsAppPainel';
+import { MemoriaIaraPainel } from '@/components/perfil/MemoriaIaraPainel';
 import { cn } from '@/lib/utils';
 import { useTenant } from '@/contexts/TenantContext';
 import { PageHeader, Segmented, ModalHeader, ModalShell, Campo } from '@/components/reskin/kit';
@@ -33,9 +34,9 @@ const LOGO = {
   apple: <svg viewBox="0 0 24 24" className="h-[17px] w-[17px] fill-current" aria-hidden><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" /></svg>,
 };
 
-const SECOES = [['conta', 'Conta'], ['seguranca', 'Segurança'], ['notificacoes', 'Notificações'], ['cobranca', 'Cobrança'], ['integracoes', 'Integrações'], ['perigo', 'Zona de perigo']] as const;
+const SECOES = [['conta', 'Conta'], ['seguranca', 'Segurança'], ['notificacoes', 'Notificações'], ['iara', 'IARA'], ['cobranca', 'Cobrança'], ['integracoes', 'Integrações'], ['perigo', 'Zona de perigo']] as const;
 
-type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas' | 'regras' | 'google' | 'atalho' | 'whatsapp';
+type Sheet = null | 'nome' | 'email' | 'senha' | 'mfa' | 'excluir' | 'asaas' | 'regras' | 'google' | 'atalho' | 'whatsapp' | 'memoria';
 
 export default function MeuPerfil() {
   const { user, signOut } = useAuth();
@@ -188,6 +189,13 @@ export default function MeuPerfil() {
   useEffect(() => { loadAsaasStatus(); }, []);
   // Google Agenda: status na linha do menu; ?integracao=google abre o painel (volta do Google).
   const [googleEmail, setGoogleEmail] = useState<string | null | undefined>(undefined);
+  // Quantas lembranças a IARA guarda (linha "Memória da IARA").
+  const [qtdMemorias, setQtdMemorias] = useState<number | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('iara_memorias').select('id', { count: 'exact', head: true })
+      .then(({ count, error }: { count: number | null; error: unknown }) => { if (!error) setQtdMemorias(count ?? 0); });
+  }, []);
   const carregarGoogle = () => statusGoogle().then((s) => setGoogleEmail(s ? (s.email || 'conectado') : null)).catch(() => setGoogleEmail(null));
   useEffect(() => {
     carregarGoogle();
@@ -195,7 +203,7 @@ export default function MeuPerfil() {
     if (q.get('integracao') === 'google') setSheet('google');
     // A IARA manda para cá (ex.: /perfil?abrir=asaas) quando a conexão precisa de credencial.
     const abrir = q.get('abrir');
-    if (abrir && ['asaas', 'whatsapp', 'google', 'atalho', 'regras'].includes(abrir)) setSheet(abrir as Sheet);
+    if (abrir && ['asaas', 'whatsapp', 'google', 'atalho', 'regras', 'memoria'].includes(abrir)) setSheet(abrir as Sheet);
   }, []);
 
   const handleConectarAsaas = async () => {
@@ -422,6 +430,12 @@ export default function MeuPerfil() {
             )}
           </Grupo>
 
+          <Grupo id="iara" titulo="IARA">
+            <Linha icon={<NotebookPen className="h-4 w-4" />} titulo="Memória da IARA"
+              sub={qtdMemorias == null ? 'O que ela sabe sobre você' : qtdMemorias === 0 ? 'Nada anotado ainda' : `${qtdMemorias} lembrança${qtdMemorias === 1 ? '' : 's'} · o que ela sabe sobre você`}
+              onClick={() => setSheet('memoria')} />
+          </Grupo>
+
           <Grupo id="cobranca" titulo="Cobrança">
             <Linha
               icon={<span className="text-[#0038E5]">{LOGO.asaas}</span>}
@@ -646,6 +660,10 @@ export default function MeuPerfil() {
 
       <Modal open={sheet === 'google'} onClose={fechar} eyebrow="Integrações" title="Google Agenda e Tarefas">
         <GoogleAgendaPainel onChange={carregarGoogle} />
+      </Modal>
+
+      <Modal open={sheet === 'memoria'} onClose={fechar} eyebrow="IARA" title="Memória da IARA">
+        <MemoriaIaraPainel onMudou={setQtdMemorias} />
       </Modal>
 
       <Modal open={sheet === 'atalho'} onClose={fechar} eyebrow="Integrações" title="Atalho do iPhone">

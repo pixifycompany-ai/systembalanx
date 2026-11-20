@@ -16,6 +16,8 @@ export interface ChatMessage {
   acoes?: AcaoIara[];
   /** Painéis de conexão para mostrar na conversa (whatsapp, google, atalho_iphone…). */
   conexoes?: string[];
+  /** O que a IARA guardou ou apagou da memória nesta resposta. */
+  memorias?: { acao: 'anotei' | 'esqueci'; texto: string }[];
   /** Nomes dos arquivos enviados junto (mensagem do usuário). */
   anexos?: string[];
 }
@@ -192,6 +194,12 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
                 m.id === assistantMessageId ? { ...m, conexoes } : m
               ));
             }
+            if (Array.isArray(parsed.memorias) && parsed.memorias.length) {
+              const memorias = parsed.memorias as ChatMessage['memorias'];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, memorias } : m
+              ));
+            }
           } catch {
             // Incomplete JSON, put back in buffer
             buffer = line + '\n' + buffer;
@@ -234,6 +242,12 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
               const conexoes = parsed.conexoes as string[];
               setMessages(prev => prev.map(m =>
                 m.id === assistantMessageId ? { ...m, conexoes } : m
+              ));
+            }
+            if (Array.isArray(parsed.memorias) && parsed.memorias.length) {
+              const memorias = parsed.memorias as ChatMessage['memorias'];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, memorias } : m
               ));
             }
           } catch { /* ignore */ }

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { NotebookPen, Eraser } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialAdvisor, type AnexoIara, type ContextoTela } from '@/hooks/useFinancialAdvisor';
 import { PropostaLancamentos } from '@/components/iara/PropostaLancamentos';
@@ -231,6 +233,18 @@ export default function Iara() {
             <div className="mt-3"><PropostaLancamentos lancamentos={m.lancamentos} onResolved={() => clearLancamentos(m.id)} /></div>
           )}
           {m.conexoes?.map((t) => <ConexaoIara key={t} tipo={t} />)}
+          {m.memorias && m.memorias.length > 0 && (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {m.memorias.map((x, i) => (
+                <Link key={i} to="/perfil?abrir=memoria" title="Ver o que a IARA sabe sobre você"
+                  className={cn('inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] transition-colors',
+                    x.acao === 'anotei' ? 'bg-info-bg text-info-fg hover:opacity-90' : 'bg-surface-2 text-foreground-muted hover:text-foreground')}>
+                  {x.acao === 'anotei' ? <NotebookPen className="h-3.5 w-3.5 shrink-0" /> : <Eraser className="h-3.5 w-3.5 shrink-0" />}
+                  <span className="truncate"><b className="font-semibold">{x.acao === 'anotei' ? 'Anotei' : 'Esqueci'}:</b> {x.texto}</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </>
       )}
     />

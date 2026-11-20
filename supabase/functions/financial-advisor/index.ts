@@ -207,8 +207,18 @@ serve(async (req) => {
       safe<any>(supabase.from("categorias").select("id, nome, tipo")),
     ]);
 
-    const profileRows = await safe<any>(supabase.from("profiles").select("nome").limit(1));
+    const profileRows = await safe<any>(supabase.from("profiles").select("nome, current_tenant_id").limit(1));
     const nomeUsuario = profileRows[0]?.nome || "";
+    const tenantAtual: string | null = profileRows[0]?.current_tenant_id || null;
+
+    // ---- Memória: o que a pessoa contou para a IARA lembrar (pessoal + desta empresa) ----
+    let memorias: { id: string; texto: string; tenant_id: string | null; created_at: string }[] = [];
+    {
+      let q: any = supabase.from("iara_memorias").select("id, texto, tenant_id, created_at").order("created_at", { ascending: false }).limit(80);
+      q = tenantAtual ? q.or(`tenant_id.is.null,tenant_id.eq.${tenantAtual}`) : q.is("tenant_id", null);
+      const { data, error } = await q;
+      if (!error) memorias = (data || []) as any[];
+    }
 
     // ---- Métricas de receita/despesa ----
     const receitasRecebidas = receitas.filter(r => r.status === "recebido");
@@ -511,6 +521,15 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Seja concisa: nada de textos longos quando um parágrafo resolve. Ofereça um próximo passo acionável quando fizer sentido.
 - Termine oferecendo aprofundar ("Quer que eu detalhe as despesas por categoria?") quando couber.
 
+## Memória — o que você sabe sobre a pessoa
+${memorias.length ? memorias.map((m) => `- ${m.texto}${m.tenant_id ? " (desta empresa)" : ""}`).join("\n") : "(nada guardado ainda)"}
+- Use essas lembranças sem a pessoa precisar repetir (conta preferida ao lançar ou dar baixa, quem é o contador, como ela gosta das respostas…). Quando uma lembrança mudar o que você fez, diga em poucas palavras ("pelo Itaú, como você prefere").
+- Quando a pessoa contar algo DURADOURO — contatos (contador, sócio, fornecedor), preferências, regras fixas do negócio, apelidos de clientes, como quer as respostas — chame **lembrar** sem perguntar. escopo "pessoal" = sobre a pessoa e o jeito dela; "empresa" = regra ou fato do negócio.
+- NÃO guarde: o que é de um dia só (isso é tarefa/compromisso), valores de lançamentos, nem dados sensíveis (senha, código, número de cartão, chave de API, dados de saúde).
+- Se o que ela disse contradiz uma lembrança, chame lembrar com "substitui" = trecho da antiga.
+- "Esquece isso", "não precisa lembrar de X" → **esquecer**. "O que você sabe sobre mim?" → liste as lembranças acima.
+- O app já mostra "📝 Anotei" / "Esqueci" na conversa: não repita isso na resposta, siga o assunto.
+
 ${GLOSSARIO_INDICADORES}
 
 # CONTEXTO FINANCEIRO (dados reais deste usuário)
@@ -537,6 +556,8 @@ ${contexto}${blocoTela}`;
       { type: "function", function: { name: "categorias_vs_media", description: "Compara o gasto de CADA categoria no período (padrão: mês atual até hoje) com a média mensal DA PRÓPRIA categoria nos meses anteriores (padrão 3). Retorna as que estão acima da média (com diferença e %), mesmo critério do DRE. Use p/ 'despesas acima da média', 'o que aumentou', 'onde estou gastando mais'.", parameters: { type: "object", properties: { inicio: D, fim: D, meses_base: { type: "number", description: "meses anteriores para a média (padrão 3, máx 12)" } } } } },
       { type: "function", function: { name: "parcelas_comprometidas", description: "Quanto das PRÓXIMAS FATURAS já está comprometido com parcelamentos do cartão, somado por MÊS de vencimento (parcelas ainda não pagas). Use p/ 'quanto já devo em parcelas nos próximos meses', 'quanto da fatura futura já está tomado', 'total comprometido em parcelas'.", parameters: { type: "object", properties: { meses: { type: "number", description: "quantos meses à frente (padrão 12)" } } } } },
       { type: "function", function: { name: "fatura_cartao", description: "Itens de UMA FATURA do cartão de crédito, exatamente como a tela do cartão mostra: total, pago, em aberto, fechamento, vencimento e TODOS os lançamentos agrupados por categoria (com fornecedor, descrição, parcela, data e valor). Use p/ 'o que tem na minha fatura', 'fatura por categoria', 'lançamentos da fatura de novembro', 'quanto gastei de alimentação no cartão nessa fatura'.", parameters: { type: "object", properties: { cartao: { type: "string", description: "nome do cartão (vazio = todos os cartões)" }, fatura: { type: "string", description: "'atual' (padrão, a mesma que abre na tela), 'proxima', 'anterior', 'aberta' (a mais antiga ainda não paga) ou o mês da fatura 'YYYY-MM' — 'fatura de novembro' = '2026-11'" }, vence_em: { type: "string", description: "YYYY-MM: a fatura que VENCE nesse mês (use quando a pessoa falar do vencimento: 'a fatura que vence em dezembro')" } } } } },
+      { type: "function", function: { name: "lembrar", description: "Guarda na MEMÓRIA algo duradouro que a pessoa contou (contato, preferência, regra fixa, apelido de cliente, como quer as respostas) para usar nas próximas conversas. Uma frase curta e autoexplicativa, na 3ª pessoa (ex.: 'Paga a conta de luz sempre pela conta Itaú', 'O contador é o João — (41) 99999-9999').", parameters: { type: "object", properties: { texto: { type: "string" }, escopo: { type: "string", enum: ["pessoal", "empresa"] }, substitui: { type: "string", description: "trecho de uma lembrança antiga que esta substitui" } }, required: ["texto", "escopo"] } } },
+      { type: "function", function: { name: "esquecer", description: "Apaga uma lembrança da MEMÓRIA quando a pessoa pedir ('esquece isso', 'não precisa lembrar que…').", parameters: { type: "object", properties: { trecho: { type: "string", description: "parte do texto da lembrança" } }, required: ["trecho"] } } },
       { type: "function", function: { name: "resumo_do_dia", description: "BRIEFING do dia da pessoa (assistente pessoal): agenda de hoje (compromissos, agenda pessoal do Google, tarefas), o que vence hoje (pagar/receber) e atrasados, cobranças vencidas, pendências, saldo em caixa e meta do mês. Use p/ 'meu resumo do dia', 'bom dia', 'como está meu dia', 'o que tenho hoje'.", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "cobrancas_lista", description: "Lista as COBRANÇAS (Asaas) como a tela Cobranças: cliente, descrição, valor, vencimento, situação (aguardando/vencida/paga), dias de atraso, link de pagamento, quantos envios e o último envio (WhatsApp/e-mail). Use p/ 'quais cobranças estão em aberto/vencidas', 'o boleto do X foi pago?', 'cobranças pagas esse mês'.", parameters: { type: "object", properties: { status: { type: "string", enum: ["abertas", "vencidas", "aguardando", "pagas", "canceladas", "todas"], description: "padrão: abertas (aguardando + vencidas)" }, cliente: { type: "string" }, inicio: { ...D, description: "por vencimento (ou data do pagamento, se status=pagas)" }, fim: D } } } },
       { type: "function", function: { name: "historico_envios", description: "Histórico de cobranças ENVIADAS por WhatsApp e e-mail (data, hora, canal, para quem, automático/manual, status: enviado/entregue/falhou). Padrão: últimos 60 dias. Use p/ 'o que já mandei pro X', 'o lembrete foi enviado?', 'quais e-mails falharam'.", parameters: { type: "object", properties: { cliente: { type: "string" }, canal: { type: "string", enum: ["todos", "whatsapp", "email"] }, inicio: D, fim: D } } } },
@@ -1063,6 +1084,42 @@ ${contexto}${blocoTela}`;
     }
 
     const ctxConsulta: CtxConsulta = { db: supabase, safe, hoje: hojeISO };
+
+    // ---- Memória (lembrar / esquecer) ----
+    const memoriaEventos: { acao: "anotei" | "esqueci"; texto: string }[] = [];
+    const normMem = (x: string) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+    const pareceSensivel = (t: string) => /\b(?:\d[ .-]?){13,19}\b/.test(t) || /\b(senha|password|token|api[ _-]?key|chave de api|cvv|c[oó]digo de verifica)/i.test(t);
+    async function lembrar(a: any): Promise<string> {
+      const texto = String(a?.texto || "").trim().replace(/\s+/g, " ").slice(0, 300);
+      if (texto.length < 3) return JSON.stringify({ erro: "texto vazio" });
+      if (pareceSensivel(texto)) return JSON.stringify({ erro: "Isso parece dado sensível (senha, código, cartão, chave). Não guardo isso: diga à pessoa." });
+      if (a?.substitui) {
+        const alvo = memorias.filter((m) => normMem(m.texto).includes(normMem(a.substitui)));
+        if (alvo.length === 1) {
+          await supabase.from("iara_memorias").delete().eq("id", alvo[0].id);
+          memorias = memorias.filter((m) => m.id !== alvo[0].id);
+        }
+      }
+      if (memorias.some((m) => normMem(m.texto) === normMem(texto))) return JSON.stringify({ ok: true, ja_sabia: true });
+      const tenant = a?.escopo === "empresa" ? tenantAtual : null;
+      const { data, error } = await supabase.from("iara_memorias").insert({ texto, tenant_id: tenant, origem: "iara" }).select("id, texto, tenant_id, created_at").single();
+      if (error) return JSON.stringify({ erro: error.message });
+      memorias.unshift(data as any);
+      memoriaEventos.push({ acao: "anotei", texto });
+      return JSON.stringify({ ok: true, guardado: texto, escopo: tenant ? "empresa" : "pessoal" });
+    }
+    async function esquecer(a: any): Promise<string> {
+      const t = normMem(a?.trecho || "");
+      if (!t) return JSON.stringify({ erro: "Qual lembrança? Pergunte." });
+      const alvo = memorias.filter((m) => normMem(m.texto).includes(t) || t.includes(normMem(m.texto)));
+      if (!alvo.length) return JSON.stringify({ erro: "Não achei lembrança com isso.", lembrancas: memorias.slice(0, 20).map((m) => m.texto) });
+      if (alvo.length > 1) return JSON.stringify({ precisa_escolher: true, opcoes: alvo.slice(0, 8).map((m) => m.texto), obs: "Pergunte qual (ou se são todas)." });
+      const { error } = await supabase.from("iara_memorias").delete().eq("id", alvo[0].id);
+      if (error) return JSON.stringify({ erro: error.message });
+      memorias = memorias.filter((m) => m.id !== alvo[0].id);
+      memoriaEventos.push({ acao: "esqueci", texto: alvo[0].texto });
+      return JSON.stringify({ ok: true, esquecido: alvo[0].texto });
+    }
 
     // ---- Resumo do dia (briefing das 8h abre a IARA com "Meu resumo do dia") ----
     async function toolResumoDoDia(): Promise<string> {
@@ -2353,6 +2410,8 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
             else if (tc.function.name === "compras_parceladas") result = await toolParceladas(args.incluir_quitadas);
             else if (tc.function.name === "parcelas_comprometidas") result = await toolParcelasComprometidas(args.meses);
             else if (tc.function.name === "fatura_cartao") result = await toolFaturaCartao(args.cartao, args.fatura, args.vence_em);
+            else if (tc.function.name === "lembrar") result = await lembrar(args);
+            else if (tc.function.name === "esquecer") result = await esquecer(args);
             else if (tc.function.name === "resumo_do_dia") result = await toolResumoDoDia();
             else if (tc.function.name === "cobrancas_lista") result = JSON.stringify(await cobrancasLista(ctxConsulta, args));
             else if (tc.function.name === "historico_envios") result = JSON.stringify(await historicoEnvios(ctxConsulta, args));
@@ -2420,6 +2479,7 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
         if (acoes.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ acoes })}\n\n`));
         // Painéis de conexão (WhatsApp, Google, atalho…) para o app mostrar na conversa.
         if (conexoes.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ conexoes })}\n\n`));
+        if (memoriaEventos.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ memorias: memoriaEventos })}\n\n`));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       },
