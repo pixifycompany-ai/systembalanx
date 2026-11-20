@@ -175,6 +175,15 @@ export default function Iara() {
     if (pergunta) sendMessage(pergunta, [], ctx);
   }, [navState, navigate, location.pathname, location.key, sendMessage]);
 
+  // Veio do briefing das 8h (aviso no celular → /iara?resumo=hoje): pede o resumo do dia uma vez.
+  const resumoTratado = useRef(false);
+  useEffect(() => {
+    if (resumoTratado.current || new URLSearchParams(location.search).get('resumo') !== 'hoje') return;
+    resumoTratado.current = true;
+    navigate(location.pathname, { replace: true });
+    sendMessage('Meu resumo do dia', [], null);
+  }, [location.search, location.pathname, navigate, sendMessage]);
+
   const anexar = async (files: FileList | null) => {
     if (!files?.length) return;
     const novos: AnexoIara[] = [];

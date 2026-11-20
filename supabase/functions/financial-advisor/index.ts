@@ -396,7 +396,7 @@ ${topAtrasadosDesp.length ? topAtrasadosDesp.join("\n") : "  • (nenhuma)"}
     }
 
     // ---- System prompt da IARA ----
-    const systemPrompt = `Você é a IARA, a assistente financeira do BALANX — um sistema de gestão financeira para pessoas e agências no Brasil. Você conversa em português do Brasil.
+    const systemPrompt = `Você é a IARA, a assistente pessoal e financeira do BALANX — um sistema de gestão financeira para pessoas e agências no Brasil. Você conversa em português do Brasil. Aja como uma assistente pessoal de confiança: chame a pessoa pelo primeiro nome, antecipe o próximo passo ("quer que eu já dê baixa?", "mando o lembrete?") e resolva pelo chat o que der, sempre com os números reais das ferramentas.
 
 ## Quem você é
 - Uma assistente financeira consultiva, clara e confiável. Fala de forma acolhedora e objetiva, sem jargão desnecessário.
@@ -448,6 +448,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • QUALQUER pergunta sobre o CONTEÚDO de uma fatura do cartão ("o que tem na fatura", "lançamentos da fatura separados por categoria", "quanto gastei de X no cartão nessa fatura", "fatura de novembro", "a fatura que vence dia 10") → **fatura_cartao**. NUNCA monte uma fatura com listar_lancamentos, resumo_financeiro ou buscar_lancamento: a fatura junta compras de datas de meses diferentes (fecha no meio do mês), então somar por data dá número diferente e deixa itens de fora. Responda com o cabeçalho (cartão · Fatura de <mês> · vence dd/mm · total · status), depois cada categoria em negrito com o total e a %, e embaixo os lançamentos dela (fornecedor/descrição — valor · parcela · data). Liste TODAS as categorias e TODOS os itens que a ferramenta devolver, sem resumir nem cortar; a soma das categorias tem que bater com o total da fatura. Se a pessoa não disser qual fatura, use a atual (a mesma que abre na tela) e diga qual usou.
   • Compras PARCELADAS no cartão ("quantas parcelas faltam", "o que ainda está parcelado", "parcelas do notebook") → compras_parceladas (traz nº de parcelas, pagas, faltam, valor da parcela, próxima data de vencimento e valor restante por compra).
   • Total COMPROMETIDO em parcelas nos próximos meses ("quanto da fatura futura já está tomado", "quanto já devo em parcelas") → parcelas_comprometidas (soma por mês o que falta pagar de parcelas).
+  • "Meu resumo do dia", "bom dia", "como está meu dia", "o que tenho hoje" (o dia como um todo) → **resumo_do_dia**. Responda como assistente pessoal: 1 linha de abertura com o primeiro nome e o dia da semana; depois só os blocos que tiverem conteúdo, nesta ordem: **Agenda** (horário · compromisso · cliente, incluindo a agenda pessoal; tarefas de hoje/atrasadas), **Vence hoje** (a pagar e a receber, com quem e valor; atrasados à parte), **Atenção** (cobranças vencidas, faturas, pendências — no máximo 3 itens), **Caixa** (saldo total e meta do mês: % e quanto falta). Se o dia estiver livre, diga isso em 1 frase. Termine com 1–2 ofertas concretas do que você pode resolver agora (ex.: "Mando lembrete para a Sabor Maria?", "Já pagou a luz? Dou baixa.").
   • COBRANÇAS ("quais cobranças estão em aberto/vencidas", "o boleto do X foi pago?", "cobranças pagas esse mês") → **cobrancas_lista**. O que já foi ENVIADO ("já mandei a cobrança pro X?", "o lembrete foi?", "e-mails que falharam") → **historico_envios**.
   • CONTRATOS ("meus contratos", "pausados", "encerrados", "quais terminam este mês", "reajustes do contrato da X") → **contratos_lista** (para "terminam este mês" use terminam_ate = último dia do mês).
   • EXTRATO de uma conta ("o que entrou e saiu do Itaú em outubro", "por que o saldo caiu") → **extrato_conta**. Transferências entre contas → **listar_transferencias**. Pagamentos de uma fatura (quando/de qual conta) → **fatura_cartao** (campo pagamentos).
@@ -536,6 +537,7 @@ ${contexto}${blocoTela}`;
       { type: "function", function: { name: "categorias_vs_media", description: "Compara o gasto de CADA categoria no período (padrão: mês atual até hoje) com a média mensal DA PRÓPRIA categoria nos meses anteriores (padrão 3). Retorna as que estão acima da média (com diferença e %), mesmo critério do DRE. Use p/ 'despesas acima da média', 'o que aumentou', 'onde estou gastando mais'.", parameters: { type: "object", properties: { inicio: D, fim: D, meses_base: { type: "number", description: "meses anteriores para a média (padrão 3, máx 12)" } } } } },
       { type: "function", function: { name: "parcelas_comprometidas", description: "Quanto das PRÓXIMAS FATURAS já está comprometido com parcelamentos do cartão, somado por MÊS de vencimento (parcelas ainda não pagas). Use p/ 'quanto já devo em parcelas nos próximos meses', 'quanto da fatura futura já está tomado', 'total comprometido em parcelas'.", parameters: { type: "object", properties: { meses: { type: "number", description: "quantos meses à frente (padrão 12)" } } } } },
       { type: "function", function: { name: "fatura_cartao", description: "Itens de UMA FATURA do cartão de crédito, exatamente como a tela do cartão mostra: total, pago, em aberto, fechamento, vencimento e TODOS os lançamentos agrupados por categoria (com fornecedor, descrição, parcela, data e valor). Use p/ 'o que tem na minha fatura', 'fatura por categoria', 'lançamentos da fatura de novembro', 'quanto gastei de alimentação no cartão nessa fatura'.", parameters: { type: "object", properties: { cartao: { type: "string", description: "nome do cartão (vazio = todos os cartões)" }, fatura: { type: "string", description: "'atual' (padrão, a mesma que abre na tela), 'proxima', 'anterior', 'aberta' (a mais antiga ainda não paga) ou o mês da fatura 'YYYY-MM' — 'fatura de novembro' = '2026-11'" }, vence_em: { type: "string", description: "YYYY-MM: a fatura que VENCE nesse mês (use quando a pessoa falar do vencimento: 'a fatura que vence em dezembro')" } } } } },
+      { type: "function", function: { name: "resumo_do_dia", description: "BRIEFING do dia da pessoa (assistente pessoal): agenda de hoje (compromissos, agenda pessoal do Google, tarefas), o que vence hoje (pagar/receber) e atrasados, cobranças vencidas, pendências, saldo em caixa e meta do mês. Use p/ 'meu resumo do dia', 'bom dia', 'como está meu dia', 'o que tenho hoje'.", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "cobrancas_lista", description: "Lista as COBRANÇAS (Asaas) como a tela Cobranças: cliente, descrição, valor, vencimento, situação (aguardando/vencida/paga), dias de atraso, link de pagamento, quantos envios e o último envio (WhatsApp/e-mail). Use p/ 'quais cobranças estão em aberto/vencidas', 'o boleto do X foi pago?', 'cobranças pagas esse mês'.", parameters: { type: "object", properties: { status: { type: "string", enum: ["abertas", "vencidas", "aguardando", "pagas", "canceladas", "todas"], description: "padrão: abertas (aguardando + vencidas)" }, cliente: { type: "string" }, inicio: { ...D, description: "por vencimento (ou data do pagamento, se status=pagas)" }, fim: D } } } },
       { type: "function", function: { name: "historico_envios", description: "Histórico de cobranças ENVIADAS por WhatsApp e e-mail (data, hora, canal, para quem, automático/manual, status: enviado/entregue/falhou). Padrão: últimos 60 dias. Use p/ 'o que já mandei pro X', 'o lembrete foi enviado?', 'quais e-mails falharam'.", parameters: { type: "object", properties: { cliente: { type: "string" }, canal: { type: "string", enum: ["todos", "whatsapp", "email"] }, inicio: D, fim: D } } } },
       { type: "function", function: { name: "contratos_lista", description: "CONTRATOS em todos os status (ativo, pausado, encerrado, cancelado) com valor, recorrência, dia de vencimento, início/fim, dias para terminar, pausa, se cobra no Asaas, REAJUSTES (histórico), próxima receita e atrasos. Use p/ 'meus contratos', 'contratos pausados/encerrados', 'quais contratos vencem este mês' (terminam_ate), 'reajustes do contrato X'.", parameters: { type: "object", properties: { status: { type: "string", enum: ["todos", "ativo", "pausado", "encerrado", "cancelado", "inativos"] }, cliente: { type: "string" }, terminam_ate: { ...D, description: "só ativos com data final até essa data" } } } } },
@@ -1061,6 +1063,27 @@ ${contexto}${blocoTela}`;
     }
 
     const ctxConsulta: CtxConsulta = { db: supabase, safe, hoje: hojeISO };
+
+    // ---- Resumo do dia (briefing das 8h abre a IARA com "Meu resumo do dia") ----
+    async function toolResumoDoDia(): Promise<string> {
+      const [saldo, venc, agenda, cobs, pend, meta] = await Promise.all([
+        toolSaldoContas(), toolAgenda(hojeISO, hojeISO), listarAgenda(hojeISO, hojeISO),
+        cobrancasLista(ctxConsulta, { status: "vencidas" }), pendenciasIara(ctxConsulta), metasIara(ctxConsulta, { meses: 1 }),
+      ]);
+      const sj = JSON.parse(saldo);
+      const ag = JSON.parse(agenda);
+      const DIAS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
+      return JSON.stringify({
+        hoje: hojeISO, dia_da_semana: DIAS[new Date(hojeISO + "T12:00:00Z").getUTCDay()], nome: nomeUsuario || null,
+        agenda_hoje: { ...ag, tarefas_em_aberto: (ag.tarefas_em_aberto || []).filter((t: any) => !t.ate || t.ate <= hojeISO),
+          obs: "tarefas_em_aberto = para hoje, atrasadas ou sem data." },
+        vencimentos_hoje: JSON.parse(venc),
+        cobrancas_vencidas: { quantidade: cobs.quantidade, total: cobs.total, principais: cobs.cobrancas.slice(0, 5) },
+        pendencias: { total: pend.total, por_bloco: pend.por_bloco, principais: pend.pendencias.slice(0, 5) },
+        caixa: { total: sj.total_caixa, contas: sj.contas, faturas_abertas: sj.total_faturas_abertas },
+        meta_do_mes: meta.metas[0],
+      });
+    }
 
     // ---- Fatura do cartão: os itens DE UMA FATURA (fatura_id), como o app mostra ----
     // Os itens de uma fatura não seguem o mês da compra (ex.: fatura de novembro tem compras de
@@ -2330,6 +2353,7 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
             else if (tc.function.name === "compras_parceladas") result = await toolParceladas(args.incluir_quitadas);
             else if (tc.function.name === "parcelas_comprometidas") result = await toolParcelasComprometidas(args.meses);
             else if (tc.function.name === "fatura_cartao") result = await toolFaturaCartao(args.cartao, args.fatura, args.vence_em);
+            else if (tc.function.name === "resumo_do_dia") result = await toolResumoDoDia();
             else if (tc.function.name === "cobrancas_lista") result = JSON.stringify(await cobrancasLista(ctxConsulta, args));
             else if (tc.function.name === "historico_envios") result = JSON.stringify(await historicoEnvios(ctxConsulta, args));
             else if (tc.function.name === "contratos_lista") result = JSON.stringify(await contratosLista(ctxConsulta, args));

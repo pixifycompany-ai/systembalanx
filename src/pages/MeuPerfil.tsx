@@ -309,7 +309,7 @@ export default function MeuPerfil() {
       }
       const { error } = await updatePushEnabled(enabled);
       if (error) toast.error('Erro ao salvar preferência');
-      else if (enabled) toast.success('Notificações ativadas. Aviso diário às 8h.');
+      else if (enabled) toast.success('Notificações ativadas. Seu resumo do dia chega às 8h.');
       else toast.success('Notificações desativadas');
     } finally { setPushSaving(false); }
   };
@@ -409,8 +409,8 @@ export default function MeuPerfil() {
             <div className="flex items-center gap-3 px-4 py-3.5">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-surface-2 text-foreground-muted"><BellRing className="h-4 w-4" /></span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[14.5px] text-foreground">Avisos de vencimento e da IARA</span>
-                <span className="block text-[12.5px] text-foreground-muted">Todo dia às 8h, o que vence hoje</span>
+                <span className="block text-[14.5px] text-foreground">Resumo do dia da IARA</span>
+                <span className="block text-[12.5px] text-foreground-muted">Às 8h: agenda, o que vence, cobranças e tarefas. Fim de semana só se tiver algo.</span>
               </span>
               <Switch checked={!!profile?.push_enabled} disabled={pushSaving} onCheckedChange={handleTogglePush} aria-label="Notificações no celular" />
             </div>
