@@ -29,6 +29,8 @@ interface MobileTransactionListProps {
   onDuplicate?: (t: TransacaoUnificada) => void;
   onNewEntrada: () => void;
   onNewSaida: () => void;
+  /** Dia em que cada lançamento aparece (padrão: vencimento). */
+  dataDe?: (t: TransacaoUnificada) => string;
 }
 
 function formatDateHeader(dateStr: string): string {
@@ -57,18 +59,19 @@ export function MobileTransactionList({
   onDuplicate,
   onNewEntrada,
   onNewSaida,
+  dataDe,
 }: MobileTransactionListProps) {
   const listaRef = useRef<HTMLElement>(null);
   // Group by date
   const grouped = useMemo(() => {
     const map = new Map<string, TransacaoUnificada[]>();
     for (const t of transactions) {
-      const key = t.data_vencimento;
+      const key = dataDe ? dataDe(t) : t.data_vencimento;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
     }
     return Array.from(map.entries());
-  }, [transactions]);
+  }, [transactions, dataDe]);
 
   const contaMap = useMemo(() => {
     const m = new Map<string, Conta>();

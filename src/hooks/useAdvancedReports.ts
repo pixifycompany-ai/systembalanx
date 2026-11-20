@@ -12,6 +12,7 @@ import { addMonths, differenceInDays, endOfMonth, format, parseISO, startOfDay, 
 import { ptBR } from 'date-fns/locale';
 import { getValorMensalEquivalente } from '@/utils/contractUtils';
 import type { PeriodFilter } from '@/hooks/useRelatorios';
+import { buscarTodas } from '@/lib/buscarTodas';
 
 const monthKey = (d: Date) => {
   const s = format(d, 'MMM/yy', { locale: ptBR });
@@ -83,19 +84,19 @@ async function fetchAll(period: PeriodFilter, customStart?: Date, customEnd?: Da
   };
 
   const [recRes, despRes, contRes, cliRes, catRes, contasRes, faturasRes, recAllRes, despAllRes, abertoRecRes, abertoDespRes] = await Promise.all([
-    supabase.from('receitas').select('id, valor, data_competencia, data_vencimento, data_recebimento, status, contrato_id, cliente_id, categoria_id, conta_id, clientes(nome), categorias(nome, cor)').gte('data_competencia', sinceStr),
-    supabase.from('despesas').select('id, valor, data_competencia, data_vencimento, data_pagamento, status, tipo, categoria_id, cliente_id, conta_id, fatura_id, fornecedor, categorias(nome, cor, grupo_dre)').gte('data_competencia', sinceStr),
+    buscarTodas(() => supabase.from('receitas').select('id, valor, data_competencia, data_vencimento, data_recebimento, status, contrato_id, cliente_id, categoria_id, conta_id, clientes(nome), categorias(nome, cor)').gte('data_competencia', sinceStr)),
+    buscarTodas(() => supabase.from('despesas').select('id, valor, data_competencia, data_vencimento, data_pagamento, status, tipo, categoria_id, cliente_id, conta_id, fatura_id, fornecedor, categorias(nome, cor, grupo_dre)').gte('data_competencia', sinceStr)),
     supabase.from('contratos').select('id, valor, recorrencia, status, data_inicio, data_inativacao, cliente_id'),
     supabase.from('clientes').select('id, nome, status, created_at'),
     supabase.from('categorias').select('id, nome, tipo, cor'),
     supabase.from('contas').select('id, nome, tipo, saldo_inicial, limite, bandeira, ativa').eq('ativa', true),
     supabase.from('cartao_faturas').select('cartao_id, valor_total, valor_pago, status'),
     // Conciliação usa TODO o histórico de movimentos confirmados (não o período).
-    supabase.from('receitas').select('valor, conta_id, status').eq('status', 'recebido'),
-    supabase.from('despesas').select('valor, conta_id, status, fatura_id, fornecedor, data_pagamento').eq('status', 'pago'),
+    buscarTodas(() => supabase.from('receitas').select('valor, conta_id, status').eq('status', 'recebido')),
+    buscarTodas(() => supabase.from('despesas').select('valor, conta_id, status, fatura_id, fornecedor, data_pagamento').eq('status', 'pago')),
     // Aging: TUDO o que está em aberto, de qualquer competência (antes só os últimos 12 meses)
-    supabase.from('receitas').select('valor, data_vencimento, status').neq('status', 'recebido'),
-    supabase.from('despesas').select('valor, data_vencimento, status, fatura_id, fornecedor').neq('status', 'pago'),
+    buscarTodas(() => supabase.from('receitas').select('valor, data_vencimento, status').neq('status', 'recebido')),
+    buscarTodas(() => supabase.from('despesas').select('valor, data_vencimento, status, fatura_id, fornecedor').neq('status', 'pago')),
   ]);
 
   const receitas = recRes.data || [];

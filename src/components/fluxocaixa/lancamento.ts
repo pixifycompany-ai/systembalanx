@@ -4,6 +4,23 @@ import type { TransacaoUnificada } from '@/types/fluxoCaixa';
 
 export const hojeISO = () => format(new Date(), 'yyyy-MM-dd');
 
+export type BaseData = 'caixa' | 'vencimento' | 'competencia' | 'efetivacao';
+
+/** Já saiu/entrou da conta (pago, recebido ou transferência)? */
+export const efetivado = (t: Pick<TransacaoUnificada, 'status' | 'tabela_origem'>) =>
+  t.tabela_origem === 'transferencia' || t.status === 'pago' || t.status === 'recebido';
+
+/**
+ * Dia em que o lançamento aparece na lista, conforme a data escolhida no filtro.
+ * 'caixa' (padrão): em aberto no dia do VENCIMENTO; pago/recebido no dia da BAIXA — como no extrato.
+ */
+export function dataDoLancamento(t: TransacaoUnificada, base: BaseData = 'caixa'): string {
+  if (base === 'competencia') return t.data_competencia || t.data_vencimento;
+  if (base === 'efetivacao') return t.data_efetivacao || t.data_vencimento;
+  if (base === 'vencimento') return t.data_vencimento;
+  return efetivado(t) && t.data_efetivacao ? t.data_efetivacao : t.data_vencimento;
+}
+
 /** Fatura de cartão (linha de sistema): a baixa é pelo "Pagar fatura". */
 export const ehFatura = (t: Pick<TransacaoUnificada, 'fornecedor'>) => t.fornecedor === '[fatura]';
 

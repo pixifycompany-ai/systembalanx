@@ -8,6 +8,7 @@ import type { ContaDB } from '@/hooks/useContas';
 import { parseISO, startOfDay, isBefore, addMonths } from 'date-fns';
 import type { TransacaoUnificada, TipoTransacao } from '@/types/fluxoCaixa';
 import { anexosDe, limparLixeiraAnexos } from '@/lib/anexosDespesa';
+import { buscarTodas } from '@/lib/buscarTodas';
 
 // Internal types - different from the exported hook types
 interface ReceitaInternal {
@@ -230,23 +231,23 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
         { data: catDespesaData, error: catDespesaError },
         { data: cobrancasLigadas },
       ] = await Promise.all([
-        supabase
+        buscarTodas(() => supabase
           .from('receitas')
           .select('*, cliente:clientes(id, nome, empresa_fonte), categoria:categorias(id, nome, cor)')
-          .order('data_vencimento', { ascending: false }),
-        supabase
+          .order('data_vencimento', { ascending: false })),
+        buscarTodas(() => supabase
           .from('despesas')
           .select('*, categoria:categorias(id, nome, cor), cliente:clientes(id, nome, empresa_fonte)')
           .is('fatura_id', null)
-          .order('data_vencimento', { ascending: false }),
-        supabase
+          .order('data_vencimento', { ascending: false })),
+        buscarTodas(() => supabase
           .from('transferencias')
           .select(`
             *,
             conta_origem:contas!transferencias_conta_origem_id_fkey(id, nome, cor),
             conta_destino:contas!transferencias_conta_destino_id_fkey(id, nome, cor)
           `)
-          .order('data_transferencia', { ascending: false }),
+          .order('data_transferencia', { ascending: false })),
         supabase
           .from('categorias')
           .select('*')

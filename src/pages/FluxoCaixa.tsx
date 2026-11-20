@@ -41,7 +41,7 @@ import { toast } from 'sonner';
 import { GerarCobrancaDialog } from '@/components/fluxocaixa/GerarCobrancaDialog';
 import { BarraSelecao } from '@/components/fluxocaixa/BarraSelecao';
 import { TipoIcone } from '@/components/fluxocaixa/TipoIcone';
-import { FORMA_LABEL, serieDe, statusInfo } from '@/components/fluxocaixa/lancamento';
+import { FORMA_LABEL, serieDe, statusInfo, dataDoLancamento, type BaseData } from '@/components/fluxocaixa/lancamento';
 import { ExcluirLancamento } from '@/components/fluxocaixa/ExcluirLancamento';
 import { CabecalhoDiaFixo } from '@/components/fluxocaixa/CabecalhoDiaFixo';
 import { Chips, ContasPick, ExcluirSheet, QuickDatas, ResumoLateral, Stepper, ValorInput } from '@/components/fluxocaixa/formPecas';
@@ -143,9 +143,10 @@ export default function FluxoCaixa() {
   // Data usada no filtro de mês/período: vencimento (padrão) ou a data em que o dinheiro
   // entrou/saiu (recebimento/pagamento), usada pelos cards "recebidas/pagas no mês" do início.
   // 'competencia' vem dos relatórios (DRE/categorias contam pela competência).
-  const [dataBase, setDataBase] = useState<'vencimento' | 'efetivacao' | 'competencia'>(() => {
+  // 'caixa' (padrão): em aberto pelo vencimento, pago/recebido pelo dia da baixa (como no extrato).
+  const [dataBase, setDataBase] = useState<BaseData>(() => {
     const b = searchParams.get('base');
-    return b === 'efetivacao' || b === 'competencia' ? b : 'vencimento';
+    return b === 'efetivacao' || b === 'competencia' || b === 'vencimento' ? b : 'caixa';
   });
 
   // Filters - default to current month
@@ -327,10 +328,10 @@ export default function FluxoCaixa() {
       
       let matchesDate = true;
       // Por recebimento/pagamento: sem essa data (ainda em aberto) não entra no período.
-      const dataRef = dataBase === 'efetivacao' ? t.data_efetivacao : dataBase === 'competencia' ? t.data_competencia : t.data_vencimento;
+      const dataRef = dataBase === 'efetivacao' ? t.data_efetivacao : dataBase === 'competencia' ? t.data_competencia : dataDoLancamento(t, dataBase);
       const filtrandoData = (dateFilterMode === 'month' && monthFilter !== 'all') || (dateFilterMode === 'range' && !!dateRangeStart && !!dateRangeEnd);
       if (filtrandoData && !dataRef) {
-        matchesDate = dataBase === 'vencimento';
+        matchesDate = dataBase === 'vencimento' || dataBase === 'caixa';
       } else if (dateFilterMode === 'month' && monthFilter !== 'all' && dataRef) {
         const monthStart = startOfMonth(parseISO(`${monthFilter}-01`));
         const monthEnd = endOfMonth(monthStart);
@@ -347,7 +348,7 @@ export default function FluxoCaixa() {
       
       switch (sortConfig.column) {
         case 'data_vencimento':
-          comparison = a.data_vencimento.localeCompare(b.data_vencimento);
+          comparison = dataDoLancamento(a, dataBase).localeCompare(dataDoLancamento(b, dataBase));
           break;
         case 'tipo':
           comparison = a.tipo.localeCompare(b.tipo);
@@ -944,7 +945,7 @@ export default function FluxoCaixa() {
 
   const contaById = useMemo(() => new Map(contas.map(c => [c.id, c])), [contas]);
   const contaEhCartao = (id?: string | null) => !!id && contaById.get(id)?.tipo === 'cartao_credito';
-  const filtrosAtivos = categoriaFilter.length + (dataBase !== 'vencimento' ? 1 : 0) + (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd ? 1 : 0);
+  const filtrosAtivos = categoriaFilter.length + (dataBase !== 'caixa' ? 1 : 0) + (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd ? 1 : 0);
   const contasFiltro = contas.filter(c => c.tipo !== 'cartao_credito');
 
   // Agrupamento por dia (na ordem exibida) + totais e saldo de fechamento por conta
@@ -952,16 +953,17 @@ export default function FluxoCaixa() {
     const grupos: { data: string; itens: TransacaoUnificada[] }[] = [];
     for (const t of filteredTransacoes) {
       const last = grupos[grupos.length - 1];
-      if (last && last.data === t.data_vencimento) last.itens.push(t);
-      else grupos.push({ data: t.data_vencimento, itens: [t] });
+      const dia = dataDoLancamento(t, dataBase);
+      if (last && last.data === dia) last.itens.push(t);
+      else grupos.push({ data: dia, itens: [t] });
     }
     return grupos;
-  }, [filteredTransacoes]);
+  }, [filteredTransacoes, dataBase]);
   const isSingleAccount = !!singleAccountId && !!runningBalance;
   const closingByDate = useMemo(() => {
     const m = new Map<string, number>();
     if (!singleAccountId || !runningBalance) return m;
-    const displayedDates = Array.from(new Set(filteredTransacoes.map(t => t.data_vencimento))).sort();
+    const displayedDates = Array.from(new Set(filteredTransacoes.map(t => dataDoLancamento(t, dataBase)))).sort();
     const efetivadoDates = runningBalance.sortedDates || [];
     let idx = 0;
     let last = runningBalance.saldoInicial;
@@ -973,7 +975,7 @@ export default function FluxoCaixa() {
       m.set(d, last);
     }
     return m;
-  }, [filteredTransacoes, singleAccountId, runningBalance]);
+  }, [filteredTransacoes, singleAccountId, runningBalance, dataBase]);
 
   // Dar baixa numa data escolhida (detalhe)
   const handleDarBaixa = async (t: TransacaoUnificada, dataISO: string) => {
@@ -1152,7 +1154,7 @@ export default function FluxoCaixa() {
             ))}
           </div>
           {/* filtros aplicados */}
-          {(categoriaFilter.length > 0 || dataBase !== 'vencimento' || (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd) || situ === null) && (
+          {(categoriaFilter.length > 0 || dataBase !== 'caixa' || (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd) || situ === null) && (
             <div className="flex flex-wrap gap-2">
               {categoriaFilter.map(id => {
                 const cat = id === SEM_CATEGORIA ? null : categoriaNomePorId.get(id);
@@ -1162,9 +1164,9 @@ export default function FluxoCaixa() {
                   </button>
                 );
               })}
-              {dataBase !== 'vencimento' && (
-                <button type="button" onClick={() => setDataBase('vencimento')} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-[12.5px] text-background">
-                  Data de {dataBase === 'competencia' ? 'competência' : tipoFilter === 'entrada' ? 'recebimento' : tipoFilter === 'saida' ? 'pagamento' : 'recebimento/pagamento'}<X className="h-3.5 w-3.5" />
+              {dataBase !== 'caixa' && (
+                <button type="button" onClick={() => setDataBase('caixa')} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-[12.5px] text-background">
+                  Data de {dataBase === 'vencimento' ? 'vencimento' : dataBase === 'competencia' ? 'competência' : tipoFilter === 'entrada' ? 'recebimento' : tipoFilter === 'saida' ? 'pagamento' : 'recebimento/pagamento'}<X className="h-3.5 w-3.5" />
                 </button>
               )}
               {dateFilterMode === 'range' && dateRangeStart && dateRangeEnd && (
@@ -1177,7 +1179,7 @@ export default function FluxoCaixa() {
                   {statusOptions.find(o => o.value === v)?.label ?? v}<X className="h-3.5 w-3.5" />
                 </button>
               ))}
-              <button type="button" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDataBase('vencimento'); setModoPeriodo('mes'); }} className="h-8 px-2 text-[12.5px] text-foreground-muted hover:text-foreground">Limpar</button>
+              <button type="button" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDataBase('caixa'); setModoPeriodo('mes'); }} className="h-8 px-2 text-[12.5px] text-foreground-muted hover:text-foreground">Limpar</button>
             </div>
           )}
         </div>
@@ -1187,6 +1189,7 @@ export default function FluxoCaixa() {
           <PullToRefresh onRefresh={async () => { await Promise.all([refetchFluxo(), refetchContas(), refetchTransferencias()]); }}>
             <MobileTransactionList
               transactions={filteredTransacoes}
+              dataDe={(t) => dataDoLancamento(t, dataBase)}
               contas={contas}
               isLoading={isLoading}
               totals={totals}
@@ -1362,9 +1365,9 @@ export default function FluxoCaixa() {
                   )}
                 </Bloco>
                 <Bloco title="Filtrar pela data de">
-                  <Segmented<'vencimento' | 'competencia' | 'efetivacao'> value={dataBase} onChange={setDataBase} opts={[['vencimento', 'Vencimento'], ['competencia', 'Competência'], ['efetivacao', 'Pagamento']]} />
+                  <Segmented<BaseData> value={dataBase} onChange={setDataBase} opts={[['caixa', 'Caixa'], ['vencimento', 'Vencimento'], ['competencia', 'Competência'], ['efetivacao', 'Pagamento']]} />
                   <p className="mt-2 text-[12px] text-foreground-muted">
-                    {dataBase === 'competencia' ? 'Mês a que o lançamento pertence (o mesmo do DRE).' : dataBase === 'efetivacao' ? 'Só o que já foi recebido ou pago, pela data da baixa.' : 'Quando vence. É o padrão do caixa.'}
+                    {dataBase === 'competencia' ? 'Mês a que o lançamento pertence (o mesmo do DRE).' : dataBase === 'efetivacao' ? 'Só o que já foi recebido ou pago, pela data da baixa.' : dataBase === 'vencimento' ? 'Tudo pela data de vencimento, mesmo o que já foi pago em outro dia.' : 'Padrão: o que está em aberto aparece no vencimento; o que já foi pago ou recebido aparece no dia da baixa, como no extrato.'}
                   </p>
                 </Bloco>
                 <Bloco title="Categorias" extra={categoriaFilter.length > 0 ? <button type="button" onClick={() => setCategoriaFilter([])} className="text-[12px] text-foreground-muted hover:text-foreground">Limpar ({categoriaFilter.length})</button> : undefined}>
@@ -1388,7 +1391,7 @@ export default function FluxoCaixa() {
                   </div>
                 </Bloco>
               </div>
-              <ModalFooter left={<button type="button" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDataBase('vencimento'); setModoPeriodo('mes'); }} className={btn.ghost}>Limpar tudo</button>}>
+              <ModalFooter left={<button type="button" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDataBase('caixa'); setModoPeriodo('mes'); }} className={btn.ghost}>Limpar tudo</button>}>
                 <button type="button" onClick={() => setFiltersOpen(false)} className={btn.primary}>Ver {filteredTransacoes.length} lançamentos</button>
               </ModalFooter>
             </ModalShell>

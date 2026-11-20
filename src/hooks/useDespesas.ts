@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ensureFaturaForLancamento, ensureFaturaForCompetencia, recalcularFatura } from './useFaturas';
 import { calcularCompetenciaFatura, toISODate } from '@/utils/faturaCalculator';
 import type { ContaDB } from './useContas';
+import { buscarTodas } from '@/lib/buscarTodas';
 
 const CACHE_KEYS_TO_INVALIDATE = ['contas', 'dashboard', 'analises', 'calendario', 'relatorios', 'fluxo-caixa'];
 
@@ -109,14 +110,14 @@ export function useDespesas() {
       setError(null);
       
       const [{ data: despesasData, error: despesasError }, { data: categoriasData, error: categoriasError }] = await Promise.all([
-        supabase
+        buscarTodas(() => supabase
           .from('despesas')
           .select(`
             *,
             categoria:categorias(*),
             cliente:clientes(id, nome)
           `)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })),
         supabase
           .from('categorias')
           .select('*')

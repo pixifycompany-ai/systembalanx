@@ -12,6 +12,7 @@ import type { DashboardData, TopCliente, FaturamentoVsDespesas, MRRHistorico } f
 import type { AccountBalance } from '@/components/dashboard/ConsolidatedBalanceCard';
 import type { CreditCardData } from '@/components/dashboard/CreditCardsWidget';
 import { getFaturaAtual } from '@/utils/faturaCalculator';
+import { buscarTodas } from '@/lib/buscarTodas';
 
 export type EmpresaFonte = 'PIXIFY' | 'REVVUE' | 'CLARIO' | 'TABELIO';
 
@@ -60,14 +61,16 @@ async function fetchDashboardData(mesRef?: string): Promise<Omit<DashboardResult
 
   // Fetch all data in parallel
   const [receitasRes, despesasRes, contratosRes, clientesRes, categoriasRes, contasRes, transferenciasRes, aditivosRes, faturasRes, fatPagRes] = await Promise.all([
-    supabase
+    // Em páginas: com mais de 1.000 lançamentos a consulta única cortava os mais recentes
+    // (saldo e "pago no mês" da Início saíam diferentes de /contas e do Fluxo de caixa).
+    buscarTodas(() => supabase
       .from('receitas')
       .select('*, cliente:clientes(id, nome, empresa_fonte), categoria:categorias(id, nome, empresa_fonte)')
-      .order('data_vencimento', { ascending: true }),
-    supabase
+      .order('data_vencimento', { ascending: true })),
+    buscarTodas(() => supabase
       .from('despesas')
       .select('*, categoria:categorias(id, nome, cor)')
-      .order('data_vencimento', { ascending: true }),
+      .order('data_vencimento', { ascending: true })),
     supabase
       .from('contratos')
       .select('*, cliente:clientes(id, nome)')
@@ -83,9 +86,9 @@ async function fetchDashboardData(mesRef?: string): Promise<Omit<DashboardResult
       .from('contas')
       .select('*')
       .eq('ativa', true),
-    supabase
+    buscarTodas(() => supabase
       .from('transferencias')
-      .select('*'),
+      .select('*')),
     supabase
       .from('contrato_aditivos' as any)
       .select('*')

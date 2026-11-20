@@ -3,6 +3,7 @@
 // até aquela data (mesma regra do saldo da tela de Contas). A diferença para o
 // banco vira uma lista de causas prováveis, da mais para a menos certeira.
 import { supabase } from '@/integrations/supabase/client';
+import { buscarTodas } from '@/lib/buscarTodas';
 
 export type Tabela = 'receitas' | 'despesas' | 'transferencias';
 
@@ -161,10 +162,10 @@ export async function carregarConferencia(contaId: string, data: string): Promis
   const desde = new Date(new Date(data + 'T12:00:00Z').getTime() - 120 * 86400000).toISOString().slice(0, 10);
   const [conta, rec, desp, trOut, trIn, recAb, despAb, recSc, despSc] = await Promise.all([
     supabase.from('contas').select('saldo_inicial').eq('id', contaId).maybeSingle(),
-    supabase.from('receitas').select('id, descricao, valor, data_recebimento, data_vencimento, status, conta_id, clientes(nome)').eq('conta_id', contaId).eq('status', 'recebido'),
-    supabase.from('despesas').select('id, descricao, valor, data_pagamento, data_vencimento, status, conta_id, fornecedor').eq('conta_id', contaId).eq('status', 'pago').is('fatura_id', null),
-    supabase.from('transferencias').select('id, descricao, valor, data_transferencia').eq('conta_origem_id', contaId),
-    supabase.from('transferencias').select('id, descricao, valor, data_transferencia').eq('conta_destino_id', contaId),
+    buscarTodas(() => supabase.from('receitas').select('id, descricao, valor, data_recebimento, data_vencimento, status, conta_id, clientes(nome)').eq('conta_id', contaId).eq('status', 'recebido')),
+    buscarTodas(() => supabase.from('despesas').select('id, descricao, valor, data_pagamento, data_vencimento, status, conta_id, fornecedor').eq('conta_id', contaId).eq('status', 'pago').is('fatura_id', null)),
+    buscarTodas(() => supabase.from('transferencias').select('id, descricao, valor, data_transferencia').eq('conta_origem_id', contaId)),
+    buscarTodas(() => supabase.from('transferencias').select('id, descricao, valor, data_transferencia').eq('conta_destino_id', contaId)),
     supabase.from('receitas').select('id, descricao, valor, data_vencimento, status, conta_id, clientes(nome)').in('status', ['pendente', 'atrasado'])
       .lte('data_vencimento', data).gte('data_vencimento', desde).or(`conta_id.eq.${contaId},conta_id.is.null`),
     supabase.from('despesas').select('id, descricao, valor, data_vencimento, status, conta_id, fornecedor').in('status', ['pendente', 'atrasado']).is('fatura_id', null)

@@ -5,6 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import { parseISO, startOfDay, isBefore } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import type { ClienteDB } from './useClientes';
+import { buscarTodas } from '@/lib/buscarTodas';
 
 const CACHE_KEYS_TO_INVALIDATE = ['contas', 'dashboard', 'analises', 'calendario', 'relatorios', 'fluxo-caixa'];
 
@@ -103,14 +104,14 @@ export function useReceitas() {
       setError(null);
       
       const [{ data: receitasData, error: receitasError }, { data: categoriasData, error: categoriasError }] = await Promise.all([
-        supabase
+        buscarTodas(() => supabase
           .from('receitas')
           .select(`
             *,
             cliente:clientes(*),
             categoria:categorias(*)
           `)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })),
         supabase
           .from('categorias')
           .select('*')

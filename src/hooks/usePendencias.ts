@@ -6,6 +6,7 @@ import { gruposDuplicados } from '@/lib/duplicados';
 import { anexosDe } from '@/lib/anexosDespesa';
 import { notasDe } from '@/hooks/useCobrancas';
 import { formatCurrency, formatDate } from '@/utils/formatters';
+import { buscarTodas } from '@/lib/buscarTodas';
 
 export type BlocoPendencia = 'risco' | 'ajuste' | 'documento';
 
@@ -48,12 +49,12 @@ async function carregar(): Promise<{ itens: Pendencia[]; ignoradas: Set<string> 
     supabase.from('contas').select('id, nome').eq('tipo', 'cartao_credito'),
     db.from('contratos').select('id, descricao, valor, recorrencia, data_fim, asaas_subscription_id, gerar_receitas, cliente:clientes(nome)')
       .eq('status', 'ativo'),
-    supabase.from('receitas').select('id, descricao, valor, data_vencimento, status, contrato_id, cliente_id, clientes(nome)')
-      .in('status', ['pendente', 'atrasado']),
+    buscarTodas(() => supabase.from('receitas').select('id, descricao, valor, data_vencimento, status, contrato_id, cliente_id, clientes(nome)')
+      .in('status', ['pendente', 'atrasado'])),
     supabase.from('receitas').select('id, descricao, valor, data_recebimento, clientes(nome)')
       .eq('status', 'recebido').is('conta_id', null).gt('valor', 0),
-    supabase.from('despesas').select('*')
-      .in('status', ['pendente', 'atrasado']).is('fatura_id', null),
+    buscarTodas(() => supabase.from('despesas').select('*')
+      .in('status', ['pendente', 'atrasado']).is('fatura_id', null)),
     supabase.from('despesas').select('id, descricao, valor, data_pagamento, fornecedor')
       .eq('status', 'pago').is('conta_id', null).is('fatura_id', null).gt('valor', 0),
     db.from('pendencias_ignoradas').select('chave'),

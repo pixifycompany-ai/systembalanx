@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getValorMensalEquivalente, isContratoAtivoHoje, type ContratoBase } from '@/utils/contractUtils';
+import { buscarTodas } from '@/lib/buscarTodas';
 
 /** Contrato resumido para a ficha do cliente. */
 export interface ContratoResumo {
@@ -47,7 +48,7 @@ export function useClientesResumo() {
     queryFn: async () => {
       const [{ data: contratos }, { data: receitas }] = await Promise.all([
         supabase.from('contratos').select('*'),
-        supabase.from('receitas').select('id, cliente_id, descricao, valor, status, data_vencimento, data_recebimento').not('cliente_id', 'is', null),
+        buscarTodas(() => supabase.from('receitas').select('id, cliente_id, descricao, valor, status, data_vencimento, data_recebimento').not('cliente_id', 'is', null)),
       ]);
       const anoAtual = String(new Date().getFullYear());
       const mapa = new Map<string, ClienteNumeros>();

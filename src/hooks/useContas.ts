@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { buscarTodas } from '@/lib/buscarTodas';
 
 export type ContaTipo = 'corrente' | 'poupanca' | 'investimento' | 'cartao_credito' | 'cartao_debito';
 
@@ -61,10 +62,10 @@ const calculateAccountBalance = async (
     }
 
     const [{ data: receitas }, { data: despesas }, { data: transferenciasOut }, { data: transferenciasIn }] = await Promise.all([
-      supabase.from('receitas').select('valor').eq('conta_id', contaId).eq('status', 'recebido'),
-      supabase.from('despesas').select('valor').eq('conta_id', contaId).eq('status', 'pago').is('fatura_id', null),
-      supabase.from('transferencias').select('valor').eq('conta_origem_id', contaId),
-      supabase.from('transferencias').select('valor').eq('conta_destino_id', contaId),
+      buscarTodas(() => supabase.from('receitas').select('valor').eq('conta_id', contaId).eq('status', 'recebido')),
+      buscarTodas(() => supabase.from('despesas').select('valor').eq('conta_id', contaId).eq('status', 'pago').is('fatura_id', null)),
+      buscarTodas(() => supabase.from('transferencias').select('valor').eq('conta_origem_id', contaId)),
+      buscarTodas(() => supabase.from('transferencias').select('valor').eq('conta_destino_id', contaId)),
     ]);
 
     const totalReceitas = (receitas || []).reduce((sum, r) => sum + Number(r.valor), 0);
@@ -385,10 +386,10 @@ export function useAccountRunningBalance(contaId: string | null) {
       const saldoInicial = Number(conta?.saldo_inicial || 0);
 
       const [{ data: receitas }, { data: despesas }, { data: trOut }, { data: trIn }] = await Promise.all([
-        supabase.from('receitas').select('valor, data_recebimento').eq('conta_id', contaId).eq('status', 'recebido').not('data_recebimento', 'is', null),
-        supabase.from('despesas').select('valor, data_pagamento').eq('conta_id', contaId).eq('status', 'pago').is('fatura_id', null).not('data_pagamento', 'is', null),
-        supabase.from('transferencias').select('valor, data_transferencia').eq('conta_origem_id', contaId),
-        supabase.from('transferencias').select('valor, data_transferencia').eq('conta_destino_id', contaId),
+        buscarTodas(() => supabase.from('receitas').select('valor, data_recebimento').eq('conta_id', contaId).eq('status', 'recebido').not('data_recebimento', 'is', null)),
+        buscarTodas(() => supabase.from('despesas').select('valor, data_pagamento').eq('conta_id', contaId).eq('status', 'pago').is('fatura_id', null).not('data_pagamento', 'is', null)),
+        buscarTodas(() => supabase.from('transferencias').select('valor, data_transferencia').eq('conta_origem_id', contaId)),
+        buscarTodas(() => supabase.from('transferencias').select('valor, data_transferencia').eq('conta_destino_id', contaId)),
       ]);
 
       // Aggregate deltas per date

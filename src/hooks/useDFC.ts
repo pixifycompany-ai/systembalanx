@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import { getMonthColumns, getMonthRange, type DRERow, type PeriodFilter } from '@/hooks/useRelatorios';
+import { buscarTodas } from '@/lib/buscarTodas';
 
 type Grupo = 'imposto' | 'custo_variavel' | 'desp_comercial' | 'desp_administrativa' | 'desp_pessoal' | 'desp_operacional' | 'distribuicao_lucro';
 
@@ -41,13 +42,13 @@ async function fetchDFC(period: PeriodFilter, customStart?: Date, customEnd?: Da
 
   const [contasRes, recRes, despRes, itensRes, fatPagRes, faturasRes, transfRes] = await Promise.all([
     supabase.from('contas').select('id, tipo, saldo_inicial, ativa'),
-    supabase.from('receitas').select('valor, conta_id, descricao, data_recebimento, categoria:categorias(nome, grupo_dre)').eq('status', 'recebido'),
-    supabase.from('despesas').select('id, valor, conta_id, fornecedor, descricao, data_pagamento, categoria:categorias(nome, grupo_dre)').eq('status', 'pago').is('fatura_id', null),
+    buscarTodas(() => supabase.from('receitas').select('valor, conta_id, descricao, data_recebimento, categoria:categorias(nome, grupo_dre)').eq('status', 'recebido')),
+    buscarTodas(() => supabase.from('despesas').select('id, valor, conta_id, fornecedor, descricao, data_pagamento, categoria:categorias(nome, grupo_dre)').eq('status', 'pago').is('fatura_id', null)),
     // Itens de fatura (compras no cartão) — só para ratear o pagamento por categoria
-    supabase.from('despesas').select('valor, fatura_id, categoria:categorias(nome, grupo_dre)').not('fatura_id', 'is', null),
+    buscarTodas(() => supabase.from('despesas').select('valor, fatura_id, categoria:categorias(nome, grupo_dre)').not('fatura_id', 'is', null)),
     supabase.from('cartao_fatura_pagamentos').select('fatura_id, despesa_id'),
     supabase.from('cartao_faturas').select('id, despesa_id'),
-    supabase.from('transferencias').select('valor, conta_origem_id, conta_destino_id, data_transferencia'),
+    buscarTodas(() => supabase.from('transferencias').select('valor, conta_origem_id, conta_destino_id, data_transferencia')),
   ]);
 
   const contas = contasRes.data || [];

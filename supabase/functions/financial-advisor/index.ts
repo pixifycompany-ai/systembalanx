@@ -85,10 +85,38 @@ function addDaysISO(iso: string, n: number): string {
   return d.toISOString().split("T")[0];
 }
 
+/**
+ * Executa a consulta e devolve as linhas (ou [] em erro).
+ * O PostgREST devolve no máximo 1.000 linhas por chamada: listas sem limite próprio são
+ * buscadas em páginas até o fim — senão saldos e totais saíam errados em contas com
+ * mais de 1.000 lançamentos (e diferentes das telas do app).
+ */
 async function safe<T>(p: PromiseLike<{ data: T | null }>): Promise<T[]> {
+  const b: any = p;
   try {
-    const { data } = await p;
-    return (data as T[]) || [];
+    const url: URL | undefined = b?.url;
+    const accept = typeof b?.headers?.get === "function" ? b.headers.get("Accept") : b?.headers?.Accept;
+    // .single()/.maybeSingle() e contagens (HEAD) não são listas: executa direto.
+    const umaLinha = String(accept || "").includes("pgrst.object") || b?.isMaybeSingle === true || b?.method === "HEAD";
+    if (typeof b?.range !== "function" || !url || umaLinha || url.searchParams.get("limit")) {
+      const { data } = await p;
+      return (data as T[]) || [];
+    }
+    // Ordem estável para paginar: id como desempate (se a tabela não tiver id, tira e tenta de novo).
+    let pusOrdem = false;
+    if (!url.searchParams.get("order")) { b.order("id", { ascending: true }); pusOrdem = true; }
+    const out: T[] = [];
+    for (let de = 0; de < 200_000; de += 1000) {
+      const { data, error } = await b.range(de, de + 999);
+      if (error) {
+        if (de === 0 && pusOrdem) { url.searchParams.delete("order"); pusOrdem = false; de = -1000; continue; }
+        break;
+      }
+      const lote = (data as T[]) || [];
+      out.push(...lote);
+      if (lote.length < 1000) break;
+    }
+    return out;
   } catch (_e) {
     return [];
   }
@@ -1144,7 +1172,7 @@ ${contexto}${blocoTela}`;
       const [contasAll, rec, desp, transf, faturas] = await Promise.all([
         safe<any>(supabase.from("contas").select("*").eq("ativa", true)),
         safe<any>(supabase.from("receitas").select("valor,conta_id").eq("status", "recebido")),
-        safe<any>(supabase.from("despesas").select("valor,conta_id").eq("status", "pago")),
+        safe<any>(supabase.from("despesas").select("valor,conta_id").eq("status", "pago").is("fatura_id", null)),
         safe<any>(supabase.from("transferencias").select("valor,conta_origem_id,conta_destino_id")),
         safe<any>(supabase.from("cartao_faturas").select("valor_total,valor_pago,data_vencimento,status,cartao_id")),
       ]);

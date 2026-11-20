@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { startOfMonth, endOfMonth, subMonths, format, addMonths, parseISO, differenceInMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { isContratoAtivoNoPeriodo, getValorMensalNaData, getMesesRelacionamento, isContratoAtivoHoje, getClientesAtivosNoPeriodo, getClientesAtivosHoje, type AditivoBase, type ContratoBase } from '@/utils/contractUtils';
+import { buscarTodas } from '@/lib/buscarTodas';
 
 export interface LTVEvolutionData {
   mes: string;
@@ -90,8 +91,8 @@ async function fetchAnalysisData(periodo: PeriodoAnalises = 'geral'): Promise<Om
   const inicioJanela = janela ? startOfMonth(subMonths(today, janela - 1)) : null;
 
   const [receitasRes, despesasRes, contratosRes, clientesRes, contasRes, aditivosRes] = await Promise.all([
-    supabase.from('receitas').select('*, cliente:clientes(id, nome)'),
-    supabase.from('despesas').select('*, cliente:clientes(id, nome), categoria:categorias(grupo_dre)'),
+    buscarTodas(() => supabase.from('receitas').select('*, cliente:clientes(id, nome)')),
+    buscarTodas(() => supabase.from('despesas').select('*, cliente:clientes(id, nome), categoria:categorias(grupo_dre)')),
     supabase.from('contratos').select('*, cliente:clientes(id, nome)'),
     supabase.from('clientes').select('*'),
     supabase.from('contas').select('*').eq('ativa', true),
