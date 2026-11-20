@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react';
 import type { ItemLancamento } from '@/lib/lancarItens';
 import type { AcaoIara } from '@/lib/acoesIara';
+import type { ArquivoIara } from '@/lib/arquivoIara';
+
+export interface DocumentoIara { acao: 'guardado' | 'encontrado'; id: string; nome: string; url?: string; resumo?: string | null; data?: string; mime?: string | null }
 
 /** Lançamento proposto pela IARA (card de confirmação). Superset de ItemLancamento. */
 export type PropostaLancamento = ItemLancamento & { cliente_nome?: string | null };
@@ -18,6 +21,10 @@ export interface ChatMessage {
   conexoes?: string[];
   /** O que a IARA guardou ou apagou da memória nesta resposta. */
   memorias?: { acao: 'anotei' | 'esqueci'; texto: string }[];
+  /** Documentos guardados ou encontrados pela IARA (com link para abrir). */
+  documentos?: DocumentoIara[];
+  /** Arquivos (PDF/Excel) gerados pela IARA para baixar. */
+  arquivos?: ArquivoIara[];
   /** Nomes dos arquivos enviados junto (mensagem do usuário). */
   anexos?: string[];
 }
@@ -200,6 +207,18 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
                 m.id === assistantMessageId ? { ...m, memorias } : m
               ));
             }
+            if (Array.isArray(parsed.documentos) && parsed.documentos.length) {
+              const documentos = parsed.documentos as DocumentoIara[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, documentos } : m
+              ));
+            }
+            if (Array.isArray(parsed.arquivos) && parsed.arquivos.length) {
+              const arquivos = parsed.arquivos as ArquivoIara[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, arquivos } : m
+              ));
+            }
           } catch {
             // Incomplete JSON, put back in buffer
             buffer = line + '\n' + buffer;
@@ -248,6 +267,18 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
               const memorias = parsed.memorias as ChatMessage['memorias'];
               setMessages(prev => prev.map(m =>
                 m.id === assistantMessageId ? { ...m, memorias } : m
+              ));
+            }
+            if (Array.isArray(parsed.documentos) && parsed.documentos.length) {
+              const documentos = parsed.documentos as DocumentoIara[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, documentos } : m
+              ));
+            }
+            if (Array.isArray(parsed.arquivos) && parsed.arquivos.length) {
+              const arquivos = parsed.arquivos as ArquivoIara[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, arquivos } : m
               ));
             }
           } catch { /* ignore */ }

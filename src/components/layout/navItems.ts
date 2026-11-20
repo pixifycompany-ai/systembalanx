@@ -1,6 +1,6 @@
 // Itens do menu (sidebar, menu do celular, busca rápida e breadcrumb) num lugar só.
 import {
-  ArrowDownRight, ArrowLeftRight, ArrowUpRight, BarChart3, CalendarDays, FileBarChart, FileText, Home, LineChart,
+  ArrowDownRight, ArrowLeftRight, ArrowUpRight, BarChart3, CalendarDays, FileBarChart, FileText, FolderOpen, Home, LineChart,
   ListChecks, Mic, Receipt, Settings, Tag, Upload, Users, Wallet,
 } from 'lucide-react';
 import type { ComponentType } from 'react';
@@ -26,6 +26,7 @@ export const NAV_GRUPOS: NavGroup[] = [
     { href: '/clientes', label: 'Clientes', icon: Users },
     { href: '/contratos', label: 'Contratos', icon: FileText },
     { href: '/cobrancas', label: 'Cobranças', icon: Receipt },
+    { href: '/documentos', label: 'Documentos', icon: FolderOpen },
   ] },
   { label: 'Análise', items: [
     { href: '/visao', label: 'Visão do negócio', icon: LineChart },

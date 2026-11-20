@@ -30,6 +30,7 @@ import RedefinirSenha from "./pages/RedefinirSenha";
 import Onboarding from "./pages/Onboarding";
 import Iara from "./pages/Iara";
 import Pendencias from "./pages/Pendencias";
+import Documentos from "./pages/Documentos";
 import GoogleRetorno from "./pages/GoogleRetorno";
 import Superadmin from "./pages/Superadmin";
 import LancarVoz from "./pages/LancarVoz";
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="/perfil" element={<ProtectedRoute><AppLayout><MeuPerfil /></AppLayout></ProtectedRoute>} />
               <Route path="/iara" element={<ProtectedRoute><AppLayout><Iara /></AppLayout></ProtectedRoute>} />
               <Route path="/pendencias" element={<ProtectedRoute><AppLayout><Pendencias /></AppLayout></ProtectedRoute>} />
+              <Route path="/documentos" element={<ProtectedRoute><AppLayout><Documentos /></AppLayout></ProtectedRoute>} />
               <Route path="/integracoes/google/retorno" element={<ProtectedRoute><AppLayout><GoogleRetorno /></AppLayout></ProtectedRoute>} />
               <Route path="/superadmin" element={<ProtectedRoute><Superadmin /></ProtectedRoute>} />
               <Route path="/lancar-voz" element={<ProtectedRoute><LancarVoz /></ProtectedRoute>} />

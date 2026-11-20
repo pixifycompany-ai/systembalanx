@@ -44,7 +44,7 @@ function agruparCobrancas(linhas: any[]) {
   return [...porFatura.values()];
 }
 
-export async function cobrancasLista(ctx: CtxConsulta, a: { status?: string; cliente?: string; inicio?: string; fim?: string }) {
+export async function cobrancasLista(ctx: CtxConsulta, a: { status?: string; cliente?: string; inicio?: string; fim?: string; limite?: number }) {
   let q = ctx.db.from("cobrancas")
     .select("id, descricao, valor, vencimento, status, forma_pagamento, data_pagamento, invoice_url, asaas_payment_id, asaas_subscription_id, contrato_id, exigir_nf, notas_fiscais, nota_fiscal_path, nota_fiscal_enviada, cliente_id, cliente:clientes(nome)");
   const st = (a.status || "abertas").toLowerCase();
@@ -102,9 +102,9 @@ export async function cobrancasLista(ctx: CtxConsulta, a: { status?: string; cli
     total_vencidas: soma((i) => i.situacao === "vencida"),
     total_aguardando: soma((i) => i.situacao === "aguardando pagamento"),
     total_pagas: soma((i) => i.situacao === "paga"),
-    cobrancas: itens.slice(0, 60),
+    cobrancas: itens.slice(0, a.limite || 60),
     obs: [
-      itens.length > 60 ? `Mostrando 60 de ${itens.length}; os totais consideram todas.` : null,
+      itens.length > (a.limite || 60) ? `Mostrando 60 de ${itens.length}; os totais consideram todas.` : null,
       "Com cobrança no Asaas a baixa é automática quando o cliente paga (Pix na hora; boleto em 1–2 dias úteis).",
     ].filter(Boolean).join(" "),
   };
@@ -157,7 +157,7 @@ export function situacaoContrato(c: any, hoje: string): string {
   return p === "agendada" ? "ativo (pausa agendada)" : "ativo";
 }
 
-export async function contratosLista(ctx: CtxConsulta, a: { status?: string; cliente?: string; terminam_ate?: string }) {
+export async function contratosLista(ctx: CtxConsulta, a: { status?: string; cliente?: string; terminam_ate?: string; limite?: number }) {
   const todos = await ctx.safe<any>(ctx.db.from("contratos")
     .select("id, descricao, valor, recorrencia, dia_vencimento, data_inicio, data_fim, status, data_inativacao, asaas_subscription_id, pausado_desde, pausado_ate, gerar_receitas, cliente:clientes(nome)"));
   const st = (a.status || "todos").toLowerCase();
@@ -201,7 +201,7 @@ export async function contratosLista(ctx: CtxConsulta, a: { status?: string; cli
   return {
     filtro: { status: st, cliente: a.cliente || null, terminam_ate: a.terminam_ate || null },
     quantidade: itens.length, contagem_geral: contagem,
-    contratos: itens.slice(0, 60),
+    contratos: itens.slice(0, a.limite || 60),
     obs: itens.length > 60 ? `Mostrando 60 de ${itens.length}.` : undefined,
   };
 }
@@ -227,7 +227,7 @@ async function movimentosConta(ctx: CtxConsulta, contaId: string) {
   ].sort((x, y) => x.data.localeCompare(y.data));
 }
 
-export async function extratoConta(ctx: CtxConsulta, contas: any[], a: { conta?: string; inicio: string; fim: string }) {
+export async function extratoConta(ctx: CtxConsulta, contas: any[], a: { conta?: string; inicio: string; fim: string; limite?: number }) {
   const bancarias = contas.filter((c) => c.tipo !== "cartao_credito");
   const achadas = a.conta ? acharConta(bancarias, a.conta) : (bancarias.length === 1 ? bancarias : []);
   if (!achadas.length) {
@@ -250,7 +250,7 @@ export async function extratoConta(ctx: CtxConsulta, contas: any[], a: { conta?:
     saldo_no_inicio: r2(saldoInicial), entradas: r2(entradas), saidas: r2(-saidas), saldo_no_fim: r2(saldo),
     saldo_atual_da_conta: r2(saldoAtual),
     quantidade: doPeriodo.length,
-    movimentos: doPeriodo.slice(-80),
+    movimentos: doPeriodo.slice(-(a.limite || 80)),
     ultima_conferencia_com_banco: conf[0] ? { data: conf[0].data, saldo_no_banco: r2(Number(conf[0].saldo_banco)), saldo_no_sistema: r2(Number(conf[0].saldo_sistema)), diferenca: r2(Number(conf[0].diferenca)) } : "nunca conferida",
     obs: [
       doPeriodo.length > 80 ? `Mostrando os 80 últimos de ${doPeriodo.length}; os totais consideram todos.` : null,
@@ -437,4 +437,42 @@ export async function pagamentosDaFatura(ctx: CtxConsulta, contas: any[], fatura
   const ps = await ctx.safe<any>(ctx.db.from("cartao_fatura_pagamentos").select("valor, data_pagamento, conta_id").eq("fatura_id", faturaId));
   return ps.map((p: any) => ({ data: p.data_pagamento, valor: r2(Number(p.valor || 0)), conta: contas.find((c) => c.id === p.conta_id)?.nome || "Conta" }))
     .sort((x: any, y: any) => String(x.data).localeCompare(String(y.data)));
+}
+
+// ---------------------------------------------------------------- Orçamento por categoria
+/** Orçado × gasto por categoria no mês (competência, mesmo critério do DRE e da tela Categorias). */
+export async function orcamento(ctx: CtxConsulta, a: { mes?: string }) {
+  const mes = /^\d{4}-\d{2}$/.test(String(a.mes || "")) ? String(a.mes) : ctx.hoje.slice(0, 7);
+  const [y, m] = mes.split("-").map(Number);
+  const ultimo = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const ini = `${mes}-01`, fim = `${mes}-${String(ultimo).padStart(2, "0")}`;
+  const { data: cats, error } = await ctx.db.from("categorias").select("id, nome, orcamento_mensal").eq("tipo", "despesa").not("orcamento_mensal", "is", null);
+  if (error) return { erro: "Orçamento ainda não está disponível nesta conta." };
+  if (!cats?.length) return { mes, orcamentos: [], obs: "Nenhuma categoria tem orçamento. A pessoa define em Categorias (ou pedindo: 'meu orçamento de alimentação é 800')." };
+  const desp = await ctx.safe<any>(ctx.db.from("despesas").select("valor, categoria_id, fornecedor").gte("data_competencia", ini).lte("data_competencia", fim).in("categoria_id", cats.map((c: any) => c.id)));
+  const gasto = new Map<string, number>();
+  for (const d of desp) {
+    if (d.fornecedor === "[fatura]" || d.fornecedor === "[pagamento-fatura]") continue;
+    gasto.set(d.categoria_id, (gasto.get(d.categoria_id) || 0) + Number(d.valor || 0));
+  }
+  const atual = mes === ctx.hoje.slice(0, 7);
+  const dia = atual ? Number(ctx.hoje.slice(8, 10)) : ultimo;
+  const linhas = cats.map((c: any) => {
+    const orc = Number(c.orcamento_mensal); const g = gasto.get(c.id) || 0;
+    const pct = orc ? (g / orc) * 100 : 0;
+    const proj = atual && dia > 0 ? (g / dia) * ultimo : g;
+    return {
+      categoria: c.nome, orcamento: r2(orc), gasto: r2(g), pct: Math.round(pct * 10) / 10,
+      sobra: r2(Math.max(orc - g, 0)), passou: g > orc ? r2(g - orc) : undefined,
+      situacao: pct > 100 ? "estourou" : pct >= 85 ? "atenção" : "ok",
+      ...(atual ? { projecao_fim_do_mes: r2(proj), vai_estourar: proj > orc && g <= orc ? true : undefined, pode_gastar_por_dia: r2(Math.max(orc - g, 0) / Math.max(ultimo - dia + 1, 1)) } : {}),
+    };
+  }).sort((x: any, y2: any) => y2.pct - x.pct);
+  const tot = linhas.reduce((s: any, l: any) => ({ o: s.o + l.orcamento, g: s.g + l.gasto }), { o: 0, g: 0 });
+  return {
+    mes, ate_dia: atual ? dia : ultimo, dias_no_mes: ultimo,
+    total_orcado: r2(tot.o), total_gasto: r2(tot.g), total_pct: tot.o ? Math.round((tot.g / tot.o) * 1000) / 10 : 0,
+    orcamentos: linhas,
+    como_calcula: "Gasto = despesas do mês pela competência (pagas ou não), com as compras do cartão na categoria de cada item; a fatura em si não conta. Projeção = ritmo até hoje × dias do mês.",
+  };
 }

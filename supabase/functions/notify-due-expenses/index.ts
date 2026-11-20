@@ -52,13 +52,14 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 
 // deno-lint-ignore no-explicit-any
 async function briefing(admin: any, tenantId: string, userId: string, hoje: string) {
+  const amanha = new Date(Date.parse(hoje + 'T12:00:00Z') + 86400000).toISOString().slice(0, 10);
   const [desp, rec, comp, tar, cobs] = await Promise.all([
     admin.from('despesas').select('valor, fornecedor, data_vencimento').eq('tenant_id', tenantId)
       .in('status', ['pendente', 'atrasado']).is('fatura_id', null).lte('data_vencimento', hoje).limit(1000),
     admin.from('receitas').select('valor').eq('tenant_id', tenantId).in('status', ['pendente', 'atrasado']).eq('data_vencimento', hoje).limit(1000),
     admin.from('agenda_itens').select('titulo, data, inicio, dia_inteiro').eq('tenant_id', tenantId).eq('tipo', 'compromisso')
       .or(`data.eq.${hoje},and(inicio.gte.${hoje}T00:00:00-03:00,inicio.lte.${hoje}T23:59:59-03:00)`).limit(50),
-    admin.from('agenda_itens').select('id').eq('tenant_id', tenantId).eq('tipo', 'tarefa').eq('concluida', false).lte('data', hoje).limit(200),
+    admin.from('agenda_itens').select('id, data').eq('tenant_id', tenantId).eq('tipo', 'tarefa').eq('concluida', false).lte('data', amanha).limit(200),
     admin.from('cobrancas').select('id, valor, asaas_payment_id').eq('user_id', userId) // cobranças não têm tenant_id.eq('status', 'vencido').limit(500),
   ]);
   // deno-lint-ignore no-explicit-any
@@ -77,7 +78,12 @@ async function briefing(admin: any, tenantId: string, userId: string, hoje: stri
   }
   if (pagarHoje.length) partes.push(`pagar ${brl(soma(pagarHoje))} (${pagarHoje.length})`);
   if ((rec.data || []).length) partes.push(`receber ${brl(soma(rec.data))} (${rec.data.length})`);
-  if ((tar.data || []).length) partes.push(plural(tar.data.length, 'tarefa', 'tarefas'));
+  // deno-lint-ignore no-explicit-any
+  const tarefas = (tar.data || []) as any[];
+  const tarHoje = tarefas.filter((t) => t.data <= hoje).length;
+  const tarAmanha = tarefas.filter((t) => t.data === amanha).length;
+  if (tarHoje) partes.push(plural(tarHoje, 'tarefa', 'tarefas'));
+  if (tarAmanha) partes.push(`${plural(tarAmanha, 'tarefa vence', 'tarefas vencem')} amanhã`);
   if (atrasadas.length) partes.push(`${plural(atrasadas.length, 'conta atrasada', 'contas atrasadas')} (${brl(soma(atrasadas))})`);
   if (vencidas) partes.push(plural(vencidas, 'cobrança vencida', 'cobranças vencidas'));
   return partes;

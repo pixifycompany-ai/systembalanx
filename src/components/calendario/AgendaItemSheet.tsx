@@ -13,7 +13,7 @@ import type { AgendaItem, NovoAgendaItem } from '@/hooks/useAgenda';
 import { agendasGoogle, conectarGoogle, listasEscolhidas, statusGoogle, type AgendaGoogle } from '@/lib/googleAgenda';
 
 const LEMBRETES = [
-  { v: '', l: 'Padrão do Google' }, { v: '0', l: 'Na hora' }, { v: '10', l: '10 min antes' },
+  { v: '', l: 'Padrão (30 min antes)' }, { v: '0', l: 'Na hora' }, { v: '10', l: '10 min antes' },
   { v: '30', l: '30 min antes' }, { v: '60', l: '1 hora antes' }, { v: '1440', l: '1 dia antes' },
 ];
 

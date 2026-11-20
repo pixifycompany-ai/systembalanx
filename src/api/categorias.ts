@@ -17,12 +17,15 @@ export interface Categoria {
   user_id: string | null;
   empresa_fonte: EmpresaFonte | null;
   grupo_dre: GrupoDRE | null;
+  /** Orçamento mensal (despesa). Vazio = sem orçamento. */
+  orcamento_mensal?: number | null;
   created_at: string;
 }
 
 export type CategoriaFormData = Pick<Categoria, 'nome' | 'tipo' | 'cor'> & {
   empresa_fonte?: EmpresaFonte | null;
   grupo_dre?: GrupoDRE | null;
+  orcamento_mensal?: number | null;
 };
 
 // Opções de grupo no DRE, separadas por tipo de categoria.
@@ -101,6 +104,7 @@ export async function createCategoria(formData: CategoriaFormData): Promise<Cate
       user_id: userData.user.id,
       empresa_fonte: formData.empresa_fonte ?? null,
       grupo_dre: formData.grupo_dre ?? null,
+      ...(formData.tipo === 'despesa' && formData.orcamento_mensal ? { orcamento_mensal: formData.orcamento_mensal } : {}),
     } as never)
     .select()
     .single();
@@ -123,6 +127,7 @@ export async function updateCategoria(id: string, formData: Partial<CategoriaFor
   if (formData.cor !== undefined) payload.cor = formData.cor;
   if (formData.empresa_fonte !== undefined) payload.empresa_fonte = formData.empresa_fonte ?? null;
   if (formData.grupo_dre !== undefined) payload.grupo_dre = formData.grupo_dre ?? null;
+  if (formData.orcamento_mensal !== undefined) payload.orcamento_mensal = formData.orcamento_mensal ?? null;
 
   const { data, error } = await supabase
     .from('categorias')

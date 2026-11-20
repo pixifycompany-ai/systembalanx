@@ -13,7 +13,7 @@
 export const VOZ_OK = new Set([
   "cliente", "contrato", "cobranca", "compromisso", "tarefa",
   "concluir_tarefa", "alterar_agenda", "alterar_cobranca", "alterar_despesa",
-  "dar_baixa", "alterar_receita", "alterar_categoria", "transferencia", "definir_meta",
+  "dar_baixa", "alterar_receita", "alterar_categoria", "transferencia", "definir_meta", "definir_orcamento",
 ]);
 export const soPeloApp = (a: any) => !VOZ_OK.has(a?.tipo);
 
@@ -373,6 +373,11 @@ export async function executarAcoesVoz(ctx: Ctx, acoes: any[]): Promise<Resultad
         const { error } = await ctx.db.from("transferencias").insert({ user_id: ctx.userId, conta_origem_id: a.conta_origem_id, conta_destino_id: a.conta_destino_id, valor: a.valor, descricao: a.descricao || null, data_transferencia: a.data });
         if (error) throw error;
         res.push({ ok: true, mensagem: `Transferência de ${a.origem_nome} para ${a.destino_nome} registrada.` });
+      } else if (a.tipo === "definir_orcamento") {
+        const { data, error } = await ctx.db.from("categorias").update({ orcamento_mensal: a.valor }).eq("id", a.categoria_id).select("id");
+        if (error) throw error;
+        if (!data?.length) throw new Error("não achei a categoria");
+        res.push({ ok: true, mensagem: a.valor ? `Orçamento de ${a.categoria_nome} definido.` : `Orçamento de ${a.categoria_nome} removido.` });
       } else if (a.tipo === "definir_meta") {
         const { data: ex } = await ctx.db.from("metas").select("id").eq("tipo", "faturamento").eq("periodo", a.periodo).maybeSingle();
         const { error } = ex
@@ -381,7 +386,7 @@ export async function executarAcoesVoz(ctx: Ctx, acoes: any[]): Promise<Resultad
         if (error) throw error;
         res.push({ ok: true, mensagem: "Meta atualizada." });
       }
-    } catch (e) { falha(a.tipo === "dar_baixa" ? "Baixa" : a.tipo === "transferencia" ? "Transferência" : a.tipo === "definir_meta" ? "Meta" : a.tipo === "alterar_categoria" ? "Categoria" : "Receita", e); }
+    } catch (e) { falha(a.tipo === "dar_baixa" ? "Baixa" : a.tipo === "transferencia" ? "Transferência" : a.tipo === "definir_meta" ? "Meta" : a.tipo === "definir_orcamento" ? "Orçamento" : a.tipo === "alterar_categoria" ? "Categoria" : "Receita", e); }
   }
   return res;
 }

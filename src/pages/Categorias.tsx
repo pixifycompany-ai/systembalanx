@@ -11,6 +11,7 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
 import { supabase } from '@/integrations/supabase/client';
+import { buscarTodas } from '@/lib/buscarTodas';
 import { EMPRESA_FONTE_OPTIONS, type EmpresaFonte } from '@/components/shared/EmpresaFonteBadge';
 import { PageHeader, Segmented, ModalHeader, ModalFooter, ModalShell, Campo } from '@/components/reskin/kit';
 import { btn, campoCls, modalCls } from '@/components/reskin/estilos';
@@ -50,8 +51,8 @@ async function fetchUsoDoMes(): Promise<UsoMes> {
   const ini = format(startOfMonth(new Date()), 'yyyy-MM-dd');
   const fim = format(endOfMonth(new Date()), 'yyyy-MM-dd');
   const [rec, desp] = await Promise.all([
-    supabase.from('receitas').select('valor, categoria_id').gte('data_competencia', ini).lte('data_competencia', fim),
-    supabase.from('despesas').select('valor, categoria_id, fornecedor').gte('data_competencia', ini).lte('data_competencia', fim),
+    buscarTodas<{ valor: number; categoria_id: string | null }>(() => supabase.from('receitas').select('id, valor, categoria_id').gte('data_competencia', ini).lte('data_competencia', fim)),
+    buscarTodas<{ valor: number; categoria_id: string | null; fornecedor: string | null }>(() => supabase.from('despesas').select('id, valor, categoria_id, fornecedor').gte('data_competencia', ini).lte('data_competencia', fim)),
   ]);
   const uso: UsoMes = {};
   const somar = (id: string | null, v: number) => {
@@ -92,6 +93,8 @@ export default function Categorias() {
     empresa_fonte: null,
     grupo_dre: null,
   });
+  // Orçamento mensal digitado no formulário (texto, "800" ou "1.200,50"; vazio = sem orçamento).
+  const [orcTxt, setOrcTxt] = useState('');
 
   useEffect(() => {
     loadCategorias();
@@ -117,6 +120,7 @@ export default function Categorias() {
   const handleNew = () => {
     setEditingCategoria(null);
     setFormData({ nome: '', tipo: activeTab, cor: '#3B82F6', empresa_fonte: null, grupo_dre: null });
+    setOrcTxt('');
     setModalOpen(true);
   };
 
@@ -130,6 +134,7 @@ export default function Categorias() {
       empresa_fonte: categoria.empresa_fonte ?? null,
       grupo_dre: categoria.grupo_dre ?? null,
     });
+    setOrcTxt(categoria.orcamento_mensal ? String(categoria.orcamento_mensal).replace('.', ',') : '');
     setModalOpen(true);
   };
 
@@ -139,14 +144,23 @@ export default function Categorias() {
       toast({ title: 'Erro', description: 'O nome da categoria é obrigatório', variant: 'destructive' });
       return;
     }
+    const orcNum = orcTxt.trim() ? Number(orcTxt.replace(/\./g, '').replace(',', '.')) : null;
+    if (orcNum !== null && !(orcNum > 0)) {
+      toast({ title: 'Erro', description: 'Orçamento inválido. Use um valor maior que zero ou deixe vazio.', variant: 'destructive' });
+      return;
+    }
+    // Só manda o orçamento se for despesa e se mudou (o campo pode não existir em bancos antigos).
+    const orcAntes = editingCategoria?.orcamento_mensal != null ? Number(editingCategoria.orcamento_mensal) : null;
+    const dados: CategoriaFormData = formData.tipo === 'despesa' && (orcNum !== orcAntes)
+      ? { ...formData, orcamento_mensal: orcNum } : formData;
     setIsSaving(true);
     try {
       if (editingCategoria) {
-        const updated = await updateCategoria(editingCategoria.id, formData);
+        const updated = await updateCategoria(editingCategoria.id, dados);
         setCategorias(prev => prev.map(c => c.id === updated.id ? updated : c));
         toast({ title: 'Categoria atualizada com sucesso!' });
       } else {
-        const created = await createCategoria(formData);
+        const created = await createCategoria(dados);
         setCategorias(prev => [...prev, created]);
         toast({ title: 'Categoria criada com sucesso!' });
       }
@@ -189,6 +203,13 @@ export default function Categorias() {
     [categorias, activeTab, busca],
   );
   const valorDe = (c: Categoria) => uso[c.id]?.valor ?? 0;
+  const orcDe = (c: Categoria) => (c.orcamento_mensal ? Number(c.orcamento_mensal) : 0);
+  const comOrc = activeTab === 'despesa'
+    ? categorias.filter((c) => c.tipo === 'despesa' && orcDe(c) > 0)
+      .map((c) => ({ c, gasto: valorDe(c), orc: orcDe(c), pct: (valorDe(c) / orcDe(c)) * 100 }))
+      .sort((a, b) => b.pct - a.pct)
+    : [];
+  const tomOrc = (pct: number) => (pct > 100 ? 'bg-danger-fg' : pct >= 85 ? 'bg-warning-fg' : 'bg-success-fg');
   const semGrupo = doTipo.filter((c) => !c.grupo_dre || !opcoes.some((o) => o.value === c.grupo_dre));
   const grupos = opcoes
     .map((o) => ({ k: o.value, r: o.label, d: GRUPO_DICA[o.value], itens: doTipo.filter((c) => c.grupo_dre === o.value).sort((a, b) => valorDe(b) - valorDe(a)) }))
@@ -241,6 +262,34 @@ export default function Categorias() {
         </div>
       ) : (
         <>
+          {comOrc.length > 0 && (
+            <section className="rounded-[24px] border border-border bg-surface p-4 sm:p-5">
+              <div className="mb-3 flex items-baseline justify-between gap-3">
+                <p className="text-[15px] font-semibold text-foreground">Orçamento de <span className="lowercase">{mesNome}</span></p>
+                <p className="text-[12.5px] tabular-nums text-foreground-muted">
+                  {formatCurrency(comOrc.reduce((s2, x) => s2 + x.gasto, 0))} de {formatCurrency(comOrc.reduce((s2, x) => s2 + x.orc, 0))}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-3 md:grid-cols-2">
+                {comOrc.map(({ c, gasto, orc, pct }) => (
+                  <button key={c.id} type="button" onClick={() => handleEdit(c)} className="text-left">
+                    <span className="flex items-center gap-2 text-[13.5px]">
+                      <i className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.cor }} />
+                      <span className="min-w-0 flex-1 truncate text-foreground">{c.nome}</span>
+                      <span className={cn('shrink-0 tabular-nums', pct > 100 ? 'font-semibold text-danger-fg' : 'text-foreground-muted')}>{Math.round(pct)}%</span>
+                    </span>
+                    <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-surface-2">
+                      <span className={cn('block h-full rounded-full', tomOrc(pct))} style={{ width: `${Math.min(100, pct)}%` }} />
+                    </span>
+                    <span className="mt-1 block text-[11.5px] tabular-nums text-foreground-muted">
+                      {formatCurrency(gasto)} de {formatCurrency(orc)} · {gasto > orc ? <b className="font-semibold text-danger-fg">passou {formatCurrency(gasto - orc)}</b> : `sobram ${formatCurrency(orc - gasto)}`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           {semGrupo.length > 0 && (
             <section className="rounded-[22px] border border-warning-fg/30 bg-warning-bg/70 p-4">
               <p className="flex items-center gap-2 text-[14px] font-semibold text-warning-fg"><AlertTriangle className="h-4 w-4" />{semGrupo.length} sem grupo no DRE</p>
@@ -297,8 +346,17 @@ export default function Categorias() {
                                 {c.empresa_fonte && <span className="shrink-0 rounded-full border border-border px-1.5 text-[10px] text-foreground-muted">{c.empresa_fonte}</span>}
                               </span>
                               <span className="mt-1 flex items-center gap-2">
-                                <span className="h-1 w-14 shrink-0 overflow-hidden rounded-full bg-surface-2 sm:w-24"><span className="block h-full rounded-full" style={{ width: `${(valorDe(c) / max) * 100}%`, background: c.cor }} /></span>
-                                <span className="whitespace-nowrap text-[11.5px] text-foreground-muted">{u?.qtd ? `${u.qtd} lançamento${u.qtd > 1 ? 's' : ''}` : 'sem uso no mês'}</span>
+                                {orcDe(c) > 0 ? (
+                                  <>
+                                    <span className="h-1 w-14 shrink-0 overflow-hidden rounded-full bg-surface-2 sm:w-24"><span className={cn('block h-full rounded-full', tomOrc((valorDe(c) / orcDe(c)) * 100))} style={{ width: `${Math.min(100, (valorDe(c) / orcDe(c)) * 100)}%` }} /></span>
+                                    <span className="whitespace-nowrap text-[11.5px] text-foreground-muted">{Math.round((valorDe(c) / orcDe(c)) * 100)}% de {formatCurrency(orcDe(c))}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="h-1 w-14 shrink-0 overflow-hidden rounded-full bg-surface-2 sm:w-24"><span className="block h-full rounded-full" style={{ width: `${(valorDe(c) / max) * 100}%`, background: c.cor }} /></span>
+                                    <span className="whitespace-nowrap text-[11.5px] text-foreground-muted">{u?.qtd ? `${u.qtd} lançamento${u.qtd > 1 ? 's' : ''}` : 'sem uso no mês'}</span>
+                                  </>
+                                )}
                               </span>
                             </span>
                             <span className={cn('shrink-0 text-[14px] font-semibold tabular-nums', valorDe(c) ? 'text-foreground' : 'text-foreground-subtle')}>{valorDe(c) ? formatCurrency(valorDe(c)) : '—'}</span>
@@ -365,6 +423,15 @@ export default function Categorias() {
                     {!formData.grupo_dre && <p className="text-[12px] text-warning-fg">Sem grupo, a categoria fica em "A classificar" nos relatórios.</p>}
                   </div>
                 </div>
+
+                {formData.tipo === 'despesa' && (
+                  <Campo label="Orçamento por mês (opcional)" hint="Quanto pode gastar nesta categoria por mês. A IARA avisa quanto ainda sobra.">
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[13.5px] text-foreground-muted">R$</span>
+                      <Input value={orcTxt} onChange={(e) => setOrcTxt(e.target.value.replace(/[^\d.,]/g, ''))} inputMode="decimal" placeholder="Sem orçamento" className="pl-10" />
+                    </div>
+                  </Campo>
+                )}
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
                   <div>

@@ -54,6 +54,9 @@ verify_jwt = false
 [functions.cobranca-auto-disparar]
 verify_jwt = false
 
+[functions.lembretes-agenda]
+verify_jwt = false
+
 # Chamada pelo cron (x-cron-secret) e pelo app (confere o JWT por dentro).
 [functions.google-sync]
 verify_jwt = false

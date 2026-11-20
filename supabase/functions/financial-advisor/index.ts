@@ -4,7 +4,7 @@ import { calcularIndicadores, GRUPOS_INDICADORES } from "../_shared/indicadores.
 import { GLOSSARIO_INDICADORES } from "../_shared/glossarioIara.ts";
 import { podeOutrasAgendas } from "../_shared/google.ts";
 import { estadoSessao } from "../_shared/whatsapp.ts";
-import { acharConta, cobrancasLista, contratosLista, extratoConta, historicoEnvios, listarTransferencias, metas as metasIara, pagamentosDaFatura, pendencias as pendenciasIara, situacaoContrato, type CtxConsulta } from "./consultas.ts";
+import { acharConta, cobrancasLista, contratosLista, extratoConta, historicoEnvios, listarTransferencias, metas as metasIara, orcamento as orcamentoIara, pagamentosDaFatura, pendencias as pendenciasIara, situacaoContrato, type CtxConsulta } from "./consultas.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -458,7 +458,10 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • QUALQUER pergunta sobre o CONTEÚDO de uma fatura do cartão ("o que tem na fatura", "lançamentos da fatura separados por categoria", "quanto gastei de X no cartão nessa fatura", "fatura de novembro", "a fatura que vence dia 10") → **fatura_cartao**. NUNCA monte uma fatura com listar_lancamentos, resumo_financeiro ou buscar_lancamento: a fatura junta compras de datas de meses diferentes (fecha no meio do mês), então somar por data dá número diferente e deixa itens de fora. Responda com o cabeçalho (cartão · Fatura de <mês> · vence dd/mm · total · status), depois cada categoria em negrito com o total e a %, e embaixo os lançamentos dela (fornecedor/descrição — valor · parcela · data). Liste TODAS as categorias e TODOS os itens que a ferramenta devolver, sem resumir nem cortar; a soma das categorias tem que bater com o total da fatura. Se a pessoa não disser qual fatura, use a atual (a mesma que abre na tela) e diga qual usou.
   • Compras PARCELADAS no cartão ("quantas parcelas faltam", "o que ainda está parcelado", "parcelas do notebook") → compras_parceladas (traz nº de parcelas, pagas, faltam, valor da parcela, próxima data de vencimento e valor restante por compra).
   • Total COMPROMETIDO em parcelas nos próximos meses ("quanto da fatura futura já está tomado", "quanto já devo em parcelas") → parcelas_comprometidas (soma por mês o que falta pagar de parcelas).
-  • "Meu resumo do dia", "bom dia", "como está meu dia", "o que tenho hoje" (o dia como um todo) → **resumo_do_dia**. Responda como assistente pessoal: 1 linha de abertura com o primeiro nome e o dia da semana; depois só os blocos que tiverem conteúdo, nesta ordem: **Agenda** (horário · compromisso · cliente, incluindo a agenda pessoal; tarefas de hoje/atrasadas), **Vence hoje** (a pagar e a receber, com quem e valor; atrasados à parte), **Atenção** (cobranças vencidas, faturas, pendências — no máximo 3 itens), **Caixa** (saldo total e meta do mês: % e quanto falta). Se o dia estiver livre, diga isso em 1 frase. Termine com 1–2 ofertas concretas do que você pode resolver agora (ex.: "Mando lembrete para a Sabor Maria?", "Já pagou a luz? Dou baixa.").
+  • ORÇAMENTO ("como está meu orçamento", "quanto ainda posso gastar com marketing", "estourei algo?") → **orcamento**: categorias estouradas primeiro, depois as em atenção (≥85%); diga quanto sobra e, no mês atual, quanto dá para gastar por dia e se a projeção estoura. Definir/mudar/remover ("meu orçamento de alimentação é 800") → **definir_orcamento**.
+  • DOCUMENTOS: "guarda/arquiva/salva esse arquivo/contrato/comprovante" com anexo → **guardar_documento** (nome claro + resumo com os dados-chave que você leu no arquivo). Se a pessoa mandar um CONTRATO, NOTA ou COMPROVANTE e não pedir nada sobre guardar, ofereça em 1 linha ("Quer que eu guarde esse contrato nos seus documentos?"). Achar ("acha/cadê o contrato da X", "qual o valor do contrato da Y?") → **buscar_documentos**; responda com o que o resumo diz e lembre que o link para abrir está logo abaixo.
+  • ARQUIVO ("me manda em PDF", "exporta em Excel", "quero baixar o DRE/extrato/fatura/lançamentos") → **gerar_arquivo**. Excel quando pedirem planilha/Excel/CSV; senão PDF. Use o mesmo período e filtros da conversa.
+  • "Meu resumo do dia", "bom dia", "como está meu dia", "o que tenho hoje" (o dia como um todo) → **resumo_do_dia**. Responda como assistente pessoal: 1 linha de abertura com o primeiro nome e o dia da semana; depois só os blocos que tiverem conteúdo, nesta ordem: **Agenda** (horário · compromisso · cliente, incluindo a agenda pessoal; tarefas de hoje/atrasadas), **Vence hoje** (a pagar e a receber, com quem e valor; atrasados à parte), **Atenção** (cobranças vencidas, faturas, pendências — no máximo 3 itens), **Caixa** (saldo total e meta do mês: % e quanto falta; se vier orcamento.em_atencao, cite em 1 linha as categorias estouradas ou perto do limite). Se o dia estiver livre, diga isso em 1 frase. Termine com 1–2 ofertas concretas do que você pode resolver agora (ex.: "Mando lembrete para a Sabor Maria?", "Já pagou a luz? Dou baixa.").
   • COBRANÇAS ("quais cobranças estão em aberto/vencidas", "o boleto do X foi pago?", "cobranças pagas esse mês") → **cobrancas_lista**. O que já foi ENVIADO ("já mandei a cobrança pro X?", "o lembrete foi?", "e-mails que falharam") → **historico_envios**.
   • CONTRATOS ("meus contratos", "pausados", "encerrados", "quais terminam este mês", "reajustes do contrato da X") → **contratos_lista** (para "terminam este mês" use terminam_ate = último dia do mês).
   • EXTRATO de uma conta ("o que entrou e saiu do Itaú em outubro", "por que o saldo caiu") → **extrato_conta**. Transferências entre contas → **listar_transferencias**. Pagamentos de uma fatura (quando/de qual conta) → **fatura_cartao** (campo pagamentos).
@@ -558,6 +561,24 @@ ${contexto}${blocoTela}`;
       { type: "function", function: { name: "fatura_cartao", description: "Itens de UMA FATURA do cartão de crédito, exatamente como a tela do cartão mostra: total, pago, em aberto, fechamento, vencimento e TODOS os lançamentos agrupados por categoria (com fornecedor, descrição, parcela, data e valor). Use p/ 'o que tem na minha fatura', 'fatura por categoria', 'lançamentos da fatura de novembro', 'quanto gastei de alimentação no cartão nessa fatura'.", parameters: { type: "object", properties: { cartao: { type: "string", description: "nome do cartão (vazio = todos os cartões)" }, fatura: { type: "string", description: "'atual' (padrão, a mesma que abre na tela), 'proxima', 'anterior', 'aberta' (a mais antiga ainda não paga) ou o mês da fatura 'YYYY-MM' — 'fatura de novembro' = '2026-11'" }, vence_em: { type: "string", description: "YYYY-MM: a fatura que VENCE nesse mês (use quando a pessoa falar do vencimento: 'a fatura que vence em dezembro')" } } } } },
       { type: "function", function: { name: "lembrar", description: "Guarda na MEMÓRIA algo duradouro que a pessoa contou (contato, preferência, regra fixa, apelido de cliente, como quer as respostas) para usar nas próximas conversas. Uma frase curta e autoexplicativa, na 3ª pessoa (ex.: 'Paga a conta de luz sempre pela conta Itaú', 'O contador é o João — (41) 99999-9999').", parameters: { type: "object", properties: { texto: { type: "string" }, escopo: { type: "string", enum: ["pessoal", "empresa"] }, substitui: { type: "string", description: "trecho de uma lembrança antiga que esta substitui" } }, required: ["texto", "escopo"] } } },
       { type: "function", function: { name: "esquecer", description: "Apaga uma lembrança da MEMÓRIA quando a pessoa pedir ('esquece isso', 'não precisa lembrar que…').", parameters: { type: "object", properties: { trecho: { type: "string", description: "parte do texto da lembrança" } }, required: ["trecho"] } } },
+      { type: "function", function: { name: "orcamento", description: "ORÇAMENTO por categoria no mês: orçado, gasto, %, quanto sobra, se estourou, projeção até o fim do mês e quanto ainda dá para gastar por dia. Use p/ 'como está meu orçamento', 'quanto ainda posso gastar com X', 'estourei alguma categoria?'.", parameters: { type: "object", properties: { mes: { type: "string", description: "YYYY-MM (padrão: mês atual)" } } } } },
+      { type: "function", function: { name: "definir_orcamento", description: "Prepara o ORÇAMENTO MENSAL de uma categoria de despesa (vale todo mês). valor vazio/0 = remover. Ex.: 'meu orçamento de alimentação é 800'.", parameters: { type: "object", properties: { categoria: { type: "string" }, valor: { type: "number" } }, required: ["categoria"] } } },
+      { type: "function", function: { name: "guardar_documento", description: "GUARDA o arquivo anexado nesta mensagem (PDF ou foto) nos Documentos da empresa, com um resumo para achar depois. Use quando a pessoa pedir ('guarda esse contrato', 'arquiva esse comprovante', 'salva essa nota') ou aceitar sua oferta de guardar.", parameters: { type: "object", properties: {
+        anexo: { type: "number", description: "qual anexo (1 = primeiro)" },
+        nome: { type: "string", description: "nome claro, ex.: 'Contrato Sabor Maria — gestão de tráfego (2026)'" },
+        resumo: { type: "string", description: "o que é + dados-chave lidos do arquivo: partes, CNPJ, valores, datas, vigência, número, objeto (até ~600 caracteres)" },
+        cliente: { type: "string", description: "cliente relacionado, se houver" },
+        tags: { type: "array", items: { type: "string" }, description: "ex.: contrato, comprovante, nota fiscal, boleto" },
+      }, required: ["nome", "resumo"] } } },
+      { type: "function", function: { name: "buscar_documentos", description: "ACHA documentos guardados (contratos, comprovantes, notas…) por nome, assunto ou cliente e mostra o link para abrir. Também responde perguntas sobre eles pelo resumo. Ex.: 'acha o contrato da Sabor Maria', 'cadê o comprovante do aluguel de outubro'.", parameters: { type: "object", properties: { termo: { type: "string" }, cliente: { type: "string" } }, required: ["termo"] } } },
+      { type: "function", function: { name: "gerar_arquivo", description: "GERA um arquivo PDF ou Excel para baixar na conversa, com os mesmos números das telas. conteudo: dre, lancamentos, extrato (conta), fatura (cartão), cobrancas, contratos, orcamento. Ex.: 'me manda o DRE de outubro em PDF', 'exporta os lançamentos de alimentação do mês em Excel', 'extrato do Itaú em PDF'.", parameters: { type: "object", properties: {
+        conteudo: { type: "string", enum: ["dre", "lancamentos", "extrato", "fatura", "cobrancas", "contratos", "orcamento"] },
+        formato: { type: "string", enum: ["pdf", "excel"] },
+        inicio: { ...D }, fim: { ...D },
+        tipo: { type: "string", enum: ["receita", "despesa"], description: "lancamentos" }, categoria: { type: "string" }, quem: { type: "string", description: "cliente/fornecedor" },
+        status: { type: "string" }, criterio: { type: "string", enum: ["competencia", "vencimento", "pagamento"] },
+        conta: { type: "string", description: "extrato" }, cartao: { type: "string" }, fatura: { type: "string", description: "YYYY-MM" }, vence_em: { type: "string" }, mes: { type: "string", description: "orcamento YYYY-MM" },
+      }, required: ["conteudo", "formato"] } } },
       { type: "function", function: { name: "resumo_do_dia", description: "BRIEFING do dia da pessoa (assistente pessoal): agenda de hoje (compromissos, agenda pessoal do Google, tarefas), o que vence hoje (pagar/receber) e atrasados, cobranças vencidas, pendências, saldo em caixa e meta do mês. Use p/ 'meu resumo do dia', 'bom dia', 'como está meu dia', 'o que tenho hoje'.", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "cobrancas_lista", description: "Lista as COBRANÇAS (Asaas) como a tela Cobranças: cliente, descrição, valor, vencimento, situação (aguardando/vencida/paga), dias de atraso, link de pagamento, quantos envios e o último envio (WhatsApp/e-mail). Use p/ 'quais cobranças estão em aberto/vencidas', 'o boleto do X foi pago?', 'cobranças pagas esse mês'.", parameters: { type: "object", properties: { status: { type: "string", enum: ["abertas", "vencidas", "aguardando", "pagas", "canceladas", "todas"], description: "padrão: abertas (aguardando + vencidas)" }, cliente: { type: "string" }, inicio: { ...D, description: "por vencimento (ou data do pagamento, se status=pagas)" }, fim: D } } } },
       { type: "function", function: { name: "historico_envios", description: "Histórico de cobranças ENVIADAS por WhatsApp e e-mail (data, hora, canal, para quem, automático/manual, status: enviado/entregue/falhou). Padrão: últimos 60 dias. Use p/ 'o que já mandei pro X', 'o lembrete foi enviado?', 'quais e-mails falharam'.", parameters: { type: "object", properties: { cliente: { type: "string" }, canal: { type: "string", enum: ["todos", "whatsapp", "email"] }, inicio: D, fim: D } } } },
@@ -1121,11 +1142,131 @@ ${contexto}${blocoTela}`;
       return JSON.stringify({ ok: true, esquecido: alvo[0].texto });
     }
 
+    // ---- Orçamento por categoria (ação) ----
+    async function definirOrcamento(a: any): Promise<string> {
+      const cat = achaCategoria(a?.categoria, "despesa");
+      if (!cat.id) return JSON.stringify({ erro: `Não achei a categoria de despesa "${a?.categoria || ""}".`, categorias: [...new Set((categorias || []).filter((c: any) => c.tipo === "despesa").map((c: any) => c.nome))] });
+      const valor = Number(a?.valor) > 0 ? Math.round(Number(a.valor) * 100) / 100 : null;
+      const { data: atual, error } = await supabase.from("categorias").select("orcamento_mensal").eq("id", cat.id).maybeSingle();
+      if (error) return JSON.stringify({ erro: "Orçamento ainda não está disponível nesta conta." });
+      acoes.push({ id: novoId(), tipo: "definir_orcamento", categoria_id: cat.id, categoria_nome: cat.nome, valor, atual: atual?.orcamento_mensal != null ? Number(atual.orcamento_mensal) : null });
+      return JSON.stringify({ ok: true, categoria: cat.nome, de: atual?.orcamento_mensal ?? "sem orçamento", para: valor ?? "sem orçamento (remover)", obs: "Vale para todos os meses. A pessoa confirma no card." });
+    }
+
+    // ---- Documentos: guardar (anexo da conversa) e achar ----
+    const documentoEventos: { acao: "guardado" | "encontrado"; id: string; nome: string; url?: string; resumo?: string | null; data?: string; mime?: string | null }[] = [];
+    const EXT: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
+    async function guardarDocumento(a: any): Promise<string> {
+      if (!tenantAtual) return JSON.stringify({ erro: "Não sei em qual empresa guardar. Peça para abrir o app na empresa certa." });
+      const idx = Math.max(1, Math.floor(Number(a?.anexo) || 1)) - 1;
+      const f = arquivos[idx];
+      if (!f) return JSON.stringify({ erro: "Não recebi arquivo nesta mensagem. Peça para a pessoa anexar o documento (PDF ou foto) e pedir de novo." });
+      const bytes = Uint8Array.from(atob(f.base64), (ch) => ch.charCodeAt(0));
+      if (bytes.length > 15 * 1024 * 1024) return JSON.stringify({ erro: "Arquivo maior que 15 MB." });
+      const id = crypto.randomUUID();
+      const path = `${tenantAtual}/${id}.${EXT[f.tipo] || "bin"}`;
+      const up = await supabase.storage.from("documentos").upload(path, bytes, { contentType: f.tipo, upsert: false });
+      if (up.error) return JSON.stringify({ erro: `Não consegui guardar: ${up.error.message}` });
+      const cli = a?.cliente ? achaCliente(String(a.cliente)) : null;
+      const nome = String(a?.nome || f.nome || "Documento").trim().slice(0, 200);
+      const tags = (Array.isArray(a?.tags) ? a.tags : []).map((t: unknown) => String(t).trim().toLowerCase()).filter(Boolean).slice(0, 8);
+      const { error } = await supabase.from("documentos").insert({ id, nome, resumo: a?.resumo ? String(a.resumo).slice(0, 2000) : null, path, mime: f.tipo, tamanho: bytes.length, cliente_id: cli?.id ?? null, tags, origem: "iara" });
+      if (error) { await supabase.storage.from("documentos").remove([path]); return JSON.stringify({ erro: error.message }); }
+      documentoEventos.push({ acao: "guardado", id, nome });
+      return JSON.stringify({ ok: true, guardado: nome, cliente: cli?.nome || null, obs: "O app mostra 'Guardei' com o link. Não repita isso; siga o assunto." });
+    }
+    async function buscarDocumentos(a: any): Promise<string> {
+      const palavras = sanitize(a?.termo || "").split(/\s+/).filter((w) => w.length >= 3).slice(0, 6);
+      let q: any = supabase.from("documentos").select("id, nome, resumo, path, mime, tags, created_at, cliente:clientes(nome)").order("created_at", { ascending: false }).limit(300);
+      const { data, error } = await q;
+      if (error) return JSON.stringify({ erro: "Documentos ainda não estão disponíveis nesta conta." });
+      let docs = (data || []) as any[];
+      const cliTxt = a?.cliente ? norm(String(a.cliente)) : "";
+      if (cliTxt) docs = docs.filter((d) => norm(d.cliente?.nome || "").includes(cliTxt) || norm(d.nome).includes(cliTxt) || norm(d.resumo || "").includes(cliTxt));
+      if (palavras.length) {
+        const pts = (d: any) => { const t = norm(`${d.nome} ${d.resumo || ""} ${(d.tags || []).join(" ")} ${d.cliente?.nome || ""}`); return palavras.filter((w) => t.includes(norm(w))).length; };
+        docs = docs.map((d) => ({ d, p: pts(d) })).filter((x) => x.p > 0).sort((x, y) => y.p - x.p).map((x) => x.d);
+      }
+      if (!docs.length) return JSON.stringify({ encontrados: 0, obs: "Nada guardado com isso. Diga que não achou e que dá para guardar mandando o arquivo aqui ('guarda esse contrato')." });
+      const top = docs.slice(0, 5);
+      for (const d of top) {
+        const { data: s } = await supabase.storage.from("documentos").createSignedUrl(d.path, 3600);
+        documentoEventos.push({ acao: "encontrado", id: d.id, nome: d.nome, url: s?.signedUrl, resumo: d.resumo, data: String(d.created_at).slice(0, 10), mime: d.mime });
+      }
+      return JSON.stringify({ encontrados: docs.length, documentos: top.map((d) => ({ nome: d.nome, cliente: d.cliente?.nome || null, guardado_em: String(d.created_at).slice(0, 10), resumo: d.resumo, tags: d.tags })),
+        obs: "Os links para abrir aparecem na conversa (valem 1 hora). Use o resumo para responder perguntas sobre o conteúdo." });
+    }
+
+    // ---- Arquivo (PDF ou Excel) gerado pela IARA a partir dos mesmos números das ferramentas ----
+    const arquivoEventos: any[] = [];
+    type Col = { chave: string; rotulo: string; tipo?: "moeda" | "data" | "texto" | "pct" };
+    async function gerarArquivo(a: any): Promise<string> {
+      const formato = a?.formato === "excel" ? "excel" : "pdf";
+      const ini = dataOk(a?.inicio) || mesIni, fim = dataOk(a?.fim) || mesFim;
+      const per = `${dBR(ini)} a ${dBR(fim)}`;
+      let arq: { titulo: string; subtitulo: string; resumo: { rotulo: string; valor: number | string; tipo?: string }[]; colunas: Col[]; linhas: any[]; total?: any } | null = null;
+      const c = String(a?.conteudo || "");
+      if (c === "dre") {
+        const r: any = await calcularIndicadores(supabase, { inicio: ini, fim, grupos: ["dre"] });
+        const dre = r.dre;
+        const meses: string[] = dre.meses || [];
+        const colunas: Col[] = [{ chave: "linha", rotulo: "Linha" }, ...(meses.length > 1 ? meses.map((m) => ({ chave: m, rotulo: m, tipo: "moeda" as const })) : []), { chave: "total", rotulo: "Total", tipo: "moeda" }];
+        const linhas = (dre.linhas as any[]).map((l) => ({ linha: l.linha, ...(meses.length > 1 ? Object.fromEntries(meses.map((m) => [m, l.por_mes ? l.por_mes[m] ?? 0 : ""])) : {}), total: l.total }));
+        arq = { titulo: "DRE — Demonstrativo de Resultado", subtitulo: `Regime de competência · ${per}`, colunas, linhas,
+          resumo: [{ rotulo: "Margem bruta", valor: `${dre.margem_bruta_pct}%` }, { rotulo: "Margem operacional", valor: `${dre.margem_operacional_pct}%` }] };
+      } else if (c === "lancamentos") {
+        const j = JSON.parse(await toolListar(ini, fim, a?.tipo, a?.categoria, a?.quem, a?.status, a?.criterio, 5000));
+        if (j.erro) return JSON.stringify(j);
+        arq = { titulo: "Lançamentos", subtitulo: `${per} · por ${j.periodo.criterio}${a?.categoria ? ` · ${a.categoria}` : ""}${a?.quem ? ` · ${a.quem}` : ""}`,
+          colunas: [{ chave: "data", rotulo: "Data", tipo: "data" }, { chave: "tipo", rotulo: "Tipo" }, { chave: "quem", rotulo: "Cliente/fornecedor" }, { chave: "descricao", rotulo: "Descrição" }, { chave: "categoria", rotulo: "Categoria" }, { chave: "status", rotulo: "Status" }, { chave: "valor", rotulo: "Valor", tipo: "moeda" }],
+          linhas: j.itens.map((i: any) => ({ data: i.data, tipo: i.tipo, quem: i.fornecedor || i.cliente || "", descricao: i.descricao || "", categoria: i.categoria || "", status: i.status, valor: i.tipo === "despesa" ? -i.valor : i.valor })),
+          resumo: [{ rotulo: "Receitas", valor: j.total_receitas, tipo: "moeda" }, { rotulo: "Despesas", valor: j.total_despesas, tipo: "moeda" }, { rotulo: "Lançamentos", valor: j.quantidade }] };
+      } else if (c === "extrato") {
+        const j: any = await extratoConta(ctxConsulta, contas || [], { conta: a?.conta, inicio: ini, fim, limite: 5000 });
+        if (j.erro || j.precisa_escolher) return JSON.stringify(j);
+        arq = { titulo: `Extrato — ${j.conta}`, subtitulo: per,
+          colunas: [{ chave: "data", rotulo: "Data", tipo: "data" }, { chave: "tipo", rotulo: "Tipo" }, { chave: "quem", rotulo: "Quem" }, { chave: "descricao", rotulo: "Descrição" }, { chave: "valor", rotulo: "Valor", tipo: "moeda" }, { chave: "saldo_apos", rotulo: "Saldo", tipo: "moeda" }],
+          linhas: j.movimentos.map((m: any) => ({ ...m, quem: m.quem || "" })),
+          resumo: [{ rotulo: "Saldo no início", valor: j.saldo_no_inicio, tipo: "moeda" }, { rotulo: "Entradas", valor: j.entradas, tipo: "moeda" }, { rotulo: "Saídas", valor: j.saidas, tipo: "moeda" }, { rotulo: "Saldo no fim", valor: j.saldo_no_fim, tipo: "moeda" }] };
+      } else if (c === "fatura") {
+        const j = JSON.parse(await toolFaturaCartao(a?.cartao, a?.fatura, a?.vence_em));
+        const f = (j.faturas || []).find((x: any) => !x.erro);
+        if (!f) return JSON.stringify(j.erro ? j : { erro: "Não achei a fatura." });
+        arq = { titulo: `Fatura — ${f.cartao} · ${f.fatura}`, subtitulo: `Fecha ${dBR(f.fechamento)} · vence ${dBR(f.vencimento)} · ${f.status}`,
+          colunas: [{ chave: "categoria", rotulo: "Categoria" }, { chave: "data", rotulo: "Data", tipo: "data" }, { chave: "quem", rotulo: "Fornecedor" }, { chave: "descricao", rotulo: "Descrição" }, { chave: "parcela", rotulo: "Parcela" }, { chave: "valor", rotulo: "Valor", tipo: "moeda" }],
+          linhas: f.por_categoria.flatMap((g: any) => g.itens.map((i: any) => ({ categoria: g.categoria, data: i.data, quem: i.fornecedor || "", descricao: i.descricao || "", parcela: i.parcela || "", valor: i.valor }))),
+          resumo: [{ rotulo: "Total", valor: f.total_fatura, tipo: "moeda" }, { rotulo: "Pago", valor: f.pago, tipo: "moeda" }, { rotulo: "Em aberto", valor: f.em_aberto, tipo: "moeda" }] };
+      } else if (c === "cobrancas") {
+        const j: any = await cobrancasLista(ctxConsulta, { status: a?.status || "abertas", cliente: a?.quem, inicio: dataOk(a?.inicio) || undefined, fim: dataOk(a?.fim) || undefined, limite: 5000 });
+        arq = { titulo: "Cobranças", subtitulo: `${j.filtro.status}${a?.quem ? ` · ${a.quem}` : ""}`,
+          colunas: [{ chave: "vencimento", rotulo: "Vencimento", tipo: "data" }, { chave: "cliente", rotulo: "Cliente" }, { chave: "descricao", rotulo: "Descrição" }, { chave: "situacao", rotulo: "Situação" }, { chave: "ultimo_envio", rotulo: "Último envio" }, { chave: "valor", rotulo: "Valor", tipo: "moeda" }],
+          linhas: j.cobrancas, resumo: [{ rotulo: "Total", valor: j.total, tipo: "moeda" }, { rotulo: "Vencidas", valor: j.total_vencidas, tipo: "moeda" }, { rotulo: "Cobranças", valor: j.quantidade }] };
+      } else if (c === "contratos") {
+        const j: any = await contratosLista(ctxConsulta, { status: a?.status || "ativo", cliente: a?.quem, limite: 5000 });
+        arq = { titulo: "Contratos", subtitulo: j.filtro.status,
+          colunas: [{ chave: "cliente", rotulo: "Cliente" }, { chave: "descricao", rotulo: "Descrição" }, { chave: "recorrencia", rotulo: "Recorrência" }, { chave: "situacao", rotulo: "Situação" }, { chave: "inicio", rotulo: "Início", tipo: "data" }, { chave: "termina_em", rotulo: "Fim" }, { chave: "valor", rotulo: "Valor", tipo: "moeda" }],
+          linhas: j.contratos, resumo: [{ rotulo: "Contratos", valor: j.quantidade }] };
+      } else if (c === "orcamento") {
+        const j: any = await orcamentoIara(ctxConsulta, { mes: a?.mes });
+        if (j.erro) return JSON.stringify(j);
+        arq = { titulo: "Orçamento por categoria", subtitulo: j.mes.split("-").reverse().join("/"),
+          colunas: [{ chave: "categoria", rotulo: "Categoria" }, { chave: "orcamento", rotulo: "Orçamento", tipo: "moeda" }, { chave: "gasto", rotulo: "Gasto", tipo: "moeda" }, { chave: "pct", rotulo: "%", tipo: "pct" }, { chave: "sobra", rotulo: "Sobra", tipo: "moeda" }, { chave: "situacao", rotulo: "Situação" }],
+          linhas: j.orcamentos, resumo: [{ rotulo: "Orçado", valor: j.total_orcado, tipo: "moeda" }, { rotulo: "Gasto", valor: j.total_gasto, tipo: "moeda" }] };
+      } else {
+        return JSON.stringify({ erro: "conteudo deve ser dre, lancamentos, extrato, fatura, cobrancas, contratos ou orcamento." });
+      }
+      if (!arq.linhas.length) return JSON.stringify({ erro: "Não há dados para esse período/filtro: não gerei o arquivo." });
+      const nome = `${arq.titulo.split(" — ")[0]}-${ini}-${fim}`.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.-]+/g, "-").toLowerCase();
+      arquivoEventos.push({ id: novoId(), formato, nome_arquivo: nome, ...arq, gerado_em: hojeISO });
+      return JSON.stringify({ ok: true, arquivo: arq.titulo, formato, linhas: arq.linhas.length, obs: "O botão para baixar aparece na conversa. Responda curto: o que tem no arquivo." });
+    }
+
     // ---- Resumo do dia (briefing das 8h abre a IARA com "Meu resumo do dia") ----
     async function toolResumoDoDia(): Promise<string> {
-      const [saldo, venc, agenda, cobs, pend, meta] = await Promise.all([
+      const [saldo, venc, agenda, cobs, pend, meta, orc] = await Promise.all([
         toolSaldoContas(), toolAgenda(hojeISO, hojeISO), listarAgenda(hojeISO, hojeISO),
         cobrancasLista(ctxConsulta, { status: "vencidas" }), pendenciasIara(ctxConsulta), metasIara(ctxConsulta, { meses: 1 }),
+        orcamentoIara(ctxConsulta, {}),
       ]);
       const sj = JSON.parse(saldo);
       const ag = JSON.parse(agenda);
@@ -1139,6 +1280,7 @@ ${contexto}${blocoTela}`;
         pendencias: { total: pend.total, por_bloco: pend.por_bloco, principais: pend.pendencias.slice(0, 5) },
         caixa: { total: sj.total_caixa, contas: sj.contas, faturas_abertas: sj.total_faturas_abertas },
         meta_do_mes: meta.metas[0],
+        orcamento: (orc as any).orcamentos?.length ? { total_pct: (orc as any).total_pct, em_atencao: (orc as any).orcamentos.filter((o: any) => o.situacao !== "ok" || o.vai_estourar) } : undefined,
       });
     }
 
@@ -1256,7 +1398,7 @@ ${contexto}${blocoTela}`;
     }
 
     // Lista lançamentos de um período com filtros (categoria, fornecedor/cliente, tipo, status).
-    async function toolListar(inicio: string, fim: string, tipo?: string, categoria?: string, quem?: string, status?: string, base?: string): Promise<string> {
+    async function toolListar(inicio: string, fim: string, tipo?: string, categoria?: string, quem?: string, status?: string, base?: string, limite = 80): Promise<string> {
       const wantRec = tipo !== "despesa";
       const wantDesp = tipo !== "receita";
       const colRec = base === "vencimento" ? "data_vencimento" : base === "pagamento" ? "data_recebimento" : "data_competencia";
@@ -1312,8 +1454,8 @@ ${contexto}${blocoTela}`;
         total_receitas: soma(itens.filter(i => i.tipo === "receita")),
         por_fornecedor_ou_cliente: agrupa(i => i.fornecedor || i.cliente || i.descricao || "—"),
         por_categoria: agrupa(i => i.categoria || "Sem categoria"),
-        itens: itens.slice(0, 80),
-        obs: itens.length > 80 ? `Mostrando 80 de ${itens.length}; os totais consideram todos.` : undefined,
+        itens: itens.slice(0, limite),
+        obs: itens.length > limite ? `Mostrando ${limite} de ${itens.length}; os totais consideram todos.` : undefined,
       });
     }
 
@@ -2412,6 +2554,11 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
             else if (tc.function.name === "fatura_cartao") result = await toolFaturaCartao(args.cartao, args.fatura, args.vence_em);
             else if (tc.function.name === "lembrar") result = await lembrar(args);
             else if (tc.function.name === "esquecer") result = await esquecer(args);
+            else if (tc.function.name === "orcamento") result = JSON.stringify(await orcamentoIara(ctxConsulta, args));
+            else if (tc.function.name === "definir_orcamento") result = await definirOrcamento(args);
+            else if (tc.function.name === "guardar_documento") result = await guardarDocumento(args);
+            else if (tc.function.name === "buscar_documentos") result = await buscarDocumentos(args);
+            else if (tc.function.name === "gerar_arquivo") result = await gerarArquivo(args);
             else if (tc.function.name === "resumo_do_dia") result = await toolResumoDoDia();
             else if (tc.function.name === "cobrancas_lista") result = JSON.stringify(await cobrancasLista(ctxConsulta, args));
             else if (tc.function.name === "historico_envios") result = JSON.stringify(await historicoEnvios(ctxConsulta, args));
@@ -2479,7 +2626,9 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
         if (acoes.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ acoes })}\n\n`));
         // Painéis de conexão (WhatsApp, Google, atalho…) para o app mostrar na conversa.
         if (conexoes.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ conexoes })}\n\n`));
-        if (memoriaEventos.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ memorias: memoriaEventos })}\n\n`));
+if (documentoEventos.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ documentos: documentoEventos })}\n\n`));
+        if (arquivoEventos.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ arquivos: arquivoEventos })}\n\n`));
+                if (memoriaEventos.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ memorias: memoriaEventos })}\n\n`));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       },

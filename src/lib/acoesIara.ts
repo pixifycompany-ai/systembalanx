@@ -126,6 +126,12 @@ export interface AcaoLembreteWhatsapp {
   cobranca_id: string; cliente_nome: string; telefone: string; texto: string;
   descricao: string; valor: number; vencimento: string; vencida: boolean;
 }
+export interface AcaoDefinirOrcamento {
+  id: string; tipo: 'definir_orcamento';
+  categoria_id: string; categoria_nome: string;
+  /** null = remover o orçamento. */
+  valor: number | null; atual: number | null;
+}
 export interface AcaoDefinirMeta {
   id: string; tipo: 'definir_meta';
   periodo: string; valor: number; atual: number | null;
@@ -134,7 +140,7 @@ export type AcaoIara = AcaoCliente | AcaoContrato | AcaoCobranca
   | AcaoAlterarCobranca | AcaoCancelarCobranca | AcaoAlterarDespesa | AcaoExcluirDespesa
   | AcaoCompromisso | AcaoTarefa | AcaoConcluirTarefa | AcaoAlterarAgenda | AcaoExcluirAgenda
   | AcaoDarBaixa | AcaoAlterarReceita | AcaoExcluirReceita | AcaoAlterarCategoria | AcaoTransferencia
-  | AcaoPagarFatura | AcaoAlterarContrato | AcaoLembreteWhatsapp | AcaoDefinirMeta;
+  | AcaoPagarFatura | AcaoAlterarContrato | AcaoLembreteWhatsapp | AcaoDefinirMeta | AcaoDefinirOrcamento;
 
 /** Só estas colunas podem vir da IARA num alterar_agenda. */
 const CAMPOS_AGENDA = ['titulo', 'data', 'inicio', 'fim', 'dia_inteiro', 'notas', 'cliente_id', 'lembrete_min'] as const;
@@ -357,7 +363,7 @@ export async function executarAcoes(acoes: AcaoIara[], usarExistente: Record<str
 
 const ROTULO_EXTRA: Record<string, string> = {
   dar_baixa: 'Baixa', alterar_receita: 'Receita', excluir_receita: 'Receita', alterar_categoria: 'Categoria',
-  transferencia: 'Transferência', pagar_fatura: 'Fatura', alterar_contrato: 'Contrato', lembrete_whatsapp: 'WhatsApp', definir_meta: 'Meta',
+  transferencia: 'Transferência', pagar_fatura: 'Fatura', alterar_contrato: 'Contrato', lembrete_whatsapp: 'WhatsApp', definir_meta: 'Meta', definir_orcamento: 'Orçamento',
 };
 const brl = (v: number) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const dataBR = (iso?: string | null) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '');
@@ -493,6 +499,12 @@ async function executarExtra(a: AcaoIara, userId: string): Promise<string | null
         : await db.from('metas').insert({ user_id: userId, tipo: 'faturamento', periodo: a.periodo, valor_meta: a.valor });
       if (error) throw error;
       return `Meta de ${a.periodo.split('-').reverse().join('/')}: ${brl(a.valor)}.`;
+    }
+    case 'definir_orcamento': {
+      const { data, error } = await db.from('categorias').update({ orcamento_mensal: a.valor }).eq('id', a.categoria_id).select('id');
+      if (error) throw error;
+      if (!data?.length) throw new Error('não achei a categoria');
+      return a.valor ? `Orçamento de ${a.categoria_nome}: ${brl(a.valor)} por mês.` : `Orçamento de ${a.categoria_nome} removido.`;
     }
     default:
       return null;

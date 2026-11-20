@@ -166,6 +166,16 @@ function ItemExtra({ a }: { a: AcaoIara }) {
           <p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-[12px] bg-success-bg/60 px-3 py-2 text-[12px] leading-[1.45] text-foreground">{a.texto}</p>
         </Linha>
       );
+    case 'definir_orcamento':
+      return (
+        <Linha>
+          <Topo icone={<Target className="h-4 w-4 shrink-0 text-primary" />} titulo={<>Orçamento mensal · {a.categoria_nome}</>} />
+          <Chips>
+            <Mudanca de={a.atual != null ? formatCurrency(a.atual) : 'sem orçamento'} para={a.valor ? formatCurrency(a.valor) : 'sem orçamento'} />
+            <Chip>vale todo mês</Chip>
+          </Chips>
+        </Linha>
+      );
     case 'definir_meta':
       return (
         <Linha>

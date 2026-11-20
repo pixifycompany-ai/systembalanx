@@ -28,6 +28,7 @@ function fabForPath(pathname: string): FabAction {
   if (pathname.startsWith('/clientes')) return { kind: 'nav', label: 'Novo cliente', to: '/clientes?action=novo' };
   if (pathname.startsWith('/categorias')) return { kind: 'nav', label: 'Nova categoria', to: '/categorias?action=novo' };
   if (pathname.startsWith('/contas')) return { kind: 'nav', label: 'Nova conta', to: '/contas?action=novo' };
+  if (pathname.startsWith('/documentos')) return { kind: 'nav', label: 'Guardar documento', to: '/documentos?action=novo' };
   return { kind: 'sheet' };
 }
 
