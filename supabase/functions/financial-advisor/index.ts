@@ -1160,11 +1160,11 @@ ${contexto}${blocoTela}`;
         safe<any>(supabase.from("receitas")
           .select("descricao,valor,status,data_vencimento,data_competencia,data_recebimento,forma_pagamento,cliente:clientes(nome),categoria:categorias(nome),conta:contas(nome)")
           .or(`descricao.ilike.%${t}%${inList("cliente_id", cliIds)}${inList("categoria_id", catIds)}`)
-          .order("data_competencia", { ascending: false }).limit(30)),
+          .order("data_competencia", { ascending: false })),
         safe<any>(supabase.from("despesas")
           .select("descricao,fornecedor,valor,status,data_vencimento,data_competencia,data_pagamento,forma_pagamento,parcela_num,parcela_total,categoria:categorias(nome),conta:contas(nome),cliente:clientes(nome)")
           .or(`descricao.ilike.%${t}%,fornecedor.ilike.%${t}%${inList("cliente_id", cliIds)}${inList("categoria_id", catIds)}`)
-          .order("data_competencia", { ascending: false }).limit(30)),
+          .order("data_competencia", { ascending: false })),
       ]);
       const itens = [
         ...rec.map(r => ({ tipo: "receita", descricao: r.descricao, cliente: r.cliente?.nome || null, categoria: r.categoria?.nome || null, conta: r.conta?.nome || null, forma: r.forma_pagamento || null, valor: Number(r.valor || 0), status: r.status, vencimento: r.data_vencimento, competencia: r.data_competencia, quitado_em: r.data_recebimento || null })),
@@ -1209,8 +1209,8 @@ ${contexto}${blocoTela}`;
       if (status) despQ = despQ.eq("status", status);
 
       const [rec, desp] = await Promise.all([
-        wantRec ? safe<any>(recQ.limit(300)) : Promise.resolve([]),
-        wantDesp ? safe<any>(despQ.limit(300)) : Promise.resolve([]),
+        wantRec ? safe<any>(recQ) : Promise.resolve([]),
+        wantDesp ? safe<any>(despQ) : Promise.resolve([]),
       ]);
       const itens = [
         ...rec.map((r: any) => ({ data: r[colRec], tipo: "receita", descricao: r.descricao, cliente: r.cliente?.nome || null, categoria: r.categoria?.nome || null, conta: r.conta?.nome || null, forma: r.forma_pagamento || null, valor: Number(r.valor || 0), status: r.status })),
@@ -1247,7 +1247,7 @@ ${contexto}${blocoTela}`;
       const col = colPorCriterio(base);
       const rows = await safe<any>(supabase.from("despesas")
         .select("descricao,fornecedor,valor,status,data_competencia,data_vencimento,data_pagamento,forma_pagamento,parcela_num,parcela_total,categoria:categorias(nome),conta:contas(nome)")
-        .gte(col, inicio).lte(col, fim).limit(3000));
+        .gte(col, inicio).lte(col, fim));
       return { col, rows: rows.filter((d: any) => !ehMarcador(d.fornecedor)) };
     }
 
@@ -1511,9 +1511,9 @@ ${contexto}${blocoTela}`;
       const antes = status && status !== "atrasado" ? [] : await (async () => {
         const [r0, d0] = await Promise.all([
           wantRec ? safe<any>(supabase.from("receitas").select("descricao,valor,status,data_vencimento,cliente:clientes(nome)")
-            .lt("data_vencimento", inicio).in("status", ["pendente", "atrasado"]).order("data_vencimento").limit(200)) : Promise.resolve([]),
+            .lt("data_vencimento", inicio).in("status", ["pendente", "atrasado"]).order("data_vencimento")) : Promise.resolve([]),
           wantDesp ? safe<any>(supabase.from("despesas").select("descricao,fornecedor,valor,status,data_vencimento")
-            .lt("data_vencimento", inicio).in("status", ["pendente", "atrasado"]).is("fatura_id", null).order("data_vencimento").limit(200)) : Promise.resolve([]),
+            .lt("data_vencimento", inicio).in("status", ["pendente", "atrasado"]).is("fatura_id", null).order("data_vencimento")) : Promise.resolve([]),
         ]);
         return [
           ...r0.map((r: any) => ({ tipo: "receita", data: r.data_vencimento, quem: r.cliente?.nome || r.descricao || "Receita", descricao: r.descricao, valor: Number(r.valor || 0) })),
