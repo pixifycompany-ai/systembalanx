@@ -5,13 +5,15 @@
 //   - cartão → src/hooks/useFaturas.ts + src/utils/faturaCalculator.ts
 // Se mudar a regra lá, mude aqui também.
 // Roda com o cliente do PRÓPRIO usuário (RLS), nunca com a service role.
-// Excluir despesa, cancelar cobrança e excluir item da agenda NÃO entram: só pelo card no app.
+// Excluir (despesa/receita), cancelar cobrança, excluir item da agenda, pagar fatura, contratos e
+// lembrete de WhatsApp NÃO entram: só pelo card no app.
 // deno-lint-ignore-file no-explicit-any
 
 /** Tipos de ação que podem ser confirmados por voz. */
 export const VOZ_OK = new Set([
   "cliente", "contrato", "cobranca", "compromisso", "tarefa",
   "concluir_tarefa", "alterar_agenda", "alterar_cobranca", "alterar_despesa",
+  "dar_baixa", "alterar_receita", "alterar_categoria", "transferencia", "definir_meta",
 ]);
 export const soPeloApp = (a: any) => !VOZ_OK.has(a?.tipo);
 
@@ -338,6 +340,48 @@ export async function executarAcoesVoz(ctx: Ctx, acoes: any[]): Promise<Resultad
         res.push({ ok: true, mensagem: `Despesa ${a.descricao} alterada.` });
       }
     } catch (e) { falha(a.tipo === "alterar_despesa" ? "Despesa" : "Cobrança", e); }
+  }
+  // Espelho de executarExtra (src/lib/acoesIara.ts) para os tipos liberados por voz.
+  for (const a of lista) {
+    try {
+      if (a.tipo === "dar_baixa") {
+        if (a.via_asaas && a.cobranca_id) {
+          await chamarFuncao(ctx, "asaas-cobranca", { action: "receber-manual", cobranca_id: a.cobranca_id, data_pagamento: a.data });
+        } else {
+          const upd: Record<string, unknown> = a.lanc === "receita" ? { status: "recebido", data_recebimento: a.data } : { status: "pago", data_pagamento: a.data };
+          if (a.conta_id) upd.conta_id = a.conta_id;
+          const { data, error } = await ctx.db.from(a.lanc === "receita" ? "receitas" : "despesas").update(upd).eq("id", a.item_id).in("status", ["pendente", "atrasado"]).select("id");
+          if (error) throw error;
+          if (!data?.length) throw new Error("já não está em aberto");
+        }
+        res.push({ ok: true, mensagem: `${a.descricao} ${a.lanc === "receita" ? "recebida" : "paga"}.` });
+      } else if (a.tipo === "alterar_receita") {
+        const upd: Record<string, unknown> = {};
+        if (a.novo_valor) upd.valor = a.novo_valor;
+        if (a.nova_descricao) upd.descricao = a.nova_descricao;
+        if (a.novo_vencimento) { upd.data_vencimento = a.novo_vencimento; upd.status = a.novo_vencimento >= hojeISO() ? "pendente" : "atrasado"; }
+        const { data, error } = await ctx.db.from("receitas").update(upd).eq("id", a.receita_id).in("status", ["pendente", "atrasado"]).select("id");
+        if (error) throw error;
+        if (!data?.length) throw new Error("ela já não está em aberto");
+        res.push({ ok: true, mensagem: `Receita ${a.descricao} alterada.` });
+      } else if (a.tipo === "alterar_categoria") {
+        const { data, error } = await ctx.db.from(a.lanc === "receita" ? "receitas" : "despesas").update({ categoria_id: a.categoria_id }).in("id", a.ids).select("id");
+        if (error) throw error;
+        res.push({ ok: true, mensagem: `${data?.length ?? 0} lançamento(s) em ${a.categoria_nome}.` });
+      } else if (a.tipo === "transferencia") {
+        if (a.conta_origem_id === a.conta_destino_id || !(Number(a.valor) > 0)) throw new Error("transferência inválida");
+        const { error } = await ctx.db.from("transferencias").insert({ user_id: ctx.userId, conta_origem_id: a.conta_origem_id, conta_destino_id: a.conta_destino_id, valor: a.valor, descricao: a.descricao || null, data_transferencia: a.data });
+        if (error) throw error;
+        res.push({ ok: true, mensagem: `Transferência de ${a.origem_nome} para ${a.destino_nome} registrada.` });
+      } else if (a.tipo === "definir_meta") {
+        const { data: ex } = await ctx.db.from("metas").select("id").eq("tipo", "faturamento").eq("periodo", a.periodo).maybeSingle();
+        const { error } = ex
+          ? await ctx.db.from("metas").update({ valor_meta: a.valor }).eq("id", ex.id)
+          : await ctx.db.from("metas").insert({ user_id: ctx.userId, tipo: "faturamento", periodo: a.periodo, valor_meta: a.valor });
+        if (error) throw error;
+        res.push({ ok: true, mensagem: "Meta atualizada." });
+      }
+    } catch (e) { falha(a.tipo === "dar_baixa" ? "Baixa" : a.tipo === "transferencia" ? "Transferência" : a.tipo === "definir_meta" ? "Meta" : a.tipo === "alterar_categoria" ? "Categoria" : "Receita", e); }
   }
   return res;
 }

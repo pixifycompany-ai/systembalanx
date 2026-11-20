@@ -320,6 +320,72 @@ export async function recalcularDatasFaturasAbertas(cartao: ContaDB): Promise<vo
   }
 }
 
+/**
+ * Paga uma fatura com 1+ contas (linhas): cria a despesa '[pagamento-fatura]' em cada conta,
+ * registra o pagamento, atualiza valor_pago/status e sincroniza a despesa-fatura e os itens.
+ * Usado pelo "Pagar fatura" e pela IARA. Lança erro se algo falhar.
+ */
+export async function registrarPagamentoFatura(
+  fatura: FaturaDB,
+  cartao: ContaDB,
+  linhas: { conta_id: string; valor: number; data_pagamento: string }[],
+  userId: string,
+): Promise<void> {
+  const totalLinhas = linhas.reduce((s, l) => s + Number(l.valor), 0);
+  for (const linha of linhas) {
+    // 1. Cria despesa real na conta corrente
+    const { data: despesa, error: dErr } = await supabase
+      .from('despesas')
+      .insert({
+        user_id: userId,
+        descricao: `Pagamento Fatura ${cartao.nome} – ${rotuloCompetencia(fatura.competencia)}`,
+        valor: Number(linha.valor),
+        data_competencia: linha.data_pagamento,
+        data_vencimento: linha.data_pagamento,
+        data_pagamento: linha.data_pagamento,
+        status: 'pago',
+        tipo: 'variavel',
+        conta_id: linha.conta_id,
+        fornecedor: '[pagamento-fatura]',
+      })
+      .select('id')
+      .single();
+    if (dErr) throw dErr;
+
+    // 2. Registra pagamento
+    const { error: pErr } = await supabase
+      .from('cartao_fatura_pagamentos' as any)
+      .insert({
+        user_id: userId,
+        fatura_id: fatura.id,
+        conta_id: linha.conta_id,
+        valor: Number(linha.valor),
+        data_pagamento: linha.data_pagamento,
+        despesa_id: despesa?.id ?? null,
+      });
+    if (pErr) throw pErr;
+  }
+
+  // 3. Atualiza fatura: valor_pago e status
+  const novoPago = Number(fatura.valor_pago) + totalLinhas;
+  const novoStatus: FaturaStatus =
+    novoPago >= Number(fatura.valor_total) - 0.001 ? 'paga' : 'parcialmente_paga';
+  await supabase
+    .from('cartao_faturas' as any)
+    .update({ valor_pago: novoPago, status: novoStatus })
+    .eq('id', fatura.id);
+
+  // 4. Sync despesa-fatura
+  const { data: faturaAtualizada } = await supabase
+    .from('cartao_faturas' as any)
+    .select('*')
+    .eq('id', fatura.id)
+    .single();
+  if (faturaAtualizada) {
+    await syncDespesaFatura(faturaAtualizada as unknown as FaturaDB, cartao, userId);
+  }
+}
+
 export function useFaturas(cartaoId?: string) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -400,58 +466,7 @@ export function useFaturas(cartaoId?: string) {
     }
 
     try {
-      for (const linha of linhas) {
-        // 1. Cria despesa real na conta corrente
-        const { data: despesa, error: dErr } = await supabase
-          .from('despesas')
-          .insert({
-            user_id: user.id,
-            descricao: `Pagamento Fatura ${cartao.nome} – ${rotuloCompetencia(fatura.competencia)}`,
-            valor: Number(linha.valor),
-            data_competencia: linha.data_pagamento,
-            data_vencimento: linha.data_pagamento,
-            data_pagamento: linha.data_pagamento,
-            status: 'pago',
-            tipo: 'variavel',
-            conta_id: linha.conta_id,
-            fornecedor: '[pagamento-fatura]',
-          })
-          .select('id')
-          .single();
-        if (dErr) throw dErr;
-
-        // 2. Registra pagamento
-        const { error: pErr } = await supabase
-          .from('cartao_fatura_pagamentos' as any)
-          .insert({
-            user_id: user.id,
-            fatura_id: fatura.id,
-            conta_id: linha.conta_id,
-            valor: Number(linha.valor),
-            data_pagamento: linha.data_pagamento,
-            despesa_id: despesa?.id ?? null,
-          });
-        if (pErr) throw pErr;
-      }
-
-      // 3. Atualiza fatura: valor_pago e status
-      const novoPago = Number(fatura.valor_pago) + totalLinhas;
-      const novoStatus: FaturaStatus =
-        novoPago >= Number(fatura.valor_total) - 0.001 ? 'paga' : 'parcialmente_paga';
-      await supabase
-        .from('cartao_faturas' as any)
-        .update({ valor_pago: novoPago, status: novoStatus })
-        .eq('id', fatura.id);
-
-      // 4. Sync despesa-fatura
-      const { data: faturaAtualizada } = await supabase
-        .from('cartao_faturas' as any)
-        .select('*')
-        .eq('id', fatura.id)
-        .single();
-      if (faturaAtualizada) {
-        await syncDespesaFatura(faturaAtualizada as unknown as FaturaDB, cartao, user.id);
-      }
+      await registrarPagamentoFatura(fatura, cartao, linhas, user.id);
 
       toast({ title: 'Fatura paga com sucesso!' });
       invalidate();

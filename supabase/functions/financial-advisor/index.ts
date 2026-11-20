@@ -4,6 +4,7 @@ import { calcularIndicadores, GRUPOS_INDICADORES } from "../_shared/indicadores.
 import { GLOSSARIO_INDICADORES } from "../_shared/glossarioIara.ts";
 import { podeOutrasAgendas } from "../_shared/google.ts";
 import { estadoSessao } from "../_shared/whatsapp.ts";
+import { acharConta, cobrancasLista, contratosLista, extratoConta, historicoEnvios, listarTransferencias, metas as metasIara, pagamentosDaFatura, pendencias as pendenciasIara, situacaoContrato, type CtxConsulta } from "./consultas.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -447,6 +448,11 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • QUALQUER pergunta sobre o CONTEÚDO de uma fatura do cartão ("o que tem na fatura", "lançamentos da fatura separados por categoria", "quanto gastei de X no cartão nessa fatura", "fatura de novembro", "a fatura que vence dia 10") → **fatura_cartao**. NUNCA monte uma fatura com listar_lancamentos, resumo_financeiro ou buscar_lancamento: a fatura junta compras de datas de meses diferentes (fecha no meio do mês), então somar por data dá número diferente e deixa itens de fora. Responda com o cabeçalho (cartão · Fatura de <mês> · vence dd/mm · total · status), depois cada categoria em negrito com o total e a %, e embaixo os lançamentos dela (fornecedor/descrição — valor · parcela · data). Liste TODAS as categorias e TODOS os itens que a ferramenta devolver, sem resumir nem cortar; a soma das categorias tem que bater com o total da fatura. Se a pessoa não disser qual fatura, use a atual (a mesma que abre na tela) e diga qual usou.
   • Compras PARCELADAS no cartão ("quantas parcelas faltam", "o que ainda está parcelado", "parcelas do notebook") → compras_parceladas (traz nº de parcelas, pagas, faltam, valor da parcela, próxima data de vencimento e valor restante por compra).
   • Total COMPROMETIDO em parcelas nos próximos meses ("quanto da fatura futura já está tomado", "quanto já devo em parcelas") → parcelas_comprometidas (soma por mês o que falta pagar de parcelas).
+  • COBRANÇAS ("quais cobranças estão em aberto/vencidas", "o boleto do X foi pago?", "cobranças pagas esse mês") → **cobrancas_lista**. O que já foi ENVIADO ("já mandei a cobrança pro X?", "o lembrete foi?", "e-mails que falharam") → **historico_envios**.
+  • CONTRATOS ("meus contratos", "pausados", "encerrados", "quais terminam este mês", "reajustes do contrato da X") → **contratos_lista** (para "terminam este mês" use terminam_ate = último dia do mês).
+  • EXTRATO de uma conta ("o que entrou e saiu do Itaú em outubro", "por que o saldo caiu") → **extrato_conta**. Transferências entre contas → **listar_transferencias**. Pagamentos de uma fatura (quando/de qual conta) → **fatura_cartao** (campo pagamentos).
+  • "O que preciso resolver?", "minhas pendências", "tem algo errado?" → **pendencias**: agrupe por bloco (Dinheiro em risco, Ajustes de cadastro, Documentos), diga o porquê de cada item em 1 linha e ofereça resolver o que der por aqui (ex.: lembrete por WhatsApp de cobrança vencida, pagar fatura, excluir duplicado, encerrar contrato vencido).
+  • META ("como está minha meta", "bati a meta?") → **metas** (meta de faturamento = recebido no mês).
   • Indicadores e relatórios (MRR, ARR, churn, LTV, CAC, ticket, coortes, saúde financeira, rentabilidade/margem por cliente, DRE, DFC, comparativo, curva ABC, aging, inadimplência, burn, runway, cartões, conciliação, impostos, KPIs) — "o que é", "como está", "está bom?", "por quê?" → **indicadores_negocio** com os grupos certos (veja a seção Indicadores e relatórios). Se a pergunta vier da tela (bloco TELA QUE A PESSOA ESTÁ VENDO), use primeiro esses números, que são os mesmos da tela.
 - Você pode chamar mais de uma ferramenta antes de responder (ex.: saldo_e_contas + projecao_fluxo para dizer se vai faltar caixa).
 - Se a pessoa não disser o período, responda com o período do contexto ("${periodLabel}") e diga qual período usou. Sempre deixe claro o intervalo que os números cobrem.
@@ -466,9 +472,17 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - Mande os valores em reais e datas no formato brasileiro na resposta (ex.: R$ 1.500,00 · 25/11/2026).
 - ALTERAR cobrança ("muda o vencimento da cobrança da X para dia 30", "a cobrança do João agora é 900") → **alterar_cobranca**. CANCELAR/EXCLUIR uma cobrança → **cancelar_cobranca** (só aquele mês, mesmo se for assinatura; para parar de cobrar todo mês, oriente encerrar ou pausar o contrato).
 - ALTERAR despesa/conta a pagar ("passa o aluguel para dia 15", "a conta de luz veio 280") → **alterar_despesa**. EXCLUIR despesa lançada errada/duplicada → **excluir_despesa**.
+- DAR BAIXA ("paguei a luz", "o João pagou", "recebi os 1.500 da Sabor Maria ontem", "marca como pago") → **dar_baixa** (tipo despesa ou receita; data = quando pagou/recebeu, padrão hoje; conta se a pessoa disser). Fatura de cartão ("paguei a fatura") → **pagar_fatura** (nunca dar_baixa). Com cobrança no Asaas a baixa vai para o Asaas também — diga isso.
+- RECEITA a receber: mudar vencimento/valor/descrição → **alterar_receita**; apagar lançada errada → **excluir_receita**. Se a receita tiver cobrança no Asaas, a ferramenta avisa: use alterar_cobranca / cancelar_cobranca.
+- TROCAR CATEGORIA ("coloca o Uber em Transporte", "essas despesas da Vivo são Internet") → **alterar_categoria**. Se vierem vários e a pessoa não disse "todos", liste e pergunte se é para mudar todos ou um só.
+- TRANSFERÊNCIA entre contas ("passei 2 mil do Itaú pro Inter") → **transferir** (não é despesa nem receita).
+- PAGAR FATURA do cartão ("paga a fatura do Nubank pelo Itaú", "paguei 500 da fatura") → **pagar_fatura** (total por padrão; valor só se for parcial).
+- CONTRATO: pausar ("pausa o contrato da X por 2 meses"), reativar, encerrar ("a X cancelou o serviço"), reajustar ("o contrato da Y agora é 2.500 a partir de janeiro") → **alterar_contrato**. Ao encerrar, diga quantas receitas futuras em aberto saem; com Asaas, diga que a assinatura para.
+- LEMBRETE de cobrança pelo WhatsApp ("manda um lembrete pro João", "cobra a X no zap") → **lembrete_whatsapp**. O card mostra a mensagem do modelo de Cobranças; para outro texto, chame de novo com "texto". Se o WhatsApp não estiver conectado, ofereça mostrar_conexao tipo whatsapp.
+- META de faturamento ("minha meta de dezembro é 30 mil") → **definir_meta**.
 - "Os pagamentos de hoje caíram?", "o Fulano pagou?", "o que entrou hoje?" → **agenda_vencimentos** do dia (ou do período dito; para um cliente sem data, buscar_lancamento/detalhe_cliente). Responda separando: ✅ recebidos/pagos (com a data) e ⏳ ainda em aberto. Para cada recebimento em aberto use o campo "cobranca": com cobrança no Asaas, a baixa é automática quando o cliente paga (Pix na hora; boleto costuma compensar em 1–2 dias úteis), então "aguardando pagamento" = o cliente ainda não pagou; "sem cobrança no Asaas" = depende de baixa manual — sugira conferir o extrato (Contas → Conferir com o banco) e dar baixa. Nunca afirme que algo foi pago se o status não for recebido/pago.
 - AGENDA: marcar reunião/visita/ligação com data ("marca reunião com a Sabor Maria quinta às 10h") → **preparar_compromisso**. Algo a fazer / lembrete ("me lembra de emitir a NF dia 25", "anota: ligar pro contador") → **preparar_tarefa**. "O que tenho amanhã / essa semana", "estou livre?", "tarefas pendentes" → **listar_agenda** (inclui a agenda pessoal do Google, se ligada). "Já fiz X" / "conclui a tarefa X" → **concluir_tarefa** (desfazer: true para reabrir). Remarcar, renomear, mudar horário/data/notas/lista → **alterar_agenda**. Cancelar/apagar compromisso ou tarefa → **excluir_agenda**. Eventos pessoais do Google são só leitura: não dá para mudar nem apagar pela IARA — diga isso. Converta dia da semana em data usando as âncoras de data do contexto. Você é também a assistente pessoal da pessoa: ao falar da agenda, seja direta e organize por dia/horário.
-- Nessas quatro, se a ferramenta devolver "precisa_escolher", mostre as opções numeradas e pergunte qual — não escolha por conta própria. Só mexe em itens EM ABERTO (pago não altera nem exclui pela IARA).
+- Em TODAS as ferramentas de ação, se vier "precisa_escolher", mostre as opções numeradas e pergunte qual — não escolha por conta própria. Alterar/excluir/baixar só mexe em itens EM ABERTO (pago não altera nem exclui pela IARA); trocar categoria vale para qualquer lançamento.
 
 ## Lançar (criar receitas/despesas) — você também REGISTRA, não só consulta
 - Quando a pessoa pedir para LANÇAR/REGISTRAR/ADICIONAR/ANOTAR um gasto, conta, receita, compra no cartão, pagamento, parcelamento ou algo recorrente (ex.: "lança 320 de energia hoje", "coloca 1.200 do aluguel todo mês", "comprei um notebook 3000 em 10x no cartão Nubank", "recebi 500 do cliente X"), use a ferramenta **preparar_lancamentos**. Você NÃO grava direto: ela monta uma PRÉVIA que a pessoa confirma na tela com um toque.
@@ -522,6 +536,79 @@ ${contexto}${blocoTela}`;
       { type: "function", function: { name: "categorias_vs_media", description: "Compara o gasto de CADA categoria no período (padrão: mês atual até hoje) com a média mensal DA PRÓPRIA categoria nos meses anteriores (padrão 3). Retorna as que estão acima da média (com diferença e %), mesmo critério do DRE. Use p/ 'despesas acima da média', 'o que aumentou', 'onde estou gastando mais'.", parameters: { type: "object", properties: { inicio: D, fim: D, meses_base: { type: "number", description: "meses anteriores para a média (padrão 3, máx 12)" } } } } },
       { type: "function", function: { name: "parcelas_comprometidas", description: "Quanto das PRÓXIMAS FATURAS já está comprometido com parcelamentos do cartão, somado por MÊS de vencimento (parcelas ainda não pagas). Use p/ 'quanto já devo em parcelas nos próximos meses', 'quanto da fatura futura já está tomado', 'total comprometido em parcelas'.", parameters: { type: "object", properties: { meses: { type: "number", description: "quantos meses à frente (padrão 12)" } } } } },
       { type: "function", function: { name: "fatura_cartao", description: "Itens de UMA FATURA do cartão de crédito, exatamente como a tela do cartão mostra: total, pago, em aberto, fechamento, vencimento e TODOS os lançamentos agrupados por categoria (com fornecedor, descrição, parcela, data e valor). Use p/ 'o que tem na minha fatura', 'fatura por categoria', 'lançamentos da fatura de novembro', 'quanto gastei de alimentação no cartão nessa fatura'.", parameters: { type: "object", properties: { cartao: { type: "string", description: "nome do cartão (vazio = todos os cartões)" }, fatura: { type: "string", description: "'atual' (padrão, a mesma que abre na tela), 'proxima', 'anterior', 'aberta' (a mais antiga ainda não paga) ou o mês da fatura 'YYYY-MM' — 'fatura de novembro' = '2026-11'" }, vence_em: { type: "string", description: "YYYY-MM: a fatura que VENCE nesse mês (use quando a pessoa falar do vencimento: 'a fatura que vence em dezembro')" } } } } },
+      { type: "function", function: { name: "cobrancas_lista", description: "Lista as COBRANÇAS (Asaas) como a tela Cobranças: cliente, descrição, valor, vencimento, situação (aguardando/vencida/paga), dias de atraso, link de pagamento, quantos envios e o último envio (WhatsApp/e-mail). Use p/ 'quais cobranças estão em aberto/vencidas', 'o boleto do X foi pago?', 'cobranças pagas esse mês'.", parameters: { type: "object", properties: { status: { type: "string", enum: ["abertas", "vencidas", "aguardando", "pagas", "canceladas", "todas"], description: "padrão: abertas (aguardando + vencidas)" }, cliente: { type: "string" }, inicio: { ...D, description: "por vencimento (ou data do pagamento, se status=pagas)" }, fim: D } } } },
+      { type: "function", function: { name: "historico_envios", description: "Histórico de cobranças ENVIADAS por WhatsApp e e-mail (data, hora, canal, para quem, automático/manual, status: enviado/entregue/falhou). Padrão: últimos 60 dias. Use p/ 'o que já mandei pro X', 'o lembrete foi enviado?', 'quais e-mails falharam'.", parameters: { type: "object", properties: { cliente: { type: "string" }, canal: { type: "string", enum: ["todos", "whatsapp", "email"] }, inicio: D, fim: D } } } },
+      { type: "function", function: { name: "contratos_lista", description: "CONTRATOS em todos os status (ativo, pausado, encerrado, cancelado) com valor, recorrência, dia de vencimento, início/fim, dias para terminar, pausa, se cobra no Asaas, REAJUSTES (histórico), próxima receita e atrasos. Use p/ 'meus contratos', 'contratos pausados/encerrados', 'quais contratos vencem este mês' (terminam_ate), 'reajustes do contrato X'.", parameters: { type: "object", properties: { status: { type: "string", enum: ["todos", "ativo", "pausado", "encerrado", "cancelado", "inativos"] }, cliente: { type: "string" }, terminam_ate: { ...D, description: "só ativos com data final até essa data" } } } } },
+      { type: "function", function: { name: "extrato_conta", description: "EXTRATO de uma conta bancária num período: saldo no início, cada entrada/saída/transferência efetivada (pela data em que aconteceu) com saldo após, saldo no fim, saldo atual e a última conferência com o banco. Mesmo saldo da tela Contas. Use p/ 'o que entrou e saiu do Itaú em outubro', 'extrato da conta X', 'por que o saldo da conta caiu'.", parameters: { type: "object", properties: { conta: { type: "string" }, inicio: D, fim: D }, required: ["inicio", "fim"] } } },
+      { type: "function", function: { name: "listar_transferencias", description: "Transferências ENTRE CONTAS num período (de, para, valor, data). Use p/ 'quanto transferi do X pro Y', 'transferências do mês'.", parameters: { type: "object", properties: { inicio: D, fim: D, conta: { type: "string", description: "filtra por uma conta (origem ou destino)" } }, required: ["inicio", "fim"] } } },
+      { type: "function", function: { name: "pendencias", description: "PENDÊNCIAS da tela Pendências: dinheiro em risco (cobranças vencidas, e-mails que falharam, fatura vencendo, assinatura sem receitas), ajustes de cadastro (cobrança sem lançamento, contrato vencido ativo, valor de contrato diferente, possíveis duplicados, pago/recebido sem conta) e documentos (nota fiscal, boleto). Use p/ 'o que preciso resolver', 'tem algo errado?', 'minhas pendências'.", parameters: { type: "object", properties: {} } } },
+      { type: "function", function: { name: "metas", description: "META de faturamento do Início por mês: meta, recebido no mês, %, quanto falta e quanto precisa por dia (mês atual). Use p/ 'como está minha meta', 'bati a meta?'.", parameters: { type: "object", properties: { meses: { type: "number", description: "quantos meses (padrão 3, contando o atual)" } } } } },
+      { type: "function", function: {
+        name: "dar_baixa",
+        description: "Prepara a BAIXA (marcar como PAGO/RECEBIDO) de UM lançamento em aberto. Ex.: 'paguei a luz', 'o João pagou', 'recebi do cliente X ontem'. Com cobrança no Asaas, marca recebido lá também. Fatura de cartão NÃO: use pagar_fatura. Se houver mais de um parecido, PERGUNTE qual.",
+        parameters: { type: "object", properties: {
+          tipo: { type: "string", enum: ["despesa", "receita"] },
+          quem: { type: "string", description: "fornecedor/cliente ou parte da descrição" },
+          valor: { type: "number", description: "valor, se disser (ajuda a achar)" },
+          vencimento: { ...D, description: "vencimento do lançamento, se disser" },
+          data: { ...D, description: "data em que pagou/recebeu (padrão: hoje)" },
+          conta: { type: "string", description: "conta de onde saiu/entrou, se disser" },
+        }, required: ["tipo", "quem"] },
+      } },
+      { type: "function", function: {
+        name: "alterar_receita",
+        description: "Prepara a ALTERAÇÃO de uma RECEITA a receber EM ABERTO (novo vencimento, valor ou descrição). Se tiver cobrança no Asaas, use alterar_cobranca. Se houver mais de uma parecida, PERGUNTE qual.",
+        parameters: { type: "object", properties: {
+          quem: { type: "string" }, valor: { type: "number" }, vencimento: { ...D },
+          novo_vencimento: { ...D }, novo_valor: { type: "number" }, nova_descricao: { type: "string" },
+        }, required: ["quem"] },
+      } },
+      { type: "function", function: {
+        name: "excluir_receita",
+        description: "Prepara a EXCLUSÃO de UMA receita EM ABERTO (lançada errada, duplicada, cliente não vai pagar). Com cobrança no Asaas, use cancelar_cobranca. Recebida não exclui.",
+        parameters: { type: "object", properties: { quem: { type: "string" }, valor: { type: "number" }, vencimento: { ...D } }, required: ["quem"] },
+      } },
+      { type: "function", function: {
+        name: "alterar_categoria",
+        description: "Prepara a TROCA DE CATEGORIA de lançamentos (pagos ou não, inclusive do cartão). Ex.: 'coloca o Uber em Transporte', 'muda todas as despesas da Vivo para Internet & Telefone'. Se achar vários e a pessoa não disse 'todos', devolve a lista para PERGUNTAR.",
+        parameters: { type: "object", properties: {
+          tipo: { type: "string", enum: ["despesa", "receita"] },
+          quem: { type: "string", description: "fornecedor/cliente ou parte da descrição" },
+          categoria: { type: "string", description: "categoria NOVA (nome exato da lista)" },
+          valor: { type: "number" }, data: { ...D, description: "data (competência) do lançamento" },
+          inicio: { ...D, description: "padrão: 12 meses atrás" }, fim: { ...D },
+          todos: { type: "boolean", description: "true = mudar todos os encontrados" },
+        }, required: ["tipo", "quem", "categoria"] },
+      } },
+      { type: "function", function: {
+        name: "transferir",
+        description: "Prepara uma TRANSFERÊNCIA ENTRE CONTAS bancárias (ex.: 'passei 2 mil do Itaú pro Inter'). Não é despesa nem receita.",
+        parameters: { type: "object", properties: { de: { type: "string" }, para: { type: "string" }, valor: { type: "number" }, data: { ...D, description: "padrão: hoje" }, descricao: { type: "string" } }, required: ["de", "para", "valor"] },
+      } },
+      { type: "function", function: {
+        name: "pagar_fatura",
+        description: "Prepara o PAGAMENTO de uma fatura de cartão (total ou parcial), como o botão 'Pagar fatura': sai da conta escolhida e os itens ficam pagos. Padrão: a fatura em aberto mais antiga, o valor que falta, a conta padrão do cartão e hoje.",
+        parameters: { type: "object", properties: { cartao: { type: "string" }, fatura: { type: "string", description: "YYYY-MM (mês da fatura, 'fatura de novembro' = 2026-11)" }, valor: { type: "number", description: "só se for pagamento parcial" }, conta: { type: "string" }, data: { ...D } } },
+      } },
+      { type: "function", function: {
+        name: "alterar_contrato",
+        description: "Prepara PAUSAR, REATIVAR, ENCERRAR ou REAJUSTAR um contrato (igual à tela Contratos, inclusive no Asaas). Pausar: desde/ate (vazio = até reativar). Encerrar: data (padrão hoje), as receitas futuras em aberto saem. Reajustar: novo_valor + vigencia, fica no histórico de reajustes.",
+        parameters: { type: "object", properties: {
+          acao: { type: "string", enum: ["pausar", "reativar", "encerrar", "reajustar"] },
+          quem: { type: "string", description: "cliente ou descrição do contrato" }, valor: { type: "number", description: "valor atual, p/ achar" },
+          desde: { ...D }, ate: { ...D }, data: { ...D }, novo_valor: { type: "number" }, vigencia: { ...D }, motivo: { type: "string" },
+        }, required: ["acao", "quem"] },
+      } },
+      { type: "function", function: {
+        name: "lembrete_whatsapp",
+        description: "Prepara um LEMBRETE DE COBRANÇA pelo WhatsApp da empresa para o cliente, com o modelo de mensagem de Cobranças (link de pagamento ou Pix). A pessoa vê a mensagem no card e toca em Enviar. Ex.: 'manda um lembrete pro João', 'cobra a Sabor Maria no WhatsApp'.",
+        parameters: { type: "object", properties: { quem: { type: "string" }, valor: { type: "number" }, vencimento: { ...D }, texto: { type: "string", description: "só se a pessoa ditar/pedir outro texto" } }, required: ["quem"] },
+      } },
+      { type: "function", function: {
+        name: "definir_meta",
+        description: "Prepara a META de faturamento (recebido no mês) de um mês. Ex.: 'minha meta de dezembro é 30 mil'.",
+        parameters: { type: "object", properties: { mes: { type: "string", description: "YYYY-MM (padrão: mês atual)" }, valor: { type: "number" } }, required: ["valor"] },
+      } },
       { type: "function", function: { name: "status_conexoes", description: "Estado das conexões da conta: WhatsApp da empresa, Google Agenda/Tarefas, Asaas, notificações no celular e atalho do iPhone. Use quando perguntarem o que está conectado ou se algo está funcionando.", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "mostrar_conexao", description: "Mostra NA CONVERSA o painel para conectar/configurar algo: whatsapp (QR Code), google (Agenda e Tarefas), atalho_iphone, notificacoes (push no celular), asaas (leva à tela segura para colar a chave), instalar_app (passo a passo).", parameters: { type: "object", properties: { tipo: { type: "string", enum: ["whatsapp", "google", "atalho_iphone", "notificacoes", "asaas", "instalar_app"] } }, required: ["tipo"] } } },
       { type: "function", function: { name: "indicadores_negocio", description: "Indicadores e relatórios do negócio com os MESMOS números e fórmulas das telas Visão, Análises e Relatórios, cada bloco com 'como_calcula'. Grupos: recorrencia (MRR, ARR/receita anual projetada, contratos e clientes ativos, crescimento do MRR, série 12m), clientes (LTV, ticket, tempo médio, churn, coortes, LTV/CAC), rentabilidade (lucro e margem por cliente com rateio), saude (nota de saúde financeira 0–100 e os 5 fatores), projecao (receita 6m e caixa 12m), resultado (receitas × despesas e fluxo realizado), dre, dfc, comparativo (mês atual × anterior), categorias, abc (curva ABC), margem (por cliente, sem rateio), aging (a receber/pagar por faixa de atraso), caixa (burn e runway), conciliacao, cartoes, kpis, fiscal (impostos). Use p/ 'o que é / como está / está bom?' de qualquer indicador ou relatório.", parameters: { type: "object", properties: { inicio: { ...D, description: "YYYY-MM-DD (só p/ blocos com período; padrão: 1º de janeiro)" }, fim: { ...D, description: "YYYY-MM-DD (padrão: 31 de dezembro)" }, grupos: { type: "array", items: { type: "string", enum: [...GRUPOS_INDICADORES] }, description: "um ou mais blocos" } }, required: ["grupos"] } } },
@@ -973,6 +1060,8 @@ ${contexto}${blocoTela}`;
       });
     }
 
+    const ctxConsulta: CtxConsulta = { db: supabase, safe, hoje: hojeISO };
+
     // ---- Fatura do cartão: os itens DE UMA FATURA (fatura_id), como o app mostra ----
     // Os itens de uma fatura não seguem o mês da compra (ex.: fatura de novembro tem compras de
     // 26/10 a 25/11), por isso NUNCA se monta a fatura somando despesas por data: lê-se fatura_id.
@@ -1039,6 +1128,7 @@ ${contexto}${blocoTela}`;
           quantidade_lancamentos: itens.length,
           soma_dos_itens: r2(total),
           por_categoria: categorias,
+          pagamentos: await pagamentosDaFatura(ctxConsulta, contas || [], f.id),
           outras_faturas: lista.slice(Math.max(iAtual - 2, 0), iAtual + 3).filter((x: any) => x.id !== f.id).map((x: any) => ({ fatura: nomeMes(x.competencia), vence: x.data_vencimento, status: x.status, total: r2(Number(x.valor_total || 0)) })),
         });
       }
@@ -1720,6 +1810,265 @@ ${contexto}${blocoTela}`;
       return JSON.stringify({ ok: true, despesa: { fornecedor: d.quem, descricao: d.descricao, valor: d.valor, vencimento: d.vencimento } });
     }
 
+    // ---- Dar baixa, receitas, categoria, transferência, fatura, contratos, WhatsApp e meta ----
+    // Mesmo padrão: acha o item, devolve card (acoes) ou lista para a pessoa escolher.
+    // Quem executa é o app (src/lib/acoesIara.ts), com as MESMAS regras das telas.
+    const bancariasIara = (contas || []).filter((c: any) => c.tipo !== "cartao_credito");
+    const acharBancaria = (nome?: string) => (nome ? acharConta(bancariasIara, nome) : []);
+
+    /** Receitas em aberto + a cobrança do Asaas vinculada (se houver). */
+    async function receitasAbertas() {
+      const [rows, cobs] = await Promise.all([
+        safe<any>(supabase.from("receitas")
+          .select("id, descricao, valor, data_vencimento, status, contrato_id, conta_id, cliente:clientes(nome), conta:contas(nome)")
+          .in("status", ["pendente", "atrasado"]).order("data_vencimento").limit(1000)),
+        safe<any>(supabase.from("cobrancas").select("id, receita_id, status, asaas_payment_id")
+          .not("receita_id", "is", null).in("status", ["pendente", "vencido"])),
+      ]);
+      const cobDe = new Map(cobs.map((c: any) => [c.receita_id, c]));
+      return rows.map((r: any) => ({ id: r.id, quem: r.cliente?.nome || "", descricao: r.descricao || "Receita", valor: Number(r.valor),
+        vencimento: r.data_vencimento, status: r.status, contrato_id: r.contrato_id, conta_id: r.conta_id, conta_nome: r.conta?.nome || null,
+        cobranca: (cobDe.get(r.id) as any) || null }));
+    }
+    async function despesasAbertasComConta() {
+      const rows = await safe<any>(supabase.from("despesas")
+        .select("id, descricao, valor, data_vencimento, status, fornecedor, conta_id, conta:contas(nome)")
+        .in("status", ["pendente", "atrasado"]).is("fatura_id", null).order("data_vencimento").limit(1000));
+      return rows.filter((d: any) => !ehMarcador(d.fornecedor))
+        .map((d: any) => ({ id: d.id, quem: d.fornecedor || "", descricao: d.descricao || "Despesa", valor: Number(d.valor),
+          vencimento: d.data_vencimento, status: d.status, conta_id: d.conta_id, conta_nome: d.conta?.nome || null }));
+    }
+    const pareceFatura = (q?: string) => /fatura|cart[aã]o/i.test(String(q || ""));
+
+    async function darBaixa(a: any): Promise<string> {
+      const lanc = a?.tipo === "receita" ? "receita" : "despesa";
+      const data = dataOk(a?.data) || hojeISO;
+      if (data > hojeISO) return JSON.stringify({ erro: `A data ${dBR(data)} ainda não chegou. Baixa é só do que já foi pago/recebido.` });
+      if (lanc === "despesa" && pareceFatura(a?.quem)) return JSON.stringify({ erro: "Fatura de cartão se paga com pagar_fatura (sai da conta certa e baixa os itens). Use pagar_fatura." });
+      const r = filtrar(lanc === "receita" ? await receitasAbertas() : await despesasAbertasComConta(), a);
+      if (!r.length) return JSON.stringify({ erro: `Não achei ${lanc} EM ABERTO com isso. Se já foi baixada, não precisa fazer nada.` });
+      if (r.length > 1) return listaParaPerguntar(r, lanc === "receita" ? "receitas em aberto" : "despesas em aberto");
+      const x: any = r[0];
+      let conta: any = null;
+      if (a?.conta) {
+        const cs = acharBancaria(a.conta);
+        if (!cs.length) return JSON.stringify({ erro: `Não achei a conta "${a.conta}".`, contas: bancariasIara.map((c: any) => c.nome) });
+        conta = cs[0];
+      }
+      const viaAsaas = lanc === "receita" && !!x.cobranca?.asaas_payment_id;
+      // Sem conta no lançamento: usa a conta padrão (senão o saldo não muda e vira pendência "sem conta").
+      const contaFinal = conta || (x.conta_id ? null : (bancariasIara.find((c: any) => c.id === contaPadraoId) || bancariasIara[0] || null));
+      acoes.push({ id: novoId(), tipo: "dar_baixa", lanc, item_id: x.id, quem: x.quem, descricao: x.descricao, valor: x.valor,
+        vencimento: x.vencimento, data, via_asaas: viaAsaas, cobranca_id: viaAsaas ? x.cobranca.id : null,
+        conta_id: viaAsaas ? null : (contaFinal?.id || null), conta_nome: viaAsaas ? x.conta_nome : (contaFinal?.nome || x.conta_nome) });
+      return JSON.stringify({ ok: true, lancamento: { tipo: lanc, quem: x.quem, descricao: x.descricao, valor: x.valor, vencimento: x.vencimento },
+        data_da_baixa: data, conta: viaAsaas ? x.conta_nome : (contaFinal?.nome || x.conta_nome),
+        obs: viaAsaas ? "Tem cobrança no Asaas: ao confirmar, fica como recebida em dinheiro lá também (o cliente não é avisado)." : "A pessoa confirma no card." });
+    }
+
+    async function alterarReceita(a: any): Promise<string> {
+      const nv = dataOk(a?.novo_vencimento);
+      const nval = Number(a?.novo_valor) > 0 ? Math.round(Number(a.novo_valor) * 100) / 100 : null;
+      const ndesc = typeof a?.nova_descricao === "string" && a.nova_descricao.trim() ? a.nova_descricao.trim().slice(0, 120) : null;
+      if (!nv && !nval && !ndesc) return JSON.stringify({ erro: "Pergunte o que muda: vencimento, valor ou descrição." });
+      const r = filtrar(await receitasAbertas(), a);
+      if (!r.length) return JSON.stringify({ erro: "Não achei receita EM ABERTO com isso (recebida não muda pela IARA)." });
+      if (r.length > 1) return listaParaPerguntar(r, "receitas em aberto");
+      const x: any = r[0];
+      if (x.cobranca) return JSON.stringify({ erro: "Essa receita tem cobrança no Asaas: use alterar_cobranca (muda no Asaas e aqui juntos)." });
+      acoes.push({ id: novoId(), tipo: "alterar_receita", receita_id: x.id, cliente_nome: x.quem, descricao: x.descricao,
+        valor_atual: x.valor, vencimento_atual: x.vencimento, novo_valor: nval, novo_vencimento: nv, nova_descricao: ndesc, de_contrato: !!x.contrato_id });
+      return JSON.stringify({ ok: true, receita: { cliente: x.quem, descricao: x.descricao, valor: x.valor, vencimento: x.vencimento }, novo_valor: nval, novo_vencimento: nv, nova_descricao: ndesc,
+        obs: x.contrato_id ? "É receita de contrato: muda só este mês. Para mudar todos os meses, reajuste o contrato (alterar_contrato)." : undefined });
+    }
+    async function excluirReceita(a: any): Promise<string> {
+      const r = filtrar(await receitasAbertas(), a);
+      if (!r.length) return JSON.stringify({ erro: "Não achei receita EM ABERTO com isso (recebida não exclui pela IARA)." });
+      if (r.length > 1) return listaParaPerguntar(r, "receitas em aberto");
+      const x: any = r[0];
+      if (x.cobranca) return JSON.stringify({ erro: "Essa receita tem cobrança no Asaas: use cancelar_cobranca (cancela lá e aqui)." });
+      acoes.push({ id: novoId(), tipo: "excluir_receita", receita_id: x.id, cliente_nome: x.quem, descricao: x.descricao, valor: x.valor, vencimento: x.vencimento, de_contrato: !!x.contrato_id });
+      return JSON.stringify({ ok: true, receita: { cliente: x.quem, descricao: x.descricao, valor: x.valor, vencimento: x.vencimento },
+        obs: x.contrato_id ? "É de contrato: sai só este mês; o contrato continua." : undefined });
+    }
+
+    async function alterarCategoria(a: any): Promise<string> {
+      const lanc = a?.tipo === "receita" ? "receita" : "despesa";
+      const cat = achaCategoria(a?.categoria, lanc);
+      if (!cat.id) return JSON.stringify({ erro: `Não achei a categoria "${a?.categoria || ""}".`, categorias: [...new Set((categorias || []).filter((c: any) => c.tipo === lanc).map((c: any) => c.nome))] });
+      const q = sanitize(a?.quem || "");
+      if (!q) return JSON.stringify({ erro: "Diga de qual lançamento (fornecedor, cliente ou descrição)." });
+      const ini = dataOk(a?.inicio) || ultimosMesesIni(12);
+      const fim = dataOk(a?.fim) || anoIni.slice(0, 4) + "-12-31";
+      let rows: any[];
+      if (lanc === "despesa") {
+        rows = (await safe<any>(supabase.from("despesas")
+          .select("id, descricao, fornecedor, valor, data_competencia, categoria_id, categoria:categorias(nome)")
+          .or(`descricao.ilike.%${q}%,fornecedor.ilike.%${q}%`).gte("data_competencia", ini).lte("data_competencia", fim)))
+          .filter((d: any) => !ehMarcador(d.fornecedor))
+          .map((d: any) => ({ id: d.id, quem: limpaFornecedor(d.fornecedor) || "", descricao: d.descricao || "", valor: Number(d.valor), vencimento: d.data_competencia, categoria_id: d.categoria_id, de: d.categoria?.nome || "Sem categoria" }));
+      } else {
+        const clis = (await safe<any>(supabase.from("clientes").select("id").ilike("nome", `%${q}%`).limit(20))).map((c: any) => c.id);
+        rows = (await safe<any>(supabase.from("receitas")
+          .select("id, descricao, valor, data_competencia, categoria_id, categoria:categorias(nome), cliente:clientes(nome)")
+          .or(`descricao.ilike.%${q}%${clis.length ? `,cliente_id.in.(${clis.join(",")})` : ""}`).gte("data_competencia", ini).lte("data_competencia", fim)))
+          .map((r: any) => ({ id: r.id, quem: r.cliente?.nome || "", descricao: r.descricao || "", valor: Number(r.valor), vencimento: r.data_competencia, categoria_id: r.categoria_id, de: r.categoria?.nome || "Sem categoria" }));
+      }
+      const v = Number(a?.valor);
+      if (v > 0) { const rv = rows.filter((x) => Math.abs(x.valor - v) < 0.01); if (rv.length) rows = rv; }
+      const d = dataOk(a?.data);
+      if (d) { const rd = rows.filter((x) => x.vencimento === d); if (rd.length) rows = rd; }
+      rows = rows.filter((x) => x.categoria_id !== cat.id).sort((x, y) => String(x.vencimento).localeCompare(String(y.vencimento)));
+      if (!rows.length) return JSON.stringify({ erro: `Não achei lançamento com "${q}" fora de ${cat.nome} entre ${dBR(ini)} e ${dBR(fim)}.` });
+      if (rows.length > 1 && !a?.todos) {
+        return JSON.stringify({ precisa_escolher: true, quantidade: rows.length,
+          opcoes: rows.slice(0, 8).map((x) => ({ quem: x.quem, descricao: x.descricao, valor: x.valor, data: x.vencimento, categoria_atual: x.de })),
+          obs: `Achei ${rows.length}. Pergunte se é para mudar TODOS (chame de novo com todos: true) ou qual deles (chame com valor/data).` });
+      }
+      const sel = rows.slice(0, 100);
+      acoes.push({ id: novoId(), tipo: "alterar_categoria", lanc, ids: sel.map((x) => x.id), categoria_id: cat.id, categoria_nome: cat.nome,
+        quantidade: sel.length, total: Math.round(sel.reduce((s, x) => s + x.valor, 0) * 100) / 100,
+        exemplos: sel.slice(0, 5).map((x) => ({ quem: x.quem, descricao: x.descricao, valor: x.valor, data: x.vencimento, de: x.de })) });
+      return JSON.stringify({ ok: true, quantidade: sel.length, para: cat.nome, de: [...new Set(sel.map((x) => x.de))],
+        obs: rows.length > 100 ? `São ${rows.length}; o card muda os 100 primeiros.` : "Muda só a categoria (valor, data e status ficam iguais). Vale também para lançamentos pagos e do cartão." });
+    }
+
+    function transferir(a: any): string {
+      const valor = Math.round(Number(a?.valor) * 100) / 100;
+      if (!(valor > 0)) return JSON.stringify({ erro: "Pergunte o valor da transferência." });
+      const de = acharBancaria(a?.de), para = acharBancaria(a?.para);
+      if (!de.length || !para.length) return JSON.stringify({ erro: `Não achei a conta ${!de.length ? `"${a?.de || ""}" (origem)` : `"${a?.para || ""}" (destino)`}.`, contas: bancariasIara.map((c: any) => c.nome) });
+      if (de[0].id === para[0].id) return JSON.stringify({ erro: "Origem e destino são a mesma conta." });
+      const data = dataOk(a?.data) || hojeISO;
+      acoes.push({ id: novoId(), tipo: "transferencia", conta_origem_id: de[0].id, origem_nome: de[0].nome, conta_destino_id: para[0].id, destino_nome: para[0].nome,
+        valor, data, descricao: typeof a?.descricao === "string" && a.descricao.trim() ? a.descricao.trim().slice(0, 120) : null });
+      return JSON.stringify({ ok: true, de: de[0].nome, para: para[0].nome, valor, data, obs: "Transferência não muda o saldo total, só onde o dinheiro está." });
+    }
+
+    async function pagarFaturaIara(a: any): Promise<string> {
+      const cartoesC = (contas || []).filter((c: any) => c.tipo === "cartao_credito");
+      const alvo = a?.cartao ? acharConta(cartoesC, a.cartao) : cartoesC;
+      if (!alvo.length) return JSON.stringify({ erro: a?.cartao ? `Não achei o cartão "${a.cartao}".` : "Nenhum cartão cadastrado.", cartoes: cartoesC.map((c: any) => c.nome) });
+      const fats = await safe<any>(supabase.from("cartao_faturas")
+        .select("id, cartao_id, competencia, data_vencimento, status, valor_total, valor_pago").in("cartao_id", alvo.map((c: any) => c.id)));
+      const MES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+      const nomeFat = (f: any) => `${MES[Number(String(f.competencia).slice(5, 7)) - 1]}/${String(f.competencia).slice(0, 4)}`;
+      const abertas = fats.filter((f: any) => f.status !== "paga" && Number(f.valor_total || 0) - Number(f.valor_pago || 0) > 0.005)
+        .sort((x: any, y: any) => String(x.data_vencimento).localeCompare(String(y.data_vencimento)));
+      let f: any = null;
+      const ref = String(a?.fatura || "").trim();
+      if (/^\d{4}-\d{2}/.test(ref)) f = abertas.find((x: any) => String(x.competencia).slice(0, 7) === ref.slice(0, 7)) || null;
+      else if (alvo.length > 1 && abertas.length && new Set(abertas.map((x: any) => x.cartao_id)).size > 1) {
+        return JSON.stringify({ precisa_escolher: true, opcoes: abertas.slice(0, 8).map((x: any) => ({ cartao: alvo.find((c: any) => c.id === x.cartao_id)?.nome, fatura: nomeFat(x), vence: x.data_vencimento, em_aberto: Math.round((Number(x.valor_total) - Number(x.valor_pago)) * 100) / 100 })), obs: "Pergunte qual cartão/fatura." });
+      } else f = abertas[0] || null; // a mais antiga em aberto
+      if (!f) return JSON.stringify({ erro: "Não há fatura em aberto para pagar nesse cartão." });
+      const cartao = alvo.find((c: any) => c.id === f.cartao_id);
+      const emAberto = Math.round((Number(f.valor_total) - Number(f.valor_pago)) * 100) / 100;
+      const valor = Number(a?.valor) > 0 ? Math.round(Number(a.valor) * 100) / 100 : emAberto;
+      if (valor > emAberto + 0.001) return JSON.stringify({ erro: `O valor é maior que o que falta na fatura (R$ ${emAberto.toFixed(2).replace(".", ",")}).` });
+      let conta: any = null;
+      if (a?.conta) { const cs = acharBancaria(a.conta); if (!cs.length) return JSON.stringify({ erro: `Não achei a conta "${a.conta}".`, contas: bancariasIara.map((c: any) => c.nome) }); conta = cs[0]; }
+      conta = conta || bancariasIara.find((c: any) => c.id === cartao?.conta_pagamento_padrao_id) || bancariasIara[0];
+      if (!conta) return JSON.stringify({ erro: "Cadastre uma conta bancária para pagar a fatura." });
+      const data = dataOk(a?.data) || hojeISO;
+      if (data > hojeISO) return JSON.stringify({ erro: "Pagamento futuro não: registre quando pagar." });
+      acoes.push({ id: novoId(), tipo: "pagar_fatura", fatura_id: f.id, cartao_id: f.cartao_id, cartao_nome: cartao?.nome || "Cartão", fatura_nome: nomeFat(f),
+        vencimento: f.data_vencimento, em_aberto: emAberto, valor, conta_id: conta.id, conta_nome: conta.nome, data });
+      return JSON.stringify({ ok: true, cartao: cartao?.nome, fatura: nomeFat(f), vence: f.data_vencimento, em_aberto: emAberto, valor, conta: conta.nome, data,
+        obs: valor < emAberto ? "Pagamento parcial: a fatura fica parcialmente paga." : "Ao confirmar, sai da conta e os itens da fatura ficam pagos." });
+    }
+
+    async function alterarContrato(a: any): Promise<string> {
+      const acao = String(a?.acao || "");
+      if (!["pausar", "reativar", "encerrar", "reajustar"].includes(acao)) return JSON.stringify({ erro: "acao deve ser pausar, reativar, encerrar ou reajustar." });
+      const todos = await safe<any>(supabase.from("contratos")
+        .select("id, descricao, valor, recorrencia, status, data_fim, asaas_subscription_id, pausado_desde, pausado_ate, cliente:clientes(nome)").eq("status", "ativo"));
+      let lista = todos.map((c: any) => ({ id: c.id, quem: c.cliente?.nome || "", descricao: c.descricao || "Contrato", valor: Number(c.valor), vencimento: c.data_fim || "", c, sit: situacaoContrato(c, hojeISO) }));
+      if (acao === "reativar") lista = lista.filter((x) => !!x.c.pausado_desde && x.sit !== "ativo");
+      const q = norm(a?.quem || "");
+      let r = lista.filter((x) => !q || norm(x.quem).includes(q) || norm(x.descricao).includes(q) || (q.length >= 5 && q.includes(norm(x.quem))));
+      const v = Number(a?.valor);
+      if (v > 0) { const rv = r.filter((x) => Math.abs(x.valor - v) < 0.01); if (rv.length) r = rv; }
+      if (!r.length) return JSON.stringify({ erro: acao === "reativar" ? "Não achei contrato pausado com isso." : "Não achei contrato ATIVO com isso." });
+      if (r.length > 1) return JSON.stringify({ precisa_escolher: true, opcoes: r.slice(0, 8).map((x) => ({ cliente: x.quem, descricao: x.descricao, valor: x.valor, situacao: x.sit })), obs: "Pergunte qual contrato; depois chame de novo com o valor dele." });
+      const x = r[0];
+      const base = { id: novoId(), tipo: "alterar_contrato", acao, contrato_id: x.id, cliente_nome: x.quem, descricao: x.descricao, valor: x.valor,
+        no_asaas: !!x.c.asaas_subscription_id, pausado_desde: x.c.pausado_desde || null, pausado_ate: x.c.pausado_ate || null };
+      if (acao === "pausar") {
+        const desde = dataOk(a?.desde) || hojeISO; const ate = dataOk(a?.ate);
+        if (ate && ate < desde) return JSON.stringify({ erro: "A data de voltar a cobrar é antes do início da pausa." });
+        acoes.push({ ...base, desde, ate: ate || null });
+        return JSON.stringify({ ok: true, contrato: { cliente: x.quem, descricao: x.descricao }, desde, ate: ate || "até reativar",
+          obs: `No período não gera receitas${x.c.asaas_subscription_id ? " e a assinatura do Asaas fica suspensa (cobranças aguardando do período são canceladas)" : ""}.` });
+      }
+      if (acao === "reativar") { acoes.push(base); return JSON.stringify({ ok: true, contrato: { cliente: x.quem, descricao: x.descricao }, obs: "Volta a gerar receitas (e a cobrar no Asaas, se tiver assinatura)." }); }
+      if (acao === "encerrar") {
+        const data = dataOk(a?.data) || hojeISO;
+        const fut = await safe<any>(supabase.from("receitas").select("id, valor").eq("contrato_id", x.id).in("status", ["pendente", "atrasado"]).gt("data_vencimento", data));
+        const totalFut = Math.round(fut.reduce((s: number, y: any) => s + Number(y.valor || 0), 0) * 100) / 100;
+        acoes.push({ ...base, data, receitas_futuras: fut.length, total_futuras: totalFut });
+        return JSON.stringify({ ok: true, contrato: { cliente: x.quem, descricao: x.descricao }, encerra_em: data, receitas_futuras_em_aberto_que_saem: fut.length, total: totalFut,
+          obs: `${x.c.asaas_subscription_id ? "A assinatura do Asaas para e as cobranças aguardando são canceladas (as vencidas ficam). " : ""}O que já foi recebido fica. Diga isso à pessoa.` });
+      }
+      const novo = Math.round(Number(a?.novo_valor) * 100) / 100;
+      if (!(novo > 0)) return JSON.stringify({ erro: "Pergunte o novo valor do contrato." });
+      const vig = dataOk(a?.vigencia) || hojeISO;
+      acoes.push({ ...base, novo_valor: novo, vigencia: vig, motivo: typeof a?.motivo === "string" ? a.motivo.slice(0, 200) : null });
+      const pct = x.valor ? Math.round(((novo - x.valor) / x.valor) * 1000) / 10 : null;
+      return JSON.stringify({ ok: true, contrato: { cliente: x.quem, descricao: x.descricao }, de: x.valor, para: novo, variacao_pct: pct, vigencia: vig,
+        obs: `Fica registrado como reajuste (histórico do contrato).${x.c.asaas_subscription_id ? " A assinatura e as cobranças pendentes do Asaas também mudam." : ""}` });
+    }
+
+    const TPL_WPP = "Olá {cliente}! 👋\n\nSua cobrança de *{descricao}* {prazo}:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\nLink para pagamento:\n{link}\n\nQualquer dúvida, é só chamar!";
+    const TPL_WPP_PIX = "Olá {cliente}! 👋\n\nSua cobrança de *{descricao}* {prazo}:\n💰 Valor: *{valor}*\n📅 Vencimento: {vencimento}\n\n🔑 *Chave PIX:* {pix}\n👤 Em nome de: {titular}\n\nApós o pagamento, é só enviar o comprovante. Obrigado!";
+    const fraseP = (diff: number) => diff > 1 ? `vence em ${diff} dias` : diff === 1 ? "vence amanhã" : diff === 0 ? "vence hoje" : diff === -1 ? "está vencida há 1 dia" : `está vencida há ${Math.abs(diff)} dias`;
+    async function lembreteWhatsapp(a: any): Promise<string> {
+      const linhas = await safe<any>(supabase.from("cobrancas")
+        .select("id, descricao, valor, vencimento, status, invoice_url, envio_pix, exigir_nf, notas_fiscais, nota_fiscal_path, nota_fiscal_enviada, asaas_payment_id, cliente:clientes(nome, telefone)")
+        .in("status", ["pendente", "vencido"]).order("vencimento").limit(500));
+      const porFatura = new Map<string, any>();
+      for (const c of linhas) {
+        const k = c.asaas_payment_id || c.id; const at = porFatura.get(k);
+        if (at) { at.valor += Number(c.valor); at.linhas.push(c); continue; }
+        porFatura.set(k, { ...c, valor: Number(c.valor), quem: c.cliente?.nome || "", linhas: [c] });
+      }
+      const r = filtrar([...porFatura.values()], a);
+      if (!r.length) return JSON.stringify({ erro: "Não achei cobrança EM ABERTO com isso. Lembrete por WhatsApp é para cobrança aguardando ou vencida." });
+      if (r.length > 1) return listaParaPerguntar(r, "cobranças em aberto");
+      const c: any = r[0];
+      const tel = String(c.cliente?.telefone || "").replace(/\D/g, "");
+      if (tel.length < 10) return JSON.stringify({ erro: `${c.quem || "O cliente"} está sem telefone no cadastro. Peça para cadastrar o WhatsApp do cliente em Clientes.` });
+      const temNf = c.linhas.some((l: any) => (Array.isArray(l.notas_fiscais) && l.notas_fiscais.length) || l.nota_fiscal_path);
+      if (temNf || (c.linhas.some((l: any) => l.exigir_nf) && !c.linhas.some((l: any) => l.nota_fiscal_enviada)))
+        return JSON.stringify({ erro: "Essa cobrança tem (ou exige) nota fiscal anexada: mande pela tela de Cobranças → WhatsApp, que envia a nota junto." });
+      const { data: wcs } = await supabase.from("whatsapp_conexoes").select("sid").eq("user_id", user!.id).limit(1);
+      if (!wcs?.length) return JSON.stringify({ erro: "O WhatsApp da empresa não está conectado. Ofereça conectar (mostrar_conexao tipo whatsapp)." });
+      let texto = typeof a?.texto === "string" && a.texto.trim() ? a.texto.trim().slice(0, 2000) : "";
+      if (!texto) {
+        const { data: cfg } = await supabase.from("cobranca_config").select("whatsapp_template, whatsapp_template_pix, pix_chave, pix_titular").maybeSingle();
+        const usaPix = c.linhas.some((l: any) => l.envio_pix) && !!cfg?.pix_chave;
+        const diff = Math.round((Date.parse(c.vencimento + "T00:00:00Z") - Date.parse(hojeISO + "T00:00:00Z")) / 86400000);
+        const tpl = usaPix ? (cfg?.whatsapp_template_pix || TPL_WPP_PIX) : (cfg?.whatsapp_template || TPL_WPP);
+        texto = tpl.replace(/\{cliente\}/g, c.quem || "cliente").replace(/\{descricao\}/g, c.descricao || "cobrança")
+          .replace(/\{valor\}/g, Number(c.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })).replace(/\{vencimento\}/g, dBR(c.vencimento))
+          .replace(/\{prazo\}/g, fraseP(diff)).replace(/\{dias\}/g, String(Math.abs(diff)))
+          .replace(/\{link\}/g, c.invoice_url || "").replace(/\{pix\}/g, cfg?.pix_chave || "").replace(/\{titular\}/g, cfg?.pix_titular || "");
+      }
+      acoes.push({ id: novoId(), tipo: "lembrete_whatsapp", cobranca_id: c.id, cliente_nome: c.quem, telefone: tel, texto,
+        descricao: c.descricao || "Cobrança", valor: Math.round(c.valor * 100) / 100, vencimento: c.vencimento, vencida: c.status === "vencido" });
+      return JSON.stringify({ ok: true, para: c.quem, telefone: tel, cobranca: { descricao: c.descricao, valor: c.valor, vencimento: c.vencimento, status: c.status },
+        obs: "A mensagem (modelo de Cobranças) aparece no card; a pessoa confere e toca em Enviar. Para mudar o texto, chame de novo com 'texto'." });
+    }
+
+    async function definirMeta(a: any): Promise<string> {
+      const periodo = /^\d{4}-\d{2}$/.test(String(a?.mes || "")) ? String(a.mes) : hojeISO.slice(0, 7);
+      const valor = Math.round(Number(a?.valor) * 100) / 100;
+      if (!(valor > 0)) return JSON.stringify({ erro: "Pergunte o valor da meta." });
+      const { data: m } = await supabase.from("metas").select("valor_meta").eq("tipo", "faturamento").eq("periodo", periodo).maybeSingle();
+      acoes.push({ id: novoId(), tipo: "definir_meta", periodo, valor, atual: m ? Number(m.valor_meta) : null });
+      return JSON.stringify({ ok: true, mes: periodo, de: m ? Number(m.valor_meta) : "R$ 15.000 (padrão)", para: valor });
+    }
+
     // ---- Agenda: compromissos e tarefas ----
     const horaOk = (v: unknown) => typeof v === "string" && /^\d{1,2}:\d{2}$/.test(v) ? v.padStart(5, "0") : null;
     function prepararCompromisso(a: any): string {
@@ -1981,6 +2330,22 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
             else if (tc.function.name === "compras_parceladas") result = await toolParceladas(args.incluir_quitadas);
             else if (tc.function.name === "parcelas_comprometidas") result = await toolParcelasComprometidas(args.meses);
             else if (tc.function.name === "fatura_cartao") result = await toolFaturaCartao(args.cartao, args.fatura, args.vence_em);
+            else if (tc.function.name === "cobrancas_lista") result = JSON.stringify(await cobrancasLista(ctxConsulta, args));
+            else if (tc.function.name === "historico_envios") result = JSON.stringify(await historicoEnvios(ctxConsulta, args));
+            else if (tc.function.name === "contratos_lista") result = JSON.stringify(await contratosLista(ctxConsulta, args));
+            else if (tc.function.name === "extrato_conta") result = JSON.stringify(await extratoConta(ctxConsulta, contas || [], args));
+            else if (tc.function.name === "listar_transferencias") result = JSON.stringify(await listarTransferencias(ctxConsulta, contas || [], args));
+            else if (tc.function.name === "pendencias") result = JSON.stringify(await pendenciasIara(ctxConsulta));
+            else if (tc.function.name === "metas") result = JSON.stringify(await metasIara(ctxConsulta, args));
+            else if (tc.function.name === "dar_baixa") result = await darBaixa(args);
+            else if (tc.function.name === "alterar_receita") result = await alterarReceita(args);
+            else if (tc.function.name === "excluir_receita") result = await excluirReceita(args);
+            else if (tc.function.name === "alterar_categoria") result = await alterarCategoria(args);
+            else if (tc.function.name === "transferir") result = transferir(args);
+            else if (tc.function.name === "pagar_fatura") result = await pagarFaturaIara(args);
+            else if (tc.function.name === "alterar_contrato") result = await alterarContrato(args);
+            else if (tc.function.name === "lembrete_whatsapp") result = await lembreteWhatsapp(args);
+            else if (tc.function.name === "definir_meta") result = await definirMeta(args);
             else if (tc.function.name === "status_conexoes") result = JSON.stringify(await statusConexoes());
             else if (tc.function.name === "mostrar_conexao") {
               const t = String(args.tipo || "");

@@ -1,7 +1,8 @@
 // Card de confirmação das ações que a IARA preparou: cliente, contrato e cobrança.
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Check, Copy, ExternalLink, FileSignature, Loader2, Receipt, UserPlus, X, AlertTriangle, CalendarClock, Trash2, ArrowRight, CalendarPlus, ListTodo, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Check, Copy, ExternalLink, FileSignature, Loader2, Receipt, UserPlus, X, AlertTriangle, CalendarClock, Trash2, ArrowRight, CalendarPlus, ListTodo, CheckCircle2, RotateCcw, Tags, ArrowLeftRight, CreditCard, MessageCircle, Target, PauseCircle, PlayCircle, Ban, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCPFCNPJ, formatCurrency, formatDate, formatPhone } from '@/utils/formatters';
 import { useToast } from '@/hooks/use-toast';
@@ -28,7 +29,161 @@ function Mudanca({ de, para }: { de: string; para: string }) {
   );
 }
 
+/** Cabeçalho padrão de uma linha do card. */
+function Topo({ icone, titulo, valor, tom }: { icone: React.ReactNode; titulo: React.ReactNode; valor?: number; tom?: 'ok' | 'perigo' }) {
+  return (
+    <div className="flex items-center gap-2">
+      {icone}
+      <span className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-foreground">{titulo}</span>
+      {valor != null && (
+        <span className={cn('shrink-0 font-heading text-[14px] font-semibold tabular-nums', tom === 'perigo' ? 'text-danger-fg' : tom === 'ok' ? 'text-success-fg' : 'text-foreground')}>
+          {formatCurrency(valor)}
+        </span>
+      )}
+    </div>
+  );
+}
+const Linha = ({ children }: { children: React.ReactNode }) => <div className="border-b border-border px-3 py-2.5 last:border-b-0">{children}</div>;
+const Chips = ({ children }: { children: React.ReactNode }) => <div className="mt-1.5 flex flex-wrap gap-1">{children}</div>;
+const mesAno = (p: string) => p.split('-').reverse().join('/');
+
+/** Cards das ações de baixa, receita, categoria, transferência, fatura, contrato, WhatsApp e meta. */
+function ItemExtra({ a }: { a: AcaoIara }) {
+  switch (a.tipo) {
+    case 'dar_baixa': {
+      const rec = a.lanc === 'receita';
+      return (
+        <Linha>
+          <Topo icone={<CheckCircle2 className="h-4 w-4 shrink-0 text-success-fg" />} titulo={<>{rec ? 'Marcar como recebida' : 'Marcar como paga'} · {a.descricao}</>} valor={a.valor} tom={rec ? 'ok' : undefined} />
+          <Chips>
+            {a.quem && <Chip>{a.quem}</Chip>}
+            <Chip tom="info">{rec ? 'recebida' : 'paga'} em {formatDate(a.data)}</Chip>
+            {a.conta_nome && <Chip>{rec ? 'entra em' : 'sai de'} {a.conta_nome}</Chip>}
+            <Chip>vencia {formatDate(a.vencimento)}</Chip>
+            {a.via_asaas && <Chip tom="info">também no Asaas</Chip>}
+          </Chips>
+        </Linha>
+      );
+    }
+    case 'alterar_receita':
+      return (
+        <Linha>
+          <Topo icone={<CalendarClock className="h-4 w-4 shrink-0 text-primary" />} titulo={<>Alterar receita · {a.descricao}</>} />
+          <Chips>
+            {a.cliente_nome && <Chip>{a.cliente_nome}</Chip>}
+            {a.novo_vencimento ? <Mudanca de={formatDate(a.vencimento_atual)} para={formatDate(a.novo_vencimento)} /> : <Chip>vence {formatDate(a.vencimento_atual)}</Chip>}
+            {a.novo_valor ? <Mudanca de={formatCurrency(a.valor_atual)} para={formatCurrency(a.novo_valor)} /> : <Chip>{formatCurrency(a.valor_atual)}</Chip>}
+            {a.nova_descricao && <Mudanca de={a.descricao} para={a.nova_descricao} />}
+            {a.de_contrato && <Chip tom="warn">só este mês</Chip>}
+          </Chips>
+        </Linha>
+      );
+    case 'excluir_receita':
+      return (
+        <Linha>
+          <Topo icone={<Trash2 className="h-4 w-4 shrink-0 text-danger-fg" />} titulo={<>Excluir receita · {a.descricao}</>} valor={a.valor} tom="perigo" />
+          <Chips>
+            {a.cliente_nome && <Chip>{a.cliente_nome}</Chip>}
+            <Chip>vence {formatDate(a.vencimento)}</Chip>
+            {a.de_contrato && <Chip tom="warn">só este mês · o contrato continua</Chip>}
+          </Chips>
+        </Linha>
+      );
+    case 'alterar_categoria':
+      return (
+        <Linha>
+          <Topo icone={<Tags className="h-4 w-4 shrink-0 text-primary" />} titulo={<>Trocar categoria · {a.quantidade} lançamento{a.quantidade === 1 ? '' : 's'}</>} valor={a.total} />
+          <Chips><Chip tom="info">para {a.categoria_nome}</Chip><Chip>{a.lanc === 'receita' ? 'receitas' : 'despesas'}</Chip></Chips>
+          <ul className="mt-1.5 space-y-0.5">
+            {a.exemplos.map((x, i) => (
+              <li key={i} className="text-[11.5px] leading-snug text-foreground-muted">
+                {[x.quem, x.descricao].filter(Boolean).join(' · ')} — {formatCurrency(x.valor)} · {formatDate(x.data)} · era <span className="line-through">{x.de}</span>
+              </li>
+            ))}
+            {a.quantidade > a.exemplos.length && <li className="text-[11.5px] text-foreground-muted">+ {a.quantidade - a.exemplos.length} lançamento(s)</li>}
+          </ul>
+        </Linha>
+      );
+    case 'transferencia':
+      return (
+        <Linha>
+          <Topo icone={<ArrowLeftRight className="h-4 w-4 shrink-0 text-primary" />} titulo={<>Transferência{a.descricao ? ` · ${a.descricao}` : ''}</>} valor={a.valor} />
+          <Chips>
+            <span className="inline-flex items-center gap-1 rounded-full bg-info-bg px-2 py-0.5 text-[11px] font-semibold text-info-fg">{a.origem_nome}<ArrowRight className="h-3 w-3" />{a.destino_nome}</span>
+            <Chip>{formatDate(a.data)}</Chip>
+          </Chips>
+        </Linha>
+      );
+    case 'pagar_fatura':
+      return (
+        <Linha>
+          <Topo icone={<CreditCard className="h-4 w-4 shrink-0 text-primary" />} titulo={<>Pagar fatura · {a.cartao_nome}</>} valor={a.valor} />
+          <Chips>
+            <Chip>fatura de {a.fatura_nome}</Chip>
+            <Chip tom="info">sai de {a.conta_nome}</Chip>
+            <Chip>pago em {formatDate(a.data)}</Chip>
+            <Chip>vence {formatDate(a.vencimento)}</Chip>
+            {a.valor < a.em_aberto - 0.005 && <Chip tom="warn">parcial · falta {formatCurrency(a.em_aberto - a.valor)}</Chip>}
+          </Chips>
+        </Linha>
+      );
+    case 'alterar_contrato': {
+      const cfg = {
+        pausar: { icone: <PauseCircle className="h-4 w-4 shrink-0 text-warning-fg" />, nome: 'Pausar contrato' },
+        reativar: { icone: <PlayCircle className="h-4 w-4 shrink-0 text-success-fg" />, nome: 'Reativar contrato' },
+        encerrar: { icone: <Ban className="h-4 w-4 shrink-0 text-danger-fg" />, nome: 'Encerrar contrato' },
+        reajustar: { icone: <TrendingUp className="h-4 w-4 shrink-0 text-primary" />, nome: 'Reajustar contrato' },
+      }[a.acao];
+      return (
+        <Linha>
+          <Topo icone={cfg.icone} titulo={<>{cfg.nome} · {a.descricao}</>} valor={a.acao === 'reajustar' ? undefined : a.valor} />
+          <Chips>
+            {a.cliente_nome && <Chip>{a.cliente_nome}</Chip>}
+            {a.acao === 'pausar' && <Chip tom="info">de {formatDate(a.desde!)} {a.ate ? `até ${formatDate(a.ate)}` : 'até reativar'}</Chip>}
+            {a.acao === 'reativar' && a.pausado_desde && <Chip>pausado desde {formatDate(a.pausado_desde)}</Chip>}
+            {a.acao === 'encerrar' && <Chip tom="info">encerra em {formatDate(a.data!)}</Chip>}
+            {a.acao === 'reajustar' && <Mudanca de={formatCurrency(a.valor)} para={formatCurrency(a.novo_valor || 0)} />}
+            {a.acao === 'reajustar' && <Chip>a partir de {formatDate(a.vigencia!)}</Chip>}
+            {a.no_asaas && <Chip tom="info">{a.acao === 'encerrar' ? 'para a assinatura no Asaas' : a.acao === 'pausar' ? 'suspende no Asaas' : a.acao === 'reativar' ? 'volta a cobrar no Asaas' : 'muda no Asaas'}</Chip>}
+          </Chips>
+          {a.acao === 'reajustar' && a.motivo && <p className="mt-1 text-[11.5px] text-foreground-muted">{a.motivo}</p>}
+          {a.acao === 'encerrar' && !!a.receitas_futuras && (
+            <p className="mt-1.5 rounded-[12px] bg-warning-bg px-2.5 py-1.5 text-[11.5px] text-warning-fg">
+              {a.receitas_futuras} receita{a.receitas_futuras === 1 ? '' : 's'} futura{a.receitas_futuras === 1 ? '' : 's'} em aberto {a.receitas_futuras === 1 ? 'sai' : 'saem'} ({formatCurrency(a.total_futuras || 0)}). O que já foi recebido fica.
+            </p>
+          )}
+        </Linha>
+      );
+    }
+    case 'lembrete_whatsapp':
+      return (
+        <Linha>
+          <Topo icone={<MessageCircle className="h-4 w-4 shrink-0 text-success-fg" />} titulo={<>Lembrete no WhatsApp · {a.cliente_nome}</>} valor={a.valor} />
+          <Chips>
+            <Chip>{formatPhone(a.telefone)}</Chip>
+            <Chip tom={a.vencida ? 'warn' : undefined}>{a.vencida ? 'venceu' : 'vence'} {formatDate(a.vencimento)}</Chip>
+          </Chips>
+          <p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-[12px] bg-success-bg/60 px-3 py-2 text-[12px] leading-[1.45] text-foreground">{a.texto}</p>
+        </Linha>
+      );
+    case 'definir_meta':
+      return (
+        <Linha>
+          <Topo icone={<Target className="h-4 w-4 shrink-0 text-primary" />} titulo={<>Meta de faturamento · {mesAno(a.periodo)}</>} />
+          <Chips>
+            <Mudanca de={a.atual != null ? formatCurrency(a.atual) : `${formatCurrency(15000)} (padrão)`} para={formatCurrency(a.valor)} />
+            <Chip>recebido no mês</Chip>
+          </Chips>
+        </Linha>
+      );
+    default:
+      return null;
+  }
+}
+
 function Item({ a, usarExistente, setUsarExistente }: { a: AcaoIara; usarExistente: boolean; setUsarExistente: (v: boolean) => void }) {
+  const extra = ItemExtra({ a });
+  if (extra) return extra;
   if (a.tipo === 'compromisso' || a.tipo === 'tarefa') {
     const comp = a.tipo === 'compromisso';
     return (
@@ -181,6 +336,7 @@ function Item({ a, usarExistente, setUsarExistente }: { a: AcaoIara; usarExisten
       </div>
     );
   }
+  if (a.tipo !== 'cobranca') return null;
   return (
     <div className="border-b border-border px-3 py-2.5 last:border-b-0">
       <div className="flex items-center gap-2">
@@ -201,6 +357,7 @@ function Item({ a, usarExistente, setUsarExistente }: { a: AcaoIara; usarExisten
 
 export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onResolved: () => void }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [salvando, setSalvando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoAcao[] | null>(null);
   const [usarExistente, setUsarExistente] = useState<Record<string, boolean>>({});
@@ -210,10 +367,12 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
     try {
       const r = await executarAcoes(acoes, usarExistente);
       setResultado(r);
+      // Telas abertas (Início, Fluxo, Contas, Cobranças…) refletem na hora.
+      if (r.some((x) => x.ok)) void queryClient.invalidateQueries();
       const falhas = r.filter((x) => !x.ok).length;
       toast(falhas
         ? { title: 'Parte não foi criada', description: `${r.length - falhas} de ${r.length} ok. Veja o motivo no card.`, variant: 'destructive' }
-        : { title: 'Pronto!', description: 'Tudo criado.' });
+        : { title: 'Pronto!', description: 'Tudo certo.' });
     } catch (e) {
       toast({ title: 'Erro', description: e instanceof Error ? e.message : 'Tente de novo.', variant: 'destructive' });
     } finally {
@@ -254,7 +413,15 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
   }
 
   const n = acoes.length;
-  const soRemove = acoes.every((a) => a.tipo === 'cancelar_cobranca' || a.tipo === 'excluir_despesa' || a.tipo === 'excluir_agenda');
+  const soRemove = acoes.every((a) => a.tipo === 'cancelar_cobranca' || a.tipo === 'excluir_despesa' || a.tipo === 'excluir_receita' || a.tipo === 'excluir_agenda');
+  const soWhats = acoes.every((a) => a.tipo === 'lembrete_whatsapp');
+  const mexeAsaas = acoes.some((a) => ['cobranca', 'alterar_cobranca', 'cancelar_cobranca'].includes(a.tipo)
+    || (a.tipo === 'contrato' && a.cobrar_no_asaas) || (a.tipo === 'dar_baixa' && a.via_asaas) || (a.tipo === 'alterar_contrato' && a.no_asaas));
+  const aviso = soRemove ? 'Isso não dá para desfazer.'
+    : acoes.every((a) => ['compromisso', 'tarefa', 'concluir_tarefa', 'alterar_agenda'].includes(a.tipo)) ? 'Vale também para o Google Agenda e Tarefas, se estiver conectado.'
+    : soWhats ? 'A mensagem sai na hora pelo WhatsApp da empresa.'
+    : mexeAsaas ? 'Cobranças e assinaturas mudam de verdade no Asaas.'
+    : 'Muda direto no financeiro.';
   return (
     <div className="mt-2.5 rounded-[20px] border border-border bg-surface p-3">
       <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Prévia · confira antes de confirmar</div>
@@ -265,7 +432,7 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
         ))}
       </div>
       <p className="px-1 pt-2.5 text-[11px] leading-[1.45] text-foreground-muted">
-        {soRemove ? 'Isso não dá para desfazer.' : acoes.every((a) => ['compromisso', 'tarefa', 'concluir_tarefa', 'alterar_agenda'].includes(a.tipo)) ? 'Vale também para o Google Agenda e Tarefas, se estiver conectado.' : 'Cobranças e assinaturas mudam de verdade no Asaas.'} Para ajustar algo, é só me dizer (ex.: "muda o vencimento para dia 30").
+        {aviso} Para ajustar algo, é só me dizer (ex.: "muda o vencimento para dia 30").
       </p>
       <div className="mt-2.5 flex gap-2">
         <button onClick={onResolved} aria-label="Descartar" disabled={salvando}
@@ -275,8 +442,8 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
         <button onClick={confirmar} disabled={salvando}
           className={cn('flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[13px] font-semibold transition-colors disabled:opacity-50',
             soRemove ? 'bg-danger-fg text-white hover:opacity-90' : 'bg-primary text-primary-foreground hover:bg-primary/90')}>
-          {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : soRemove ? <Trash2 className="h-4 w-4" /> : <Check className="h-4 w-4" />}
-          {salvando ? 'Aplicando…' : soRemove ? (n === 1 ? 'Confirmar exclusão' : `Excluir ${n} itens`) : n === 1 ? 'Confirmar' : `Confirmar ${n} itens`}
+          {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : soRemove ? <Trash2 className="h-4 w-4" /> : soWhats ? <MessageCircle className="h-4 w-4" /> : <Check className="h-4 w-4" />}
+          {salvando ? 'Aplicando…' : soRemove ? (n === 1 ? 'Confirmar exclusão' : `Excluir ${n} itens`) : soWhats ? (n === 1 ? 'Enviar' : `Enviar ${n} mensagens`) : n === 1 ? 'Confirmar' : `Confirmar ${n} itens`}
         </button>
       </div>
     </div>
