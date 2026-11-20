@@ -21,7 +21,7 @@ import { useContas, useAccountRunningBalance } from '@/hooks/useContas';
 import { useTransferencias, type TransferenciaFormData } from '@/hooks/useTransferencias';
 import { useMultiSelect } from '@/hooks/useMultiSelect';
 import { ArrowRightLeft, ArrowUp, ArrowDown, BarChart3, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Copy, CreditCard, Download, FileText, MoreHorizontal, Paperclip, Pencil, Plus, Receipt, Search, SlidersHorizontal, Store, Trash2, TrendingDown, Upload, User, X } from 'lucide-react';
-import { ResumoPeriodo } from '@/components/fluxocaixa/FluxoCaixaKPIRow';
+import { ResumoPeriodo, type PartesMovimento } from '@/components/fluxocaixa/FluxoCaixaKPIRow';
 import { ReceiptGenerator, type ReceiptData } from '@/components/shared/ReceiptGenerator';
 import { DatePickerField } from '@/components/shared/DatePickerField';
 import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, addDays, addWeeks, addMonths, addYears, endOfDay, isToday } from 'date-fns';
@@ -41,7 +41,7 @@ import { toast } from 'sonner';
 import { GerarCobrancaDialog } from '@/components/fluxocaixa/GerarCobrancaDialog';
 import { BarraSelecao } from '@/components/fluxocaixa/BarraSelecao';
 import { TipoIcone } from '@/components/fluxocaixa/TipoIcone';
-import { FORMA_LABEL, serieDe, statusInfo, dataDoLancamento, type BaseData } from '@/components/fluxocaixa/lancamento';
+import { FORMA_LABEL, serieDe, statusInfo, dataDoLancamento, situacaoDe, type BaseData, type SituacaoLanc } from '@/components/fluxocaixa/lancamento';
 import { ExcluirLancamento } from '@/components/fluxocaixa/ExcluirLancamento';
 import { CabecalhoDiaFixo } from '@/components/fluxocaixa/CabecalhoDiaFixo';
 import { Chips, ContasPick, ExcluirSheet, QuickDatas, ResumoLateral, Stepper, ValorInput } from '@/components/fluxocaixa/formPecas';
@@ -152,7 +152,16 @@ export default function FluxoCaixa() {
   // Filters - default to current month
   const currentMonth = format(new Date(), 'yyyy-MM');
   const [tipoFilter, setTipoFilter] = useState<TipoTransacao>(initialTipo);
-  const [statusFilter, setStatusFilter] = useState<string[]>(initialStatus);
+  // Situação com seleção múltipla (vazio = todas). Vem do link (?status=pendente,atrasado|recebido,pago).
+  const [statusFilter, setStatusFilter] = useState<SituacaoLanc[]>(() => {
+    const s = new Set<SituacaoLanc>();
+    for (const v of initialStatus) {
+      if (v === 'recebido' || v === 'pago') s.add('efetivado');
+      else if (v === 'pendente') { s.add('aberto'); s.add('atrasado'); }
+      else if (v === 'atrasado') s.add('atrasado');
+    }
+    return s.size === 3 ? [] : [...s];
+  });
   // ?mes=yyyy-MM (ou 'all'), ?conta=<id>, ?categoria=<id>[,<id>] — usados pelos números
   // clicáveis do início, dos relatórios e da conferência de saldo.
   const mesParam = searchParams.get('mes');
@@ -261,28 +270,6 @@ export default function FluxoCaixa() {
   });
 
 
-  // Status options based on tipo filter
-  const statusOptions = useMemo(() => {
-    if (tipoFilter === 'entrada') {
-      return [
-        { value: 'pendente', label: 'Pendente' },
-        { value: 'recebido', label: 'Recebido' },
-        { value: 'atrasado', label: 'Atrasado' },
-      ];
-    } else if (tipoFilter === 'saida') {
-      return [
-        { value: 'pendente', label: 'Pendente' },
-        { value: 'pago', label: 'Pago' },
-        { value: 'atrasado', label: 'Atrasado' },
-      ];
-    }
-    return [
-      { value: 'pendente', label: 'Pendente' },
-      { value: 'recebido', label: 'Recebido' },
-      { value: 'pago', label: 'Pago' },
-      { value: 'atrasado', label: 'Atrasado' },
-    ];
-  }, [tipoFilter]);
 
   // Categorias do filtro: só as do tipo da aba (Receitas/Despesas); em "Tudo", os dois grupos.
   const categoriaGrupos = useMemo(() => {
@@ -308,15 +295,11 @@ export default function FluxoCaixa() {
   const toggleCategoria = (id: string) =>
     setCategoriaFilter(prev => (prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]));
 
-  // Filter transactions
-  const filteredTransacoes = useMemo(() => {
+  // Filtros de período/conta/categoria/busca (sem a situação): base dos cards de resumo,
+  // que mostram o previsto do período mesmo quando a lista está filtrada por situação.
+  const baseTransacoes = useMemo(() => {
     const filtered = transacoes.filter(t => {
       const matchesTipo = tipoFilter === 'todas' || t.tipo === tipoFilter;
-      // "Pendente" engloba os vencidos (status 'atrasado') — não expomos filtro de atrasado separado.
-      const matchesStatus =
-        statusFilter.length === 0 ||
-        statusFilter.includes(t.status) ||
-        (statusFilter.includes('pendente') && t.status === 'atrasado');
       const matchesSearch = !searchTerm || 
         t.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.cliente?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -340,7 +323,7 @@ export default function FluxoCaixa() {
         matchesDate = isWithinInterval(parseISO(dataRef), { start: dateRangeStart, end: dateRangeEnd });
       }
       
-      return matchesTipo && matchesStatus && matchesSearch && matchesConta && matchesCategoria && matchesDate;
+      return matchesTipo && matchesSearch && matchesConta && matchesCategoria && matchesDate;
     });
     
     return filtered.sort((a, b) => {
@@ -381,7 +364,12 @@ export default function FluxoCaixa() {
       
       return sortConfig.direction === 'asc' ? comparison : -comparison;
     });
-  }, [transacoes, tipoFilter, statusFilter, monthFilter, searchTerm, contaFilter, categoriaFilter, dateFilterMode, dateRangeStart, dateRangeEnd, sortConfig, contas, dataBase]);
+  }, [transacoes, tipoFilter, monthFilter, searchTerm, contaFilter, categoriaFilter, dateFilterMode, dateRangeStart, dateRangeEnd, sortConfig, contas, dataBase]);
+  // Situação real (atrasado = passou do vencimento, mesmo com status 'pendente' no banco).
+  const filteredTransacoes = useMemo(
+    () => (statusFilter.length === 0 ? baseTransacoes : baseTransacoes.filter(t => statusFilter.includes(situacaoDe(t)))),
+    [baseTransacoes, statusFilter],
+  );
 
   // Handle sort toggle
   const handleSort = (column: SortColumn) => {
@@ -897,7 +885,8 @@ export default function FluxoCaixa() {
   };
 
   // ===== Helpers de layout =====
-  const changeTipo = (v: TipoTransacao) => { setTipoFilter(v); setStatusFilter([]); };
+  // A situação (em aberto/atrasadas/efetivadas) vale para entradas e saídas: trocar o tipo mantém a escolha.
+  const changeTipo = (v: TipoTransacao) => { setTipoFilter(v); };
   const mesBase = monthFilter === 'all' ? currentMonth : monthFilter;
   const monthLabel = monthFilter === 'all'
     ? 'Todos os meses'
@@ -920,28 +909,27 @@ export default function FluxoCaixa() {
     setMonthFilter(m === 'tudo' ? 'all' : (monthFilter === 'all' ? currentMonth : monthFilter));
   };
 
-  // Situação (segmentado) ↔ statusFilter. "Em aberto" usa 'pendente', que já engloba os atrasados.
-  type Situ = 'todas' | 'aberto' | 'atrasado' | 'efetivado';
-  const situ: Situ | null = statusFilter.length === 0 ? 'todas'
-    : statusFilter.includes('pendente') ? 'aberto'
-    : statusFilter.every(v => v === 'atrasado') ? 'atrasado'
-    : statusFilter.every(v => v === 'recebido' || v === 'pago') ? 'efetivado'
-    : null;
-  const setSitu = (v: Situ) => setStatusFilter(v === 'todas' ? [] : v === 'aberto' ? ['pendente'] : v === 'atrasado' ? ['atrasado'] : ['recebido', 'pago']);
-  const SITU_OPTS: [Situ, string][] = [['todas', 'Todas'], ['aberto', 'Em aberto'], ['atrasado', 'Atrasadas'], ['efetivado', 'Efetivadas']];
+  // Situação: "Todas" limpa; as outras ligam/desligam e podem ser combinadas (ex.: em aberto + atrasadas).
+  const SITU_OPTS: [SituacaoLanc, string][] = [['aberto', 'Em aberto'], ['atrasado', 'Atrasadas'], ['efetivado', 'Efetivadas']];
+  const alternarSitu = (v: SituacaoLanc) => setStatusFilter(prev => {
+    const next = prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v];
+    return next.length === 3 ? [] : next;
+  });
+  const situChip = (ativo: boolean) => cn('h-8 shrink-0 whitespace-nowrap rounded-full px-3.5 text-[13px] transition-colors', ativo ? 'bg-foreground text-background' : 'text-foreground-muted hover:text-foreground');
+  const situChipMob = (ativo: boolean) => cn('h-8 shrink-0 rounded-full border px-3.5 text-[13px]', ativo ? 'border-foreground bg-foreground text-background' : 'border-border bg-surface text-foreground-muted');
 
   // Números do período: realizado × previsto (transferências são neutras)
+  // Base: período/conta/categoria/busca SEM a situação — os cards mostram o previsto do período
+  // e o número grande acompanha a situação escolhida (ver ResumoPeriodo).
   const resumo = useMemo(() => {
-    const reais = filteredTransacoes.filter(t => t.tabela_origem !== 'transferencia');
-    const soma = (f: (t: TransacaoUnificada) => boolean) => reais.filter(f).reduce((acc, t) => acc + Number(t.valor || 0), 0);
-    return {
-      entOk: soma(t => t.tipo === 'entrada' && t.status === 'recebido'),
-      entTot: soma(t => t.tipo === 'entrada'),
-      saiOk: soma(t => t.tipo === 'saida' && t.status === 'pago'),
-      saiTot: soma(t => t.tipo === 'saida'),
-      atraso: soma(t => t.tipo === 'entrada' && statusInfo(t).tom === 'atraso'),
+    const reais = baseTransacoes.filter(t => t.tabela_origem !== 'transferencia');
+    const partes = (tipo: 'entrada' | 'saida'): PartesMovimento => {
+      const p: PartesMovimento = { efetivado: 0, aberto: 0, atrasado: 0 };
+      for (const t of reais) if (t.tipo === tipo) p[situacaoDe(t)] += Number(t.valor || 0);
+      return p;
     };
-  }, [filteredTransacoes]);
+    return { entradas: partes('entrada'), saidas: partes('saida') };
+  }, [baseTransacoes]);
 
   const contaById = useMemo(() => new Map(contas.map(c => [c.id, c])), [contas]);
   const contaEhCartao = (id?: string | null) => !!id && contaById.get(id)?.tipo === 'cartao_credito';
@@ -1094,20 +1082,21 @@ export default function FluxoCaixa() {
 
         {/* Números do período */}
         <ResumoPeriodo
-          entradasOk={resumo.entOk}
-          entradasTotal={resumo.entTot}
-          saidasOk={resumo.saiOk}
-          saidasTotal={resumo.saiTot}
-          atrasoReceber={resumo.atraso}
-          saldoLabel={modoPeriodo === 'mes' ? 'Saldo do mês' : 'Saldo do período'}
+          entradas={resumo.entradas}
+          saidas={resumo.saidas}
+          selecao={statusFilter}
+          sufixo={modoPeriodo === 'mes' ? 'do mês' : 'do período'}
         />
 
         {/* Barra de filtros */}
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <Segmented<TipoTransacao> size="sm" className="max-sm:w-full" value={tipoFilter} onChange={changeTipo} opts={TIPO_OPTIONS.map(o => [o.v, o.l] as [TipoTransacao, string])} />
-            <div className="hidden md:block">
-              <Segmented<Situ> size="sm" value={situ ?? ('' as Situ)} onChange={setSitu} opts={SITU_OPTS} />
+            <div className="hidden gap-1 rounded-full border border-border bg-surface p-1 md:flex" role="group" aria-label="Situação">
+              <button type="button" onClick={() => setStatusFilter([])} aria-pressed={statusFilter.length === 0} className={situChip(statusFilter.length === 0)}>Todas</button>
+              {SITU_OPTS.map(([v, r]) => (
+                <button key={v} type="button" onClick={() => alternarSitu(v)} aria-pressed={statusFilter.includes(v)} className={situChip(statusFilter.includes(v))}>{r}</button>
+              ))}
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1133,7 +1122,7 @@ export default function FluxoCaixa() {
               {filtrosAtivos > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-foreground px-1.5 text-[10.5px] text-background">{filtrosAtivos}</span>}
             </button>
             <button type="button" onClick={() => setMobileSearchOpen(o => !o)} aria-label="Buscar" aria-pressed={mobileSearchOpen || !!searchTerm} className={cn(btn.icon, 'sm:hidden', (mobileSearchOpen || searchTerm) && 'border-foreground bg-foreground text-background')}><Search className="h-4 w-4" /></button>
-            <label className={cn('ml-auto h-10 w-full items-center gap-2 rounded-full border border-border bg-surface px-3.5 sm:flex sm:w-72', mobileSearchOpen || searchTerm ? 'flex' : 'hidden')}>
+            <label className={cn('h-10 w-full items-center gap-2 rounded-full border border-border bg-surface px-3.5 sm:flex sm:w-auto sm:min-w-[220px] sm:flex-1', mobileSearchOpen || searchTerm ? 'flex' : 'hidden')}>
               <Search className="h-4 w-4 shrink-0 text-foreground-muted" />
               <input
                 type="text"
@@ -1149,12 +1138,13 @@ export default function FluxoCaixa() {
           </div>
           {/* situação no celular */}
           <div className="-mx-3 flex gap-2 overflow-x-auto px-3 scrollbar-hide md:hidden">
+            <button type="button" onClick={() => setStatusFilter([])} aria-pressed={statusFilter.length === 0} className={situChipMob(statusFilter.length === 0)}>Todas</button>
             {SITU_OPTS.map(([v, r]) => (
-              <button key={v} type="button" onClick={() => setSitu(v)} className={cn('h-8 shrink-0 rounded-full border px-3.5 text-[13px]', situ === v ? 'border-foreground bg-foreground text-background' : 'border-border bg-surface text-foreground-muted')}>{r}</button>
+              <button key={v} type="button" onClick={() => alternarSitu(v)} aria-pressed={statusFilter.includes(v)} className={situChipMob(statusFilter.includes(v))}>{r}</button>
             ))}
           </div>
           {/* filtros aplicados */}
-          {(categoriaFilter.length > 0 || dataBase !== 'caixa' || (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd) || situ === null) && (
+          {(categoriaFilter.length > 0 || dataBase !== 'caixa' || (dateFilterMode === 'range' && dateRangeStart && dateRangeEnd)) && (
             <div className="flex flex-wrap gap-2">
               {categoriaFilter.map(id => {
                 const cat = id === SEM_CATEGORIA ? null : categoriaNomePorId.get(id);
@@ -1174,11 +1164,6 @@ export default function FluxoCaixa() {
                   {format(dateRangeStart, 'dd/MM')}–{format(dateRangeEnd, 'dd/MM')}<X className="h-3.5 w-3.5" />
                 </button>
               )}
-              {situ === null && statusFilter.map(v => (
-                <button key={v} type="button" onClick={() => setStatusFilter(prev => prev.filter(x => x !== v))} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-[12.5px] text-background">
-                  {statusOptions.find(o => o.value === v)?.label ?? v}<X className="h-3.5 w-3.5" />
-                </button>
-              ))}
               <button type="button" onClick={() => { setStatusFilter([]); setCategoriaFilter([]); setDataBase('caixa'); setModoPeriodo('mes'); }} className="h-8 px-2 text-[12.5px] text-foreground-muted hover:text-foreground">Limpar</button>
             </div>
           )}

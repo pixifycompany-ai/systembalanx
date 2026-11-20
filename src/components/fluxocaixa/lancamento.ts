@@ -21,6 +21,13 @@ export function dataDoLancamento(t: TransacaoUnificada, base: BaseData = 'caixa'
   return efetivado(t) && t.data_efetivacao ? t.data_efetivacao : t.data_vencimento;
 }
 
+export type SituacaoLanc = 'aberto' | 'atrasado' | 'efetivado';
+/** Em aberto (no prazo), atrasado (passou do vencimento) ou efetivado (pago/recebido/transferido). */
+export function situacaoDe(t: TransacaoUnificada): SituacaoLanc {
+  if (efetivado(t)) return 'efetivado';
+  return statusInfo(t).tom === 'atraso' ? 'atrasado' : 'aberto';
+}
+
 /** Fatura de cartão (linha de sistema): a baixa é pelo "Pagar fatura". */
 export const ehFatura = (t: Pick<TransacaoUnificada, 'fornecedor'>) => t.fornecedor === '[fatura]';
 
