@@ -444,6 +444,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • LISTAR lançamentos de um período, categoria ou fornecedor ("liste as distribuições de lucro de outubro", "despesas de alimentação esse mês", "tudo que paguei pro X em setembro") → listar_lancamentos. Procurar algo sem período ("quanto já paguei pra X", "quando foi a última compra na Y") → buscar_lancamento. Panorama de um cliente → detalhe_cliente. Saldo atual/cartões → saldo_e_contas. Projeção de caixa futuro → projecao_fluxo. Comparar dois períodos → comparativo_periodos.
   • Por FORMA DE PAGAMENTO ("quanto fiz/paguei/recebi de PIX", "quanto no cartão/boleto/dinheiro") → movimento_por_forma (com o intervalo pedido: hoje, ontem, essa semana, esse mês, período).
   • "Quanto está minha fatura do cartão?" / "quanto devo no cartão" → saldo_e_contas (campo cartoes[].fatura_aberta é a fatura em aberto; total_faturas_abertas é a soma).
+  • QUALQUER pergunta sobre o CONTEÚDO de uma fatura do cartão ("o que tem na fatura", "lançamentos da fatura separados por categoria", "quanto gastei de X no cartão nessa fatura", "fatura de novembro", "a fatura que vence dia 10") → **fatura_cartao**. NUNCA monte uma fatura com listar_lancamentos, resumo_financeiro ou buscar_lancamento: a fatura junta compras de datas de meses diferentes (fecha no meio do mês), então somar por data dá número diferente e deixa itens de fora. Responda com o cabeçalho (cartão · Fatura de <mês> · vence dd/mm · total · status), depois cada categoria em negrito com o total e a %, e embaixo os lançamentos dela (fornecedor/descrição — valor · parcela · data). Liste TODAS as categorias e TODOS os itens que a ferramenta devolver, sem resumir nem cortar; a soma das categorias tem que bater com o total da fatura. Se a pessoa não disser qual fatura, use a atual (a mesma que abre na tela) e diga qual usou.
   • Compras PARCELADAS no cartão ("quantas parcelas faltam", "o que ainda está parcelado", "parcelas do notebook") → compras_parceladas (traz nº de parcelas, pagas, faltam, valor da parcela, próxima data de vencimento e valor restante por compra).
   • Total COMPROMETIDO em parcelas nos próximos meses ("quanto da fatura futura já está tomado", "quanto já devo em parcelas") → parcelas_comprometidas (soma por mês o que falta pagar de parcelas).
   • Indicadores e relatórios (MRR, ARR, churn, LTV, CAC, ticket, coortes, saúde financeira, rentabilidade/margem por cliente, DRE, DFC, comparativo, curva ABC, aging, inadimplência, burn, runway, cartões, conciliação, impostos, KPIs) — "o que é", "como está", "está bom?", "por quê?" → **indicadores_negocio** com os grupos certos (veja a seção Indicadores e relatórios). Se a pergunta vier da tela (bloco TELA QUE A PESSOA ESTÁ VENDO), use primeiro esses números, que são os mesmos da tela.
@@ -520,6 +521,7 @@ ${contexto}${blocoTela}`;
       { type: "function", function: { name: "compras_parceladas", description: "Compras PARCELADAS no cartão: cada compra com nº de parcelas, quantas já foram pagas e quantas FALTAM, valor da parcela, próxima data de vencimento e valor restante. Use p/ 'minhas compras parceladas', 'quantas parcelas faltam do X', 'o que ainda está parcelado no cartão'.", parameters: { type: "object", properties: { incluir_quitadas: { type: "boolean", description: "incluir compras já quitadas (padrão: false)" } } } } },
       { type: "function", function: { name: "categorias_vs_media", description: "Compara o gasto de CADA categoria no período (padrão: mês atual até hoje) com a média mensal DA PRÓPRIA categoria nos meses anteriores (padrão 3). Retorna as que estão acima da média (com diferença e %), mesmo critério do DRE. Use p/ 'despesas acima da média', 'o que aumentou', 'onde estou gastando mais'.", parameters: { type: "object", properties: { inicio: D, fim: D, meses_base: { type: "number", description: "meses anteriores para a média (padrão 3, máx 12)" } } } } },
       { type: "function", function: { name: "parcelas_comprometidas", description: "Quanto das PRÓXIMAS FATURAS já está comprometido com parcelamentos do cartão, somado por MÊS de vencimento (parcelas ainda não pagas). Use p/ 'quanto já devo em parcelas nos próximos meses', 'quanto da fatura futura já está tomado', 'total comprometido em parcelas'.", parameters: { type: "object", properties: { meses: { type: "number", description: "quantos meses à frente (padrão 12)" } } } } },
+      { type: "function", function: { name: "fatura_cartao", description: "Itens de UMA FATURA do cartão de crédito, exatamente como a tela do cartão mostra: total, pago, em aberto, fechamento, vencimento e TODOS os lançamentos agrupados por categoria (com fornecedor, descrição, parcela, data e valor). Use p/ 'o que tem na minha fatura', 'fatura por categoria', 'lançamentos da fatura de novembro', 'quanto gastei de alimentação no cartão nessa fatura'.", parameters: { type: "object", properties: { cartao: { type: "string", description: "nome do cartão (vazio = todos os cartões)" }, fatura: { type: "string", description: "'atual' (padrão, a mesma que abre na tela), 'proxima', 'anterior', 'aberta' (a mais antiga ainda não paga) ou o mês da fatura 'YYYY-MM' — 'fatura de novembro' = '2026-11'" }, vence_em: { type: "string", description: "YYYY-MM: a fatura que VENCE nesse mês (use quando a pessoa falar do vencimento: 'a fatura que vence em dezembro')" } } } } },
       { type: "function", function: { name: "status_conexoes", description: "Estado das conexões da conta: WhatsApp da empresa, Google Agenda/Tarefas, Asaas, notificações no celular e atalho do iPhone. Use quando perguntarem o que está conectado ou se algo está funcionando.", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "mostrar_conexao", description: "Mostra NA CONVERSA o painel para conectar/configurar algo: whatsapp (QR Code), google (Agenda e Tarefas), atalho_iphone, notificacoes (push no celular), asaas (leva à tela segura para colar a chave), instalar_app (passo a passo).", parameters: { type: "object", properties: { tipo: { type: "string", enum: ["whatsapp", "google", "atalho_iphone", "notificacoes", "asaas", "instalar_app"] } }, required: ["tipo"] } } },
       { type: "function", function: { name: "indicadores_negocio", description: "Indicadores e relatórios do negócio com os MESMOS números e fórmulas das telas Visão, Análises e Relatórios, cada bloco com 'como_calcula'. Grupos: recorrencia (MRR, ARR/receita anual projetada, contratos e clientes ativos, crescimento do MRR, série 12m), clientes (LTV, ticket, tempo médio, churn, coortes, LTV/CAC), rentabilidade (lucro e margem por cliente com rateio), saude (nota de saúde financeira 0–100 e os 5 fatores), projecao (receita 6m e caixa 12m), resultado (receitas × despesas e fluxo realizado), dre, dfc, comparativo (mês atual × anterior), categorias, abc (curva ABC), margem (por cliente, sem rateio), aging (a receber/pagar por faixa de atraso), caixa (burn e runway), conciliacao, cartoes, kpis, fiscal (impostos). Use p/ 'o que é / como está / está bom?' de qualquer indicador ou relatório.", parameters: { type: "object", properties: { inicio: { ...D, description: "YYYY-MM-DD (só p/ blocos com período; padrão: 1º de janeiro)" }, fim: { ...D, description: "YYYY-MM-DD (padrão: 31 de dezembro)" }, grupos: { type: "array", items: { type: "string", enum: [...GRUPOS_INDICADORES] }, description: "um ou mais blocos" } }, required: ["grupos"] } } },
@@ -804,7 +806,7 @@ ${contexto}${blocoTela}`;
         lucro_liquido_dre: lucroDre,
         distribuicao_lucros: distrib,
         resultado_apos_distribuicao: lucroDre - distrib,
-        despesas_por_categoria: Object.fromEntries(Object.entries(cat).sort((a, b) => b[1] - a[1]).slice(0, 15)),
+        despesas_por_categoria: Object.fromEntries(Object.entries(cat).sort((a, b) => b[1] - a[1]).slice(0, 40)),
         // Caixa
         recebido, a_receber: aReceber, atrasado_a_receber: atrasadoReceber, falta_receber_total: aReceber + atrasadoReceber,
         pago, a_pagar: aPagar, atrasado_a_pagar: atrasadoPagar, falta_pagar_total: aPagar + atrasadoPagar,
@@ -971,6 +973,81 @@ ${contexto}${blocoTela}`;
       });
     }
 
+    // ---- Fatura do cartão: os itens DE UMA FATURA (fatura_id), como o app mostra ----
+    // Os itens de uma fatura não seguem o mês da compra (ex.: fatura de novembro tem compras de
+    // 26/10 a 25/11), por isso NUNCA se monta a fatura somando despesas por data: lê-se fatura_id.
+    async function toolFaturaCartao(cartao?: string, fatura?: string, venceEm?: string): Promise<string> {
+      const todosCartoes = (contas || []).filter((c: any) => c.tipo === "cartao_credito");
+      if (!todosCartoes.length) return JSON.stringify({ erro: "Nenhum cartão de crédito cadastrado." });
+      const norm = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      let alvo = todosCartoes;
+      if (cartao && norm(cartao)) {
+        const t = norm(cartao);
+        alvo = todosCartoes.filter((c: any) => norm(String(c.nome || "")).includes(t) || norm(String(c.bandeira || "")).includes(t) || t.includes(norm(String(c.nome || ""))));
+        if (!alvo.length) return JSON.stringify({ erro: `Nenhum cartão parecido com "${cartao}".`, cartoes: todosCartoes.map((c: any) => c.nome) });
+      }
+      const fats = await safe<any>(supabase.from("cartao_faturas")
+        .select("id,cartao_id,competencia,data_fechamento,data_vencimento,status,valor_total,valor_pago")
+        .in("cartao_id", alvo.map((c: any) => c.id)));
+      const ym = hojeISO.slice(0, 7);
+      const ref = (fatura || "atual").trim().toLowerCase();
+      const r2 = (x: number) => Math.round(x * 100) / 100;
+      const MES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+      const nomeMes = (iso: string) => `${MES[Number(iso.slice(5, 7)) - 1]}/${iso.slice(0, 4)}`;
+
+      const resultado: any[] = [];
+      for (const c of alvo) {
+        // Mesma ordem e mesma "fatura atual" da tela: a mais recente com competência ≤ mês atual.
+        const lista = fats.filter((f: any) => f.cartao_id === c.id).sort((a: any, b: any) => String(b.competencia).localeCompare(String(a.competencia)));
+        if (!lista.length) { resultado.push({ cartao: c.nome, erro: "Sem faturas." }); continue; }
+        let iAtual = lista.findIndex((f: any) => String(f.competencia || "").slice(0, 7) <= ym);
+        if (iAtual < 0) iAtual = lista.length - 1;
+        let f: any = null;
+        if (venceEm && /^\d{4}-\d{2}/.test(venceEm)) f = lista.find((x: any) => String(x.data_vencimento).slice(0, 7) === venceEm.slice(0, 7));
+        else if (/^\d{4}-\d{2}/.test(ref)) f = lista.find((x: any) => String(x.competencia).slice(0, 7) === ref.slice(0, 7));
+        else if (ref === "proxima" || ref === "próxima") f = lista[iAtual - 1] || null;
+        else if (ref === "anterior") f = lista[iAtual + 1] || null;
+        else if (ref === "aberta" || ref === "em_aberto") f = [...lista].reverse().find((x: any) => x.status !== "paga" && Number(x.valor_total || 0) - Number(x.valor_pago || 0) > 0.005) || lista[iAtual];
+        else f = lista[iAtual];
+        if (!f) {
+          resultado.push({ cartao: c.nome, erro: "Essa fatura não existe.", faturas_disponiveis: lista.slice(0, 12).map((x: any) => ({ fatura: nomeMes(x.competencia), vence: x.data_vencimento, status: x.status, total: r2(Number(x.valor_total || 0)) })) });
+          continue;
+        }
+        const itens = (await safe<any>(supabase.from("despesas")
+          .select("id,descricao,fornecedor,valor,data_competencia,parcela_num,parcela_total,categoria:categorias(nome)")
+          .eq("fatura_id", f.id))).filter((d: any) => !ehMarcador(d.fornecedor));
+        itens.sort((a: any, b: any) => String(a.data_competencia || "").localeCompare(String(b.data_competencia || "")));
+        const total = itens.reduce((s: number, d: any) => s + Number(d.valor || 0), 0);
+        const porCat = new Map<string, { total: number; itens: any[] }>();
+        for (const d of itens) {
+          const k = d.categoria?.nome || "Sem categoria";
+          if (!porCat.has(k)) porCat.set(k, { total: 0, itens: [] });
+          const g = porCat.get(k)!;
+          g.total += Number(d.valor || 0);
+          g.itens.push({ data: d.data_competencia, descricao: d.descricao || null, fornecedor: limpaFornecedor(d.fornecedor), parcela: parcelaTxt(d), valor: r2(Number(d.valor || 0)) });
+        }
+        const categorias = [...porCat.entries()].sort((a, b) => b[1].total - a[1].total).map(([nome, g]) => ({
+          categoria: nome, total: r2(g.total), quantidade: g.itens.length, pct: total ? Math.round((g.total / total) * 1000) / 10 : 0, itens: g.itens,
+        }));
+        const valorTotal = Number(f.valor_total || 0);
+        const pago = Number(f.valor_pago || 0);
+        resultado.push({
+          cartao: c.nome,
+          fatura: nomeMes(f.competencia),
+          fechamento: f.data_fechamento, vencimento: f.data_vencimento, status: f.status,
+          total_fatura: r2(valorTotal), pago: r2(pago), em_aberto: r2(Math.max(valorTotal - pago, 0)),
+          quantidade_lancamentos: itens.length,
+          soma_dos_itens: r2(total),
+          por_categoria: categorias,
+          outras_faturas: lista.slice(Math.max(iAtual - 2, 0), iAtual + 3).filter((x: any) => x.id !== f.id).map((x: any) => ({ fatura: nomeMes(x.competencia), vence: x.data_vencimento, status: x.status, total: r2(Number(x.valor_total || 0)) })),
+        });
+      }
+      return JSON.stringify({
+        faturas: resultado,
+        obs: "Itens lidos da própria fatura (iguais à tela do cartão). A soma de por_categoria é exatamente o total da fatura. 'fatura' é o nome que o app usa (Fatura de <mês>); o vencimento costuma ser no mês seguinte.",
+      });
+    }
+
     function sanitize(t: string) { return (t || "").replace(/[%,()]/g, " ").trim(); }
 
     // Marcadores internos do cartão: sombra da fatura e pagamento da fatura (não são lançamentos "de verdade").
@@ -1055,7 +1132,7 @@ ${contexto}${blocoTela}`;
       const agrupa = (chave: (i: any) => string) => {
         const m: Record<string, { total: number; itens: number }> = {};
         for (const i of itens) { const k = chave(i); m[k] = m[k] || { total: 0, itens: 0 }; m[k].total += i.valor; m[k].itens += 1; }
-        return Object.entries(m).map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.total - a.total).slice(0, 15);
+        return Object.entries(m).map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.total - a.total).slice(0, 40);
       };
       return JSON.stringify({
         periodo: { inicio, fim, criterio: base || "competencia" },
@@ -1903,6 +1980,7 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
             else if (tc.function.name === "movimento_por_forma") result = await toolPorForma(args.inicio, args.fim, args.tipo);
             else if (tc.function.name === "compras_parceladas") result = await toolParceladas(args.incluir_quitadas);
             else if (tc.function.name === "parcelas_comprometidas") result = await toolParcelasComprometidas(args.meses);
+            else if (tc.function.name === "fatura_cartao") result = await toolFaturaCartao(args.cartao, args.fatura, args.vence_em);
             else if (tc.function.name === "status_conexoes") result = JSON.stringify(await statusConexoes());
             else if (tc.function.name === "mostrar_conexao") {
               const t = String(args.tipo || "");
