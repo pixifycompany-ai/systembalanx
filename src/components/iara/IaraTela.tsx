@@ -204,7 +204,7 @@ export function IaraTela(p: IaraTelaProps) {
           </span>
           <div className="min-w-0 leading-tight">
             <p className="font-heading text-[15px] text-foreground">IARA</p>
-            <p className="flex items-center gap-1.5 text-[11.5px] text-foreground-muted"><span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success-fg))]" />online · lê seus números</p>
+            <p className="flex items-center gap-1.5 text-[11.5px] text-foreground-muted"><span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success-fg))]" />online</p>
           </div>
         </div>
         <OlhoValores className="h-9 w-9 shrink-0 rounded-full text-foreground-muted hover:text-foreground [&_svg]:h-4 [&_svg]:w-4" />
