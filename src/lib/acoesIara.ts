@@ -5,7 +5,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { listasEscolhidas, sincronizarGoogleEmSegundoPlano, statusGoogle } from '@/lib/googleAgenda';
 import { pausarContrato, reativarContrato } from '@/lib/pausaContrato';
-import { registrarPagamentoFatura, type FaturaDB } from '@/hooks/useFaturas';
+import { recalcularFatura, registrarPagamentoFatura, type FaturaDB } from '@/hooks/useFaturas';
 import type { ContaDB } from '@/hooks/useContas';
 
 export interface AcaoCliente {
@@ -523,11 +523,16 @@ async function executarExtra(a: AcaoIara, userId: string): Promise<string | null
         g.ids.push(it.id); grupos.set(chave, g);
       }
       let n = 0;
+      const faturas = new Set<string>();
       for (const g of grupos.values()) {
-        const { data, error } = await db.from(a.lanc === 'receita' ? 'receitas' : 'despesas').update(g.patch).in('id', g.ids).select('id');
+        const { data, error } = await db.from(a.lanc === 'receita' ? 'receitas' : 'despesas').update(g.patch).in('id', g.ids)
+          .select(a.lanc === 'receita' ? 'id' : 'id, fatura_id');
         if (error) throw error;
         n += data?.length ?? 0;
+        for (const r of (data || []) as { fatura_id?: string | null }[]) if (r.fatura_id) faturas.add(r.fatura_id);
       }
+      // Despesa de cartão mudou: o total da fatura acompanha.
+      for (const f of faturas) await recalcularFatura(f);
       return `${n} lançamento${n === 1 ? '' : 's'} alterado${n === 1 ? '' : 's'}.`;
     }
     case 'definir_orcamento': {

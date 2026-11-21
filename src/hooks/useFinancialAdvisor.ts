@@ -4,9 +4,10 @@ import type { AcaoIara } from '@/lib/acoesIara';
 import type { ArquivoIara } from '@/lib/arquivoIara';
 
 export interface LancamentoLista { id: string; tipo: 'receita' | 'despesa'; cartao: boolean; data: string | null; quem: string; descricao: string; valor: number; status: string }
-export interface LinhaConf { data: string | null; descricao: string; valor: number; parcela?: string | null; categoria?: string; possivel_duplicado?: boolean }
+export interface LinhaConf { id?: string; data: string | null; descricao: string; valor: number; parcela?: string | null; categoria?: string; possivel_duplicado?: boolean; proxima_fatura?: boolean; sugerir_excluir?: boolean }
+export interface GrupoConf { tipo: 'somado_no_balanx' | 'dividido_no_balanx'; valor: number; balanx: LinhaConf[]; arquivo: LinhaConf[] }
 export interface ConferenciaFatura {
-  cartao: string; fatura_balanx: string; vencimento: string; fechamento: string;
+  cartao: string; fatura_id?: string; fatura_balanx: string; vencimento: string; fechamento: string; agrupados?: GrupoConf[];
   total_pdf_impresso: number | null; total_pdf: number; total_balanx: number; diferenca: number;
   faltam: LinhaConf[]; sobram: LinhaConf[];
   valores_diferentes: { no_pdf: LinhaConf; no_balanx: LinhaConf; diferenca: number }[];

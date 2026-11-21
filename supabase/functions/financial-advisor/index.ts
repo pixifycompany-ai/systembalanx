@@ -1402,7 +1402,9 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
       if (!fat) return JSON.stringify(fj.faturas?.[0] || fj);
       const bal = fat.por_categoria.flatMap((g: any) => g.itens.map((it: any) => ({ ...it, categoria: g.categoria, quem: it.fornecedor || it.descricao || "" })));
 
-      const { faltam, sobram, valorDiferente, conferidos } = cruzarFatura(pdf, bal, fat.fechamento);
+      const { faltam, sobram, valorDiferente, conferidos, agrupados } = cruzarFatura(pdf, bal, fat.fechamento);
+      const sugeridos = sobram.filter((x: any) => x.sugerir_excluir);
+      const somaSugeridos = r2c(sugeridos.reduce((s: number, x: any) => s + x.valor, 0));
       const somaFaltam = r2c(faltam.reduce((s: number, x: any) => s + x.valor, 0));
       const somaSobram = r2c(sobram.reduce((s: number, x: any) => s + x.valor, 0));
       const somaDif = r2c(valorDiferente.reduce((s: number, x: any) => s + x.diferenca, 0));
@@ -1431,7 +1433,7 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
 
       const venc = dBR(fat.vencimento);
       conferenciaEventos.push({
-        cartao: fat.cartao, fatura_balanx: fat.fatura, vencimento: fat.vencimento, fechamento: fat.fechamento,
+        cartao: fat.cartao, fatura_id: fat.fatura_id, fatura_balanx: fat.fatura, agrupados, vencimento: fat.vencimento, fechamento: fat.fechamento,
         total_pdf_impresso: totalPdf > 0 ? r2c(totalPdf) : null, total_pdf: somaPdf, total_balanx: totalBal, diferenca: dif,
         faltam, valores_diferentes: valorDiferente, sobram, conferidos: conferidos.length,
         soma_faltam: somaFaltam, soma_dif: somaDif, soma_sobram: somaSobram, aviso_fechamento: avisoFechamento, aviso_leitura: avisoLeitura,
@@ -1440,12 +1442,12 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
       const sentido = Math.abs(dif) < 0.01 ? "As compras do PDF e o BALANX batem." : dif < 0 ? `O BALANX tem R$ ${(-dif).toFixed(2).replace(".", ",")} A MAIS que o PDF.` : `Faltam R$ ${dif.toFixed(2).replace(".", ",")} no BALANX em relação ao PDF.`;
       return JSON.stringify({
         ok: true,
-        resumo_certo: `Fatura do ${fat.cartao} que vence em ${venc} (no BALANX: Fatura de ${fat.fatura}). Compras no PDF: R$ ${somaPdf.toFixed(2).replace(".", ",")}. No BALANX: R$ ${totalBal.toFixed(2).replace(".", ",")}. ${sentido} Faltam lançar ${faltam.length} (R$ ${somaFaltam.toFixed(2).replace(".", ",")}); estão no BALANX e não no PDF ${sobram.length} (R$ ${somaSobram.toFixed(2).replace(".", ",")}); valores diferentes ${valorDiferente.length} (R$ ${somaDif.toFixed(2).replace(".", ",")}).`,
+        resumo_certo: `Fatura do ${fat.cartao} que vence em ${venc} (no BALANX: Fatura de ${fat.fatura}). Compras no PDF: R$ ${somaPdf.toFixed(2).replace(".", ",")}. No BALANX: R$ ${totalBal.toFixed(2).replace(".", ",")}. ${sentido} Faltam lançar ${faltam.length} (R$ ${somaFaltam.toFixed(2).replace(".", ",")}); estão no BALANX e não no PDF ${sobram.length} (R$ ${somaSobram.toFixed(2).replace(".", ",")}); valores diferentes ${valorDiferente.length} (R$ ${somaDif.toFixed(2).replace(".", ",")}).${agrupados.length ? ` ${agrupados.length} lançamento(s) do BALANX batem por SOMA (um item do BALANX = várias linhas do arquivo, ou o contrário) — estão certos.` : ""}${sugeridos.length ? ` Sugiro EXCLUIR do BALANX ${sugeridos.length} item(ns) que não estão no arquivo (R$ ${somaSugeridos.toFixed(2).replace(".", ",")}) — já estão marcados no quadro para a pessoa confirmar.` : ""}${sobram.length - sugeridos.length ? ` ${sobram.length - sugeridos.length} item(ns) do BALANX fora do arquivo são parcelas ou da próxima fatura: não sugiro excluir.` : ""}`,
         aviso_fechamento: avisoFechamento,
         aviso_leitura: avisoLeitura,
         linhas_lidas_do_arquivo: pdf.length,
         lancamentos_preparados: paraLancar.length,
-        obs: "O APP JÁ MOSTRA o quadro completo da conferência (totais e todas as linhas) e o card para lançar o que falta. NÃO repita listas nem totais. Responda em 2–3 frases usando EXATAMENTE o resumo_certo (sem trocar PDF por BALANX nem o sentido da diferença); se houver aviso_fechamento ou aviso_leitura, diga-os; termine dizendo que os que faltam já estão no card para confirmar. Se a pessoa disser depois que um total está diferente, peça para anexar o PDF de novo (você não tem mais o arquivo) — nunca invente números.",
+        obs: "O APP JÁ MOSTRA o quadro completo da conferência (totais e todas as linhas) e o card para lançar o que falta. NÃO repita listas nem totais. Responda em 2–3 frases usando EXATAMENTE o resumo_certo (sem trocar PDF por BALANX nem o sentido da diferença); se houver aviso_fechamento ou aviso_leitura, diga-os; termine dizendo o que a pessoa pode fazer: lançar os que faltam (card), excluir os marcados no quadro (botão Excluir) e corrigir os valores diferentes (botão Corrigir). Se a pessoa disser depois que um total está diferente, peça para anexar o PDF de novo (você não tem mais o arquivo) — nunca invente números.",
       });
     }
 
@@ -1654,7 +1656,7 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
           if (!porCat.has(k)) porCat.set(k, { total: 0, itens: [] });
           const g = porCat.get(k)!;
           g.total += Number(d.valor || 0);
-          g.itens.push({ data: d.data_competencia, descricao: d.descricao || null, fornecedor: limpaFornecedor(d.fornecedor), parcela: parcelaTxt(d), valor: r2(Number(d.valor || 0)) });
+          g.itens.push({ id: d.id, data: d.data_competencia, descricao: d.descricao || null, fornecedor: limpaFornecedor(d.fornecedor), parcela: parcelaTxt(d), valor: r2(Number(d.valor || 0)) });
         }
         const categorias = [...porCat.entries()].sort((a, b) => b[1].total - a[1].total).map(([nome, g]) => ({
           categoria: nome, total: r2(g.total), quantidade: g.itens.length, pct: total ? Math.round((g.total / total) * 1000) / 10 : 0, itens: g.itens,
@@ -1663,6 +1665,7 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
         const pago = Number(f.valor_pago || 0);
         resultado.push({
           cartao: c.nome,
+          fatura_id: f.id,
           fatura: nomeMes(f.competencia),
           fechamento: f.data_fechamento, vencimento: f.data_vencimento, status: f.status,
           total_fatura: r2(valorTotal), pago: r2(pago), em_aberto: r2(Math.max(valorTotal - pago, 0)),
