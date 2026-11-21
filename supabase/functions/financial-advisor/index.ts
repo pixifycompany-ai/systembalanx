@@ -459,7 +459,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • QUALQUER pergunta sobre o CONTEÚDO de uma fatura do cartão ("o que tem na fatura", "lançamentos da fatura separados por categoria", "quanto gastei de X no cartão nessa fatura", "fatura de novembro", "a fatura que vence dia 10") → **fatura_cartao**. NUNCA monte uma fatura com listar_lancamentos, resumo_financeiro ou buscar_lancamento: a fatura junta compras de datas de meses diferentes (fecha no meio do mês), então somar por data dá número diferente e deixa itens de fora. Responda com o cabeçalho (cartão · Fatura de <mês> · vence dd/mm · total · status), depois cada categoria em negrito com o total e a %, e embaixo os lançamentos dela (fornecedor/descrição — valor · parcela · data). Liste TODAS as categorias e TODOS os itens que a ferramenta devolver, sem resumir nem cortar; a soma das categorias tem que bater com o total da fatura. Se a pessoa não disser qual fatura, use a atual (a mesma que abre na tela) e diga qual usou.
   • Compras PARCELADAS no cartão ("quantas parcelas faltam", "o que ainda está parcelado", "parcelas do notebook") → compras_parceladas (traz nº de parcelas, pagas, faltam, valor da parcela, próxima data de vencimento e valor restante por compra).
   • Total COMPROMETIDO em parcelas nos próximos meses ("quanto da fatura futura já está tomado", "quanto já devo em parcelas") → parcelas_comprometidas (soma por mês o que falta pagar de parcelas).
-  • CONFERIR FATURA com o PDF/print do banco ("confere minha fatura", "compara com o PDF", "o que falta lançar?", "por que não bate?") → leia o anexo com MUITO cuidado (todas as páginas) e chame **conferir_fatura** com TODAS as linhas, o total a pagar e o vencimento impresso (vence_em = YYYY-MM do vencimento). Se voltar leitura_incompleta, releia e chame de novo (até 2 vezes) antes de responder. Resposta: 1ª linha com **total do PDF × total no BALANX = diferença**; depois só os blocos com conteúdo: **Faltam lançar** (data · descrição · valor · parcela), **Valores diferentes** (PDF × BALANX), **No BALANX e não na fatura** (marque "possível duplicado"); feche com 1 linha mostrando que a soma dos blocos explica a diferença. Ofereça lançar o que falta: chame preparar_lancamentos com conta = o cartão, um item por linha que falta, data = data_para_lancar, sem parcelas (parcela vai no fim da descrição). Duplicados/sobras: oriente ajustar na tela do cartão.
+  • CONFERIR FATURA com o PDF, print ou CSV do banco ("confere minha fatura", "compara com o PDF", "o que falta lançar?", "por que não bate?") → leia o anexo com MUITO cuidado (todas as páginas) e chame **conferir_fatura** com TODAS as linhas, o total a pagar e o vencimento impresso (vence_em = YYYY-MM do vencimento). Se voltar leitura_incompleta, releia e chame de novo (até 2 vezes) antes de responder. Resposta: 1ª linha com **total do PDF × total no BALANX = diferença**; depois só os blocos com conteúdo: **Faltam lançar** (data · descrição · valor · parcela), **Valores diferentes** (PDF × BALANX), **No BALANX e não na fatura** (marque "possível duplicado"); feche com 1 linha mostrando que a soma dos blocos explica a diferença. Ofereça lançar o que falta: chame preparar_lancamentos com conta = o cartão, um item por linha que falta, data = data_para_lancar, sem parcelas (parcela vai no fim da descrição). Duplicados/sobras: oriente ajustar na tela do cartão.
   • ORÇAMENTO ("como está meu orçamento", "quanto ainda posso gastar com marketing", "estourei algo?") → **orcamento**: categorias estouradas primeiro, depois as em atenção (≥85%); diga quanto sobra e, no mês atual, quanto dá para gastar por dia e se a projeção estoura. Definir/mudar/remover ("meu orçamento de alimentação é 800") → **definir_orcamento**.
   • DOCUMENTOS: "guarda/arquiva/salva esse arquivo/contrato/comprovante" com anexo → **guardar_documento** (nome claro + resumo com os dados-chave que você leu no arquivo). Se a pessoa mandar um CONTRATO, NOTA ou COMPROVANTE e não pedir nada sobre guardar, ofereça em 1 linha ("Quer que eu guarde esse contrato nos seus documentos?"). Achar ("acha/cadê o contrato da X", "qual o valor do contrato da Y?") → **buscar_documentos**; responda com o que o resumo diz e lembre que o link para abrir está logo abaixo.
   • ARQUIVO ("me manda em PDF", "exporta em Excel", "quero baixar o DRE/extrato/fatura/lançamentos") → **gerar_arquivo**. Excel quando pedirem planilha/Excel/CSV; senão PDF. Use o mesmo período e filtros da conversa.
@@ -1167,7 +1167,7 @@ ${contexto}${blocoTela}`;
 
     // ---- Documentos: guardar (anexo da conversa) e achar ----
     const documentoEventos: { acao: "guardado" | "encontrado"; id: string; nome: string; url?: string; resumo?: string | null; data?: string; mime?: string | null }[] = [];
-    const EXT: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
+    const EXT: Record<string, string> = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "text/csv": "csv", "text/plain": "txt", "application/x-ofx": "ofx" };
     async function guardarDocumento(a: any): Promise<string> {
       if (!tenantAtual) return JSON.stringify({ erro: "Não sei em qual empresa guardar. Peça para abrir o app na empresa certa." });
       const idx = Math.max(1, Math.floor(Number(a?.anexo) || 1)) - 1;
@@ -1177,7 +1177,7 @@ ${contexto}${blocoTela}`;
       if (bytes.length > 15 * 1024 * 1024) return JSON.stringify({ erro: "Arquivo maior que 15 MB." });
       const id = crypto.randomUUID();
       const path = `${tenantAtual}/${id}.${EXT[f.tipo] || "bin"}`;
-      const up = await supabase.storage.from("documentos").upload(path, bytes, { contentType: f.tipo, upsert: false });
+      const up = await supabase.storage.from("documentos").upload(path, bytes, { contentType: f.tipo === "application/x-ofx" ? "text/plain" : f.tipo, upsert: false });
       if (up.error) return JSON.stringify({ erro: `Não consegui guardar: ${up.error.message}` });
       const cli = a?.cliente ? achaCliente(String(a.cliente)) : null;
       const nome = String(a?.nome || f.nome || "Documento").trim().slice(0, 200);
@@ -2553,6 +2553,13 @@ ${contexto}${blocoTela}`;
           partes.push({ type: "file", file: { filename: f.nome || "documento.pdf", file_data: `data:application/pdf;base64,${f.base64}` } });
         } else if (/^image\/(png|jpe?g|webp|gif)$/.test(f.tipo)) {
           partes.push({ type: "image_url", image_url: { url: `data:${f.tipo};base64,${f.base64}` } });
+        } else if (f.tipo === "text/csv" || f.tipo === "text/plain" || f.tipo === "application/x-ofx") {
+          // CSV/OFX chegam como texto UTF-8 em base64: vai inteiro para a IARA ler (até ~120 mil caracteres).
+          const bytes = Uint8Array.from(atob(f.base64), (ch) => ch.charCodeAt(0));
+          let texto = new TextDecoder("utf-8").decode(bytes);
+          const corte = texto.length > 120000;
+          if (corte) texto = texto.slice(0, 120000);
+          partes.push({ type: "text", text: `Arquivo anexado "${f.nome || "arquivo"}" (${f.tipo === "application/x-ofx" ? "OFX" : "CSV/texto"}${corte ? ", cortado no início por ser grande" : ""}). Conteúdo:\n\`\`\`\n${texto}\n\`\`\`` });
         }
       }
       ultima.content = partes;

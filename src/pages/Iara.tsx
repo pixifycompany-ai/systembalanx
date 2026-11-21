@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { NotebookPen, Eraser } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { planilhaParaCsv } from '@/lib/planilhaTexto';
 import { useToast } from '@/hooks/use-toast';
 import { useFinancialAdvisor, type AnexoIara, type ContextoTela } from '@/hooks/useFinancialAdvisor';
 import { PropostaLancamentos } from '@/components/iara/PropostaLancamentos';
@@ -22,7 +23,20 @@ const PERGUNTA_CONTEXTO = 'Me explica esses números: estão bons? Por quê?';
 
 // Anexos: imagem (cartão CNPJ, print) ou PDF (contrato, contrato social), até 3 por pergunta.
 const TIPOS_ANEXO = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf'];
+// Planilhas/extratos em texto: CSV (fatura, extrato) e OFX/TXT. O navegador nem sempre
+// informa o tipo do CSV (no Windows vem como "Excel"), então também vale pela extensão.
+const EXT_TEXTO = ['csv', 'ofx', 'txt'];
+const EXT_PLANILHA = ['xlsx', 'xls'];
+const extDe = (f: File) => (f.name.split('.').pop() || '').toLowerCase();
+const ehTexto = (f: File) => EXT_TEXTO.includes(extDe(f));
+const ehPlanilha = (f: File) => EXT_PLANILHA.includes(extDe(f));
 const MAX_ANEXO_MB = 8;
+/** Lê CSV/OFX como texto: UTF-8 ou, se vier quebrado (bancos exportam em Latin-1), Windows-1252. */
+const lerTexto = async (f: File) => {
+  const buf = await f.arrayBuffer();
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch { return new TextDecoder('windows-1252').decode(buf); }
+};
+const base64Utf8 = (t: string) => { const b = new TextEncoder().encode(t); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(s); };
 const lerBase64 = (f: File) => new Promise<string>((ok, erro) => {
   const r = new FileReader();
   r.onload = () => ok(String(r.result).split(',')[1] || '');
@@ -191,15 +205,29 @@ export default function Iara() {
     if (!files?.length) return;
     const novos: AnexoIara[] = [];
     for (const f of Array.from(files)) {
-      if (!TIPOS_ANEXO.includes(f.type)) {
-        toast({ title: 'Arquivo não aceito', description: `${f.name}: envie imagem (PNG, JPG) ou PDF.`, variant: 'destructive' });
+      const texto = ehTexto(f);
+      const planilha = ehPlanilha(f);
+      if (!texto && !planilha && !TIPOS_ANEXO.includes(f.type)) {
+        toast({ title: 'Arquivo não aceito', description: `${f.name}: envie imagem (PNG, JPG), PDF, Excel, CSV ou OFX.`, variant: 'destructive' });
         continue;
       }
       if (f.size > MAX_ANEXO_MB * 1024 * 1024) {
         toast({ title: 'Arquivo grande demais', description: `${f.name}: até ${MAX_ANEXO_MB} MB.`, variant: 'destructive' });
         continue;
       }
-      novos.push({ nome: f.name, tipo: f.type, base64: await lerBase64(f) });
+      if (planilha) {
+        // Excel vira CSV aqui no app (a IARA lê texto); .xls binário antigo não dá.
+        try {
+          novos.push({ nome: f.name, tipo: 'text/csv', base64: base64Utf8(await planilhaParaCsv(await f.arrayBuffer())) });
+        } catch (e) {
+          toast({ title: 'Não deu para ler a planilha', description: `${f.name}: ${e instanceof Error ? e.message : 'formato não suportado'}`, variant: 'destructive' });
+        }
+      } else if (texto) {
+        const ext = (f.name.split('.').pop() || '').toLowerCase();
+        novos.push({ nome: f.name, tipo: ext === 'ofx' ? 'application/x-ofx' : ext === 'txt' ? 'text/plain' : 'text/csv', base64: base64Utf8(await lerTexto(f)) });
+      } else {
+        novos.push({ nome: f.name, tipo: f.type, base64: await lerBase64(f) });
+      }
     }
     setAnexos((prev) => [...prev, ...novos].slice(0, 3));
     if (fileRef.current) fileRef.current.value = '';
@@ -217,7 +245,7 @@ export default function Iara() {
       anexos={anexos}
       onRemoverAnexo={(i) => setAnexos((p) => p.filter((_, k) => k !== i))}
       onAnexar={() => fileRef.current?.click()}
-      fileInput={<input ref={fileRef} type="file" accept={TIPOS_ANEXO.join(',')} multiple className="hidden" onChange={(e) => anexar(e.target.files)} />}
+      fileInput={<input ref={fileRef} type="file" accept={[...TIPOS_ANEXO, ...EXT_TEXTO.map((e) => `.${e}`), ...EXT_PLANILHA.map((e) => `.${e}`), 'text/csv'].join(',')} multiple className="hidden" onChange={(e) => anexar(e.target.files)} />}
       listening={listening}
       transcribing={transcribing}
       onMic={toggleMic}
