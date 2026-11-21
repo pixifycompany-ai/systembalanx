@@ -459,7 +459,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • QUALQUER pergunta sobre o CONTEÚDO de uma fatura do cartão ("o que tem na fatura", "lançamentos da fatura separados por categoria", "quanto gastei de X no cartão nessa fatura", "fatura de novembro", "a fatura que vence dia 10") → **fatura_cartao**. NUNCA monte uma fatura com listar_lancamentos, resumo_financeiro ou buscar_lancamento: a fatura junta compras de datas de meses diferentes (fecha no meio do mês), então somar por data dá número diferente e deixa itens de fora. Responda com o cabeçalho (cartão · Fatura de <mês> · vence dd/mm · total · status), depois cada categoria em negrito com o total e a %, e embaixo os lançamentos dela (fornecedor/descrição — valor · parcela · data). Liste TODAS as categorias e TODOS os itens que a ferramenta devolver, sem resumir nem cortar; a soma das categorias tem que bater com o total da fatura. Se a pessoa não disser qual fatura, use a atual (a mesma que abre na tela) e diga qual usou.
   • Compras PARCELADAS no cartão ("quantas parcelas faltam", "o que ainda está parcelado", "parcelas do notebook") → compras_parceladas (traz nº de parcelas, pagas, faltam, valor da parcela, próxima data de vencimento e valor restante por compra).
   • Total COMPROMETIDO em parcelas nos próximos meses ("quanto da fatura futura já está tomado", "quanto já devo em parcelas") → parcelas_comprometidas (soma por mês o que falta pagar de parcelas).
-  • CONFERIR FATURA com o PDF, print ou CSV do banco ("confere minha fatura", "compara com o PDF", "o que falta lançar?", "por que não bate?") → leia o anexo com MUITO cuidado (todas as páginas) e chame **conferir_fatura** com TODAS as linhas, o total a pagar e o vencimento impresso (vence_em = YYYY-MM do vencimento). Se voltar leitura_incompleta, releia e chame de novo (até 2 vezes) antes de responder. O app mostra o QUADRO da conferência e o card para lançar o que falta: responda curto com o resumo_certo da ferramenta (não monte listas nem troque PDF/BALANX). Se depois a pessoa contestar um número, peça para anexar o arquivo de novo — você não guarda o PDF entre mensagens.
+  • CONFERIR FATURA com o PDF, print ou CSV do banco ("confere minha fatura", "compara com o PDF", "o que falta lançar?", "por que não bate?") → chame **conferir_fatura** NA HORA (com o cartão, se a pessoa disser). A FERRAMENTA LÊ O ARQUIVO ANEXADO SOZINHA, linha a linha, e confere a soma com o total impresso — você NÃO precisa transcrever as linhas. Só mande itens/total_pdf se não houver arquivo e a pessoa digitar as linhas. O app mostra o QUADRO da conferência e o card para lançar o que falta: responda curto com o resumo_certo da ferramenta (não monte listas nem troque PDF/BALANX). Se depois a pessoa contestar um número, peça para anexar o arquivo de novo — você não guarda o PDF entre mensagens.
   • ORÇAMENTO ("como está meu orçamento", "quanto ainda posso gastar com marketing", "estourei algo?") → **orcamento**: categorias estouradas primeiro, depois as em atenção (≥85%); diga quanto sobra e, no mês atual, quanto dá para gastar por dia e se a projeção estoura. Definir/mudar/remover ("meu orçamento de alimentação é 800") → **definir_orcamento**.
   • DOCUMENTOS: "guarda/arquiva/salva esse arquivo/contrato/comprovante" com anexo → **guardar_documento** (nome claro + resumo com os dados-chave que você leu no arquivo). Se a pessoa mandar um CONTRATO, NOTA ou COMPROVANTE e não pedir nada sobre guardar, ofereça em 1 linha ("Quer que eu guarde esse contrato nos seus documentos?"). Achar ("acha/cadê o contrato da X", "qual o valor do contrato da Y?") → **buscar_documentos**; responda com o que o resumo diz e lembre que o link para abrir está logo abaixo.
   • ARQUIVO ("me manda em PDF", "exporta em Excel", "quero baixar o DRE/extrato/fatura/lançamentos") → **gerar_arquivo**. Excel quando pedirem planilha/Excel/CSV; senão PDF. Use o mesmo período e filtros da conversa.
@@ -582,7 +582,7 @@ ${contexto}${blocoTela}`;
         status: { type: "string" }, criterio: { type: "string", enum: ["competencia", "vencimento", "pagamento"] },
         conta: { type: "string", description: "extrato" }, cartao: { type: "string" }, fatura: { type: "string", description: "YYYY-MM" }, vence_em: { type: "string" }, mes: { type: "string", description: "orcamento YYYY-MM" },
       }, required: ["conteudo", "formato"] } } },
-      { type: "function", function: { name: "conferir_fatura", description: "CONFERE a fatura do banco (PDF/print anexado) com a fatura do cartão no BALANX, linha a linha: o que bate, o que FALTA lançar, valores diferentes e o que está no BALANX mas não na fatura (possível duplicado), com a diferença exata explicada. Você LÊ o PDF e manda TODAS as linhas em itens; as contas são feitas pela ferramenta.", parameters: { type: "object", properties: {
+      { type: "function", function: { name: "conferir_fatura", description: "CONFERE a fatura do banco (PDF/print anexado) com a fatura do cartão no BALANX, linha a linha: o que bate, o que FALTA lançar, valores diferentes e o que está no BALANX mas não na fatura (possível duplicado), com a diferença exata explicada. Com arquivo anexado (PDF, print, CSV, planilha), a ferramenta LÊ O ARQUIVO SOZINHA: basta chamar (com o cartão, se souber). itens/total_pdf só quando a pessoa digitar as linhas sem arquivo.", parameters: { type: "object", properties: {
         cartao: { type: "string", description: "nome do cartão no BALANX (se a pessoa não disser, deixe vazio)" },
         vence_em: { type: "string", description: "YYYY-MM do VENCIMENTO impresso no PDF (é como achamos a fatura certa)" },
         itens: { type: "array", description: "TODAS as linhas de lançamento do PDF, de todas as páginas: compras, parcelas, IOF, anuidade, tarifas, juros e estornos/créditos (estorno = valor NEGATIVO). NÃO inclua pagamento da fatura anterior nem saldo anterior.", items: { type: "object", properties: {
@@ -591,7 +591,7 @@ ${contexto}${blocoTela}`;
         total_pdf: { type: "number", description: "TOTAL da fatura impresso no PDF (valor a pagar)" },
         saldo_anterior: { type: "number", description: "saldo anterior que entrou no total, se houver" },
         pagamentos: { type: "number", description: "pagamentos/créditos de pagamento abatidos no total, se houver" },
-      }, required: ["itens", "total_pdf"] } } },
+      } } } },
       { type: "function", function: { name: "editar_lancamentos", description: "Prepara a EDIÇÃO de UM ou VÁRIOS lançamentos (pagos ou em aberto): descrição, valor, vencimento, competência, data do pagamento, categoria, conta bancária, fornecedor/cliente, forma de pagamento e situação (pago/em aberto). Use os ids de uma lista anterior (listar_lancamentos/buscar_lancamento) ou um filtro. Ex.: 'muda a forma de pagamento desses para Pix', 'essas 3 despesas eram do Inter', 'corrige a descrição da Vivo de outubro', 'marca todas as despesas de energia de 2026 como pagas'.", parameters: { type: "object", properties: {
         tipo: { type: "string", enum: ["despesa", "receita"] },
         ids: { type: "array", items: { type: "string" }, description: "ids dos lançamentos (das listas anteriores)" },
@@ -1291,19 +1291,107 @@ ${contexto}${blocoTela}`;
     // ---- Conferir a fatura do banco (PDF) com a fatura do BALANX, linha a linha ----
     // A IARA só LÊ o PDF e manda as linhas; o cruzamento e as somas são feitos aqui (exatos).
     const conferenciaEventos: any[] = [];
+
+    // Leitura da fatura anexada FEITA AQUI (não pelo modelo da conversa, que pula linhas em
+    // faturas grandes): um modelo de leitura transcreve todas as linhas em JSON e a soma é
+    // conferida com o total impresso; se não fechar, ele relê sabendo quanto falta.
+    let leituraCache: Promise<any> | null = null;
+    function lerFaturaAnexada(): Promise<any> {
+      if (!leituraCache) leituraCache = lerFaturaAnexadaAgora().catch((e) => { console.error("leitura fatura:", e); return null; });
+      return leituraCache;
+    }
+    async function lerFaturaAnexadaAgora(): Promise<any> {
+      const anexo = (Array.isArray(anexos) ? anexos : []).find((f) => f?.base64 && f?.tipo &&
+        (f.tipo === "application/pdf" || /^image\/(png|jpe?g|webp|gif)$/.test(f.tipo) || f.tipo === "text/csv" || f.tipo === "text/plain" || f.tipo === "application/x-ofx"));
+      if (!anexo) return null;
+      const chave = Deno.env.get("OPENAI_API_KEY") || Deno.env.get("IARA_API_KEY");
+      if (!chave) return null;
+      const base = (Deno.env.get("IARA_API_BASE") || "https://api.openai.com/v1").replace(/\/$/, "");
+      const modelos = [...new Set([Deno.env.get("IARA_MODEL_LEITURA") || "gpt-4.1", Deno.env.get("IARA_MODEL") || "gpt-4o-mini"])];
+
+      const parteArquivo: any = anexo.tipo === "application/pdf"
+        ? { type: "file", file: { filename: anexo.nome || "fatura.pdf", file_data: `data:application/pdf;base64,${anexo.base64}` } }
+        : anexo.tipo.startsWith("image/")
+          ? { type: "image_url", image_url: { url: `data:${anexo.tipo};base64,${anexo.base64}`, detail: "high" } }
+          : { type: "text", text: `Arquivo "${anexo.nome || "fatura"}":\n${new TextDecoder("utf-8").decode(Uint8Array.from(atob(anexo.base64), (c) => c.charCodeAt(0))).slice(0, 150000)}` };
+      const instr = `Você transcreve faturas de cartão de crédito. Hoje é ${hojeISO}.
+Devolva TODAS as linhas de lançamento do arquivo, de TODAS as páginas, uma a uma, na ordem: compras, parcelas (ex.: "03/10"), IOF, anuidade, tarifas, juros, encargos e estornos/créditos (estorno/crédito = valor NEGATIVO).
+NÃO inclua: subtotais, totais, "total da fatura", pagamento da fatura anterior, saldo anterior, limites, resumos.
+Linhas repetidas (mesma descrição e valor no mesmo dia) são lançamentos DIFERENTES: repita-as.
+Datas em YYYY-MM-DD. Se a linha só tiver dia/mês, use o ano do vencimento; meses DEPOIS do mês do vencimento são do ano anterior.
+Valores em reais como número (1.234,56 → 1234.56). Copie a descrição como está impressa.
+total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o que estiver impresso no resumo (0 se não houver).`;
+      const schema = {
+        name: "fatura", strict: true,
+        schema: {
+          type: "object", additionalProperties: false,
+          required: ["vencimento", "total_a_pagar", "saldo_anterior", "pagamentos", "itens"],
+          properties: {
+            vencimento: { type: ["string", "null"], description: "YYYY-MM-DD" },
+            total_a_pagar: { type: ["number", "null"] },
+            saldo_anterior: { type: "number" },
+            pagamentos: { type: "number" },
+            itens: { type: "array", items: { type: "object", additionalProperties: false, required: ["data", "descricao", "valor", "parcela"],
+              properties: { data: { type: ["string", "null"] }, descricao: { type: "string" }, valor: { type: "number" }, parcela: { type: ["string", "null"] } } } },
+          },
+        },
+      };
+      const r2 = (x: number) => Math.round(x * 100) / 100;
+      const avaliar = (j: any) => {
+        const itens = (Array.isArray(j?.itens) ? j.itens : []).filter((x: any) => Number(x?.valor));
+        const soma = r2(itens.reduce((s: number, x: any) => s + Number(x.valor), 0));
+        const total = Number(j?.total_a_pagar) || 0;
+        const ajuste = r2((Number(j?.saldo_anterior) || 0) - (Number(j?.pagamentos) || 0));
+        const dif = total > 0 ? Math.min(Math.abs(total - soma), Math.abs(total - soma - ajuste)) : Infinity;
+        return { ...j, itens, soma, total, dif: r2(dif), fechou: total > 0 && dif <= 0.05 };
+      };
+
+      let melhor: any = null;
+      for (const mod of modelos) {
+        const msgs: any[] = [{ role: "system", content: instr }, { role: "user", content: [{ type: "text", text: "Transcreva esta fatura." }, parteArquivo] }];
+        for (let tentativa = 0; tentativa < 2; tentativa++) {
+          const resp = await fetch(`${base}/chat/completions`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${chave}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ model: mod, messages: msgs, temperature: 0, max_tokens: 16000, response_format: { type: "json_schema", json_schema: schema } }),
+          });
+          if (!resp.ok) { console.error("leitura fatura", mod, resp.status, (await resp.text()).slice(0, 300)); break; }
+          const conteudo = (await resp.json()).choices?.[0]?.message?.content || "";
+          let j: any; try { j = JSON.parse(conteudo); } catch { break; }
+          const av = avaliar(j);
+          if (!melhor || av.dif < melhor.dif || (av.dif === melhor.dif && av.itens.length > melhor.itens.length)) melhor = { ...av, modelo: mod };
+          if (av.fechou) return melhor;
+          if (!(av.total > 0)) break; // sem total impresso não dá para conferir a leitura
+          msgs.push({ role: "assistant", content: conteudo });
+          msgs.push({ role: "user", content: `A soma das suas linhas deu ${av.soma.toFixed(2)}, mas o total impresso é ${av.total.toFixed(2)} (diferença ${r2(av.total - av.soma).toFixed(2)}). Faltou ou sobrou linha. Releia TODAS as páginas com calma e devolva a lista COMPLETA corrigida.` });
+        }
+        if (melhor?.itens?.length) break; // o modelo de leitura funcionou; não cai para o próximo
+      }
+      return melhor;
+    }
+
     async function conferirFatura(a: any): Promise<string> {
       const r2c = (x: number) => Math.round(x * 100) / 100;
+      const lido = await lerFaturaAnexada();
+      if (lido?.itens?.length) {
+        a = { ...a, itens: lido.itens, total_pdf: lido.total || a?.total_pdf, saldo_anterior: lido.saldo_anterior, pagamentos: lido.pagamentos,
+          vence_em: (typeof lido.vencimento === "string" && /^\d{4}-\d{2}/.test(lido.vencimento) ? lido.vencimento.slice(0, 7) : null) || a?.vence_em };
+      }
+      const avisoLeitura = lido?.itens?.length && !lido.fechou && lido.total > 0
+        ? `A leitura do arquivo não fechou com o total impresso (${lido.itens.length} linhas somam R$ ${lido.soma.toFixed(2).replace(".", ",")}; o total é R$ ${lido.total.toFixed(2).replace(".", ",")}). Pode ter linha que não consegui ler (print cortado ou página faltando).`
+        : null;
       const pdf = (Array.isArray(a?.itens) ? a.itens : []).map((x: any, i: number) => ({
         i, data: dataOk(x?.data), descricao: String(x?.descricao || "").trim(), valor: r2c(Number(x?.valor) || 0),
         parcela: x?.parcela ? String(x.parcela).replace(/\s+/g, "") : null,
       })).filter((x: any) => x.valor !== 0);
-      if (!pdf.length) return JSON.stringify({ erro: "Não recebi as linhas do PDF. Leia o PDF e mande TODAS as compras/encargos/estornos em itens." });
+      if (!pdf.length) return JSON.stringify({ erro: "Não há fatura anexada nesta mensagem (eu não guardo o arquivo entre mensagens). Peça para a pessoa anexar o PDF, print ou CSV da fatura de novo." });
 
       // Conferência da leitura: soma das linhas tem que bater com o total do PDF.
       const somaPdf = r2c(pdf.reduce((s: number, x: any) => s + x.valor, 0));
       const totalPdf = Number(a?.total_pdf);
       const ajustes = r2c((Number(a?.saldo_anterior) || 0) - (Number(a?.pagamentos) || 0));
-      if (totalPdf > 0 && Math.abs(somaPdf + ajustes - totalPdf) > 0.05) {
+      // Sem leitura própria (nenhum arquivo nesta mensagem) e as linhas do modelo não fecham: pede releitura.
+      if (!lido?.itens?.length && totalPdf > 0 && Math.abs(somaPdf + ajustes - totalPdf) > 0.05) {
         return JSON.stringify({ leitura_incompleta: true, soma_das_linhas_lidas: somaPdf, saldo_anterior_menos_pagamentos: ajustes, total_do_pdf: totalPdf,
           diferenca: r2c(totalPdf - somaPdf - ajustes),
           obs: "A soma das linhas que você leu não bate com o total do PDF. Releia o PDF com cuidado (linhas em outras páginas, parcelas, IOF, anuidade, estornos negativos, compras internacionais) e chame de novo com TODAS as linhas. Não responda com a diferença antes disso." });
@@ -1346,7 +1434,7 @@ ${contexto}${blocoTela}`;
         cartao: fat.cartao, fatura_balanx: fat.fatura, vencimento: fat.vencimento, fechamento: fat.fechamento,
         total_pdf_impresso: totalPdf > 0 ? r2c(totalPdf) : null, total_pdf: somaPdf, total_balanx: totalBal, diferenca: dif,
         faltam, valores_diferentes: valorDiferente, sobram, conferidos: conferidos.length,
-        soma_faltam: somaFaltam, soma_dif: somaDif, soma_sobram: somaSobram, aviso_fechamento: avisoFechamento,
+        soma_faltam: somaFaltam, soma_dif: somaDif, soma_sobram: somaSobram, aviso_fechamento: avisoFechamento, aviso_leitura: avisoLeitura,
         lancar_preparado: paraLancar.length,
       });
       const sentido = Math.abs(dif) < 0.01 ? "As compras do PDF e o BALANX batem." : dif < 0 ? `O BALANX tem R$ ${(-dif).toFixed(2).replace(".", ",")} A MAIS que o PDF.` : `Faltam R$ ${dif.toFixed(2).replace(".", ",")} no BALANX em relação ao PDF.`;
@@ -1354,8 +1442,10 @@ ${contexto}${blocoTela}`;
         ok: true,
         resumo_certo: `Fatura do ${fat.cartao} que vence em ${venc} (no BALANX: Fatura de ${fat.fatura}). Compras no PDF: R$ ${somaPdf.toFixed(2).replace(".", ",")}. No BALANX: R$ ${totalBal.toFixed(2).replace(".", ",")}. ${sentido} Faltam lançar ${faltam.length} (R$ ${somaFaltam.toFixed(2).replace(".", ",")}); estão no BALANX e não no PDF ${sobram.length} (R$ ${somaSobram.toFixed(2).replace(".", ",")}); valores diferentes ${valorDiferente.length} (R$ ${somaDif.toFixed(2).replace(".", ",")}).`,
         aviso_fechamento: avisoFechamento,
+        aviso_leitura: avisoLeitura,
+        linhas_lidas_do_arquivo: pdf.length,
         lancamentos_preparados: paraLancar.length,
-        obs: "O APP JÁ MOSTRA o quadro completo da conferência (totais e todas as linhas) e o card para lançar o que falta. NÃO repita listas nem totais. Responda em 2–3 frases usando EXATAMENTE o resumo_certo (sem trocar PDF por BALANX nem o sentido da diferença); se houver aviso_fechamento, diga-o; termine dizendo que os que faltam já estão no card para confirmar. Se a pessoa disser depois que um total está diferente, peça para anexar o PDF de novo (você não tem mais o arquivo) — nunca invente números.",
+        obs: "O APP JÁ MOSTRA o quadro completo da conferência (totais e todas as linhas) e o card para lançar o que falta. NÃO repita listas nem totais. Responda em 2–3 frases usando EXATAMENTE o resumo_certo (sem trocar PDF por BALANX nem o sentido da diferença); se houver aviso_fechamento ou aviso_leitura, diga-os; termine dizendo que os que faltam já estão no card para confirmar. Se a pessoa disser depois que um total está diferente, peça para anexar o PDF de novo (você não tem mais o arquivo) — nunca invente números.",
       });
     }
 

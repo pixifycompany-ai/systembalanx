@@ -74,6 +74,11 @@ export function QuadroConferencia({ c }: { c: ConferenciaFatura }) {
           {c.sobram.some((s) => s.parcela) ? '. Parcelas que estão no BALANX e não no arquivo costumam entrar quando a fatura fecha: confira no app do banco.' : ''}
         </p>
       )}
+      {c.aviso_leitura && (
+        <p className="flex gap-2 border-t border-border bg-warning-bg/60 px-3 py-2.5 text-[11.5px] leading-snug text-warning-fg">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{c.aviso_leitura}
+        </p>
+      )}
       {c.aviso_fechamento && (
         <p className="flex gap-2 border-t border-border bg-warning-bg/60 px-3 py-2.5 text-[11.5px] leading-snug text-warning-fg">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{c.aviso_fechamento}

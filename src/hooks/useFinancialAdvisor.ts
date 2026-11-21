@@ -11,7 +11,7 @@ export interface ConferenciaFatura {
   faltam: LinhaConf[]; sobram: LinhaConf[];
   valores_diferentes: { no_pdf: LinhaConf; no_balanx: LinhaConf; diferenca: number }[];
   conferidos: number; soma_faltam: number; soma_dif: number; soma_sobram: number;
-  aviso_fechamento: string | null; lancar_preparado: number;
+  aviso_fechamento: string | null; aviso_leitura?: string | null; lancar_preparado: number;
 }
 export interface DocumentoIara { acao: 'guardado' | 'encontrado'; id: string; nome: string; url?: string; resumo?: string | null; data?: string; mime?: string | null }
 
