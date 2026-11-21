@@ -5,9 +5,14 @@ import { useSyncExternalStore } from 'react';
  *
  * A máscara age só no texto da tela, não no formatCurrency: o mesmo formatador monta
  * mensagens de WhatsApp, e-mails e PDFs, que precisam sair sempre com o valor real.
- * Não é persistido de propósito: recarregar ou sair volta a esconder.
+ * A escolha fica guardada neste aparelho: recarregar a página mantém como a pessoa deixou.
+ * Na 1ª vez abre escondido; sair da conta volta a esconder.
  */
-let oculto = true;
+const CHAVE = 'balanx:valores-ocultos';
+function lerPreferencia(): boolean {
+  try { return localStorage.getItem(CHAVE) !== '0'; } catch { return true; }
+}
+let oculto = lerPreferencia();
 const ouvintes = new Set<() => void>();
 
 const VALOR = new RegExp(
@@ -81,6 +86,7 @@ function aplicar(deveMascarar: boolean) {
 function definir(valor: boolean) {
   if (valor === oculto) return;
   oculto = valor;
+  try { localStorage.setItem(CHAVE, valor ? '1' : '0'); } catch { /* sem armazenamento: vale só nesta aba */ }
   aplicar(ativo && oculto);
   ouvintes.forEach((fn) => fn());
 }

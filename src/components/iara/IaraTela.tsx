@@ -8,6 +8,7 @@ import {
   ShieldCheck, TrendingUp, UserPlus, X, AlertTriangle, ChevronLeft, Square,
 } from 'lucide-react';
 import { Sparkle } from '@/components/shared/Sparkle';
+import { OlhoValores } from '@/components/shared/OlhoValores';
 import { IaraMarkdown } from '@/components/iara/IaraMarkdown';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/hooks/useFinancialAdvisor';
@@ -206,6 +207,7 @@ export function IaraTela(p: IaraTelaProps) {
             <p className="flex items-center gap-1.5 text-[11.5px] text-foreground-muted"><span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success-fg))]" />online · lê seus números</p>
           </div>
         </div>
+        <OlhoValores className="h-9 w-9 shrink-0 rounded-full text-foreground-muted hover:text-foreground [&_svg]:h-4 [&_svg]:w-4" />
         {conversa && (
           <button onClick={p.onLimpar} className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 text-[12.5px] text-foreground-muted hover:text-foreground">
             <RotateCcw className="h-3.5 w-3.5" /> Nova conversa
@@ -233,10 +235,13 @@ export function IaraTela(p: IaraTelaProps) {
           <h1 className="text-center font-heading text-[34px] font-light leading-[1.05] tracking-[-0.04em] text-foreground md:text-[46px]">
             Pergunte qualquer coisa <span className="font-serif italic tracking-normal">à IARA</span>
           </h1>
-          <p className="mt-3 flex items-center gap-1.5 text-center text-[13.5px] text-foreground-muted">
-            <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--success-fg))]" />
-            Lê seus lançamentos, contas e clientes. Nada sai do BALANX.
-          </p>
+          <div className="mt-3 flex flex-col items-center gap-1 text-center text-[13.5px] leading-snug text-foreground-muted">
+            <p>Lê seus lançamentos, contas e clientes.</p>
+            <p className="inline-flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--success-fg))]" />
+              Nada sai do BALANX.
+            </p>
+          </div>
           <div className="mt-7 w-full max-w-[760px]"><Composer {...p} grande /></div>
           <div className="mt-6 grid w-full max-w-[960px] grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {ATALHOS.map((a) => (
