@@ -4,6 +4,7 @@ import { calcularIndicadores, GRUPOS_INDICADORES } from "../_shared/indicadores.
 import { GLOSSARIO_INDICADORES } from "../_shared/glossarioIara.ts";
 import { podeOutrasAgendas } from "../_shared/google.ts";
 import { estadoSessao } from "../_shared/whatsapp.ts";
+import { cruzarFatura } from "./conferir.ts";
 import { acharConta, cobrancasLista, contratosLista, extratoConta, historicoEnvios, listarTransferencias, metas as metasIara, orcamento as orcamentoIara, pagamentosDaFatura, pendencias as pendenciasIara, situacaoContrato, type CtxConsulta } from "./consultas.ts";
 
 const corsHeaders = {
@@ -458,6 +459,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • QUALQUER pergunta sobre o CONTEÚDO de uma fatura do cartão ("o que tem na fatura", "lançamentos da fatura separados por categoria", "quanto gastei de X no cartão nessa fatura", "fatura de novembro", "a fatura que vence dia 10") → **fatura_cartao**. NUNCA monte uma fatura com listar_lancamentos, resumo_financeiro ou buscar_lancamento: a fatura junta compras de datas de meses diferentes (fecha no meio do mês), então somar por data dá número diferente e deixa itens de fora. Responda com o cabeçalho (cartão · Fatura de <mês> · vence dd/mm · total · status), depois cada categoria em negrito com o total e a %, e embaixo os lançamentos dela (fornecedor/descrição — valor · parcela · data). Liste TODAS as categorias e TODOS os itens que a ferramenta devolver, sem resumir nem cortar; a soma das categorias tem que bater com o total da fatura. Se a pessoa não disser qual fatura, use a atual (a mesma que abre na tela) e diga qual usou.
   • Compras PARCELADAS no cartão ("quantas parcelas faltam", "o que ainda está parcelado", "parcelas do notebook") → compras_parceladas (traz nº de parcelas, pagas, faltam, valor da parcela, próxima data de vencimento e valor restante por compra).
   • Total COMPROMETIDO em parcelas nos próximos meses ("quanto da fatura futura já está tomado", "quanto já devo em parcelas") → parcelas_comprometidas (soma por mês o que falta pagar de parcelas).
+  • CONFERIR FATURA com o PDF/print do banco ("confere minha fatura", "compara com o PDF", "o que falta lançar?", "por que não bate?") → leia o anexo com MUITO cuidado (todas as páginas) e chame **conferir_fatura** com TODAS as linhas, o total a pagar e o vencimento impresso (vence_em = YYYY-MM do vencimento). Se voltar leitura_incompleta, releia e chame de novo (até 2 vezes) antes de responder. Resposta: 1ª linha com **total do PDF × total no BALANX = diferença**; depois só os blocos com conteúdo: **Faltam lançar** (data · descrição · valor · parcela), **Valores diferentes** (PDF × BALANX), **No BALANX e não na fatura** (marque "possível duplicado"); feche com 1 linha mostrando que a soma dos blocos explica a diferença. Ofereça lançar o que falta: chame preparar_lancamentos com conta = o cartão, um item por linha que falta, data = data_para_lancar, sem parcelas (parcela vai no fim da descrição). Duplicados/sobras: oriente ajustar na tela do cartão.
   • ORÇAMENTO ("como está meu orçamento", "quanto ainda posso gastar com marketing", "estourei algo?") → **orcamento**: categorias estouradas primeiro, depois as em atenção (≥85%); diga quanto sobra e, no mês atual, quanto dá para gastar por dia e se a projeção estoura. Definir/mudar/remover ("meu orçamento de alimentação é 800") → **definir_orcamento**.
   • DOCUMENTOS: "guarda/arquiva/salva esse arquivo/contrato/comprovante" com anexo → **guardar_documento** (nome claro + resumo com os dados-chave que você leu no arquivo). Se a pessoa mandar um CONTRATO, NOTA ou COMPROVANTE e não pedir nada sobre guardar, ofereça em 1 linha ("Quer que eu guarde esse contrato nos seus documentos?"). Achar ("acha/cadê o contrato da X", "qual o valor do contrato da Y?") → **buscar_documentos**; responda com o que o resumo diz e lembre que o link para abrir está logo abaixo.
   • ARQUIVO ("me manda em PDF", "exporta em Excel", "quero baixar o DRE/extrato/fatura/lançamentos") → **gerar_arquivo**. Excel quando pedirem planilha/Excel/CSV; senão PDF. Use o mesmo período e filtros da conversa.
@@ -579,6 +581,16 @@ ${contexto}${blocoTela}`;
         status: { type: "string" }, criterio: { type: "string", enum: ["competencia", "vencimento", "pagamento"] },
         conta: { type: "string", description: "extrato" }, cartao: { type: "string" }, fatura: { type: "string", description: "YYYY-MM" }, vence_em: { type: "string" }, mes: { type: "string", description: "orcamento YYYY-MM" },
       }, required: ["conteudo", "formato"] } } },
+      { type: "function", function: { name: "conferir_fatura", description: "CONFERE a fatura do banco (PDF/print anexado) com a fatura do cartão no BALANX, linha a linha: o que bate, o que FALTA lançar, valores diferentes e o que está no BALANX mas não na fatura (possível duplicado), com a diferença exata explicada. Você LÊ o PDF e manda TODAS as linhas em itens; as contas são feitas pela ferramenta.", parameters: { type: "object", properties: {
+        cartao: { type: "string", description: "nome do cartão no BALANX (se a pessoa não disser, deixe vazio)" },
+        vence_em: { type: "string", description: "YYYY-MM do VENCIMENTO impresso no PDF (é como achamos a fatura certa)" },
+        itens: { type: "array", description: "TODAS as linhas de lançamento do PDF, de todas as páginas: compras, parcelas, IOF, anuidade, tarifas, juros e estornos/créditos (estorno = valor NEGATIVO). NÃO inclua pagamento da fatura anterior nem saldo anterior.", items: { type: "object", properties: {
+          data: { ...D }, descricao: { type: "string" }, valor: { type: "number", description: "em reais; negativo para estorno/crédito" }, parcela: { type: "string", description: "ex.: 3/10, se houver" },
+        }, required: ["descricao", "valor"] } },
+        total_pdf: { type: "number", description: "TOTAL da fatura impresso no PDF (valor a pagar)" },
+        saldo_anterior: { type: "number", description: "saldo anterior que entrou no total, se houver" },
+        pagamentos: { type: "number", description: "pagamentos/créditos de pagamento abatidos no total, se houver" },
+      }, required: ["itens", "total_pdf"] } } },
       { type: "function", function: { name: "resumo_do_dia", description: "BRIEFING do dia da pessoa (assistente pessoal): agenda de hoje (compromissos, agenda pessoal do Google, tarefas), o que vence hoje (pagar/receber) e atrasados, cobranças vencidas, pendências, saldo em caixa e meta do mês. Use p/ 'meu resumo do dia', 'bom dia', 'como está meu dia', 'o que tenho hoje'.", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "cobrancas_lista", description: "Lista as COBRANÇAS (Asaas) como a tela Cobranças: cliente, descrição, valor, vencimento, situação (aguardando/vencida/paga), dias de atraso, link de pagamento, quantos envios e o último envio (WhatsApp/e-mail). Use p/ 'quais cobranças estão em aberto/vencidas', 'o boleto do X foi pago?', 'cobranças pagas esse mês'.", parameters: { type: "object", properties: { status: { type: "string", enum: ["abertas", "vencidas", "aguardando", "pagas", "canceladas", "todas"], description: "padrão: abertas (aguardando + vencidas)" }, cliente: { type: "string" }, inicio: { ...D, description: "por vencimento (ou data do pagamento, se status=pagas)" }, fim: D } } } },
       { type: "function", function: { name: "historico_envios", description: "Histórico de cobranças ENVIADAS por WhatsApp e e-mail (data, hora, canal, para quem, automático/manual, status: enviado/entregue/falhou). Padrão: últimos 60 dias. Use p/ 'o que já mandei pro X', 'o lembrete foi enviado?', 'quais e-mails falharam'.", parameters: { type: "object", properties: { cliente: { type: "string" }, canal: { type: "string", enum: ["todos", "whatsapp", "email"] }, inicio: D, fim: D } } } },
@@ -1259,6 +1271,46 @@ ${contexto}${blocoTela}`;
       const nome = `${arq.titulo.split(" — ")[0]}-${ini}-${fim}`.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.-]+/g, "-").toLowerCase();
       arquivoEventos.push({ id: novoId(), formato, nome_arquivo: nome, ...arq, gerado_em: hojeISO });
       return JSON.stringify({ ok: true, arquivo: arq.titulo, formato, linhas: arq.linhas.length, obs: "O botão para baixar aparece na conversa. Responda curto: o que tem no arquivo." });
+    }
+
+    // ---- Conferir a fatura do banco (PDF) com a fatura do BALANX, linha a linha ----
+    // A IARA só LÊ o PDF e manda as linhas; o cruzamento e as somas são feitos aqui (exatos).
+    async function conferirFatura(a: any): Promise<string> {
+      const r2c = (x: number) => Math.round(x * 100) / 100;
+      const pdf = (Array.isArray(a?.itens) ? a.itens : []).map((x: any, i: number) => ({
+        i, data: dataOk(x?.data), descricao: String(x?.descricao || "").trim(), valor: r2c(Number(x?.valor) || 0),
+        parcela: x?.parcela ? String(x.parcela).replace(/\s+/g, "") : null,
+      })).filter((x: any) => x.valor !== 0);
+      if (!pdf.length) return JSON.stringify({ erro: "Não recebi as linhas do PDF. Leia o PDF e mande TODAS as compras/encargos/estornos em itens." });
+
+      // Conferência da leitura: soma das linhas tem que bater com o total do PDF.
+      const somaPdf = r2c(pdf.reduce((s: number, x: any) => s + x.valor, 0));
+      const totalPdf = Number(a?.total_pdf);
+      const ajustes = r2c((Number(a?.saldo_anterior) || 0) - (Number(a?.pagamentos) || 0));
+      if (totalPdf > 0 && Math.abs(somaPdf + ajustes - totalPdf) > 0.05) {
+        return JSON.stringify({ leitura_incompleta: true, soma_das_linhas_lidas: somaPdf, saldo_anterior_menos_pagamentos: ajustes, total_do_pdf: totalPdf,
+          diferenca: r2c(totalPdf - somaPdf - ajustes),
+          obs: "A soma das linhas que você leu não bate com o total do PDF. Releia o PDF com cuidado (linhas em outras páginas, parcelas, IOF, anuidade, estornos negativos, compras internacionais) e chame de novo com TODAS as linhas. Não responda com a diferença antes disso." });
+      }
+
+      const fj = JSON.parse(await toolFaturaCartao(a?.cartao, a?.fatura, a?.vence_em));
+      const fat = (fj.faturas || []).find((x: any) => !x.erro);
+      if (!fat) return JSON.stringify(fj.faturas?.[0] || fj);
+      const bal = fat.por_categoria.flatMap((g: any) => g.itens.map((it: any) => ({ ...it, categoria: g.categoria, quem: it.fornecedor || it.descricao || "" })));
+
+      const { faltam, sobram, valorDiferente, conferidos } = cruzarFatura(pdf, bal, fat.fechamento);
+      const somaFaltam = r2c(faltam.reduce((s: number, x: any) => s + x.valor, 0));
+      const somaSobram = r2c(sobram.reduce((s: number, x: any) => s + x.valor, 0));
+      const somaDif = r2c(valorDiferente.reduce((s: number, x: any) => s + x.diferenca, 0));
+      const totalBal = r2c(fat.soma_dos_itens);
+      return JSON.stringify({
+        cartao: fat.cartao, fatura: fat.fatura, vencimento: fat.vencimento, fechamento: fat.fechamento,
+        total_pdf_compras: somaPdf, total_balanx: totalBal, diferenca: r2c(somaPdf - totalBal),
+        explicacao_da_diferenca: { faltam_lancar: somaFaltam, valores_diferentes: somaDif, no_balanx_e_nao_no_pdf: r2c(-somaSobram), confere: Math.abs(somaFaltam + somaDif - somaSobram - (somaPdf - totalBal)) < 0.02 },
+        conferidos: conferidos.length, linhas_pdf: pdf.length, linhas_balanx: bal.length,
+        faltam_lancar: faltam, valores_diferentes: valorDiferente, no_balanx_e_nao_no_pdf: sobram,
+        obs: "Para lançar o que falta: preparar_lancamentos com conta = este cartão, tipo despesa, valor e descrição do PDF (parcela no fim da descrição, ex.: 'Loja X (3/10)', SEM parcelas — é só a parcela desta fatura) e data = data_para_lancar (garante cair nesta fatura). Itens 'no_balanx_e_nao_no_pdf' podem ser duplicados ou de outra fatura: a pessoa ajusta na tela do cartão.",
+      });
     }
 
     // ---- Resumo do dia (briefing das 8h abre a IARA com "Meu resumo do dia") ----
@@ -2559,6 +2611,7 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
             else if (tc.function.name === "guardar_documento") result = await guardarDocumento(args);
             else if (tc.function.name === "buscar_documentos") result = await buscarDocumentos(args);
             else if (tc.function.name === "gerar_arquivo") result = await gerarArquivo(args);
+            else if (tc.function.name === "conferir_fatura") result = await conferirFatura(args);
             else if (tc.function.name === "resumo_do_dia") result = await toolResumoDoDia();
             else if (tc.function.name === "cobrancas_lista") result = JSON.stringify(await cobrancasLista(ctxConsulta, args));
             else if (tc.function.name === "historico_envios") result = JSON.stringify(await historicoEnvios(ctxConsulta, args));
