@@ -471,7 +471,8 @@ export function FaturaDetailDialog({
               </aside>
 
               {/* coluna dos lançamentos */}
-              <div className="flex min-h-0 flex-col bg-surface">
+              {/* No celular a janela inteira rola (um scroll só); a lista só tem scroll próprio no computador. */}
+              <div className="flex flex-col bg-surface md:min-h-0">
                 <div className="space-y-3 border-b border-border p-4 md:px-5">
                   <Segmented<'lanc' | 'parc' | 'pag'> value={aba} onChange={setAba} opts={[
                     ['lanc', <span key="l">Lançamentos <span className="text-[11px] opacity-70">{lancamentos.length}</span></span>],
@@ -492,7 +493,7 @@ export function FaturaDetailDialog({
                   )}
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 md:px-5">
+                <div className="px-4 pb-6 md:min-h-0 md:flex-1 md:overflow-y-auto md:px-5">
                   {aba === 'lanc' && (
                     <>
                       {formulario && <div className="pt-4">{formulario}</div>}
