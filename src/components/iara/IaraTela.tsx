@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Sparkle } from '@/components/shared/Sparkle';
 import { OlhoValores } from '@/components/shared/OlhoValores';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { IaraMarkdown } from '@/components/iara/IaraMarkdown';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/hooks/useFinancialAdvisor';
@@ -104,6 +105,7 @@ function Pensando() {
 }
 
 function Composer(p: IaraTelaProps & { grande?: boolean }) {
+  const mobile = useIsMobile();
   const tempo = useCronometro(p.listening);
   // ---- Gravando: o campo vira a barra de voz ----
   if (p.listening || p.transcribing) {
@@ -165,7 +167,7 @@ function Composer(p: IaraTelaProps & { grande?: boolean }) {
         </button>
         <label htmlFor="iara-input" className="sr-only">Pergunte à IARA</label>
         <input id="iara-input" value={p.input} onChange={(e) => p.setInput(e.target.value)} disabled={p.isLoading}
-          placeholder={p.grande ? 'Pergunte, cobre um cliente, mande um CNPJ…' : 'Continue a conversa…'}
+          placeholder={p.grande ? (mobile ? 'Pergunte à IARA' : 'Pergunte, cobre um cliente, mande um CNPJ…') : 'Continue a conversa…'}
           className={cn('h-full min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-foreground-muted', p.grande ? 'text-[16px]' : 'text-[15px]')} />
         <button type="button" onClick={p.onMic} disabled={p.transcribing}
           aria-label={p.listening ? 'Parar e transcrever' : 'Falar'}
