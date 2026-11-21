@@ -14,6 +14,7 @@ export const VOZ_OK = new Set([
   "cliente", "contrato", "cobranca", "compromisso", "tarefa",
   "concluir_tarefa", "alterar_agenda", "alterar_cobranca", "alterar_despesa",
   "dar_baixa", "alterar_receita", "alterar_categoria", "transferencia", "definir_meta", "definir_orcamento",
+  "editar_lancamentos",
 ]);
 export const soPeloApp = (a: any) => !VOZ_OK.has(a?.tipo);
 
@@ -368,6 +369,30 @@ export async function executarAcoesVoz(ctx: Ctx, acoes: any[]): Promise<Resultad
         const { data, error } = await ctx.db.from(a.lanc === "receita" ? "receitas" : "despesas").update({ categoria_id: a.categoria_id }).in("id", a.ids).select("id");
         if (error) throw error;
         res.push({ ok: true, mensagem: `${data?.length ?? 0} lançamento(s) em ${a.categoria_nome}.` });
+      } else if (a.tipo === "editar_lancamentos") {
+        // Igual ao app (src/lib/acoesIara.ts): só colunas permitidas; mesma mudança = uma gravação.
+        const PERMITIDOS = a.lanc === "receita"
+          ? ["descricao", "valor", "data_vencimento", "data_competencia", "data_recebimento", "status", "categoria_id", "conta_id", "cliente_id", "forma_pagamento"]
+          : ["descricao", "valor", "data_vencimento", "data_competencia", "data_pagamento", "status", "categoria_id", "conta_id", "cliente_id", "forma_pagamento", "fornecedor"];
+        const grupos = new Map<string, { patch: Record<string, unknown>; ids: string[] }>();
+        for (const it of a.itens || []) {
+          const patch: Record<string, unknown> = {};
+          for (const k of PERMITIDOS) if (it.patch && k in it.patch) patch[k] = it.patch[k];
+          if (!Object.keys(patch).length) continue;
+          const chave = JSON.stringify(patch);
+          const g = grupos.get(chave) || { patch, ids: [] };
+          g.ids.push(it.id); grupos.set(chave, g);
+        }
+        let n = 0; const faturas = new Set<string>();
+        for (const g of grupos.values()) {
+          const { data, error } = await ctx.db.from(a.lanc === "receita" ? "receitas" : "despesas").update(g.patch).in("id", g.ids)
+            .select(a.lanc === "receita" ? "id" : "id, fatura_id");
+          if (error) throw error;
+          n += data?.length ?? 0;
+          for (const r of data || []) if (r.fatura_id) faturas.add(r.fatura_id);
+        }
+        for (const f of faturas) await recalcularFatura(ctx, f);
+        res.push({ ok: true, mensagem: `${n} lançamento${n === 1 ? "" : "s"} alterado${n === 1 ? "" : "s"}.` });
       } else if (a.tipo === "transferencia") {
         if (a.conta_origem_id === a.conta_destino_id || !(Number(a.valor) > 0)) throw new Error("transferência inválida");
         const { error } = await ctx.db.from("transferencias").insert({ user_id: ctx.userId, conta_origem_id: a.conta_origem_id, conta_destino_id: a.conta_destino_id, valor: a.valor, descricao: a.descricao || null, data_transferencia: a.data });
@@ -386,7 +411,7 @@ export async function executarAcoesVoz(ctx: Ctx, acoes: any[]): Promise<Resultad
         if (error) throw error;
         res.push({ ok: true, mensagem: "Meta atualizada." });
       }
-    } catch (e) { falha(a.tipo === "dar_baixa" ? "Baixa" : a.tipo === "transferencia" ? "Transferência" : a.tipo === "definir_meta" ? "Meta" : a.tipo === "definir_orcamento" ? "Orçamento" : a.tipo === "alterar_categoria" ? "Categoria" : "Receita", e); }
+    } catch (e) { falha(a.tipo === "dar_baixa" ? "Baixa" : a.tipo === "transferencia" ? "Transferência" : a.tipo === "definir_meta" ? "Meta" : a.tipo === "definir_orcamento" ? "Orçamento" : a.tipo === "alterar_categoria" ? "Categoria" : a.tipo === "editar_lancamentos" ? "Edição" : "Receita", e); }
   }
   return res;
 }

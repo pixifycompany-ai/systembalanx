@@ -490,6 +490,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - ALTERAR despesa/conta a pagar ("passa o aluguel para dia 15", "a conta de luz veio 280") → **alterar_despesa**. EXCLUIR despesa lançada errada/duplicada → **excluir_despesa**.
 - DAR BAIXA ("paguei a luz", "o João pagou", "recebi os 1.500 da Sabor Maria ontem", "marca como pago") → **dar_baixa** (tipo despesa ou receita; data = quando pagou/recebeu, padrão hoje; conta se a pessoa disser). Fatura de cartão ("paguei a fatura") → **pagar_fatura** (nunca dar_baixa). Com cobrança no Asaas a baixa vai para o Asaas também — diga isso.
 - EDITAR lançamentos (um ou VÁRIOS, pagos ou em aberto: descrição, valor, datas, categoria, conta, fornecedor/cliente, forma de pagamento, situação) → **editar_lancamentos**. Se acabou de listar, use os ids da lista ("muda esses para Pix" = os ids que você mostrou). Abaixo das listas aparece um botão "Editar" em cada lançamento que abre o mesmo formulário do Fluxo de caixa — mencione isso quando a pessoa quiser mexer em vários campos de um lançamento só. Cobranças do Asaas continuam por alterar_cobranca; baixa com Asaas por dar_baixa.
+  EM MASSA PELA FALA: "aplique a categoria X nos lançamentos do dia 10 de 20, 30 e 137 reais" → editar_lancamentos com data + valores [20, 30, 137] + mudancas.categoria, NA HORA (o card de confirmação já mostra o antes → depois; não pergunte antes). Vale igual para fornecedor, conta bancária, forma de pagamento, descrição. Sem dizer se é despesa ou receita: tente despesa; se voltar "não achei", tente receita. Se vier valores_nao_achados, diga quais valores não encontrou naquele dia.
 - RECEITA a receber: mudar vencimento/valor/descrição → **alterar_receita**; apagar lançada errada → **excluir_receita**. Se a receita tiver cobrança no Asaas, a ferramenta avisa: use alterar_cobranca / cancelar_cobranca.
 - TROCAR CATEGORIA ("coloca o Uber em Transporte", "essas despesas da Vivo são Internet") → **alterar_categoria**. Se vierem vários e a pessoa não disse "todos", liste e pergunte se é para mudar todos ou um só.
 - TRANSFERÊNCIA entre contas ("passei 2 mil do Itaú pro Inter") → **transferir** (não é despesa nem receita).
@@ -592,11 +593,13 @@ ${contexto}${blocoTela}`;
         saldo_anterior: { type: "number", description: "saldo anterior que entrou no total, se houver" },
         pagamentos: { type: "number", description: "pagamentos/créditos de pagamento abatidos no total, se houver" },
       } } } },
-      { type: "function", function: { name: "editar_lancamentos", description: "Prepara a EDIÇÃO de UM ou VÁRIOS lançamentos (pagos ou em aberto): descrição, valor, vencimento, competência, data do pagamento, categoria, conta bancária, fornecedor/cliente, forma de pagamento e situação (pago/em aberto). Use os ids de uma lista anterior (listar_lancamentos/buscar_lancamento) ou um filtro. Ex.: 'muda a forma de pagamento desses para Pix', 'essas 3 despesas eram do Inter', 'corrige a descrição da Vivo de outubro', 'marca todas as despesas de energia de 2026 como pagas'.", parameters: { type: "object", properties: {
+      { type: "function", function: { name: "editar_lancamentos", description: "Prepara a EDIÇÃO de UM ou VÁRIOS lançamentos (pagos ou em aberto): descrição, valor, vencimento, competência, data do pagamento, categoria, conta bancária, fornecedor/cliente, forma de pagamento e situação (pago/em aberto). Use os ids de uma lista anterior (listar_lancamentos/buscar_lancamento) ou um filtro. Ex.: 'muda a forma de pagamento desses para Pix', 'essas 3 despesas eram do Inter', 'corrige a descrição da Vivo de outubro', 'marca todas as despesas de energia de 2026 como pagas', 'aplique a categoria Marketing nos lançamentos do dia 10 de 20, 30 e 137 reais' (data + valores), 'o fornecedor desses é a Hostinger', 'passa os do dia 5 para a conta do Inter'. Item de cartão: só categoria, descrição e fornecedor.", parameters: { type: "object", properties: {
         tipo: { type: "string", enum: ["despesa", "receita"] },
         ids: { type: "array", items: { type: "string" }, description: "ids dos lançamentos (das listas anteriores)" },
         quem: { type: "string", description: "filtro: fornecedor/cliente/descrição" }, categoria_atual: { type: "string" },
-        status_atual: { type: "string", enum: ["aberto", "efetivado"] }, valor: { type: "number" }, data: { ...D },
+        status_atual: { type: "string", enum: ["aberto", "efetivado"] }, valor: { type: "number" },
+        valores: { type: "array", items: { type: "number" }, description: "filtro: VÁRIOS valores (ex.: 20, 30, 137) — muda os lançamentos com esses valores" },
+        data: { ...D, description: "filtro: DIA exato (vencimento, competência/dia da compra ou pagamento)" },
         inicio: { ...D }, fim: { ...D }, criterio: { type: "string", enum: ["vencimento", "competencia", "pagamento"] },
         todos: { type: "boolean", description: "true = aplicar em todos os encontrados pelo filtro" },
         mudancas: { type: "object", properties: {
@@ -1480,9 +1483,18 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
       if (ids.length) rows = await safe<any>(db.from(tabela).select(sel).in("id", ids));
       else {
         const q = sanitize(a?.quem || "");
-        if (!q && !a?.categoria_atual) return JSON.stringify({ erro: "Diga quais lançamentos (fornecedor/cliente/descrição, categoria ou período) ou use os ids de uma lista anterior." });
+        const dia = dataOk(a?.data);
+        const valores: number[] = [...new Set<number>([...(Array.isArray(a?.valores) ? a.valores : []), a?.valor]
+          .map((x: any) => Math.round(Number(x) * 100) / 100).filter((x: number) => x > 0))];
+        if (!q && !a?.categoria_atual && !dia && !valores.length && !dataOk(a?.inicio)) {
+          return JSON.stringify({ erro: "Diga quais lançamentos (dia, valores, fornecedor/cliente/descrição, categoria ou período) ou use os ids de uma lista anterior." });
+        }
         const col = a?.criterio === "competencia" ? "data_competencia" : a?.criterio === "pagamento" ? colEf : "data_vencimento";
-        let qq: any = db.from(tabela).select(sel).gte(col, dataOk(a?.inicio) || ultimosMesesIni(12)).lte(col, dataOk(a?.fim) || `${anoIni.slice(0, 4)}-12-31`);
+        let qq: any = db.from(tabela).select(sel);
+        // Dia exato: vale vencimento, competência (dia da compra no cartão) ou pagamento.
+        if (dia && !dataOk(a?.inicio) && !dataOk(a?.fim)) qq = qq.or(`data_vencimento.eq.${dia},data_competencia.eq.${dia},${colEf}.eq.${dia}`);
+        else qq = qq.gte(col, dataOk(a?.inicio) || ultimosMesesIni(12)).lte(col, dataOk(a?.fim) || `${anoIni.slice(0, 4)}-12-31`);
+        if (valores.length) qq = qq.in("valor", valores);
         if (q) {
           if (lanc === "despesa") qq = qq.or(`descricao.ilike.%${q}%,fornecedor.ilike.%${q}%`);
           else {
@@ -1494,11 +1506,19 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
         if (a?.status_atual === "aberto") qq = qq.in("status", ["pendente", "atrasado"]);
         else if (a?.status_atual === "efetivado") qq = qq.eq("status", lanc === "receita" ? "recebido" : "pago");
         rows = await safe<any>(qq);
-        const v = Number(a?.valor); if (v > 0) { const rv = rows.filter((r) => Math.abs(Number(r.valor) - v) < 0.01); if (rv.length) rows = rv; }
-        const d = dataOk(a?.data); if (d) { const rd = rows.filter((r) => r.data_vencimento === d || r.data_competencia === d || r[colEf] === d); if (rd.length) rows = rd; }
+        // Filtros são ESTRITOS (nunca cai para "todos" quando o dia/valor não bate).
+        if (valores.length) rows = rows.filter((r) => valores.some((v) => Math.abs(Number(r.valor) - v) < 0.005));
+        if (dia) rows = rows.filter((r) => r.data_vencimento === dia || r.data_competencia === dia || r[colEf] === dia);
+        if (valores.length) {
+          const naoAchei = valores.filter((v) => !rows.some((r) => Math.abs(Number(r.valor) - v) < 0.005 && !ehMarcador(r.fornecedor)));
+          const repetidos = valores.filter((v) => rows.filter((r) => Math.abs(Number(r.valor) - v) < 0.005 && !ehMarcador(r.fornecedor)).length > 1);
+          // Pediu valores específicos e cada um achou exatamente 1: é isso que a pessoa quer mudar.
+          if (!repetidos.length) a = { ...a, todos: true };
+          if (naoAchei.length) a = { ...a, _nao_achei: naoAchei };
+        }
       }
       rows = rows.filter((r) => !ehMarcador(r.fornecedor));
-      if (!rows.length) return JSON.stringify({ erro: "Não achei lançamento com isso." });
+      if (!rows.length) return JSON.stringify({ erro: `Não achei ${lanc} com isso${a?._nao_achei?.length ? ` (valores ${a._nao_achei.map((v: number) => `R$ ${v.toFixed(2).replace(".", ",")}`).join(", ")})` : ""}${dataOk(a?.data) ? ` no dia ${dBR(dataOk(a.data)!)}` : ""}. Se for ${lanc === "despesa" ? "receita" : "despesa"}, chame de novo com o outro tipo.` });
       rows.sort((x, y) => String(x.data_vencimento).localeCompare(String(y.data_vencimento)));
       if (rows.length > 1 && !ids.length && !a?.todos) {
         return JSON.stringify({ precisa_escolher: true, quantidade: rows.length,
@@ -1579,6 +1599,7 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
       if (!itens.length) return JSON.stringify({ erro: "Nada a mudar: os lançamentos já estão assim ou a mudança não é permitida neles.", bloqueados });
       acoes.push({ id: novoId(), tipo: "editar_lancamentos", lanc, itens, bloqueados, mexe_saldo: itens.some((i) => i.efetivado && (i.patch.valor || i.patch.conta_id || i.patch[colEf] !== undefined)) || itens.some((i) => i.patch.status) });
       return JSON.stringify({ ok: true, quantidade: itens.length, exemplos: itens.slice(0, 5).map((i) => ({ quem: i.quem, descricao: i.descricao, mudancas: i.mudancas })), bloqueados,
+        valores_nao_achados: a?._nao_achei?.length ? a._nao_achei : undefined,
         obs: "A pessoa confere o antes/depois no card e confirma. Se houver bloqueados, diga o motivo em 1 linha." });
     }
 
