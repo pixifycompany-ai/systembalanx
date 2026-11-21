@@ -461,10 +461,12 @@ serve(async (req) => {
   const cron = Deno.env.get("CRON_SECRET");
   if (cron && req.headers.get("x-cron-secret") === cron) {
     const { data } = await admin.from("google_integracoes").select("*").not("refresh_token", "is", null);
-    const out = [];
-    for (const integ of data || []) {
-      if (integ.ultimo_erro === "reconectar") continue;
-      out.push(await sincronizarUm(admin, integ));
+    // Em grupos de 5 em paralelo: um por vez estoura o tempo da função com muitos usuários.
+    const ativas = (data || []).filter((integ: any) => integ.ultimo_erro !== "reconectar");
+    const out: unknown[] = [];
+    for (let i = 0; i < ativas.length; i += 5) {
+      out.push(...await Promise.all(ativas.slice(i, i + 5).map((integ: any) =>
+        sincronizarUm(admin, integ).catch((e) => ({ erro: (e as Error).message })))));
     }
     return json({ ok: true, conexoes: out.length, resultados: out });
   }

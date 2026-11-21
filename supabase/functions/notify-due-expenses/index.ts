@@ -103,17 +103,18 @@ Deno.serve(async (req) => {
   if (pErr) return json({ error: pErr.message }, 500);
 
   let sent = 0, failed = 0, skipped = 0;
-  for (const p of (profiles ?? []) as { user_id: string; nome: string | null; current_tenant_id: string | null }[]) {
+  // Um usuário por vez demoraria demais com muitos usuários: processa em grupos de 10 em paralelo.
+  const umUsuario = async (p: { user_id: string; nome: string | null; current_tenant_id: string | null }) => {
     // Empresa que a pessoa está usando (ou a primeira da qual participa).
     let tenantId = p.current_tenant_id;
     if (!tenantId) {
       const { data: m } = await admin.from('tenant_members').select('tenant_id').eq('user_id', p.user_id).order('created_at').limit(1);
       tenantId = m?.[0]?.tenant_id ?? null;
     }
-    if (!tenantId) { skipped++; continue; }
+    if (!tenantId) { skipped++; return; }
 
     const partes = await briefing(admin, tenantId, p.user_id, today);
-    if (!partes.length && fimDeSemana) { skipped++; continue; }
+    if (!partes.length && fimDeSemana) { skipped++; return; }
 
     const primeiroNome = (p.nome || '').trim().split(/\s+/)[0];
     const [, mm, dd] = today.split('-');
@@ -136,6 +137,10 @@ Deno.serve(async (req) => {
         console.error('push fail', status, (e as Error).message);
       }
     }
+    };
+  const lista = (profiles ?? []) as { user_id: string; nome: string | null; current_tenant_id: string | null }[];
+  for (let i = 0; i < lista.length; i += 10) {
+    await Promise.all(lista.slice(i, i + 10).map((p) => umUsuario(p).catch((e) => { failed++; console.error('briefing', (e as Error).message); })));
   }
   return json({ ok: true, sent, failed, skipped, today });
 });

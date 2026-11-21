@@ -784,17 +784,25 @@ export function useFluxoCaixa(): UseFluxoCaixaReturn {
         }
       }
 
-      // Update each item individually to use its own due date
+      // Cada lançamento baixa na data do seu próprio vencimento (agrupado por data abaixo).
       const dateField = tipo === 'receitas' ? 'data_recebimento' : 'data_pagamento';
       const shouldSetDate = (tipo === 'receitas' && status === 'recebido') || (tipo === 'despesas' && status === 'pago');
 
+      // Uma gravação por DATA (não por lançamento): 100 selecionados com 3 vencimentos
+      // diferentes = 3 idas ao banco, não 100.
+      const porData = new Map<string, string[]>();
       for (const id of ids) {
         const item = items?.find(i => i.id === id);
+        const k = shouldSetDate && item ? String(item.data_vencimento) : '';
+        porData.set(k, [...(porData.get(k) || []), id]);
+      }
+      for (const [data, grupo] of porData) {
         const updateData: Record<string, unknown> = { status };
-        if (shouldSetDate && item) {
-          updateData[dateField] = item.data_vencimento;
+        if (data) updateData[dateField] = data;
+        for (let i = 0; i < grupo.length; i += 200) {
+          const { error } = await supabase.from(tipo).update(updateData as never).in('id', grupo.slice(i, i + 200));
+          if (error) throw error;
         }
-        await supabase.from(tipo).update(updateData).eq('id', id);
       }
 
       if (tipo === 'receitas') {

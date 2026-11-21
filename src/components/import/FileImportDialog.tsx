@@ -483,7 +483,7 @@ export function FileImportDialog({ open, onOpenChange, onImportComplete }: FileI
     const receitas = selectedTransactions.filter(t => t.tipo === 'receita');
     const despesas = selectedTransactions.filter(t => t.tipo === 'despesa');
     
-    let imported = { receitas: 0, despesas: 0, transferencias: 0 };
+    const imported = { receitas: 0, despesas: 0, transferencias: 0 };
     const total = selectedTransactions.length + selectedTransfers.length;
     let processed = 0;
 
@@ -493,59 +493,68 @@ export function FileImportDialog({ open, onOpenChange, onImportComplete }: FileI
         throw new Error('User not authenticated');
       }
 
+      // Grava em lotes de 200 (uma ida ao banco por lote, não por linha). Se um lote
+      // falhar, tenta linha a linha só nele, para importar o que estiver certo.
+      const gravarEmLotes = async (tabela: 'receitas' | 'despesas', linhas: Record<string, unknown>[]) => {
+        let ok = 0;
+        for (let i = 0; i < linhas.length; i += 200) {
+          const lote = linhas.slice(i, i + 200);
+          const { error } = await supabase.from(tabela).insert(lote as never);
+          if (!error) ok += lote.length;
+          else for (const l of lote) { const r = await supabase.from(tabela).insert(l as never); if (!r.error) ok++; }
+          processed += lote.length;
+          setImportProgress(Math.round((processed / total) * 100));
+        }
+        return ok;
+      };
+
       // Import receitas
-      for (const receita of receitas) {
+      const linhasReceitas = receitas.map((receita) => {
         const contaId = receita.conta_id || findContaId(receita.conta_pagamento);
         const status = receita.status || 'pendente';
         const dataVenc = receita.data_vencimento || receita.data;
         const dataComp = receita.data_competencia || receita.data;
-        const { error } = await supabase.from('receitas').insert({
-          user_id: user.id,
-          descricao: receita.descricao,
-          valor: receita.valor,
-          data_competencia: dataComp,
-          data_vencimento: dataVenc,
-          status: status as 'pendente' | 'recebido' | 'atrasado',
-          conta_pagamento: receita.conta_pagamento || null,
-          conta_id: contaId,
-          categoria_id: receita.categoria_id || null,
-          cliente_id: receita.cliente_id || null,
-          forma_pagamento: receita.forma_pagamento || null,
-          data_recebimento: receita.data_recebimento || null,
-        });
-        
-        if (!error) imported.receitas++;
-        processed++;
-        setImportProgress(Math.round((processed / total) * 100));
-      }
+        return {
+            user_id: user.id,
+            descricao: receita.descricao,
+            valor: receita.valor,
+            data_competencia: dataComp,
+            data_vencimento: dataVenc,
+            status: status as 'pendente' | 'recebido' | 'atrasado',
+            conta_pagamento: receita.conta_pagamento || null,
+            conta_id: contaId,
+            categoria_id: receita.categoria_id || null,
+            cliente_id: receita.cliente_id || null,
+            forma_pagamento: receita.forma_pagamento || null,
+            data_recebimento: receita.data_recebimento || null,
+          };
+      });
+      imported.receitas += await gravarEmLotes('receitas', linhasReceitas);
 
       // Import despesas
-      for (const despesa of despesas) {
+      const linhasDespesas = despesas.map((despesa) => {
         const contaId = despesa.conta_id || findContaId(despesa.conta_pagamento);
         const status = despesa.status || 'pendente';
         const dataVenc = despesa.data_vencimento || despesa.data;
         const dataComp = despesa.data_competencia || despesa.data;
-        const { error } = await supabase.from('despesas').insert({
-          user_id: user.id,
-          descricao: despesa.descricao,
-          valor: despesa.valor,
-          data_competencia: dataComp,
-          data_vencimento: dataVenc,
-          status: status as 'pendente' | 'pago' | 'atrasado',
-          tipo: (despesa.tipo_despesa || 'variavel') as 'fixa' | 'variavel',
-          conta_pagamento: despesa.conta_pagamento || null,
-          conta_id: contaId,
-          categoria_id: despesa.categoria_id || null,
-          fornecedor: despesa.fornecedor || null,
-          data_pagamento: despesa.data_pagamento || null,
-          forma_pagamento: despesa.forma_pagamento || null,
-          cliente_id: despesa.cliente_id || null,
-        });
-        
-        if (!error) imported.despesas++;
-        processed++;
-        setImportProgress(Math.round((processed / total) * 100));
-      }
+        return {
+            user_id: user.id,
+            descricao: despesa.descricao,
+            valor: despesa.valor,
+            data_competencia: dataComp,
+            data_vencimento: dataVenc,
+            status: status as 'pendente' | 'pago' | 'atrasado',
+            tipo: (despesa.tipo_despesa || 'variavel') as 'fixa' | 'variavel',
+            conta_pagamento: despesa.conta_pagamento || null,
+            conta_id: contaId,
+            categoria_id: despesa.categoria_id || null,
+            fornecedor: despesa.fornecedor || null,
+            data_pagamento: despesa.data_pagamento || null,
+            forma_pagamento: despesa.forma_pagamento || null,
+            cliente_id: despesa.cliente_id || null,
+          };
+      });
+      imported.despesas += await gravarEmLotes('despesas', linhasDespesas);
 
       // Import transfers
       for (const transfer of selectedTransfers) {

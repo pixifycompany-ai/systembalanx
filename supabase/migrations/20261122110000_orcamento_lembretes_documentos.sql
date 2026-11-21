@@ -34,8 +34,8 @@ create trigger trg_set_tenant before insert on public.documentos
 alter table public.documentos enable row level security;
 drop policy if exists documentos_membros on public.documentos;
 create policy documentos_membros on public.documentos for all to authenticated
-  using (public.tenant_role(tenant_id) is not null or public.is_platform_admin())
-  with check (public.tenant_role(tenant_id) is not null or public.is_platform_admin());
+  using (tenant_id in (select tenant_id from public.tenant_members where user_id = (select auth.uid())) or (select public.is_platform_admin()))
+  with check (tenant_id in (select tenant_id from public.tenant_members where user_id = (select auth.uid())) or (select public.is_platform_admin()));
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('documentos', 'documentos', false, 15728640, array[
