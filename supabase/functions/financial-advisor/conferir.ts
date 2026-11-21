@@ -4,6 +4,14 @@
 const norm = (s: string) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 const r2c = (x: number) => Math.round(x * 100) / 100;
 
+/** Mesmo critério de "descrição parecida" usado no cruzamento (0 a 1). */
+export function parecido(x: string, y: string): number {
+  const tok = (s: string) => new Set(norm(s).replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !/^\d+$/.test(w)));
+  const A = tok(x), B = tok(y); if (!A.size || !B.size) return 0;
+  let n = 0; A.forEach((w) => { if ([...B].some((v) => v.startsWith(w) || w.startsWith(v))) n++; });
+  return n / Math.min(A.size, B.size);
+}
+
 export function cruzarFatura(pdf: any[], bal: any[], fech: string) {
   const tok = (s: string) => new Set(norm(s).replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !/^\d+$/.test(w)));
   const sim = (x: string, y: string) => {

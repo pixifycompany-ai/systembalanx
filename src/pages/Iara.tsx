@@ -10,6 +10,7 @@ import { PropostaLancamentos } from '@/components/iara/PropostaLancamentos';
 import { PropostaAcoes } from '@/components/iara/PropostaAcoes';
 import { ConexaoIara } from '@/components/iara/ConexaoIara';
 import { ArquivosGerados, DocumentosIara } from '@/components/iara/ArquivosIara';
+import { ListaLancamentosIara, QuadroConferencia } from '@/components/iara/ConferenciaIara';
 import { IaraTela } from '@/components/iara/IaraTela';
 
 /** Quem abre /iara de outra tela pode mandar a pergunta e o que a pessoa estava vendo. */
@@ -262,6 +263,8 @@ export default function Iara() {
             <div className="mt-3"><PropostaLancamentos lancamentos={m.lancamentos} onResolved={() => clearLancamentos(m.id)} /></div>
           )}
           {m.conexoes?.map((t) => <ConexaoIara key={t} tipo={t} />)}
+          {m.conferencias?.map((c, i) => <QuadroConferencia key={i} c={c} />)}
+          {m.lista_lancamentos && m.lista_lancamentos.length > 0 && <ListaLancamentosIara itens={m.lista_lancamentos} />}
           {m.documentos && m.documentos.length > 0 && <DocumentosIara docs={m.documentos} />}
           {m.arquivos && m.arquivos.length > 0 && <ArquivosGerados arquivos={m.arquivos} />}
           {m.memorias && m.memorias.length > 0 && (

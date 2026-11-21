@@ -126,6 +126,14 @@ export interface AcaoLembreteWhatsapp {
   cobranca_id: string; cliente_nome: string; telefone: string; texto: string;
   descricao: string; valor: number; vencimento: string; vencida: boolean;
 }
+export interface AcaoEditarLancamentos {
+  id: string; tipo: 'editar_lancamentos';
+  lanc: 'receita' | 'despesa';
+  itens: { id: string; quem: string; descricao: string; valor: number; vencimento: string; efetivado: boolean;
+    mudancas: { campo: string; de: string; para: string }[]; patch: Record<string, unknown> }[];
+  bloqueados: { quem: string; descricao: string; motivo: string }[];
+  mexe_saldo: boolean;
+}
 export interface AcaoDefinirOrcamento {
   id: string; tipo: 'definir_orcamento';
   categoria_id: string; categoria_nome: string;
@@ -140,7 +148,7 @@ export type AcaoIara = AcaoCliente | AcaoContrato | AcaoCobranca
   | AcaoAlterarCobranca | AcaoCancelarCobranca | AcaoAlterarDespesa | AcaoExcluirDespesa
   | AcaoCompromisso | AcaoTarefa | AcaoConcluirTarefa | AcaoAlterarAgenda | AcaoExcluirAgenda
   | AcaoDarBaixa | AcaoAlterarReceita | AcaoExcluirReceita | AcaoAlterarCategoria | AcaoTransferencia
-  | AcaoPagarFatura | AcaoAlterarContrato | AcaoLembreteWhatsapp | AcaoDefinirMeta | AcaoDefinirOrcamento;
+  | AcaoPagarFatura | AcaoAlterarContrato | AcaoLembreteWhatsapp | AcaoDefinirMeta | AcaoDefinirOrcamento | AcaoEditarLancamentos;
 
 /** Só estas colunas podem vir da IARA num alterar_agenda. */
 const CAMPOS_AGENDA = ['titulo', 'data', 'inicio', 'fim', 'dia_inteiro', 'notas', 'cliente_id', 'lembrete_min'] as const;
@@ -363,7 +371,7 @@ export async function executarAcoes(acoes: AcaoIara[], usarExistente: Record<str
 
 const ROTULO_EXTRA: Record<string, string> = {
   dar_baixa: 'Baixa', alterar_receita: 'Receita', excluir_receita: 'Receita', alterar_categoria: 'Categoria',
-  transferencia: 'Transferência', pagar_fatura: 'Fatura', alterar_contrato: 'Contrato', lembrete_whatsapp: 'WhatsApp', definir_meta: 'Meta', definir_orcamento: 'Orçamento',
+  transferencia: 'Transferência', pagar_fatura: 'Fatura', alterar_contrato: 'Contrato', lembrete_whatsapp: 'WhatsApp', definir_meta: 'Meta', definir_orcamento: 'Orçamento', editar_lancamentos: 'Edição',
 };
 const brl = (v: number) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const dataBR = (iso?: string | null) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '');
@@ -499,6 +507,28 @@ async function executarExtra(a: AcaoIara, userId: string): Promise<string | null
         : await db.from('metas').insert({ user_id: userId, tipo: 'faturamento', periodo: a.periodo, valor_meta: a.valor });
       if (error) throw error;
       return `Meta de ${a.periodo.split('-').reverse().join('/')}: ${brl(a.valor)}.`;
+    }
+    case 'editar_lancamentos': {
+      // Só colunas permitidas; mesma mudança em vários = uma gravação só.
+      const PERMITIDOS = a.lanc === 'receita'
+        ? ['descricao', 'valor', 'data_vencimento', 'data_competencia', 'data_recebimento', 'status', 'categoria_id', 'conta_id', 'cliente_id', 'forma_pagamento']
+        : ['descricao', 'valor', 'data_vencimento', 'data_competencia', 'data_pagamento', 'status', 'categoria_id', 'conta_id', 'cliente_id', 'forma_pagamento', 'fornecedor'];
+      const grupos = new Map<string, { patch: Record<string, unknown>; ids: string[] }>();
+      for (const it of a.itens) {
+        const patch: Record<string, unknown> = {};
+        for (const k of PERMITIDOS) if (k in it.patch) patch[k] = it.patch[k];
+        if (!Object.keys(patch).length) continue;
+        const chave = JSON.stringify(patch);
+        const g = grupos.get(chave) || { patch, ids: [] };
+        g.ids.push(it.id); grupos.set(chave, g);
+      }
+      let n = 0;
+      for (const g of grupos.values()) {
+        const { data, error } = await db.from(a.lanc === 'receita' ? 'receitas' : 'despesas').update(g.patch).in('id', g.ids).select('id');
+        if (error) throw error;
+        n += data?.length ?? 0;
+      }
+      return `${n} lançamento${n === 1 ? '' : 's'} alterado${n === 1 ? '' : 's'}.`;
     }
     case 'definir_orcamento': {
       const { data, error } = await db.from('categorias').update({ orcamento_mensal: a.valor }).eq('id', a.categoria_id).select('id');

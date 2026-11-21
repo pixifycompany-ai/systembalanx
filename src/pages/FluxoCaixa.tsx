@@ -567,6 +567,19 @@ export default function FluxoCaixa() {
     else handleEditSaida(t);
   };
 
+  // ?abrir=<id> (vem da IARA): abre o mesmo formulário de edição daquele lançamento.
+  const abrirParam = searchParams.get('abrir');
+  const abrirTratado = useRef<string | null>(null);
+  useEffect(() => {
+    if (!abrirParam || abrirTratado.current === abrirParam || isLoading) return;
+    abrirTratado.current = abrirParam;
+    const t = transacoes.find((x) => x.id === abrirParam && x.tabela_origem !== 'transferencia');
+    const p = new URLSearchParams(searchParams); p.delete('abrir'); setSearchParams(p, { replace: true });
+    if (!t) { toast.info('Lançamento não encontrado', { description: 'Pode ser um item de cartão (edite na fatura) ou já ter sido excluído.' }); return; }
+    if (t.tipo === 'entrada') handleEditEntrada(t); else handleEditSaida(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirParam, isLoading, transacoes]);
+
   const handleSubmitEntrada = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formEntrada.descricao || formEntrada.valor <= 0) return;

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Check, Copy, ExternalLink, FileSignature, Loader2, Receipt, UserPlus, X, AlertTriangle, CalendarClock, Trash2, ArrowRight, CalendarPlus, ListTodo, CheckCircle2, RotateCcw, Tags, ArrowLeftRight, CreditCard, MessageCircle, Target, PauseCircle, PlayCircle, Ban, TrendingUp } from 'lucide-react';
+import { Check, Copy, ExternalLink, FileSignature, Loader2, Receipt, UserPlus, X, AlertTriangle, CalendarClock, Trash2, ArrowRight, CalendarPlus, ListTodo, CheckCircle2, RotateCcw, Tags, ArrowLeftRight, CreditCard, MessageCircle, Target, PauseCircle, PlayCircle, Ban, TrendingUp, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatCPFCNPJ, formatCurrency, formatDate, formatPhone } from '@/utils/formatters';
 import { useToast } from '@/hooks/use-toast';
@@ -166,6 +166,40 @@ function ItemExtra({ a }: { a: AcaoIara }) {
           <p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-[12px] bg-success-bg/60 px-3 py-2 text-[12px] leading-[1.45] text-foreground">{a.texto}</p>
         </Linha>
       );
+    case 'editar_lancamentos': {
+      // Resumo do que muda: igual em todos → "Campo: de → para"; senão "Campo: … → para".
+      const porCampo = new Map<string, { de: Set<string>; para: Set<string> }>();
+      for (const it of a.itens) for (const m of it.mudancas) {
+        const c = porCampo.get(m.campo) || { de: new Set(), para: new Set() };
+        c.de.add(m.de); c.para.add(m.para); porCampo.set(m.campo, c);
+      }
+      const n = a.itens.length;
+      return (
+        <Linha>
+          <Topo icone={<Pencil className="h-4 w-4 shrink-0 text-primary" />} titulo={<>Editar {n} {a.lanc === 'receita' ? (n === 1 ? 'receita' : 'receitas') : (n === 1 ? 'despesa' : 'despesas')}</>}
+            valor={n > 1 ? a.itens.reduce((s2, i) => s2 + i.valor, 0) : a.itens[0].valor} />
+          <div className="mt-1.5 flex flex-col items-start gap-1">
+            {[...porCampo.entries()].map(([campo, v]) => (
+              <span key={campo} className="flex flex-wrap items-center gap-1 text-[11px] text-foreground-muted">
+                {campo}: <Mudanca de={v.de.size === 1 ? [...v.de][0] : 'vários'} para={v.para.size === 1 ? [...v.para][0] : 'cada um o seu'} />
+              </span>
+            ))}
+          </div>
+          <ul className="mt-1.5 space-y-0.5">
+            {a.itens.slice(0, 6).map((i) => (
+              <li key={i.id} className="truncate text-[11.5px] text-foreground-muted">{[i.quem, i.descricao].filter(Boolean).join(' · ')} — {formatCurrency(i.valor)} · {formatDate(i.vencimento)}</li>
+            ))}
+            {n > 6 && <li className="text-[11.5px] text-foreground-muted">+ {n - 6} lançamento(s)</li>}
+          </ul>
+          {a.mexe_saldo && <Chips><Chip tom="warn">muda o saldo das contas</Chip></Chips>}
+          {a.bloqueados.length > 0 && (
+            <p className="mt-1.5 rounded-[12px] bg-surface-2 px-2.5 py-1.5 text-[11.5px] text-foreground-muted">
+              Fora desta edição: {a.bloqueados.slice(0, 3).map((b) => `${b.quem || b.descricao} (${b.motivo})`).join('; ')}{a.bloqueados.length > 3 ? ` e mais ${a.bloqueados.length - 3}` : ''}.
+            </p>
+          )}
+        </Linha>
+      );
+    }
     case 'definir_orcamento':
       return (
         <Linha>

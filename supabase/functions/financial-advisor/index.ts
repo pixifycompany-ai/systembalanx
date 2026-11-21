@@ -4,7 +4,7 @@ import { calcularIndicadores, GRUPOS_INDICADORES } from "../_shared/indicadores.
 import { GLOSSARIO_INDICADORES } from "../_shared/glossarioIara.ts";
 import { podeOutrasAgendas } from "../_shared/google.ts";
 import { estadoSessao } from "../_shared/whatsapp.ts";
-import { cruzarFatura } from "./conferir.ts";
+import { cruzarFatura, parecido } from "./conferir.ts";
 import { acharConta, cobrancasLista, contratosLista, extratoConta, historicoEnvios, listarTransferencias, metas as metasIara, orcamento as orcamentoIara, pagamentosDaFatura, pendencias as pendenciasIara, situacaoContrato, type CtxConsulta } from "./consultas.ts";
 
 const corsHeaders = {
@@ -459,7 +459,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
   • QUALQUER pergunta sobre o CONTEÚDO de uma fatura do cartão ("o que tem na fatura", "lançamentos da fatura separados por categoria", "quanto gastei de X no cartão nessa fatura", "fatura de novembro", "a fatura que vence dia 10") → **fatura_cartao**. NUNCA monte uma fatura com listar_lancamentos, resumo_financeiro ou buscar_lancamento: a fatura junta compras de datas de meses diferentes (fecha no meio do mês), então somar por data dá número diferente e deixa itens de fora. Responda com o cabeçalho (cartão · Fatura de <mês> · vence dd/mm · total · status), depois cada categoria em negrito com o total e a %, e embaixo os lançamentos dela (fornecedor/descrição — valor · parcela · data). Liste TODAS as categorias e TODOS os itens que a ferramenta devolver, sem resumir nem cortar; a soma das categorias tem que bater com o total da fatura. Se a pessoa não disser qual fatura, use a atual (a mesma que abre na tela) e diga qual usou.
   • Compras PARCELADAS no cartão ("quantas parcelas faltam", "o que ainda está parcelado", "parcelas do notebook") → compras_parceladas (traz nº de parcelas, pagas, faltam, valor da parcela, próxima data de vencimento e valor restante por compra).
   • Total COMPROMETIDO em parcelas nos próximos meses ("quanto da fatura futura já está tomado", "quanto já devo em parcelas") → parcelas_comprometidas (soma por mês o que falta pagar de parcelas).
-  • CONFERIR FATURA com o PDF, print ou CSV do banco ("confere minha fatura", "compara com o PDF", "o que falta lançar?", "por que não bate?") → leia o anexo com MUITO cuidado (todas as páginas) e chame **conferir_fatura** com TODAS as linhas, o total a pagar e o vencimento impresso (vence_em = YYYY-MM do vencimento). Se voltar leitura_incompleta, releia e chame de novo (até 2 vezes) antes de responder. Resposta: 1ª linha com **total do PDF × total no BALANX = diferença**; depois só os blocos com conteúdo: **Faltam lançar** (data · descrição · valor · parcela), **Valores diferentes** (PDF × BALANX), **No BALANX e não na fatura** (marque "possível duplicado"); feche com 1 linha mostrando que a soma dos blocos explica a diferença. Ofereça lançar o que falta: chame preparar_lancamentos com conta = o cartão, um item por linha que falta, data = data_para_lancar, sem parcelas (parcela vai no fim da descrição). Duplicados/sobras: oriente ajustar na tela do cartão.
+  • CONFERIR FATURA com o PDF, print ou CSV do banco ("confere minha fatura", "compara com o PDF", "o que falta lançar?", "por que não bate?") → leia o anexo com MUITO cuidado (todas as páginas) e chame **conferir_fatura** com TODAS as linhas, o total a pagar e o vencimento impresso (vence_em = YYYY-MM do vencimento). Se voltar leitura_incompleta, releia e chame de novo (até 2 vezes) antes de responder. O app mostra o QUADRO da conferência e o card para lançar o que falta: responda curto com o resumo_certo da ferramenta (não monte listas nem troque PDF/BALANX). Se depois a pessoa contestar um número, peça para anexar o arquivo de novo — você não guarda o PDF entre mensagens.
   • ORÇAMENTO ("como está meu orçamento", "quanto ainda posso gastar com marketing", "estourei algo?") → **orcamento**: categorias estouradas primeiro, depois as em atenção (≥85%); diga quanto sobra e, no mês atual, quanto dá para gastar por dia e se a projeção estoura. Definir/mudar/remover ("meu orçamento de alimentação é 800") → **definir_orcamento**.
   • DOCUMENTOS: "guarda/arquiva/salva esse arquivo/contrato/comprovante" com anexo → **guardar_documento** (nome claro + resumo com os dados-chave que você leu no arquivo). Se a pessoa mandar um CONTRATO, NOTA ou COMPROVANTE e não pedir nada sobre guardar, ofereça em 1 linha ("Quer que eu guarde esse contrato nos seus documentos?"). Achar ("acha/cadê o contrato da X", "qual o valor do contrato da Y?") → **buscar_documentos**; responda com o que o resumo diz e lembre que o link para abrir está logo abaixo.
   • ARQUIVO ("me manda em PDF", "exporta em Excel", "quero baixar o DRE/extrato/fatura/lançamentos") → **gerar_arquivo**. Excel quando pedirem planilha/Excel/CSV; senão PDF. Use o mesmo período e filtros da conversa.
@@ -489,6 +489,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 - ALTERAR cobrança ("muda o vencimento da cobrança da X para dia 30", "a cobrança do João agora é 900") → **alterar_cobranca**. CANCELAR/EXCLUIR uma cobrança → **cancelar_cobranca** (só aquele mês, mesmo se for assinatura; para parar de cobrar todo mês, oriente encerrar ou pausar o contrato).
 - ALTERAR despesa/conta a pagar ("passa o aluguel para dia 15", "a conta de luz veio 280") → **alterar_despesa**. EXCLUIR despesa lançada errada/duplicada → **excluir_despesa**.
 - DAR BAIXA ("paguei a luz", "o João pagou", "recebi os 1.500 da Sabor Maria ontem", "marca como pago") → **dar_baixa** (tipo despesa ou receita; data = quando pagou/recebeu, padrão hoje; conta se a pessoa disser). Fatura de cartão ("paguei a fatura") → **pagar_fatura** (nunca dar_baixa). Com cobrança no Asaas a baixa vai para o Asaas também — diga isso.
+- EDITAR lançamentos (um ou VÁRIOS, pagos ou em aberto: descrição, valor, datas, categoria, conta, fornecedor/cliente, forma de pagamento, situação) → **editar_lancamentos**. Se acabou de listar, use os ids da lista ("muda esses para Pix" = os ids que você mostrou). Abaixo das listas aparece um botão "Editar" em cada lançamento que abre o mesmo formulário do Fluxo de caixa — mencione isso quando a pessoa quiser mexer em vários campos de um lançamento só. Cobranças do Asaas continuam por alterar_cobranca; baixa com Asaas por dar_baixa.
 - RECEITA a receber: mudar vencimento/valor/descrição → **alterar_receita**; apagar lançada errada → **excluir_receita**. Se a receita tiver cobrança no Asaas, a ferramenta avisa: use alterar_cobranca / cancelar_cobranca.
 - TROCAR CATEGORIA ("coloca o Uber em Transporte", "essas despesas da Vivo são Internet") → **alterar_categoria**. Se vierem vários e a pessoa não disse "todos", liste e pergunte se é para mudar todos ou um só.
 - TRANSFERÊNCIA entre contas ("passei 2 mil do Itaú pro Inter") → **transferir** (não é despesa nem receita).
@@ -591,6 +592,20 @@ ${contexto}${blocoTela}`;
         saldo_anterior: { type: "number", description: "saldo anterior que entrou no total, se houver" },
         pagamentos: { type: "number", description: "pagamentos/créditos de pagamento abatidos no total, se houver" },
       }, required: ["itens", "total_pdf"] } } },
+      { type: "function", function: { name: "editar_lancamentos", description: "Prepara a EDIÇÃO de UM ou VÁRIOS lançamentos (pagos ou em aberto): descrição, valor, vencimento, competência, data do pagamento, categoria, conta bancária, fornecedor/cliente, forma de pagamento e situação (pago/em aberto). Use os ids de uma lista anterior (listar_lancamentos/buscar_lancamento) ou um filtro. Ex.: 'muda a forma de pagamento desses para Pix', 'essas 3 despesas eram do Inter', 'corrige a descrição da Vivo de outubro', 'marca todas as despesas de energia de 2026 como pagas'.", parameters: { type: "object", properties: {
+        tipo: { type: "string", enum: ["despesa", "receita"] },
+        ids: { type: "array", items: { type: "string" }, description: "ids dos lançamentos (das listas anteriores)" },
+        quem: { type: "string", description: "filtro: fornecedor/cliente/descrição" }, categoria_atual: { type: "string" },
+        status_atual: { type: "string", enum: ["aberto", "efetivado"] }, valor: { type: "number" }, data: { ...D },
+        inicio: { ...D }, fim: { ...D }, criterio: { type: "string", enum: ["vencimento", "competencia", "pagamento"] },
+        todos: { type: "boolean", description: "true = aplicar em todos os encontrados pelo filtro" },
+        mudancas: { type: "object", properties: {
+          descricao: { type: "string" }, valor: { type: "number" }, data_vencimento: { ...D }, data_competencia: { ...D }, data_pagamento: { ...D, description: "data em que foi pago/recebido" },
+          categoria: { type: "string" }, conta: { type: "string", description: "conta bancária" }, fornecedor: { type: "string" }, cliente: { type: "string" },
+          forma_pagamento: { type: "string", enum: ["pix", "boleto", "cartao_credito", "cartao_debito", "dinheiro", "transferencia"] },
+          status: { type: "string", enum: ["efetivado", "aberto"], description: "efetivado = pago/recebido" },
+        } },
+      }, required: ["tipo", "mudancas"] } } },
       { type: "function", function: { name: "resumo_do_dia", description: "BRIEFING do dia da pessoa (assistente pessoal): agenda de hoje (compromissos, agenda pessoal do Google, tarefas), o que vence hoje (pagar/receber) e atrasados, cobranças vencidas, pendências, saldo em caixa e meta do mês. Use p/ 'meu resumo do dia', 'bom dia', 'como está meu dia', 'o que tenho hoje'.", parameters: { type: "object", properties: {} } } },
       { type: "function", function: { name: "cobrancas_lista", description: "Lista as COBRANÇAS (Asaas) como a tela Cobranças: cliente, descrição, valor, vencimento, situação (aguardando/vencida/paga), dias de atraso, link de pagamento, quantos envios e o último envio (WhatsApp/e-mail). Use p/ 'quais cobranças estão em aberto/vencidas', 'o boleto do X foi pago?', 'cobranças pagas esse mês'.", parameters: { type: "object", properties: { status: { type: "string", enum: ["abertas", "vencidas", "aguardando", "pagas", "canceladas", "todas"], description: "padrão: abertas (aguardando + vencidas)" }, cliente: { type: "string" }, inicio: { ...D, description: "por vencimento (ou data do pagamento, se status=pagas)" }, fim: D } } } },
       { type: "function", function: { name: "historico_envios", description: "Histórico de cobranças ENVIADAS por WhatsApp e e-mail (data, hora, canal, para quem, automático/manual, status: enviado/entregue/falhou). Padrão: últimos 60 dias. Use p/ 'o que já mandei pro X', 'o lembrete foi enviado?', 'quais e-mails falharam'.", parameters: { type: "object", properties: { cliente: { type: "string" }, canal: { type: "string", enum: ["todos", "whatsapp", "email"] }, inicio: D, fim: D } } } },
@@ -1275,6 +1290,7 @@ ${contexto}${blocoTela}`;
 
     // ---- Conferir a fatura do banco (PDF) com a fatura do BALANX, linha a linha ----
     // A IARA só LÊ o PDF e manda as linhas; o cruzamento e as somas são feitos aqui (exatos).
+    const conferenciaEventos: any[] = [];
     async function conferirFatura(a: any): Promise<string> {
       const r2c = (x: number) => Math.round(x * 100) / 100;
       const pdf = (Array.isArray(a?.itens) ? a.itens : []).map((x: any, i: number) => ({
@@ -1303,14 +1319,175 @@ ${contexto}${blocoTela}`;
       const somaSobram = r2c(sobram.reduce((s: number, x: any) => s + x.valor, 0));
       const somaDif = r2c(valorDiferente.reduce((s: number, x: any) => s + x.diferenca, 0));
       const totalBal = r2c(fat.soma_dos_itens);
-      return JSON.stringify({
-        cartao: fat.cartao, fatura: fat.fatura, vencimento: fat.vencimento, fechamento: fat.fechamento,
-        total_pdf_compras: somaPdf, total_balanx: totalBal, diferenca: r2c(somaPdf - totalBal),
-        explicacao_da_diferenca: { faltam_lancar: somaFaltam, valores_diferentes: somaDif, no_balanx_e_nao_no_pdf: r2c(-somaSobram), confere: Math.abs(somaFaltam + somaDif - somaSobram - (somaPdf - totalBal)) < 0.02 },
-        conferidos: conferidos.length, linhas_pdf: pdf.length, linhas_balanx: bal.length,
-        faltam_lancar: faltam, valores_diferentes: valorDiferente, no_balanx_e_nao_no_pdf: sobram,
-        obs: "Para lançar o que falta: preparar_lancamentos com conta = este cartão, tipo despesa, valor e descrição do PDF (parcela no fim da descrição, ex.: 'Loja X (3/10)', SEM parcelas — é só a parcela desta fatura) e data = data_para_lancar (garante cair nesta fatura). Itens 'no_balanx_e_nao_no_pdf' podem ser duplicados ou de outra fatura: a pessoa ajusta na tela do cartão.",
+      const dif = r2c(somaPdf - totalBal);
+
+      // Ciclo diferente? Compras do PDF depois do último item do BALANX e/ou itens do BALANX
+      // antes da 1ª compra do PDF indicam que o dia de fechamento do cartão não bate com o banco.
+      const datasPdf = pdf.map((p: any) => p.data).filter(Boolean).sort();
+      const datasBal = bal.map((b: any) => b.data).filter(Boolean).sort();
+      const depois = faltam.filter((f: any) => f.data && datasBal.length && f.data > datasBal[datasBal.length - 1]).length;
+      const antes = sobram.filter((x: any) => x.data && datasPdf.length && x.data < datasPdf[0]).length;
+      const avisoFechamento = depois + antes >= 2
+        ? `O fechamento do cartão no BALANX (dia ${String(fat.fechamento).slice(8, 10)}) parece não bater com o do banco: ${depois ? `${depois} compra(s) do PDF são depois do último item do BALANX` : ""}${depois && antes ? " e " : ""}${antes ? `${antes} item(ns) do BALANX são de antes da 1ª compra do PDF` : ""}. Confira o dia de fechamento em Contas → cartão.`
+        : null;
+
+      // Card pronto para lançar o que falta (categoria e fornecedor de um item parecido do BALANX).
+      const paraLancar = faltam.filter((f: any) => f.valor > 0).slice(0, 20).map((f: any) => {
+        let melhor: any = null, ms = 0;
+        for (const b of bal) { const s2 = parecido(f.descricao, `${b.fornecedor || ""} ${b.descricao || ""}`); if (s2 > ms) { ms = s2; melhor = b; } }
+        const ok = ms >= 0.6 ? melhor : null;
+        return { tipo: "despesa", descricao: f.parcela ? `${f.descricao} (${f.parcela})` : f.descricao, valor: f.valor, data: f.data_para_lancar,
+          conta: fat.cartao, categoria: ok && ok.categoria !== "Sem categoria" ? ok.categoria : undefined, fornecedor: ok?.fornecedor || undefined };
       });
+      if (paraLancar.length) prepararLancamentos(paraLancar);
+
+      const venc = dBR(fat.vencimento);
+      conferenciaEventos.push({
+        cartao: fat.cartao, fatura_balanx: fat.fatura, vencimento: fat.vencimento, fechamento: fat.fechamento,
+        total_pdf_impresso: totalPdf > 0 ? r2c(totalPdf) : null, total_pdf: somaPdf, total_balanx: totalBal, diferenca: dif,
+        faltam, valores_diferentes: valorDiferente, sobram, conferidos: conferidos.length,
+        soma_faltam: somaFaltam, soma_dif: somaDif, soma_sobram: somaSobram, aviso_fechamento: avisoFechamento,
+        lancar_preparado: paraLancar.length,
+      });
+      const sentido = Math.abs(dif) < 0.01 ? "As compras do PDF e o BALANX batem." : dif < 0 ? `O BALANX tem R$ ${(-dif).toFixed(2).replace(".", ",")} A MAIS que o PDF.` : `Faltam R$ ${dif.toFixed(2).replace(".", ",")} no BALANX em relação ao PDF.`;
+      return JSON.stringify({
+        ok: true,
+        resumo_certo: `Fatura do ${fat.cartao} que vence em ${venc} (no BALANX: Fatura de ${fat.fatura}). Compras no PDF: R$ ${somaPdf.toFixed(2).replace(".", ",")}. No BALANX: R$ ${totalBal.toFixed(2).replace(".", ",")}. ${sentido} Faltam lançar ${faltam.length} (R$ ${somaFaltam.toFixed(2).replace(".", ",")}); estão no BALANX e não no PDF ${sobram.length} (R$ ${somaSobram.toFixed(2).replace(".", ",")}); valores diferentes ${valorDiferente.length} (R$ ${somaDif.toFixed(2).replace(".", ",")}).`,
+        aviso_fechamento: avisoFechamento,
+        lancamentos_preparados: paraLancar.length,
+        obs: "O APP JÁ MOSTRA o quadro completo da conferência (totais e todas as linhas) e o card para lançar o que falta. NÃO repita listas nem totais. Responda em 2–3 frases usando EXATAMENTE o resumo_certo (sem trocar PDF por BALANX nem o sentido da diferença); se houver aviso_fechamento, diga-o; termine dizendo que os que faltam já estão no card para confirmar. Se a pessoa disser depois que um total está diferente, peça para anexar o PDF de novo (você não tem mais o arquivo) — nunca invente números.",
+      });
+    }
+
+    // Lista de lançamentos mostrada na conversa com botão "Editar" (abre o modal do Fluxo de caixa).
+    let listaEditavel: any[] = [];
+    function registrarLista(json: string) {
+      try {
+        const j = JSON.parse(json);
+        listaEditavel = (j.itens || []).filter((i: any) => i.id).slice(0, 50).map((i: any) => ({
+          id: i.id, tipo: i.tipo, cartao: !!i.cartao, data: i.data || i.vencimento || null,
+          quem: i.fornecedor || i.cliente || "", descricao: i.descricao || "", valor: i.valor, status: i.status,
+        }));
+      } catch { /* sem lista */ }
+    }
+
+    // ---- Editar lançamentos (um ou vários), qualquer campo, com card de confirmação ----
+    const FORMAS_EDIT = new Set(["pix", "boleto", "cartao_credito", "cartao_debito", "dinheiro", "transferencia"]);
+    async function editarLancamentos(a: any): Promise<string> {
+      const lanc = a?.tipo === "receita" ? "receita" : "despesa";
+      const tabela = lanc === "receita" ? "receitas" : "despesas";
+      const colEf = lanc === "receita" ? "data_recebimento" : "data_pagamento";
+      const sel = lanc === "receita"
+        ? "id, descricao, valor, status, data_vencimento, data_competencia, data_recebimento, forma_pagamento, categoria_id, conta_id, cliente_id, categoria:categorias(nome), conta:contas(nome), cliente:clientes(nome)"
+        : "id, descricao, fornecedor, valor, status, data_vencimento, data_competencia, data_pagamento, forma_pagamento, categoria_id, conta_id, cliente_id, fatura_id, categoria:categorias(nome), conta:contas(nome), cliente:clientes(nome)";
+
+      // 1) Quais lançamentos
+      let rows: any[] = [];
+      const ids = (Array.isArray(a?.ids) ? a.ids : []).filter((x: unknown) => typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x as string)).slice(0, 100);
+      const db: any = supabase;
+      if (ids.length) rows = await safe<any>(db.from(tabela).select(sel).in("id", ids));
+      else {
+        const q = sanitize(a?.quem || "");
+        if (!q && !a?.categoria_atual) return JSON.stringify({ erro: "Diga quais lançamentos (fornecedor/cliente/descrição, categoria ou período) ou use os ids de uma lista anterior." });
+        const col = a?.criterio === "competencia" ? "data_competencia" : a?.criterio === "pagamento" ? colEf : "data_vencimento";
+        let qq: any = db.from(tabela).select(sel).gte(col, dataOk(a?.inicio) || ultimosMesesIni(12)).lte(col, dataOk(a?.fim) || `${anoIni.slice(0, 4)}-12-31`);
+        if (q) {
+          if (lanc === "despesa") qq = qq.or(`descricao.ilike.%${q}%,fornecedor.ilike.%${q}%`);
+          else {
+            const cli = (await safe<any>(supabase.from("clientes").select("id").ilike("nome", `%${q}%`).limit(20))).map((c: any) => c.id);
+            qq = qq.or(`descricao.ilike.%${q}%${cli.length ? `,cliente_id.in.(${cli.join(",")})` : ""}`);
+          }
+        }
+        if (a?.categoria_atual) { const c = achaCategoria(a.categoria_atual, lanc); if (c.id) qq = qq.eq("categoria_id", c.id); }
+        if (a?.status_atual === "aberto") qq = qq.in("status", ["pendente", "atrasado"]);
+        else if (a?.status_atual === "efetivado") qq = qq.eq("status", lanc === "receita" ? "recebido" : "pago");
+        rows = await safe<any>(qq);
+        const v = Number(a?.valor); if (v > 0) { const rv = rows.filter((r) => Math.abs(Number(r.valor) - v) < 0.01); if (rv.length) rows = rv; }
+        const d = dataOk(a?.data); if (d) { const rd = rows.filter((r) => r.data_vencimento === d || r.data_competencia === d || r[colEf] === d); if (rd.length) rows = rd; }
+      }
+      rows = rows.filter((r) => !ehMarcador(r.fornecedor));
+      if (!rows.length) return JSON.stringify({ erro: "Não achei lançamento com isso." });
+      rows.sort((x, y) => String(x.data_vencimento).localeCompare(String(y.data_vencimento)));
+      if (rows.length > 1 && !ids.length && !a?.todos) {
+        return JSON.stringify({ precisa_escolher: true, quantidade: rows.length,
+          opcoes: rows.slice(0, 10).map((r) => ({ id: r.id, quem: limpaFornecedor(r.fornecedor) || r.cliente?.nome || "", descricao: r.descricao, valor: Number(r.valor), vencimento: r.data_vencimento, status: r.status })),
+          obs: `Achei ${rows.length}. Pergunte se é para mudar TODOS (chame de novo com todos: true) ou quais (chame com ids).` });
+      }
+
+      // 2) O que muda (nomes → ids)
+      const m = a?.mudancas || {};
+      const novo: Record<string, any> = {};
+      const rot: Record<string, string> = {};
+      if (typeof m.descricao === "string" && m.descricao.trim()) novo.descricao = m.descricao.trim().slice(0, 200);
+      if (Number(m.valor) > 0) novo.valor = Math.round(Number(m.valor) * 100) / 100;
+      for (const k of ["data_vencimento", "data_competencia"]) if (dataOk(m[k])) novo[k] = dataOk(m[k]);
+      if (dataOk(m.data_pagamento)) novo[colEf] = dataOk(m.data_pagamento);
+      if (m.categoria) { const c = achaCategoria(m.categoria, lanc); if (!c.id) return JSON.stringify({ erro: `Não achei a categoria "${m.categoria}".` }); novo.categoria_id = c.id; rot.categoria_id = c.nome!; }
+      if (m.conta) {
+        const cs = acharConta(bancariasIara, m.conta);
+        if (!cs.length) return JSON.stringify({ erro: `Não achei a conta bancária "${m.conta}". Para mover para um cartão, lance de novo no cartão.`, contas: bancariasIara.map((c: any) => c.nome) });
+        novo.conta_id = cs[0].id; rot.conta_id = cs[0].nome;
+      }
+      if (m.cliente) { const c = achaCliente(String(m.cliente)); if (!c) return JSON.stringify({ erro: `Não achei o cliente "${m.cliente}".` }); novo.cliente_id = c.id; rot.cliente_id = c.nome; }
+      if (lanc === "despesa" && typeof m.fornecedor === "string" && m.fornecedor.trim()) novo.fornecedor = m.fornecedor.trim().slice(0, 120);
+      if (m.forma_pagamento) { if (!FORMAS_EDIT.has(m.forma_pagamento)) return JSON.stringify({ erro: "forma_pagamento inválida" }); novo.forma_pagamento = m.forma_pagamento; }
+      const stEf = lanc === "receita" ? "recebido" : "pago";
+      if (m.status === "efetivado") novo.status = stEf;
+      else if (m.status === "aberto") novo.status = "aberto";
+      if (!Object.keys(novo).length) return JSON.stringify({ erro: "Diga o que muda (descrição, valor, vencimento, competência, data do pagamento, categoria, conta, fornecedor/cliente, forma de pagamento ou situação)." });
+
+      // Receitas com cobrança no Asaas em aberto: valor/vencimento/baixa vão pelo Asaas.
+      const comCobranca = new Set<string>();
+      if (lanc === "receita") {
+        const cobs = await safe<any>(supabase.from("cobrancas").select("receita_id").in("receita_id", rows.map((r) => r.id)).in("status", ["pendente", "vencido"]));
+        cobs.forEach((c: any) => comCobranca.add(c.receita_id));
+      }
+      const NOMES: Record<string, string> = { descricao: "Descrição", valor: "Valor", data_vencimento: "Vencimento", data_competencia: "Competência", data_pagamento: "Pago em", data_recebimento: "Recebido em", categoria_id: "Categoria", conta_id: "Conta", cliente_id: "Cliente", fornecedor: "Fornecedor", forma_pagamento: "Forma", status: "Situação" };
+      const txt = (k: string, v: any, r?: any) => {
+        if (v == null || v === "") return "—";
+        if (k === "valor") return `R$ ${Number(v).toFixed(2).replace(".", ",")}`;
+        if (k.startsWith("data_")) return dBR(String(v));
+        if (k === "status") return v === "pago" ? "pago" : v === "recebido" ? "recebido" : v === "atrasado" ? "atrasado" : "em aberto";
+        if (k === "categoria_id") return r ? (r.categoria?.nome || "Sem categoria") : rot.categoria_id;
+        if (k === "conta_id") return r ? (r.conta?.nome || "Sem conta") : rot.conta_id;
+        if (k === "cliente_id") return r ? (r.cliente?.nome || "Sem cliente") : rot.cliente_id;
+        return String(v);
+      };
+      const itens: any[] = []; const bloqueados: any[] = [];
+      for (const r of rows) {
+        const cartao = !!r.fatura_id;
+        const patch: Record<string, any> = {}; const mud: any[] = []; const pulou: string[] = [];
+        for (const [k, v] of Object.entries(novo)) {
+          if (k === "status") continue;
+          if (cartao && !["descricao", "categoria_id", "fornecedor", "cliente_id"].includes(k)) { pulou.push(NOMES[k]); continue; }
+          if (comCobranca.has(r.id) && ["valor", "data_vencimento", colEf].includes(k)) { pulou.push(NOMES[k]); continue; }
+          if (String(r[k] ?? "") === String(v)) continue;
+          patch[k] = v; mud.push({ campo: NOMES[k], de: txt(k, r[k], r), para: txt(k, v) });
+        }
+        if (novo.status) {
+          if (cartao || comCobranca.has(r.id)) pulou.push("Situação");
+          else {
+            const efetivado = r.status === stEf;
+            if (novo.status === stEf && !efetivado) {
+              const dia = patch[colEf] || novo[colEf] || (r.data_vencimento && r.data_vencimento <= hojeISO ? r.data_vencimento : hojeISO);
+              patch.status = stEf; patch[colEf] = dia;
+              mud.push({ campo: "Situação", de: txt("status", r.status), para: `${stEf} em ${dBR(dia)}` });
+            } else if (novo.status === "aberto" && efetivado) {
+              const venc = patch.data_vencimento || r.data_vencimento;
+              patch.status = venc && venc < hojeISO ? "atrasado" : "pendente"; patch[colEf] = null;
+              mud.push({ campo: "Situação", de: stEf, para: "em aberto" });
+            }
+          }
+        }
+        // Mudou o vencimento de algo em aberto: recalcula atrasado/pendente.
+        if (patch.data_vencimento && !patch.status && r.status !== stEf) patch.status = patch.data_vencimento < hojeISO ? "atrasado" : "pendente";
+        if (pulou.length) bloqueados.push({ quem: limpaFornecedor(r.fornecedor) || r.cliente?.nome || "", descricao: r.descricao, motivo: cartao ? `item de cartão: ${pulou.join(", ")} só pela tela da fatura` : `tem cobrança no Asaas: ${pulou.join(", ")} pelo Asaas (alterar_cobranca/dar_baixa)` });
+        if (mud.length) itens.push({ id: r.id, quem: limpaFornecedor(r.fornecedor) || r.cliente?.nome || "", descricao: r.descricao, valor: Number(r.valor), vencimento: r.data_vencimento, efetivado: r.status === stEf, mudancas: mud, patch });
+      }
+      if (!itens.length) return JSON.stringify({ erro: "Nada a mudar: os lançamentos já estão assim ou a mudança não é permitida neles.", bloqueados });
+      acoes.push({ id: novoId(), tipo: "editar_lancamentos", lanc, itens, bloqueados, mexe_saldo: itens.some((i) => i.efetivado && (i.patch.valor || i.patch.conta_id || i.patch[colEf] !== undefined)) || itens.some((i) => i.patch.status) });
+      return JSON.stringify({ ok: true, quantidade: itens.length, exemplos: itens.slice(0, 5).map((i) => ({ quem: i.quem, descricao: i.descricao, mudancas: i.mudancas })), bloqueados,
+        obs: "A pessoa confere o antes/depois no card e confirma. Se houver bloqueados, diga o motivo em 1 linha." });
     }
 
     // ---- Resumo do dia (briefing das 8h abre a IARA com "Meu resumo do dia") ----
@@ -1432,17 +1609,17 @@ ${contexto}${blocoTela}`;
       const inList = (col: string, ids: string[]) => (ids.length ? `,${col}.in.(${ids.join(",")})` : "");
       const [rec, desp] = await Promise.all([
         safe<any>(supabase.from("receitas")
-          .select("descricao,valor,status,data_vencimento,data_competencia,data_recebimento,forma_pagamento,cliente:clientes(nome),categoria:categorias(nome),conta:contas(nome)")
+          .select("id,descricao,valor,status,data_vencimento,data_competencia,data_recebimento,forma_pagamento,cliente:clientes(nome),categoria:categorias(nome),conta:contas(nome)")
           .or(`descricao.ilike.%${t}%${inList("cliente_id", cliIds)}${inList("categoria_id", catIds)}`)
           .order("data_competencia", { ascending: false })),
         safe<any>(supabase.from("despesas")
-          .select("descricao,fornecedor,valor,status,data_vencimento,data_competencia,data_pagamento,forma_pagamento,parcela_num,parcela_total,categoria:categorias(nome),conta:contas(nome),cliente:clientes(nome)")
+          .select("id,fatura_id,descricao,fornecedor,valor,status,data_vencimento,data_competencia,data_pagamento,forma_pagamento,parcela_num,parcela_total,categoria:categorias(nome),conta:contas(nome),cliente:clientes(nome)")
           .or(`descricao.ilike.%${t}%,fornecedor.ilike.%${t}%${inList("cliente_id", cliIds)}${inList("categoria_id", catIds)}`)
           .order("data_competencia", { ascending: false })),
       ]);
       const itens = [
-        ...rec.map(r => ({ tipo: "receita", descricao: r.descricao, cliente: r.cliente?.nome || null, categoria: r.categoria?.nome || null, conta: r.conta?.nome || null, forma: r.forma_pagamento || null, valor: Number(r.valor || 0), status: r.status, vencimento: r.data_vencimento, competencia: r.data_competencia, quitado_em: r.data_recebimento || null })),
-        ...desp.filter(d => !ehMarcador(d.fornecedor)).map(d => ({ tipo: "despesa", descricao: d.descricao, fornecedor: limpaFornecedor(d.fornecedor), cliente: d.cliente?.nome || null, categoria: d.categoria?.nome || null, conta: d.conta?.nome || null, forma: d.forma_pagamento || null, parcela: parcelaTxt(d), valor: Number(d.valor || 0), status: d.status, vencimento: d.data_vencimento, competencia: d.data_competencia, quitado_em: d.data_pagamento || null })),
+        ...rec.map(r => ({ id: r.id, tipo: "receita", descricao: r.descricao, cliente: r.cliente?.nome || null, categoria: r.categoria?.nome || null, conta: r.conta?.nome || null, forma: r.forma_pagamento || null, valor: Number(r.valor || 0), status: r.status, vencimento: r.data_vencimento, competencia: r.data_competencia, quitado_em: r.data_recebimento || null })),
+        ...desp.filter(d => !ehMarcador(d.fornecedor)).map(d => ({ id: d.id, cartao: !!d.fatura_id, tipo: "despesa", descricao: d.descricao, fornecedor: limpaFornecedor(d.fornecedor), cliente: d.cliente?.nome || null, categoria: d.categoria?.nome || null, conta: d.conta?.nome || null, forma: d.forma_pagamento || null, parcela: parcelaTxt(d), valor: Number(d.valor || 0), status: d.status, vencimento: d.data_vencimento, competencia: d.data_competencia, quitado_em: d.data_pagamento || null })),
       ];
       const totalDespesas = itens.filter(i => i.tipo === "despesa").reduce((s2, i) => s2 + i.valor, 0);
       const totalReceitas = itens.filter(i => i.tipo === "receita").reduce((s2, i) => s2 + i.valor, 0);
@@ -1469,14 +1646,14 @@ ${contexto}${blocoTela}`;
       const cliIds = q ? (await safe<any>(supabase.from("clientes").select("id").ilike("nome", `%${q}%`).limit(20))).map((c: any) => c.id) : [];
 
       let recQ: any = supabase.from("receitas")
-        .select("descricao,valor,status,data_competencia,data_vencimento,data_recebimento,forma_pagamento,cliente:clientes(nome),categoria:categorias(nome),conta:contas(nome)")
+        .select("id,descricao,valor,status,data_competencia,data_vencimento,data_recebimento,forma_pagamento,cliente:clientes(nome),categoria:categorias(nome),conta:contas(nome)")
         .gte(colRec, inicio).lte(colRec, fim);
       if (catIds) recQ = recQ.in("categoria_id", catIds);
       if (q) recQ = cliIds.length ? recQ.or(`descricao.ilike.%${q}%,cliente_id.in.(${cliIds.join(",")})`) : recQ.ilike("descricao", `%${q}%`);
       if (status) recQ = recQ.eq("status", status);
 
       let despQ: any = supabase.from("despesas")
-        .select("descricao,fornecedor,valor,status,data_competencia,data_vencimento,data_pagamento,forma_pagamento,parcela_num,parcela_total,categoria:categorias(nome),conta:contas(nome),cliente:clientes(nome)")
+        .select("id,fatura_id,descricao,fornecedor,valor,status,data_competencia,data_vencimento,data_pagamento,forma_pagamento,parcela_num,parcela_total,categoria:categorias(nome),conta:contas(nome),cliente:clientes(nome)")
         .gte(colDesp, inicio).lte(colDesp, fim);
       if (catIds) despQ = despQ.in("categoria_id", catIds);
       if (q) despQ = despQ.or(`descricao.ilike.%${q}%,fornecedor.ilike.%${q}%${cliIds.length ? `,cliente_id.in.(${cliIds.join(",")})` : ""}`);
@@ -1487,9 +1664,9 @@ ${contexto}${blocoTela}`;
         wantDesp ? safe<any>(despQ) : Promise.resolve([]),
       ]);
       const itens = [
-        ...rec.map((r: any) => ({ data: r[colRec], tipo: "receita", descricao: r.descricao, cliente: r.cliente?.nome || null, categoria: r.categoria?.nome || null, conta: r.conta?.nome || null, forma: r.forma_pagamento || null, valor: Number(r.valor || 0), status: r.status })),
+        ...rec.map((r: any) => ({ id: r.id, data: r[colRec], tipo: "receita", descricao: r.descricao, cliente: r.cliente?.nome || null, categoria: r.categoria?.nome || null, conta: r.conta?.nome || null, forma: r.forma_pagamento || null, valor: Number(r.valor || 0), status: r.status })),
         // competência: itens do cartão contam (são as compras reais); marcadores da fatura ficam de fora
-        ...desp.filter((d: any) => !ehMarcador(d.fornecedor)).map((d: any) => ({ data: d[colDesp], tipo: "despesa", descricao: d.descricao, fornecedor: limpaFornecedor(d.fornecedor), cliente: d.cliente?.nome || null, categoria: d.categoria?.nome || null, conta: d.conta?.nome || null, forma: d.forma_pagamento || null, parcela: parcelaTxt(d), valor: Number(d.valor || 0), status: d.status })),
+        ...desp.filter((d: any) => !ehMarcador(d.fornecedor)).map((d: any) => ({ id: d.id, cartao: !!d.fatura_id, data: d[colDesp], tipo: "despesa", descricao: d.descricao, fornecedor: limpaFornecedor(d.fornecedor), cliente: d.cliente?.nome || null, categoria: d.categoria?.nome || null, conta: d.conta?.nome || null, forma: d.forma_pagamento || null, parcela: parcelaTxt(d), valor: Number(d.valor || 0), status: d.status })),
       ].sort((a, b) => String(a.data || "").localeCompare(String(b.data || "")));
 
       const soma = (arr: any[]) => arr.reduce((t, i) => t + i.valor, 0);
@@ -2599,9 +2776,11 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
             if (tc.function.name === "resumo_financeiro") result = await toolResumo(args.inicio, args.fim);
             else if (tc.function.name === "agenda_vencimentos") result = await toolAgenda(args.inicio, args.fim, args.tipo, args.status);
             else if (tc.function.name === "buscar_lancamento") result = await toolBuscar(args.termo);
+            if (tc.function.name === "buscar_lancamento") registrarLista(result);
             else if (tc.function.name === "fornecedores_do_periodo") result = await toolFornecedoresDoPeriodo(args.inicio, args.fim, args.criterio);
             else if (tc.function.name === "lancamentos_dos_fornecedores") result = await toolLancamentosDosFornecedores(args.inicio, args.fim, args.fornecedores, args.criterio, args.termos_descricao);
             else if (tc.function.name === "listar_lancamentos") result = await toolListar(args.inicio, args.fim, args.tipo, args.categoria, args.quem, args.status, args.criterio);
+            if (tc.function.name === "listar_lancamentos") registrarLista(result);
             else if (tc.function.name === "detalhe_cliente") result = await toolDetalheCliente(args.nome);
             else if (tc.function.name === "saldo_e_contas") result = await toolSaldoContas();
             else if (tc.function.name === "projecao_fluxo") result = await toolProjecao(args.dias);
@@ -2619,6 +2798,7 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
             else if (tc.function.name === "buscar_documentos") result = await buscarDocumentos(args);
             else if (tc.function.name === "gerar_arquivo") result = await gerarArquivo(args);
             else if (tc.function.name === "conferir_fatura") result = await conferirFatura(args);
+            else if (tc.function.name === "editar_lancamentos") result = await editarLancamentos(args);
             else if (tc.function.name === "resumo_do_dia") result = await toolResumoDoDia();
             else if (tc.function.name === "cobrancas_lista") result = JSON.stringify(await cobrancasLista(ctxConsulta, args));
             else if (tc.function.name === "historico_envios") result = JSON.stringify(await historicoEnvios(ctxConsulta, args));
@@ -2686,9 +2866,11 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
         if (acoes.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ acoes })}\n\n`));
         // Painéis de conexão (WhatsApp, Google, atalho…) para o app mostrar na conversa.
         if (conexoes.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ conexoes })}\n\n`));
-if (documentoEventos.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ documentos: documentoEventos })}\n\n`));
+        if (listaEditavel.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ lista_lancamentos: listaEditavel })}\n\n`));
+        if (conferenciaEventos.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ conferencias: conferenciaEventos })}\n\n`));
+        if (documentoEventos.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ documentos: documentoEventos })}\n\n`));
         if (arquivoEventos.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ arquivos: arquivoEventos })}\n\n`));
-                if (memoriaEventos.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ memorias: memoriaEventos })}\n\n`));
+        if (memoriaEventos.length) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ memorias: memoriaEventos })}\n\n`));
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       },

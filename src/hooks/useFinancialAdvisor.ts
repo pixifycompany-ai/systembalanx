@@ -3,6 +3,16 @@ import type { ItemLancamento } from '@/lib/lancarItens';
 import type { AcaoIara } from '@/lib/acoesIara';
 import type { ArquivoIara } from '@/lib/arquivoIara';
 
+export interface LancamentoLista { id: string; tipo: 'receita' | 'despesa'; cartao: boolean; data: string | null; quem: string; descricao: string; valor: number; status: string }
+export interface LinhaConf { data: string | null; descricao: string; valor: number; parcela?: string | null; categoria?: string; possivel_duplicado?: boolean }
+export interface ConferenciaFatura {
+  cartao: string; fatura_balanx: string; vencimento: string; fechamento: string;
+  total_pdf_impresso: number | null; total_pdf: number; total_balanx: number; diferenca: number;
+  faltam: LinhaConf[]; sobram: LinhaConf[];
+  valores_diferentes: { no_pdf: LinhaConf; no_balanx: LinhaConf; diferenca: number }[];
+  conferidos: number; soma_faltam: number; soma_dif: number; soma_sobram: number;
+  aviso_fechamento: string | null; lancar_preparado: number;
+}
 export interface DocumentoIara { acao: 'guardado' | 'encontrado'; id: string; nome: string; url?: string; resumo?: string | null; data?: string; mime?: string | null }
 
 /** Lançamento proposto pela IARA (card de confirmação). Superset de ItemLancamento. */
@@ -25,6 +35,10 @@ export interface ChatMessage {
   documentos?: DocumentoIara[];
   /** Arquivos (PDF/Excel) gerados pela IARA para baixar. */
   arquivos?: ArquivoIara[];
+  /** Quadro da conferência da fatura (números da ferramenta, sem passar pelo texto da IARA). */
+  conferencias?: ConferenciaFatura[];
+  /** Lançamentos listados pela IARA, com botão para abrir no Fluxo de caixa. */
+  lista_lancamentos?: LancamentoLista[];
   /** Nomes dos arquivos enviados junto (mensagem do usuário). */
   anexos?: string[];
 }
@@ -219,6 +233,18 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
                 m.id === assistantMessageId ? { ...m, arquivos } : m
               ));
             }
+            if (Array.isArray(parsed.conferencias) && parsed.conferencias.length) {
+              const conferencias = parsed.conferencias as ConferenciaFatura[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, conferencias } : m
+              ));
+            }
+            if (Array.isArray(parsed.lista_lancamentos) && parsed.lista_lancamentos.length) {
+              const lista_lancamentos = parsed.lista_lancamentos as LancamentoLista[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, lista_lancamentos } : m
+              ));
+            }
           } catch {
             // Incomplete JSON, put back in buffer
             buffer = line + '\n' + buffer;
@@ -279,6 +305,18 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
               const arquivos = parsed.arquivos as ArquivoIara[];
               setMessages(prev => prev.map(m =>
                 m.id === assistantMessageId ? { ...m, arquivos } : m
+              ));
+            }
+            if (Array.isArray(parsed.conferencias) && parsed.conferencias.length) {
+              const conferencias = parsed.conferencias as ConferenciaFatura[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, conferencias } : m
+              ));
+            }
+            if (Array.isArray(parsed.lista_lancamentos) && parsed.lista_lancamentos.length) {
+              const lista_lancamentos = parsed.lista_lancamentos as LancamentoLista[];
+              setMessages(prev => prev.map(m =>
+                m.id === assistantMessageId ? { ...m, lista_lancamentos } : m
               ));
             }
           } catch { /* ignore */ }
