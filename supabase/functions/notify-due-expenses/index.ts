@@ -60,7 +60,8 @@ async function briefing(admin: any, tenantId: string, userId: string, hoje: stri
     admin.from('agenda_itens').select('titulo, data, inicio, dia_inteiro').eq('tenant_id', tenantId).eq('tipo', 'compromisso')
       .or(`data.eq.${hoje},and(inicio.gte.${hoje}T00:00:00-03:00,inicio.lte.${hoje}T23:59:59-03:00)`).limit(50),
     admin.from('agenda_itens').select('id, data').eq('tenant_id', tenantId).eq('tipo', 'tarefa').eq('concluida', false).lte('data', amanha).limit(200),
-    admin.from('cobrancas').select('id, valor, asaas_payment_id').eq('user_id', userId) // cobranças não têm tenant_id.eq('status', 'vencido').limit(500),
+    // cobranças não têm tenant_id: filtra pelo dono.
+    admin.from('cobrancas').select('id, valor, asaas_payment_id').eq('user_id', userId).eq('status', 'vencido').limit(500),
   ]);
   // deno-lint-ignore no-explicit-any
   const d = ((desp.data || []) as any[]).filter((x) => x.fornecedor !== '[pagamento-fatura]');
