@@ -187,7 +187,7 @@ export function TransactionDetailSheet({
                         <button type="button" onClick={() => { fechar(); onDuplicate(t); }} className="flex h-10 items-center gap-2 rounded-xl border border-border px-3 text-left text-[13px] text-foreground hover:bg-surface-2"><Copy className="h-4 w-4" />Duplicar</button>
                       )}
                       {onRecibo && (
-                        <button type="button" onClick={() => onRecibo(t)} className="flex h-10 items-center gap-2 rounded-xl border border-border px-3 text-left text-[13px] text-foreground hover:bg-surface-2"><FileText className="h-4 w-4" />Gerar recibo</button>
+                        <button type="button" onClick={() => { fechar(); onRecibo(t); }} className="flex h-10 items-center gap-2 rounded-xl border border-border px-3 text-left text-[13px] text-foreground hover:bg-surface-2"><FileText className="h-4 w-4" />Gerar recibo</button>
                       )}
                     </div>
                   </Bloco>

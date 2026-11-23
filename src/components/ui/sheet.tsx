@@ -78,7 +78,9 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
         {...props}
       >
         {(showHandle ?? side === "bottom") && side === "bottom" && (
-          <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-border-strong md:hidden" aria-hidden />
+          // Por cima do conteúdo (não numa faixa própria): numa faixa, o fundo dela aparece acima do
+          // cabeçalho e parece uma segunda janela empilhada atrás.
+          <div className="absolute left-1/2 top-2 z-10 h-1 w-9 -translate-x-1/2 rounded-full bg-border-strong md:hidden" aria-hidden />
         )}
         {children}
         {showClose && (
