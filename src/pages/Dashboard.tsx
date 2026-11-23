@@ -21,6 +21,7 @@ import type { Alert } from '@/components/dashboard/AlertsWidget';
 import type { UpcomingItem } from '@/components/dashboard/UpcomingDueWidget';
 
 import { useDashboard } from '@/hooks/useDashboard';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useMetas } from '@/hooks/useMetas';
 import { useProfile } from '@/hooks/useProfile';
 import { usePendencias } from '@/hooks/usePendencias';
@@ -80,6 +81,7 @@ export default function Dashboard() {
   const { profile } = useProfile();
   const { pendencias, total: totalPendencias } = usePendencias();
   const navigate = useNavigate();
+  const mobile = useIsMobile();
 
   const [saldoSheetOpen, setSaldoSheetOpen] = useState(false);
   const [pergunta, setPergunta] = useState('');
@@ -222,7 +224,7 @@ export default function Dashboard() {
           <input
             value={pergunta}
             onChange={(e) => setPergunta(e.target.value)}
-            placeholder="Pergunte à IARA: quanto entra essa semana? posso retirar lucro?"
+            placeholder={mobile ? 'Pergunte à IARA' : 'Pergunte à IARA: quanto entra essa semana? posso retirar lucro?'}
             aria-label="Pergunte à IARA"
             className="h-11 min-w-0 flex-1 bg-transparent px-1 text-[15px] text-foreground outline-none placeholder:text-foreground-muted"
           />
