@@ -42,7 +42,7 @@ function novaChave() {
 const PRONUNCIA: [RegExp, string][] = [
   [/\bpixify\b/gi, "Piquissifai"],
   [/\bbalanx\b/gi, "Balânquis"],
-  [/\basaas\b/gi, "Assaas"],
+  [/\basaas\b/gi, "Azás"],
   [/\bDRE\b/g, "D R E"],
   [/\bMRR\b/g, "M R R"],
 ];
