@@ -512,6 +512,7 @@ ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nom
 
 ## Lançar (criar receitas/despesas) — você também REGISTRA, não só consulta
 - Quando a pessoa pedir para LANÇAR/REGISTRAR/ADICIONAR/ANOTAR um gasto, conta, receita, compra no cartão, pagamento, parcelamento ou algo recorrente (ex.: "lança 320 de energia hoje", "coloca 1.200 do aluguel todo mês", "comprei um notebook 3000 em 10x no cartão Nubank", "recebi 500 do cliente X"), use a ferramenta **preparar_lancamentos**. Você NÃO grava direto: ela monta uma PRÉVIA que a pessoa confirma na tela com um toque.
+- VALOR FALADO COM CENTAVOS: "34 e 98", "trinta e quatro e noventa e oito", "150 e 50", "12 e 5" = UM valor (R$ 34,98 · R$ 150,50 · R$ 12,05). O "e" seguido de 1 ou 2 dígitos são os CENTAVOS — nunca dois lançamentos. Só são dois quando a pessoa separa claramente ("um de 34 e outro de 98", "34 reais e 98 reais", "duas compras: 34 e 98").
 - Extraia o máximo que der da fala: tipo (despesa/receita), descrição curta, valor, data (padrão: hoje), categoria, conta ou cartão, forma de pagamento, fornecedor (despesa) ou cliente (receita), nº de parcelas (cartão) e se é recorrente (frequência + repetições).
 - Use os nomes EXATOS das contas e categorias abaixo. Se não tiver certeza da conta, deixe em branco (o app usa a conta padrão). Cartão de crédito cai na fatura automaticamente.
 - Depois de chamar a ferramenta, escreva uma frase curta confirmando o que entendeu (ex.: "Preparei 1 despesa de R$ 320,00 em Energia para hoje — é só confirmar abaixo 👇"). NÃO repita todos os campos em tabela; a prévia já mostra tudo.
@@ -901,6 +902,23 @@ ${contexto}${blocoTela}`;
     };
 
     const propostas: any[] = [];
+    /** "Lança 34 e 98 de marmita" (= R$ 34,98) às vezes vira dois lançamentos (34 e 98): junta de volta.
+     *  Só quando a pessoa falou "X e Y" (Y com 1–2 dígitos), são 2 itens iguais (tipo/descrição) com valores
+     *  inteiros X e Y, e ela não separou de propósito ("um de", "outro de", "reais e"). */
+    function juntarCentavos(arr: any[]): any[] {
+      if (!Array.isArray(arr) || arr.length !== 2) return arr;
+      const fala = textoDe(historico[historico.length - 1]?.content);
+      if (/\b(outr[oa]|um de|uma de|duas|dois|reais e|r\$\s*\d+\s*e\s*r\$)/i.test(fala)) return arr;
+      const [a, b] = arr;
+      const va = Number(a?.valor), vb = Number(b?.valor);
+      if (!(va > 0) || !Number.isInteger(va) || !Number.isInteger(vb) || vb < 1 || vb > 99) return arr;
+      if ((a?.tipo || "despesa") !== (b?.tipo || "despesa") || norm(String(a?.descricao || "")) !== norm(String(b?.descricao || ""))) return arr;
+      const dig = (n: number) => String(n);
+      const re = new RegExp(`\\b${dig(va)}\\s*e\\s*0?${dig(vb)}\\b`, "i");
+      if (!re.test(fala)) return arr;
+      console.log("juntou centavos:", va, vb);
+      return [{ ...a, valor: Math.round((va + vb / 100) * 100) / 100 }];
+    }
     function prepararLancamentos(arr: any[]): string {
       const itens = (Array.isArray(arr) ? arr : []).slice(0, 20);
       const out: any[] = [];
@@ -932,6 +950,19 @@ ${contexto}${blocoTela}`;
           _conta_nome: conta?.nome || null,
           _cartao: ehCartao,
         });
+      }
+      // Chamou de novo na mesma resposta (correção depois da revisão, ou chamada repetida em paralelo):
+      // o mesmo lançamento (tipo + valor + data) SUBSTITUI o anterior em vez de entrar duas vezes.
+      // Itens iguais dentro da MESMA chamada continuam (ex.: dois IOF de 0,96 no mesmo dia).
+      const anteriores = propostas.length;
+      const usados = new Set<number>();
+      for (const o of out) {
+        const k = propostas.findIndex((x, idx) => idx < anteriores && !usados.has(idx) && x.tipo === o.tipo && Math.abs(x.valor - o.valor) < 0.005 && x.data === o.data);
+        if (k >= 0) usados.add(k);
+      }
+      if (usados.size) {
+        const manter = propostas.filter((_, idx) => !usados.has(idx));
+        propostas.splice(0, propostas.length, ...manter);
       }
       propostas.push(...out);
       // Resumo p/ o modelo descrever (sem ids internos).
@@ -2866,7 +2897,7 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
     let model = Deno.env.get("IARA_MODEL_CONVERSA") || "gpt-4.1";
 
     const callAI = async (msgs: any[]): Promise<Response> => {
-      const corpo = (m: string) => JSON.stringify({ model: m, messages: msgs, tools: TOOLS, tool_choice: "auto", temperature: 0.2, parallel_tool_calls: true });
+      const corpo = (m: string) => JSON.stringify({ model: m, messages: msgs, tools: TOOLS, tool_choice: "auto", temperature: 0.2 });
       const r = await fetch(`${apiBase}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: corpo(model) });
       if ((r.status === 400 || r.status === 404) && model !== RESERVA) {
         const t = await r.clone().text();
@@ -3022,7 +3053,7 @@ Se estiver boa, aprovado=true. Na correção, diga OBJETIVAMENTE o que fazer (qu
             }
             else if (tc.function.name === "indicadores_negocio") result = JSON.stringify(await calcularIndicadores(supabase, { inicio: args.inicio, fim: args.fim, grupos: Array.isArray(args.grupos) ? args.grupos : [] }));
             else if (tc.function.name === "categorias_vs_media") result = await toolCategoriasVsMedia(args.inicio, args.fim, args.meses_base);
-            else if (tc.function.name === "preparar_lancamentos") result = prepararLancamentos(args.lancamentos);
+            else if (tc.function.name === "preparar_lancamentos") result = prepararLancamentos(juntarCentavos(args.lancamentos));
             else if (tc.function.name === "preparar_cobranca") result = await prepararCobranca(args);
             else if (tc.function.name === "preparar_cliente") result = await prepararCliente(args);
             else if (tc.function.name === "preparar_contrato") result = await prepararContrato(args);
@@ -3072,7 +3103,7 @@ Corrija agora usando as ferramentas que precisar e escreva a resposta FINAL para
       for (const x of acoes) vistas.set(chave(x), x);
       acoes.splice(0, acoes.length, ...vistas.values());
       const vp = new Map<string, any>();
-      for (const x of propostas) vp.set(`${x.tipo}:${x.descricao}:${x.valor}:${x.data}`, x);
+      for (const x of propostas) vp.set(`${x.tipo}:${x.descricao}:${x.valor}:${x.data}:${x.parcelas || 1}`, x);
       propostas.splice(0, propostas.length, ...vp.values());
     }
 
