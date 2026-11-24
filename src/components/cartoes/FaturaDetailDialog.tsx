@@ -19,6 +19,7 @@ import { useDespesas } from '@/hooks/useDespesas';
 import { cn } from '@/lib/utils';
 import type { ContaDB } from '@/hooks/useContas';
 import type { FaturaDB, FaturaPagamentoDB } from '@/hooks/useFaturas';
+import { digitarMoeda, mostrarMoeda, valorNumero } from '@/lib/moeda';
 
 interface FaturaDetailDialogProps {
   open: boolean;
@@ -202,7 +203,7 @@ export function FaturaDetailDialog({
   };
 
   const handleSave = async () => {
-    const valorNum = typeof form.valor === 'string' ? parseFloat(form.valor) : form.valor;
+    const valorNum = valorNumero(form.valor);
     if (!form.descricao.trim() || !valorNum || valorNum <= 0) return;
     setSaving(true);
     try {
@@ -626,7 +627,7 @@ function LancamentoFormInline({
 }) {
   const catSel = categorias.find(c => c.id === form.categoria_id);
   type F = typeof form;
-  const valorNum = typeof form.valor === 'string' ? parseFloat(form.valor) : form.valor;
+  const valorNum = valorNumero(form.valor);
   return (
     <section className="space-y-3 rounded-[20px] border border-foreground/20 bg-background p-4">
       <p className="text-[12px] font-semibold uppercase tracking-[0.07em] text-foreground-muted">{editing ? 'Editar lançamento' : 'Nova compra no cartão'}</p>
@@ -637,7 +638,7 @@ function LancamentoFormInline({
         <Campo label="Valor">
           <div className="flex h-10 items-center rounded-xl border border-input bg-surface-2 px-3 focus-within:ring-2 focus-within:ring-ring">
             <span className="mr-1 text-foreground-muted">R$</span>
-            <input type="number" step="0.01" inputMode="decimal" value={form.valor} onChange={(e) => setForm((p: F) => ({ ...p, valor: e.target.value }))} placeholder="0,00" className="min-w-0 flex-1 bg-transparent font-semibold tabular-nums outline-none" />
+            <input type="text" inputMode="numeric" value={mostrarMoeda(valorNumero(form.valor))} onChange={(e) => setForm((p: F) => ({ ...p, valor: digitarMoeda(e.target.value) }))} placeholder="0,00" className="min-w-0 flex-1 bg-transparent font-semibold tabular-nums outline-none" />
           </div>
         </Campo>
         {!editing && (

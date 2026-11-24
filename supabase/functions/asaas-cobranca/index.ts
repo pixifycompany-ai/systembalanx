@@ -929,6 +929,10 @@ serve(async (req) => {
     // Marca no Asaas como recebido em dinheiro (receiveInCash) e baixa a receita.
     if (action === "receber-manual") {
       const { cobranca_id, data_pagamento } = body;
+      // Opcional: valor que de fato entrou (≠ do cobrado) e forma (Pix…). Só para cobrança de uma linha.
+      const valorRecebido = Number(body.valor) > 0 ? Math.round(Number(body.valor) * 100) / 100 : null;
+      const FORMAS = new Set(["pix", "boleto", "cartao_credito", "cartao_debito", "dinheiro", "transferencia"]);
+      const formaRecebida = FORMAS.has(body.forma_pagamento) ? body.forma_pagamento : null;
       const { data: cob } = await admin.from("cobrancas").select("*").eq("id", cobranca_id).eq("user_id", user.id).maybeSingle();
       if (!cob) return json({ error: "Cobrança não encontrada." }, 404);
       if (cob.status === "pago") return json({ ok: true, jaPago: true });
@@ -937,18 +941,21 @@ serve(async (req) => {
       // Grupo: a fatura é uma só → recebe o total e baixa todas as linhas/receitas.
       const linhas = await linhasDaFatura(admin, cob);
       const total = Math.round(linhas.reduce((s, l) => s + (Number(l.valor) || 0), 0) * 100) / 100;
+      if (valorRecebido && linhas.length > 1) return json({ error: "Essa cobrança junta vários lançamentos num pagamento só: registre o valor diferente em Cobranças → Identificar pagamento." }, 400);
+      const valorFinal = valorRecebido ?? total;
 
       const r = await fetch(`${base}/payments/${cob.asaas_payment_id}/receiveInCash`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ paymentDate: dia, value: total, notifyCustomer: false }),
+        body: JSON.stringify({ paymentDate: dia, value: valorFinal, notifyCustomer: false }),
       });
       const j = await r.json();
       if (!r.ok) return json({ error: j?.errors?.[0]?.description || "Erro ao registrar pagamento no Asaas." }, 400);
 
       for (const linha of linhas) {
-        await admin.from("cobrancas").update({ status: "pago", data_pagamento: dia, updated_at: new Date().toISOString() }).eq("id", linha.id);
-        if (linha.receita_id) await admin.from("receitas").update({ status: "recebido", data_recebimento: dia }).eq("id", linha.receita_id);
+        await admin.from("cobrancas").update({ status: "pago", data_pagamento: dia, updated_at: new Date().toISOString(), ...(valorRecebido ? { valor: valorRecebido } : {}) }).eq("id", linha.id);
+        if (linha.receita_id) await admin.from("receitas").update({ status: "recebido", data_recebimento: dia,
+          ...(valorRecebido ? { valor: valorRecebido } : {}), ...(formaRecebida ? { forma_pagamento: formaRecebida } : {}) }).eq("id", linha.receita_id);
       }
       return json({ ok: true });
     }

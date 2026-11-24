@@ -1,7 +1,6 @@
 // Quadro da conferência da fatura (PDF do banco × BALANX) e lista de lançamentos com "Editar".
 // Os números vêm direto da ferramenta — a IARA só comenta, não reescreve.
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, CreditCard, Layers, Pencil, Trash2 } from 'lucide-react';
@@ -9,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { formatCurrency, formatDate } from '@/utils/formatters';
 import { corrigirValorNaFatura, excluirDaFatura } from '@/lib/conferenciaFatura';
 import type { ConferenciaFatura, GrupoConf, LancamentoLista, LinhaConf } from '@/hooks/useFinancialAdvisor';
+import { LancamentoSheet, type AlvoSheet } from '@/components/iara/LancamentoSheet';
 
 const dm = (d: string | null | undefined) => (d ? formatDate(d).slice(0, 5) : '—');
 const erroMsg = (e: unknown) => (e instanceof Error ? e.message : 'não deu certo');
@@ -256,12 +256,13 @@ export function QuadroConferencia({ c }: { c: ConferenciaFatura }) {
   );
 }
 
-/** Lançamentos que a IARA listou: cada um abre o mesmo formulário do Fluxo de caixa. */
+/** Lançamentos que a IARA listou: cada um abre a janela de edição ali mesmo, sem sair da conversa. */
 export function ListaLancamentosIara({ itens }: { itens: LancamentoLista[] }) {
-  const navigate = useNavigate();
   const [aberto, setAberto] = useState(itens.length <= 5);
+  const [alvo, setAlvo] = useState<AlvoSheet | null>(null);
   return (
     <div className="mt-2.5 overflow-hidden rounded-[18px] border border-border bg-surface">
+      <LancamentoSheet alvo={alvo} onClose={() => setAlvo(null)} />
       <button type="button" onClick={() => setAberto(!aberto)} className="flex w-full items-center gap-2 px-3 py-2.5 text-left">
         <Pencil className="h-3.5 w-3.5 shrink-0 text-foreground-muted" />
         <span className="min-w-0 flex-1 text-[12.5px] text-foreground-muted">{itens.length} lançamento{itens.length === 1 ? '' : 's'} · toque para abrir e editar</span>
@@ -276,11 +277,7 @@ export function ListaLancamentosIara({ itens }: { itens: LancamentoLista[] }) {
                 <span className="block truncate text-[11px] text-foreground-muted">{[l.quem ? l.descricao : '', l.data ? formatDate(l.data) : '', l.cartao ? 'no cartão' : ''].filter(Boolean).join(' · ')}</span>
               </span>
               <span className={cn('shrink-0 text-[12.5px] font-semibold tabular-nums', l.tipo === 'receita' ? 'text-success-fg' : 'text-foreground')}>{formatCurrency(l.valor)}</span>
-              {l.cartao ? (
-                <button type="button" onClick={() => navigate('/contas')} className="shrink-0 rounded-full border border-border px-2.5 py-1 text-[11.5px] text-foreground-muted hover:bg-surface-2">Fatura</button>
-              ) : (
-                <button type="button" onClick={() => navigate(`/fluxo-caixa?abrir=${l.id}`)} className="shrink-0 rounded-full bg-foreground px-2.5 py-1 text-[11.5px] font-semibold text-background hover:opacity-90">Editar</button>
-              )}
+              <button type="button" onClick={() => setAlvo({ modo: 'existente', id: l.id, tipo: l.tipo })} className="shrink-0 rounded-full bg-foreground px-2.5 py-1 text-[11.5px] font-semibold text-background hover:opacity-90">Editar</button>
             </li>
           ))}
         </ul>

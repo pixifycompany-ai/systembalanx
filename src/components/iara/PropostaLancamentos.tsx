@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Check, X, CreditCard, Repeat2, Loader2 } from 'lucide-react';
+import { Check, X, CreditCard, Repeat2, Loader2, Pencil } from 'lucide-react';
+import { LancamentoSheet, type AlvoSheet } from '@/components/iara/LancamentoSheet';
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/utils/formatters';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +21,10 @@ interface Props {
  * Cria usando exatamente o mesmo caminho do lançamento por voz
  * (cartão → fatura, parcelado, recorrente), via salvarItens.
  */
-export function PropostaLancamentos({ lancamentos, onResolved }: Props) {
+export function PropostaLancamentos({ lancamentos: iniciais, onResolved }: Props) {
+  // Cópia local: a pessoa pode ajustar cada um na janela antes de confirmar.
+  const [lancamentos, setLancamentos] = useState(iniciais);
+  const [alvo, setAlvo] = useState<AlvoSheet | null>(null);
   const { toast } = useToast();
   const { createReceita } = useReceitas();
   const { createDespesa, createDespesaParcelada } = useDespesas();
@@ -53,6 +57,7 @@ export function PropostaLancamentos({ lancamentos, onResolved }: Props) {
 
   return (
     <div className="mt-2.5 rounded-[20px] border border-border bg-surface p-3">
+      <LancamentoSheet alvo={alvo} onClose={() => setAlvo(null)} />
       <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">
         Prévia · confira antes de lançar
       </div>
@@ -75,6 +80,11 @@ export function PropostaLancamentos({ lancamentos, onResolved }: Props) {
                 <span className={cn('flex-none font-heading text-[14px] font-semibold tabular-nums tracking-[-0.02em]', isReceita ? 'text-[hsl(var(--success-fg))]' : 'text-[hsl(var(--danger-fg))]')}>
                   {isReceita ? '+' : '−'}{formatCurrency(it.valor)}
                 </span>
+                <button type="button" aria-label="Ajustar" title="Ajustar antes de lançar" disabled={salvando}
+                  onClick={() => setAlvo({ modo: 'proposta', item: it, onSalvar: (novo) => setLancamentos((l) => l.map((x, k) => (k === idx ? novo : x))) })}
+                  className="grid h-7 w-7 flex-none place-items-center rounded-full border border-border text-foreground-muted hover:bg-surface-2 hover:text-foreground disabled:opacity-50">
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-1">
                 {it.categoria_nome && (
@@ -109,7 +119,7 @@ export function PropostaLancamentos({ lancamentos, onResolved }: Props) {
       </div>
 
       <p className="px-1 pt-2.5 text-[11px] leading-[1.45] text-foreground-muted">
-        A IARA pode errar valor ou categoria. Para ajustar, é só me dizer (ex.: "na verdade foi 320").
+        A IARA pode errar valor ou categoria. Toque no lápis para ajustar, ou me diga (ex.: "na verdade foi 320").
       </p>
 
       <div className="mt-2.5 flex gap-2">

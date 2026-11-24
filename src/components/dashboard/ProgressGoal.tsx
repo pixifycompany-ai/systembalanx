@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pencil, Target } from 'lucide-react';
+import { digitarMoeda, mostrarMoeda, valorNumero } from '@/lib/moeda';
 
 interface ProgressGoalProps {
   title: string;
@@ -164,10 +165,10 @@ export function ProgressGoal({
 /** Meta compacta (dentro do cartão "Recebido no mês"): barra + % + lápis para editar. */
 export function MetaInline({ current, target, subtitle, onEditTarget, className }: { current: number; target: number; subtitle?: string; onEditTarget?: (v: number) => void; className?: string }) {
   const [aberto, setAberto] = useState(false);
-  const [valor, setValor] = useState(target.toString());
+  const [valor, setValor] = useState(mostrarMoeda(target));
   const pct = target > 0 ? (current / target) * 100 : 0;
   const salvar = () => {
-    const v = parseFloat(valor.replace(/[^\d.,]/g, '').replace(',', '.'));
+    const v = valorNumero(valor);
     if (!isNaN(v) && v > 0 && onEditTarget) { onEditTarget(v); setAberto(false); }
   };
   return (
@@ -177,7 +178,7 @@ export function MetaInline({ current, target, subtitle, onEditTarget, className 
           <Target className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">Meta {formatCurrency(target)}</span>
           {onEditTarget && (
-            <button type="button" onClick={() => { setValor(target.toString()); setAberto(true); }} aria-label="Editar meta" className="grid h-6 w-6 shrink-0 place-items-center rounded-full hover:bg-surface-2 hover:text-foreground">
+            <button type="button" onClick={() => { setValor(mostrarMoeda(target)); setAberto(true); }} aria-label="Editar meta" className="grid h-6 w-6 shrink-0 place-items-center rounded-full hover:bg-surface-2 hover:text-foreground">
               <Pencil className="h-3 w-3" />
             </button>
           )}
@@ -194,7 +195,7 @@ export function MetaInline({ current, target, subtitle, onEditTarget, className 
             {subtitle && <p className="mb-4 text-sm text-foreground-muted">Período: {subtitle}</p>}
             <div className="space-y-2">
               <Label htmlFor="meta-inline-valor">Valor da meta</Label>
-              <Input id="meta-inline-valor" type="text" inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="Ex: 50000" />
+              <Input id="meta-inline-valor" type="text" inputMode="numeric" value={valor} onChange={(e) => setValor(mostrarMoeda(digitarMoeda(e.target.value)))} placeholder="Ex: 50.000,00" />
             </div>
           </div>
           <DialogFooter>

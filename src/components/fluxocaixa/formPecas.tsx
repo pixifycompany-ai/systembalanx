@@ -6,6 +6,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { formatCurrency } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 import { btn } from '@/components/reskin/estilos';
+import { digitarMoeda, mostrarMoeda } from '@/lib/moeda';
 
 type Opcao = { value: string; label: string; color?: string };
 
@@ -87,14 +88,12 @@ export function ValorInput({ valor, onChange, tom, autoFocus }: { valor: number;
     <div className="flex h-14 items-center rounded-2xl border border-input bg-surface-2 px-4 focus-within:ring-2 focus-within:ring-ring">
       <span className="mr-1.5 text-[18px] text-foreground-muted">R$</span>
       <input
-        type="number"
-        step="0.01"
-        min="0.01"
-        inputMode="decimal"
+        type="text"
+        inputMode="numeric"
         required
         autoFocus={autoFocus}
-        value={valor || ''}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        value={mostrarMoeda(valor)}
+        onChange={(e) => onChange(digitarMoeda(e.target.value))}
         placeholder="0,00"
         className={cn('min-w-0 flex-1 bg-transparent font-heading text-[26px] font-semibold tabular-nums outline-none placeholder:text-foreground-subtle [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none',
           tom === 'entrada' ? 'text-success-fg' : tom === 'saida' ? 'text-danger-fg' : 'text-foreground')}

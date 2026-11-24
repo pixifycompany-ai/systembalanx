@@ -20,6 +20,7 @@ import {
   carregarConferencia, causasProvaveis, historicoConferencias, lancarAjuste, parseValorBR, saldoNaData, salvarConferencia,
   type Causa, type ConferenciaSalva, type Movimento,
 } from '@/lib/conferenciaSaldo';
+import { digitarMoeda, mostrarMoeda } from '@/lib/moeda';
 
 interface Props {
   open: boolean;
@@ -157,7 +158,7 @@ export function ConferirSaldoSheet({ open, onOpenChange, contas, contaInicial, o
                   inputMode="decimal"
                   placeholder="0,00"
                   value={valorTxt}
-                  onChange={(e) => { setValorTxt(e.target.value.replace(/-/g, '')); setResultado(null); }}
+                  onChange={(e) => { setValorTxt(mostrarMoeda(digitarMoeda(e.target.value))); setResultado(null); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') conferir(); }}
                   className="h-11 tabular-nums"
                 />

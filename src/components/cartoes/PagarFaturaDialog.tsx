@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import type { ContaDB } from '@/hooks/useContas';
 import type { FaturaDB } from '@/hooks/useFaturas';
 import { useFaturas } from '@/hooks/useFaturas';
+import { digitarMoeda, mostrarMoeda } from '@/lib/moeda';
 
 interface PagarFaturaDialogProps {
   open: boolean;
@@ -96,7 +97,7 @@ export function PagarFaturaDialog({ open, onOpenChange, cartao, fatura, contasBa
                 {modo === 'outro' ? (
                   <div className="flex h-14 items-center rounded-2xl border border-input bg-surface-2 px-4 focus-within:ring-2 focus-within:ring-ring">
                     <span className="mr-1.5 text-[18px] text-foreground-muted">R$</span>
-                    <input type="number" step="0.01" inputMode="decimal" value={principal?.valor ?? ''} onChange={(e) => updateLinha(0, { valor: parseFloat(e.target.value) || 0 })}
+                    <input type="text" inputMode="numeric" value={mostrarMoeda(principal?.valor)} onChange={(e) => updateLinha(0, { valor: digitarMoeda(e.target.value) })}
                       className="min-w-0 flex-1 bg-transparent font-heading text-[24px] font-semibold tabular-nums text-foreground outline-none" />
                   </div>
                 ) : (

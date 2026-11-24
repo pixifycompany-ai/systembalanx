@@ -414,6 +414,14 @@ ${topAtrasadosDesp.length ? topAtrasadosDesp.join("\n") : "  • (nenhuma)"}
 - Você analisa os DADOS REAIS da conta de quem está falando com você (fornecidos abaixo em "CONTEXTO FINANCEIRO"). Esses dados já vêm filtrados e pertencem exclusivamente a este usuário/tenant.
 ${nomeUsuario ? `- O nome da pessoa é ${nomeUsuario}. Trate-a pelo primeiro nome quando fizer sentido.` : ""}
 
+## Como pensar (você é INTELIGENTE, não um menu de comandos)
+- Entenda a INTENÇÃO, não a frase exata. "altera esse aí ó", "aquele de 350", "a da lona", "o último" referem-se ao que já apareceu nesta conversa: use os dados/ids que você mostrou antes. Não peça para a pessoa repetir o que já está na conversa.
+- Junte TODAS as pistas para achar o lançamento: cliente/fornecedor + palavra da descrição + valor + mês. "Sabor Maria Lona de 350" = cliente Sabor Maria, descrição com "lona", valor 350. Se uma das pistas (ex.: o valor) já deixa um só, AJA — não pergunte.
+- Antes de dizer "não encontrei", tente de novo de outro jeito (só o cliente, só uma palavra, outro período, receita em vez de despesa, buscar_lancamento/listar_lancamentos). Só diga que não achou depois disso, e mostre o que achou de mais parecido.
+- Faça o pedido INTEIRO numa vez. "muda de 350 para 300 e dá baixa via Pix" = dar_baixa com valor_recebido 300 e forma_pagamento pix (uma ação só). "lança e já marca como pago" = lançamento quitado. Não deixe metade para depois.
+- Pergunte só quando a dúvida for REAL (ex.: 3 lançamentos iguais de R$ 597 e nenhuma outra pista). Nesse caso, liste curto e diga o que diferencia cada um.
+- Confira antes de responder: o que eu fiz atende exatamente o que a pessoa pediu? Os números vêm das ferramentas? Se não, corrija antes.
+
 ## Regra de ouro: baseie-se SEMPRE nos dados reais
 - Use exclusivamente os números do CONTEXTO FINANCEIRO. Nunca invente valores, clientes, contas ou datas.
 - Se a pessoa perguntar algo que os dados não cobrem (ou o período selecionado não inclui), diga isso com transparência e sugira trocar o período ou onde encontrar no app (Receitas, Despesas, Contas, Cartões, Contratos, Relatórios, Calendário).
@@ -619,7 +627,7 @@ ${contexto}${blocoTela}`;
       { type: "function", function: { name: "metas", description: "META de faturamento do Início por mês: meta, recebido no mês, %, quanto falta e quanto precisa por dia (mês atual). Use p/ 'como está minha meta', 'bati a meta?'.", parameters: { type: "object", properties: { meses: { type: "number", description: "quantos meses (padrão 3, contando o atual)" } } } } },
       { type: "function", function: {
         name: "dar_baixa",
-        description: "Prepara a BAIXA (marcar como PAGO/RECEBIDO) de UM lançamento em aberto. Ex.: 'paguei a luz', 'o João pagou', 'recebi do cliente X ontem'. Com cobrança no Asaas, marca recebido lá também. Fatura de cartão NÃO: use pagar_fatura. Se houver mais de um parecido, PERGUNTE qual.",
+        description: "Prepara a BAIXA (marcar como PAGO/RECEBIDO) de UM lançamento em aberto — também com VALOR DIFERENTE (valor_recebido) e forma (Pix…), numa ação só. Ex.: 'paguei a luz', 'o João pagou', 'recebi do cliente X ontem', 'muda pra 300 e dá baixa via Pix'. Com cobrança no Asaas, marca recebido lá também (com o valor recebido). Fatura de cartão NÃO: use pagar_fatura. Se houver mais de um parecido, PERGUNTE qual.",
         parameters: { type: "object", properties: {
           tipo: { type: "string", enum: ["despesa", "receita"] },
           quem: { type: "string", description: "fornecedor/cliente ou parte da descrição" },
@@ -627,6 +635,8 @@ ${contexto}${blocoTela}`;
           vencimento: { ...D, description: "vencimento do lançamento, se disser" },
           data: { ...D, description: "data em que pagou/recebeu (padrão: hoje)" },
           conta: { type: "string", description: "conta de onde saiu/entrou, se disser" },
+          valor_recebido: { type: "number", description: "valor que REALMENTE foi pago/recebido, se for diferente do lançamento (ex.: 'era 350 mas recebi 300', 'muda pra 300 e dá baixa'). O lançamento passa a ter esse valor." },
+          forma_pagamento: { type: "string", enum: ["pix", "boleto", "cartao_credito", "cartao_debito", "dinheiro", "transferencia"], description: "como foi pago/recebido, se disser ('via Pix')" },
         }, required: ["tipo", "quem"] },
       } },
       { type: "function", function: {
@@ -1490,22 +1500,30 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
           return JSON.stringify({ erro: "Diga quais lançamentos (dia, valores, fornecedor/cliente/descrição, categoria ou período) ou use os ids de uma lista anterior." });
         }
         const col = a?.criterio === "competencia" ? "data_competencia" : a?.criterio === "pagamento" ? colEf : "data_vencimento";
-        let qq: any = db.from(tabela).select(sel);
-        // Dia exato: vale vencimento, competência (dia da compra no cartão) ou pagamento.
-        if (dia && !dataOk(a?.inicio) && !dataOk(a?.fim)) qq = qq.or(`data_vencimento.eq.${dia},data_competencia.eq.${dia},${colEf}.eq.${dia}`);
-        else qq = qq.gte(col, dataOk(a?.inicio) || ultimosMesesIni(12)).lte(col, dataOk(a?.fim) || `${anoIni.slice(0, 4)}-12-31`);
-        if (valores.length) qq = qq.in("valor", valores);
-        if (q) {
-          if (lanc === "despesa") qq = qq.or(`descricao.ilike.%${q}%,fornecedor.ilike.%${q}%`);
-          else {
-            const cli = (await safe<any>(supabase.from("clientes").select("id").ilike("nome", `%${q}%`).limit(20))).map((c: any) => c.id);
-            qq = qq.or(`descricao.ilike.%${q}%${cli.length ? `,cliente_id.in.(${cli.join(",")})` : ""}`);
+        // comTexto=false: mesmos filtros sem o texto — para a busca por palavras quando a frase exata não acha.
+        const montar = async (comTexto: boolean) => {
+          let qq: any = db.from(tabela).select(sel);
+          // Dia exato: vale vencimento, competência (dia da compra no cartão) ou pagamento.
+          if (dia && !dataOk(a?.inicio) && !dataOk(a?.fim)) qq = qq.or(`data_vencimento.eq.${dia},data_competencia.eq.${dia},${colEf}.eq.${dia}`);
+          else qq = qq.gte(col, dataOk(a?.inicio) || ultimosMesesIni(12)).lte(col, dataOk(a?.fim) || `${anoIni.slice(0, 4)}-12-31`);
+          if (valores.length) qq = qq.in("valor", valores);
+          if (q && comTexto) {
+            if (lanc === "despesa") qq = qq.or(`descricao.ilike.%${q}%,fornecedor.ilike.%${q}%`);
+            else {
+              const cli = (await safe<any>(supabase.from("clientes").select("id").ilike("nome", `%${q}%`).limit(20))).map((c: any) => c.id);
+              qq = qq.or(`descricao.ilike.%${q}%${cli.length ? `,cliente_id.in.(${cli.join(",")})` : ""}`);
+            }
           }
+          if (a?.categoria_atual) { const c = achaCategoria(a.categoria_atual, lanc); if (c.id) qq = qq.eq("categoria_id", c.id); }
+          if (a?.status_atual === "aberto") qq = qq.in("status", ["pendente", "atrasado"]);
+          else if (a?.status_atual === "efetivado") qq = qq.eq("status", lanc === "receita" ? "recebido" : "pago");
+          return qq;
+        };
+        rows = await safe<any>(await montar(true));
+        if (q && !rows.length) {
+          // "Sabor Maria Lona": cliente Sabor Maria Confeitaria + descrição ARTE LONA.
+          rows = porPalavras(await safe<any>(await montar(false)), q, (r: any) => `${r.fornecedor || ""} ${r.cliente?.nome || ""} ${r.descricao || ""} ${r.categoria?.nome || ""}`);
         }
-        if (a?.categoria_atual) { const c = achaCategoria(a.categoria_atual, lanc); if (c.id) qq = qq.eq("categoria_id", c.id); }
-        if (a?.status_atual === "aberto") qq = qq.in("status", ["pendente", "atrasado"]);
-        else if (a?.status_atual === "efetivado") qq = qq.eq("status", lanc === "receita" ? "recebido" : "pago");
-        rows = await safe<any>(qq);
         // Filtros são ESTRITOS (nunca cai para "todos" quando o dia/valor não bate).
         if (valores.length) rows = rows.filter((r) => valores.some((v) => Math.abs(Number(r.valor) - v) < 0.005));
         if (dia) rows = rows.filter((r) => r.data_vencimento === dia || r.data_competencia === dia || r[colEf] === dia);
@@ -2294,11 +2312,22 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
     function filtrar<T extends { quem: string; descricao: string; valor: number; vencimento: string }>(lista: T[], a: any): T[] {
       const q = norm(a?.quem || "");
       let r = lista.filter((x) => !q || norm(x.quem).includes(q) || norm(x.descricao).includes(q) || (q.length >= 5 && q.includes(norm(x.quem))));
+      if (q && !r.length) r = porPalavras(lista, q, (x) => `${x.quem} ${x.descricao}`);
       const v = Number(a?.valor);
       if (v > 0) { const rv = r.filter((x) => Math.abs(x.valor - v) < 0.01); if (rv.length) r = rv; }
       const venc = dataOk(a?.vencimento);
       if (venc) { const rd = r.filter((x) => x.vencimento === venc); if (rd.length) r = rd; }
       return r.sort((x, y) => x.vencimento.localeCompare(y.vencimento));
+    }
+    /** Palavras do pedido espalhadas em cliente/fornecedor/descrição/categoria. Fica com quem tem mais palavras (todas, ou a maioria). */
+    const PARADAS = new Set(["de", "da", "do", "das", "dos", "para", "pra", "com", "the", "lancamento", "lancamentos", "receita", "despesa", "valor", "reais", "esse", "essa", "aquele", "aquela"]);
+    function porPalavras<T>(lista: T[], q: string, texto: (x: T) => string): T[] {
+      const ws = [...new Set(norm(q).replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !PARADAS.has(w)))];
+      if (!ws.length) return [];
+      const pont = lista.map((x) => { const t = norm(texto(x)); return { x, n: ws.filter((w) => t.includes(w)).length }; });
+      const max = Math.max(0, ...pont.map((p) => p.n));
+      if (!max || max < Math.ceil(ws.length / 2)) return [];
+      return pont.filter((p) => p.n === max).map((p) => p.x);
     }
     const listaParaPerguntar = (r: any[], oQue: string) => JSON.stringify({
       precisa_escolher: true,
@@ -2421,12 +2450,17 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
         conta = cs[0];
       }
       const viaAsaas = lanc === "receita" && !!x.cobranca?.asaas_payment_id;
+      const vr = Number(a?.valor_recebido) > 0 ? Math.round(Number(a.valor_recebido) * 100) / 100 : null;
+      const valorRecebido = vr && Math.abs(vr - Number(x.valor)) > 0.005 ? vr : null;
+      const forma = FORMAS_EDIT.has(a?.forma_pagamento) ? a.forma_pagamento : null;
       // Sem conta no lançamento: usa a conta padrão (senão o saldo não muda e vira pendência "sem conta").
       const contaFinal = conta || (x.conta_id ? null : (bancariasIara.find((c: any) => c.id === contaPadraoId) || bancariasIara[0] || null));
       acoes.push({ id: novoId(), tipo: "dar_baixa", lanc, item_id: x.id, quem: x.quem, descricao: x.descricao, valor: x.valor,
         vencimento: x.vencimento, data, via_asaas: viaAsaas, cobranca_id: viaAsaas ? x.cobranca.id : null,
-        conta_id: viaAsaas ? null : (contaFinal?.id || null), conta_nome: viaAsaas ? x.conta_nome : (contaFinal?.nome || x.conta_nome) });
+        conta_id: viaAsaas ? null : (contaFinal?.id || null), conta_nome: viaAsaas ? x.conta_nome : (contaFinal?.nome || x.conta_nome),
+        valor_recebido: valorRecebido, forma_pagamento: forma });
       return JSON.stringify({ ok: true, lancamento: { tipo: lanc, quem: x.quem, descricao: x.descricao, valor: x.valor, vencimento: x.vencimento },
+        valor_recebido: valorRecebido ?? undefined, forma_pagamento: forma ?? undefined,
         data_da_baixa: data, conta: viaAsaas ? x.conta_nome : (contaFinal?.nome || x.conta_nome),
         obs: viaAsaas ? "Tem cobrança no Asaas: ao confirmar, fica como recebida em dinheiro lá também (o cliente não é avisado)." : "A pessoa confirma no card." });
     }
@@ -2826,13 +2860,24 @@ total_a_pagar = valor total da fatura impresso. saldo_anterior e pagamentos = o 
       });
     }
     const apiBase = (Deno.env.get("IARA_API_BASE") || "https://api.openai.com/v1").replace(/\/$/, "");
-    const model = Deno.env.get("IARA_MODEL") || "gpt-4o-mini";
+    // Conversa: modelo mais capaz (entende "esse aí", junta cliente + valor + palavra, encadeia ações).
+    // IARA_MODEL_CONVERSA troca sem deploy; se o modelo não existir na conta, cai para o mini.
+    const RESERVA = Deno.env.get("IARA_MODEL") || "gpt-4o-mini";
+    let model = Deno.env.get("IARA_MODEL_CONVERSA") || "gpt-4.1";
 
-    const callAI = (msgs: any[]) => fetch(`${apiBase}/chat/completions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages: msgs, tools: TOOLS, tool_choice: "auto", temperature: 0.3 }),
-    });
+    const callAI = async (msgs: any[]): Promise<Response> => {
+      const corpo = (m: string) => JSON.stringify({ model: m, messages: msgs, tools: TOOLS, tool_choice: "auto", temperature: 0.2, parallel_tool_calls: true });
+      const r = await fetch(`${apiBase}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: corpo(model) });
+      if ((r.status === 400 || r.status === 404) && model !== RESERVA) {
+        const t = await r.clone().text();
+        if (/model/i.test(t)) {
+          console.error("modelo da conversa indisponível, usando reserva:", model, t.slice(0, 200));
+          model = RESERVA;
+          return fetch(`${apiBase}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: corpo(model) });
+        }
+      }
+      return r;
+    };
 
     const historico: any[] = messages.map((m) => ({ role: m.role, content: m.content }));
     const arquivos = (Array.isArray(anexos) ? anexos : []).filter((f) => f?.base64 && f?.tipo).slice(0, 3);
@@ -2863,7 +2908,46 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
     const convo: any[] = [{ role: "system", content: canal === "voz" ? systemPrompt + VOZ : systemPrompt }, ...historico];
     let finalText = "";
 
-    for (let i = 0; i < 6; i++) {
+    // ---- Reflexão (revisor interno) ----
+    const rastro: { ferramenta: string; args: string; resultado: string }[] = [];
+    let revisou = false;
+    const textoDe = (c: any) => typeof c === "string" ? c : Array.isArray(c) ? c.filter((x: any) => x?.type === "text").map((x: any) => x.text).join(" ") : "";
+    const ultimaPergunta = textoDe(historico[historico.length - 1]?.content).slice(0, 1500);
+    const PEDE_ACAO = /\b(alter|mud|troc|corrig|ajust|edit|d[aá] baixa|baix|marc|lan[cç]|registr|exclu|apag|remov|cancel|cri|cadastr|cobr|envi|mand|pag|receb|transfer|aplic|coloc|pass|agend|lembr|guard|conect)/i;
+    const DUVIDOSA = /n[aã]o (encontrei|achei|consegui|localizei)|qual (desses|deles|dessas|delas)|poderia (informar|especificar|confirmar)|verifique|me (envie|informe|diga) (as|os|mais)/i;
+    function precisaRevisar(rascunho: string) {
+      if (!ultimaPergunta || ultimaPergunta.length < 6) return false;
+      return rastro.length > 0 || PEDE_ACAO.test(ultimaPergunta) || DUVIDOSA.test(rascunho);
+    }
+    async function revisar(rascunho: string): Promise<{ aprovado: boolean; correcao?: string } | null> {
+      try {
+        const contexto = historico.slice(-7, -1).map((m: any) => `${m.role === "user" ? "PESSOA" : "IARA"}: ${textoDe(m.content).slice(0, 700)}`).join("\n");
+        const preparadas = [...acoes.map((x) => ({ tipo: x.tipo, descricao: x.descricao, valor: x.valor_recebido ?? x.valor, itens: x.itens?.length })),
+          ...propostas.map((x) => ({ tipo: "novo_lancamento", descricao: x.descricao, valor: x.valor }))];
+        const r = await fetch(`${apiBase}/chat/completions`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model, temperature: 0, max_tokens: 400, response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: `Você é o REVISOR da IARA, assistente financeira do BALANX. Hoje é ${hojeISO}. Avalie se a resposta-rascunho atende de verdade ao pedido, considerando a conversa. Reprove (aprovado=false) quando:
+1) A pessoa pediu uma AÇÃO (alterar, dar baixa, lançar, excluir, cobrar, editar…) e nenhuma ação correspondente foi preparada, ou só PARTE dela (ex.: pediu mudar valor E dar baixa via Pix e só uma coisa foi feita).
+2) A IARA perguntou "qual?" ou disse "não encontrei" quando a conversa/os resultados já identificam o lançamento: ele foi citado antes ("esse aí", "aquele"), ou o valor/palavras/cliente apontam um só (ex.: entre 1 de R$ 350 e vários de R$ 597, "o de 350" é um só).
+3) Disse "não encontrei" sem tentar outra busca razoável (só o nome do cliente, só uma palavra da descrição, sem o período, receita em vez de despesa).
+4) Números/datas da resposta não batem com os resultados das ferramentas, ou ela inventou algo.
+5) Não respondeu o que foi perguntado.
+Se estiver boa, aprovado=true. Na correção, diga OBJETIVAMENTE o que fazer (qual ferramenta, com quais dados — ex.: "chame dar_baixa tipo receita, quem 'Sabor Maria lona', valor 350, valor_recebido 300, forma_pagamento pix"). Responda só JSON: {"aprovado": boolean, "correcao": string}` },
+              { role: "user", content: `CONVERSA ANTERIOR:\n${contexto || "(nenhuma)"}\n\nPEDIDO ATUAL: ${ultimaPergunta}\n\nFERRAMENTAS USADAS NESTA RESPOSTA:\n${rastro.length ? rastro.map((t) => `- ${t.ferramenta}(${t.args}) → ${t.resultado}`).join("\n").slice(0, 9000) : "(nenhuma)"}\n\nAÇÕES PREPARADAS (vão para o card de confirmação): ${preparadas.length ? JSON.stringify(preparadas).slice(0, 1500) : "(nenhuma)"}\n\nRASCUNHO DA RESPOSTA:\n${rascunho.slice(0, 3000)}` },
+            ],
+          }),
+        });
+        if (!r.ok) return null;
+        const j = JSON.parse((await r.json()).choices?.[0]?.message?.content || "{}");
+        return typeof j.aprovado === "boolean" ? j : null;
+      } catch (e) { console.error("revisor:", e); return null; }
+    }
+
+    for (let i = 0; i < 8; i++) {
       const resp = await callAI(convo);
       if (!resp.ok) {
         if (resp.status === 429) {
@@ -2956,14 +3040,41 @@ A resposta será LIDA EM VOZ ALTA pelo iPhone. Regras: no máximo 3 frases curta
             result = JSON.stringify({ erro: e instanceof Error ? e.message : "falha na consulta" });
           }
           convo.push({ role: "tool", tool_call_id: tc.id, content: result });
+          rastro.push({ ferramenta: tc.function.name, args: String(tc.function.arguments || "").slice(0, 600), resultado: result.slice(0, 1800) });
         }
         continue; // deixa o modelo ler os resultados e decidir o próximo passo
       }
       finalText = msg?.content || "";
+      // Reflexão: antes de responder, um revisor confere se a resposta atende o pedido INTEIRO e se a
+      // ação certa foi preparada. Se não, a IARA corrige (uma vez) usando as ferramentas.
+      if (!revisou && canal !== "voz" && i < 6 && precisaRevisar(finalText)) {
+        revisou = true;
+        const v = await revisar(finalText);
+        if (v && v.aprovado === false && typeof v.correcao === "string" && v.correcao.trim()) {
+          console.log("revisão pediu correção:", v.correcao.slice(0, 300));
+          convo.push({ role: "assistant", content: finalText });
+          convo.push({ role: "user", content: `[REVISÃO INTERNA — a pessoa NÃO vê esta mensagem] Sua resposta acima não está boa: ${v.correcao.trim()}
+${acoes.length || propostas.length ? `Já está preparado nesta resposta (NÃO prepare de novo): ${[...acoes.map((x) => `${x.tipo}${x.descricao ? ` "${x.descricao}"` : ""}`), ...propostas.map((x) => `lançamento "${x.descricao}"`)].join("; ")}.` : ""}
+Corrija agora usando as ferramentas que precisar e escreva a resposta FINAL para a pessoa (sem falar da revisão).` });
+          finalText = "";
+          continue;
+        }
+      }
       break;
     }
 
     if (!finalText) finalText = "Não consegui montar a resposta agora. Pode reformular a pergunta?";
+
+    // Se a mesma ação foi preparada duas vezes (ex.: depois da revisão), fica só a última.
+    {
+      const chave = (x: any) => `${x.tipo}:${x.item_id || x.receita_id || x.despesa_id || x.cobranca_id || x.contrato_id || (x.itens || []).map((i: any) => i.id).join(",") || x.descricao || ""}`;
+      const vistas = new Map<string, any>();
+      for (const x of acoes) vistas.set(chave(x), x);
+      acoes.splice(0, acoes.length, ...vistas.values());
+      const vp = new Map<string, any>();
+      for (const x of propostas) vp.set(`${x.tipo}:${x.descricao}:${x.valor}:${x.data}`, x);
+      propostas.splice(0, propostas.length, ...vp.values());
+    }
 
     // Entrega no formato SSE que o cliente já sabe ler (choices[].delta.content)
     const encoder = new TextEncoder();

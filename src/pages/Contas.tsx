@@ -26,6 +26,7 @@ import { CartaoCsvImportDialog } from '@/components/cartoes/CartaoCsvImportDialo
 import { getFaturaAtual } from '@/utils/faturaCalculator';
 import { ConferirSaldoSheet } from '@/components/contas/ConferirSaldoSheet';
 import { cn } from '@/lib/utils';
+import { digitarMoeda, mostrarMoeda } from '@/lib/moeda';
 
 const CONTA_TIPOS = [
   { value: 'corrente', label: 'Corrente' },
@@ -381,8 +382,8 @@ export default function Contas() {
                 <Campo label="Saldo inicial" hint="É o ponto de partida: os lançamentos efetivados somam e subtraem a partir dele.">
                   <div className="flex h-10 items-center rounded-xl border border-input bg-surface-2 px-3 focus-within:ring-2 focus-within:ring-ring">
                     <span className="mr-1 text-foreground-muted">R$</span>
-                    <input type="number" step="0.01" inputMode="decimal" value={formData.saldo_inicial || ''} placeholder="0,00"
-                      onChange={(e) => setFormData(p => ({ ...p, saldo_inicial: parseFloat(e.target.value) || 0 }))} className="min-w-0 flex-1 bg-transparent font-semibold tabular-nums outline-none" />
+                    <input type="text" inputMode="numeric" value={`${(formData.saldo_inicial || 0) < 0 ? '-' : ''}${mostrarMoeda(Math.abs(formData.saldo_inicial || 0))}`} placeholder="0,00"
+                      onChange={(e) => setFormData(p => ({ ...p, saldo_inicial: digitarMoeda(e.target.value, true) }))} className="min-w-0 flex-1 bg-transparent font-semibold tabular-nums outline-none" />
                   </div>
                 </Campo>
                 <div>

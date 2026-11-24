@@ -28,6 +28,7 @@ import {
   type CategoriaFormData,
   type GrupoDRE,
 } from '@/api/categorias';
+import { digitarMoeda, mostrarMoeda } from '@/lib/moeda';
 
 type Tipo = 'receita' | 'despesa';
 
@@ -428,7 +429,7 @@ export default function Categorias() {
                   <Campo label="Orçamento por mês (opcional)" hint="Quanto pode gastar nesta categoria por mês. A IARA avisa quanto ainda sobra.">
                     <div className="relative">
                       <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[13.5px] text-foreground-muted">R$</span>
-                      <Input value={orcTxt} onChange={(e) => setOrcTxt(e.target.value.replace(/[^\d.,]/g, ''))} inputMode="decimal" placeholder="Sem orçamento" className="pl-10" />
+                      <Input value={orcTxt} onChange={(e) => setOrcTxt(mostrarMoeda(digitarMoeda(e.target.value)))} inputMode="numeric" placeholder="Sem orçamento" className="pl-10" />
                     </div>
                   </Campo>
                 )}

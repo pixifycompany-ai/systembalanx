@@ -1,5 +1,5 @@
 // Card de confirmação das ações que a IARA preparou: cliente, contrato e cobrança.
-import { useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Check, Copy, ExternalLink, FileSignature, Loader2, Receipt, UserPlus, X, AlertTriangle, CalendarClock, Trash2, ArrowRight, CalendarPlus, ListTodo, CheckCircle2, RotateCcw, Tags, ArrowLeftRight, CreditCard, MessageCircle, Target, PauseCircle, PlayCircle, Ban, TrendingUp, Pencil } from 'lucide-react';
@@ -7,6 +7,9 @@ import { cn } from '@/lib/utils';
 import { formatCPFCNPJ, formatCurrency, formatDate, formatPhone } from '@/utils/formatters';
 import { useToast } from '@/hooks/use-toast';
 import { executarAcoes, FORMA_LABEL, type AcaoIara, type ResultadoAcao } from '@/lib/acoesIara';
+import { LancamentoSheet, type AlvoSheet } from '@/components/iara/LancamentoSheet';
+
+const FORMA_BAIXA: Record<string, string> = { pix: 'Pix', boleto: 'boleto', cartao_credito: 'cartão de crédito', cartao_debito: 'cartão de débito', dinheiro: 'dinheiro', transferencia: 'transferência' };
 
 const RECORRENCIA: Record<string, string> = {
   mensal: 'por mês', trimestral: 'por trimestre', semestral: 'por semestre', anual: 'por ano',
@@ -30,6 +33,18 @@ function Mudanca({ de, para }: { de: string; para: string }) {
 }
 
 /** Cabeçalho padrão de uma linha do card. */
+/** Abre a janela do lançamento (dentro da IARA) a partir de qualquer card. */
+const AbrirLancamento = createContext<(alvo: AlvoSheet) => void>(() => {});
+function BotaoEditar({ id, tipo, rotulo = 'Editar' }: { id: string; tipo: 'receita' | 'despesa'; rotulo?: string }) {
+  const abrir = useContext(AbrirLancamento);
+  return (
+    <button type="button" onClick={() => abrir({ modo: 'existente', id, tipo })}
+      className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-border bg-surface px-2 text-[11px] font-medium text-foreground hover:bg-surface-2">
+      <Pencil className="h-3 w-3" />{rotulo}
+    </button>
+  );
+}
+
 function Topo({ icone, titulo, valor, tom }: { icone: React.ReactNode; titulo: React.ReactNode; valor?: number; tom?: 'ok' | 'perigo' }) {
   return (
     <div className="flex items-center gap-2">
@@ -54,13 +69,16 @@ function ItemExtra({ a }: { a: AcaoIara }) {
       const rec = a.lanc === 'receita';
       return (
         <Linha>
-          <Topo icone={<CheckCircle2 className="h-4 w-4 shrink-0 text-success-fg" />} titulo={<>{rec ? 'Marcar como recebida' : 'Marcar como paga'} · {a.descricao}</>} valor={a.valor} tom={rec ? 'ok' : undefined} />
+          <Topo icone={<CheckCircle2 className="h-4 w-4 shrink-0 text-success-fg" />} titulo={<>{rec ? 'Marcar como recebida' : 'Marcar como paga'} · {a.descricao}</>} valor={a.valor_recebido || a.valor} tom={rec ? 'ok' : undefined} />
           <Chips>
+            {a.valor_recebido ? <Chip tom="info">valor: {formatCurrency(a.valor)} → {formatCurrency(a.valor_recebido)}</Chip> : null}
+            {a.forma_pagamento && <Chip>via {FORMA_BAIXA[a.forma_pagamento] || a.forma_pagamento}</Chip>}
             {a.quem && <Chip>{a.quem}</Chip>}
             <Chip tom="info">{rec ? 'recebida' : 'paga'} em {formatDate(a.data)}</Chip>
             {a.conta_nome && <Chip>{rec ? 'entra em' : 'sai de'} {a.conta_nome}</Chip>}
             <Chip>vencia {formatDate(a.vencimento)}</Chip>
             {a.via_asaas && <Chip tom="info">também no Asaas</Chip>}
+            <BotaoEditar id={a.item_id} tipo={a.lanc} rotulo="Abrir lançamento" />
           </Chips>
         </Linha>
       );
@@ -187,7 +205,10 @@ function ItemExtra({ a }: { a: AcaoIara }) {
           </div>
           <ul className="mt-1.5 space-y-0.5">
             {a.itens.slice(0, 6).map((i) => (
-              <li key={i.id} className="truncate text-[11.5px] text-foreground-muted">{[i.quem, i.descricao].filter(Boolean).join(' · ')} — {formatCurrency(i.valor)} · {formatDate(i.vencimento)}</li>
+              <li key={i.id} className="flex items-center gap-2 text-[11.5px] text-foreground-muted">
+                <span className="min-w-0 flex-1 truncate">{[i.quem, i.descricao].filter(Boolean).join(' · ')} — {formatCurrency(i.valor)} · {formatDate(i.vencimento)}</span>
+                <BotaoEditar id={i.id} tipo={a.lanc} />
+              </li>
             ))}
             {n > 6 && <li className="text-[11.5px] text-foreground-muted">+ {n - 6} lançamento(s)</li>}
           </ul>
@@ -405,6 +426,7 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
   const [salvando, setSalvando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoAcao[] | null>(null);
   const [usarExistente, setUsarExistente] = useState<Record<string, boolean>>({});
+  const [alvoLanc, setAlvoLanc] = useState<AlvoSheet | null>(null);
 
   const confirmar = async () => {
     setSalvando(true);
@@ -467,6 +489,8 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
     : mexeAsaas ? 'Cobranças e assinaturas mudam de verdade no Asaas.'
     : 'Muda direto no financeiro.';
   return (
+    <AbrirLancamento.Provider value={setAlvoLanc}>
+    <LancamentoSheet alvo={alvoLanc} onClose={() => setAlvoLanc(null)} />
     <div className="mt-2.5 rounded-[20px] border border-border bg-surface p-3">
       <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground-muted">Prévia · confira antes de confirmar</div>
       <div className="overflow-hidden rounded-[16px] border border-border">
@@ -476,7 +500,7 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
         ))}
       </div>
       <p className="px-1 pt-2.5 text-[11px] leading-[1.45] text-foreground-muted">
-        {aviso} Para ajustar algo, é só me dizer (ex.: "muda o vencimento para dia 30").
+        {aviso} Para ajustar, me diga (ex.: "muda o vencimento para dia 30") ou toque em Editar.
       </p>
       <div className="mt-2.5 flex gap-2">
         <button onClick={onResolved} aria-label="Descartar" disabled={salvando}
@@ -491,5 +515,6 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
         </button>
       </div>
     </div>
+    </AbrirLancamento.Provider>
   );
 }

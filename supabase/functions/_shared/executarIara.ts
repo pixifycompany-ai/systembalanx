@@ -347,10 +347,12 @@ export async function executarAcoesVoz(ctx: Ctx, acoes: any[]): Promise<Resultad
     try {
       if (a.tipo === "dar_baixa") {
         if (a.via_asaas && a.cobranca_id) {
-          await chamarFuncao(ctx, "asaas-cobranca", { action: "receber-manual", cobranca_id: a.cobranca_id, data_pagamento: a.data });
+          await chamarFuncao(ctx, "asaas-cobranca", { action: "receber-manual", cobranca_id: a.cobranca_id, data_pagamento: a.data, valor: a.valor_recebido ?? undefined, forma_pagamento: a.forma_pagamento ?? undefined });
         } else {
           const upd: Record<string, unknown> = a.lanc === "receita" ? { status: "recebido", data_recebimento: a.data } : { status: "pago", data_pagamento: a.data };
           if (a.conta_id) upd.conta_id = a.conta_id;
+          if (a.valor_recebido) upd.valor = a.valor_recebido;
+          if (a.forma_pagamento) upd.forma_pagamento = a.forma_pagamento;
           const { data, error } = await ctx.db.from(a.lanc === "receita" ? "receitas" : "despesas").update(upd).eq("id", a.item_id).in("status", ["pendente", "atrasado"]).select("id");
           if (error) throw error;
           if (!data?.length) throw new Error("já não está em aberto");
