@@ -612,12 +612,11 @@ export default function MeuPerfil() {
                 <span className="text-[14px] text-foreground">Todo dia em atraso</span>
                 <Switch checked={autoCfg.atrasoDiario} onCheckedChange={(v) => setAutoCfg((p) => ({ ...p, atrasoDiario: v }))} />
               </div>
-              {autoCfg.atrasoDiario && (
-                <div className="flex items-center justify-between gap-3 px-4 py-3">
-                  <span><span className="block text-[14px] text-foreground">Parar depois de N dias de atraso</span><span className="block text-[12px] text-foreground-muted">0 = não para</span></span>
-                  <Input type="number" min="0" value={autoCfg.atrasoMax} onChange={(e) => setAutoCfg((p) => ({ ...p, atrasoMax: parseInt(e.target.value) || 0 }))} className="h-9 w-16 text-center" />
-                </div>
-              )}
+              {/* Sempre visível: vale também para contratos e cobranças com regra própria de "todo dia em atraso". */}
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <span><span className="block text-[14px] text-foreground">Parar de cobrar o atraso depois de N dias</span><span className="block text-[12px] text-foreground-muted">0 = não para · vale também para contratos e cobranças com regra própria</span></span>
+                <Input type="number" min="0" value={autoCfg.atrasoMax} onChange={(e) => setAutoCfg((p) => ({ ...p, atrasoMax: parseInt(e.target.value) || 0 }))} className="h-9 w-16 text-center" />
+              </div>
             </div>
           )}
           <p className="mt-2 text-[11.5px] text-foreground-subtle">O disparo roda 1x por dia, de manhã. Cobranças que exigem nota fiscal só saem com o PDF anexado.</p>

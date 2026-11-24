@@ -65,7 +65,7 @@ export function RegraAutoCobranca({ value, onChange, contratoNome, canal }: Prop
       {canal && (
         <p className="text-[11.5px] text-foreground-muted">
           Sai por <b>{CANAL[canal] || canal}</b> — muda no cadastro do cliente (Canal de cobrança).
-          {value.modo === 'custom' && value.atraso_diario ? ' O limite de dias em atraso é o de Meu Perfil.' : ''}
+          {value.modo === 'custom' && value.atraso_diario ? ' Para de cobrar depois do limite de dias em atraso de Meu Perfil → Cobrança automática.' : ''}
         </p>
       )}
     </div>
