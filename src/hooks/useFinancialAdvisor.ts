@@ -72,6 +72,8 @@ interface UseFinancialAdvisorReturn {
   clearAcoes: (messageId: string) => void;
   /** Mostra no chat uma conversa feita fora dele (ex.: pelo Atalho do iPhone), com os cards a confirmar. */
   adicionarConversa: (c: ConversaExterna) => void;
+  /** A IARA responde no chat sem chamar a IA (confirmação/descarte de um card). */
+  responderLocal: (texto: string) => void;
 }
 
 export interface ConversaExterna {
@@ -359,6 +361,11 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
     ]);
   }, []);
 
+  /** Resposta da IARA sem chamar a IA (ex.: "Pronto, lancei…" depois de confirmar um card). Entra no histórico. */
+  const responderLocal = useCallback((texto: string) => {
+    setMessages(prev => [...prev, { id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role: 'assistant', content: texto, timestamp: new Date() }]);
+  }, []);
+
   const clearChat = useCallback(() => {
     setMessages([{
       id: 'welcome',
@@ -378,5 +385,6 @@ export function useFinancialAdvisor(): UseFinancialAdvisorReturn {
     clearLancamentos,
     clearAcoes,
     adicionarConversa,
+    responderLocal,
   };
 }

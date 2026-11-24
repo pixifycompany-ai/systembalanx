@@ -14,6 +14,8 @@ interface Props {
   lancamentos: PropostaLancamento[];
   /** Chamado após criar ou descartar — remove o card. */
   onResolved: () => void;
+  /** A IARA responde na conversa ("Pronto, lancei…" / "Tudo bem, descartei"). */
+  onResposta?: (texto: string) => void;
 }
 
 /**
@@ -21,7 +23,7 @@ interface Props {
  * Cria usando exatamente o mesmo caminho do lançamento por voz
  * (cartão → fatura, parcelado, recorrente), via salvarItens.
  */
-export function PropostaLancamentos({ lancamentos: iniciais, onResolved }: Props) {
+export function PropostaLancamentos({ lancamentos: iniciais, onResolved, onResposta }: Props) {
   // Cópia local: a pessoa pode ajustar cada um na janela antes de confirmar.
   const [lancamentos, setLancamentos] = useState(iniciais);
   const [alvo, setAlvo] = useState<AlvoSheet | null>(null);
@@ -44,6 +46,11 @@ export function PropostaLancamentos({ lancamentos: iniciais, onResolved }: Props
     setSalvando(false);
     setFeito(true);
     toast({ title: 'Lançado!', description: `${ok} de ${n} criado(s) com sucesso.` });
+    onResposta?.(textoConfirmacao(lancamentos, ok, n, nomeConta, ehCartao));
+    onResolved();
+  };
+  const descartar = () => {
+    onResposta?.(lancamentos.length === 1 ? 'Tudo bem, descartei — **nada foi lançado**. Se quiser, me diga como lançar.' : `Tudo bem, descartei os ${lancamentos.length} — **nada foi lançado**.`);
     onResolved();
   };
 
@@ -124,7 +131,7 @@ export function PropostaLancamentos({ lancamentos: iniciais, onResolved }: Props
 
       <div className="mt-2.5 flex gap-2">
         <button
-          onClick={onResolved}
+          onClick={descartar}
           aria-label="Descartar"
           disabled={salvando}
           className="flex h-10 w-10 flex-none items-center justify-center rounded-full border border-border bg-surface text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
@@ -142,4 +149,19 @@ export function PropostaLancamentos({ lancamentos: iniciais, onResolved }: Props
       </div>
     </div>
   );
+}
+
+/** Texto da IARA depois de confirmar: o que foi lançado, com valor, conta e situação. */
+function textoConfirmacao(itens: PropostaLancamento[], ok: number, n: number, nomeConta: (id: string | null) => string, ehCartao: (id: string | null) => boolean): string {
+  const linha = (it: PropostaLancamento) => {
+    const cartao = ehCartao(it.conta_id);
+    const situ = cartao ? `na fatura do ${nomeConta(it.conta_id)}${it.parcelas && it.parcelas > 1 ? ` em ${it.parcelas}x` : ''}`
+      : `${it.quitado ? (it.tipo === 'receita' ? 'recebido' : 'pago') : 'em aberto'} · ${nomeConta(it.conta_id)}`;
+    return `**${it.descricao}** — ${formatCurrency(it.valor)} (${[situ, it.categoria_nome, it.fornecedor].filter(Boolean).join(' · ')})`;
+  };
+  if (ok === 0) return 'Não consegui lançar agora. Tente confirmar de novo ou me peça outra vez.';
+  if (ok < n) return `Lancei ${ok} de ${n}. O restante não deu certo — confira no Fluxo de caixa ou me peça de novo.`;
+  if (n === 1) return `Pronto! Lancei ${linha(itens[0])}.`;
+  const total = itens.reduce((s, it) => s + (it.tipo === 'despesa' ? it.valor : 0), 0);
+  return `Pronto! Lancei os ${n} lançamentos${total ? ` (${formatCurrency(total)} em saídas)` : ''}:\n${itens.map((it) => `- ${linha(it)}`).join('\n')}`;
 }

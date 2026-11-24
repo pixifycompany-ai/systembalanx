@@ -49,7 +49,7 @@ const lerBase64 = (f: File) => new Promise<string>((ok, erro) => {
 export default function Iara() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { messages, isLoading, sendMessage, clearChat, clearLancamentos, clearAcoes, adicionarConversa } = useFinancialAdvisor();
+  const { messages, isLoading, sendMessage, clearChat, clearLancamentos, clearAcoes, adicionarConversa, responderLocal } = useFinancialAdvisor();
 
   // O que a IARA preparou pelo Atalho do iPhone (últimas 24 h, ainda não visto) entra
   // no chat com os cards para confirmar. A notificação abre /iara?pendente=<id>.
@@ -257,10 +257,10 @@ export default function Iara() {
       renderPropostas={(m) => (
         <>
           {m.acoes && m.acoes.length > 0 && (
-            <div className="mt-3"><PropostaAcoes acoes={m.acoes} onResolved={() => clearAcoes(m.id)} /></div>
+            <div className="mt-3"><PropostaAcoes acoes={m.acoes} onResolved={() => clearAcoes(m.id)} onResposta={responderLocal} /></div>
           )}
           {m.lancamentos && m.lancamentos.length > 0 && (
-            <div className="mt-3"><PropostaLancamentos lancamentos={m.lancamentos} onResolved={() => clearLancamentos(m.id)} /></div>
+            <div className="mt-3"><PropostaLancamentos lancamentos={m.lancamentos} onResolved={() => clearLancamentos(m.id)} onResposta={responderLocal} /></div>
           )}
           {m.conexoes?.map((t) => <ConexaoIara key={t} tipo={t} />)}
           {m.conferencias?.map((c, i) => <QuadroConferencia key={i} c={c} />)}

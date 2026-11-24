@@ -420,7 +420,7 @@ function Item({ a, usarExistente, setUsarExistente }: { a: AcaoIara; usarExisten
   );
 }
 
-export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onResolved: () => void }) {
+export function PropostaAcoes({ acoes, onResolved, onResposta }: { acoes: AcaoIara[]; onResolved: () => void; onResposta?: (texto: string) => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [salvando, setSalvando] = useState(false);
@@ -436,6 +436,12 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
       // Telas abertas (Início, Fluxo, Contas, Cobranças…) refletem na hora.
       if (r.some((x) => x.ok)) void queryClient.invalidateQueries();
       const falhas = r.filter((x) => !x.ok).length;
+      const feitos = r.filter((x) => x.ok).map((x) => x.mensagem);
+      const erros = r.filter((x) => !x.ok).map((x) => x.mensagem);
+      onResposta?.(
+        !feitos.length ? `Não deu certo: ${erros.join(' ')} Quer que eu tente de outro jeito?`
+          : `Pronto! ${feitos.length === 1 ? feitos[0] : `\n${feitos.map((m) => `- ${m}`).join('\n')}`}${erros.length ? `\n\nNão deu certo: ${erros.join(' ')}` : ''}`,
+      );
       toast(falhas
         ? { title: 'Parte não foi criada', description: `${r.length - falhas} de ${r.length} ok. Veja o motivo no card.`, variant: 'destructive' }
         : { title: 'Pronto!', description: 'Tudo certo.' });
@@ -503,7 +509,7 @@ export function PropostaAcoes({ acoes, onResolved }: { acoes: AcaoIara[]; onReso
         {aviso} Para ajustar, me diga (ex.: "muda o vencimento para dia 30") ou toque em Editar.
       </p>
       <div className="mt-2.5 flex gap-2">
-        <button onClick={onResolved} aria-label="Descartar" disabled={salvando}
+        <button onClick={() => { onResposta?.('Tudo bem, não fiz nada. Se quiser mudar alguma coisa, é só dizer.'); onResolved(); }} aria-label="Descartar" disabled={salvando}
           className="flex h-10 w-10 flex-none items-center justify-center rounded-full border border-border bg-surface text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground disabled:opacity-50">
           <X className="h-4 w-4" />
         </button>
