@@ -46,6 +46,10 @@ const PRONUNCIA: [RegExp, string][] = [
 /** Texto para falar: sem markdown, tabelas nem emojis. */
 function paraVoz(t: string) {
   for (const [re, fala] of PRONUNCIA) t = t.replace(re, fala);
+  // Frases de tela que não fazem sentido em voz (o "Confirma?" é acrescentado depois).
+  t = t.replace(/\s*[—–-]?\s*(é só |basta )?(confirm(ar|e)|conferir) (abaixo|no card|aqui embaixo|no cart[ãa]o abaixo)[^.!?\n]*[.!?]?/gi, ".")
+    .replace(/\s*(confira|veja) (abaixo|no card)[^.!?\n]*[.!?]?/gi, ".")
+    .replace(/\.{2,}/g, ".");
   return t
     .replace(/```[\s\S]*?```/g, "")
     .replace(/^\s*\|.*\|\s*$/gm, "")
