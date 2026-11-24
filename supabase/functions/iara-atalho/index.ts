@@ -41,6 +41,10 @@ function novaChave() {
 /** Nomes que a voz do iPhone lê errado → grafia que ela pronuncia certo. */
 const PRONUNCIA: [RegExp, string][] = [
   [/\bpixify\b/gi, "Piquissifai"],
+  [/\bbalanx\b/gi, "Balânquis"],
+  [/\basaas\b/gi, "Assaas"],
+  [/\bDRE\b/g, "D R E"],
+  [/\bMRR\b/g, "M R R"],
 ];
 
 /** Texto para falar: sem markdown, tabelas nem emojis. */
