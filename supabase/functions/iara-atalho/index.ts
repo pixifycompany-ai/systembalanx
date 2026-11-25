@@ -42,6 +42,7 @@ function novaChave() {
 const PRONUNCIA: [RegExp, string][] = [
   [/\bpixify\b/gi, "Piquissifai"],
   [/\bbalanx\b/gi, "Bálanquis"],
+  [/\bomneo\b/gi, "Ômíneo"],
   [/\basaas\b/gi, "Azás"],
   [/\bDRE\b/g, "D R E"],
   [/\bMRR\b/g, "M R R"],
@@ -50,6 +51,18 @@ const PRONUNCIA: [RegExp, string][] = [
 /** Texto para falar: sem markdown, tabelas nem emojis. */
 function paraVoz(t: string) {
   for (const [re, fala] of PRONUNCIA) t = t.replace(re, fala);
+  // Parcelas "parcela 02/10" ou "(3/10)" → "parcela 2 de 10" (antes das datas, senão vira "2 de outubro").
+  t = t.replace(/\b(parcelas?|parc\.?)\s*(\d{1,3})\s*\/\s*(\d{1,3})\b/gi, (_m, _p, a, b) => `parcela ${Number(a)} de ${Number(b)}`)
+    .replace(/\(\s*(\d{1,3})\s*\/\s*(\d{1,3})\s*\)/g, (_m, a, b) => `(parcela ${Number(a)} de ${Number(b)})`);
+  // Datas "03/12" ou "03/12/2026" → "3 de dezembro" (a voz lia "zero três barra doze").
+  const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  t = t.replace(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g, (m, d, mes, ano) => {
+    const nd = Number(d), nm = Number(mes);
+    if (nd < 1 || nd > 31 || nm < 1 || nm > 12) return m;
+    return `${nd} de ${MESES[nm - 1]}${ano ? ` de ${ano.length === 2 ? "20" + ano : ano}` : ""}`;
+  });
+  // Zero à esquerda em número solto ("Post 03", "parcela 02") → "3", "2". Não mexe em valores (R$ 0,50) nem horas.
+  t = t.replace(/(^|[^\d,.:])0+(\d+)(?![\d,.:]\d)/g, "$1$2");
   // Frases de tela que não fazem sentido em voz (o "Confirma?" é acrescentado depois).
   t = t.replace(/\s*[—–-]?\s*(é só |basta )?(confirm(ar|e)|conferir) (abaixo|no card|aqui embaixo|no cart[ãa]o abaixo)[^.!?\n]*[.!?]?/gi, ".")
     .replace(/\s*(confira|veja) (abaixo|no card)[^.!?\n]*[.!?]?/gi, ".")
