@@ -304,8 +304,8 @@ export function IaraTela(p: IaraTelaProps) {
             <div className="mb-2 flex gap-2 overflow-x-auto scrollbar-hide">
               {ATALHOS.map((a) => (
                 <button key={a.texto} onClick={() => p.onSubmit(a.texto)} disabled={p.isLoading}
-                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-[12.5px] text-foreground-muted transition-colors hover:text-foreground disabled:opacity-50">
-                  <span className="text-primary">{a.icon}</span>{a.texto}
+                  className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-border bg-surface px-2.5 text-[11.5px] text-foreground-muted transition-colors hover:text-foreground disabled:opacity-50 md:h-8 md:gap-1.5 md:px-3 md:text-[12.5px]">
+                  <span className="text-primary [&_svg]:h-3.5 [&_svg]:w-3.5">{a.icon}</span>{a.texto}
                 </button>
               ))}
             </div>

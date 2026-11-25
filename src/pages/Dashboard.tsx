@@ -12,6 +12,7 @@ import { NotificationBell } from '@/components/layout/NotificationBell';
 import { DetailSheet } from '@/components/shared/DetailSheet';
 import { MetaInline } from '@/components/dashboard/ProgressGoal';
 import { KpiStatCard, variacaoPct } from '@/components/dashboard/KpiStatCard';
+import { HeroMobile } from '@/components/dashboard/HeroMobile';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { RevenueAreaChart } from '@/components/dashboard/RevenueAreaChart';
@@ -165,9 +166,32 @@ export default function Dashboard() {
   const maxCliente = top_clientes[0]?.receita_total || 1;
 
   return (
-    <main className="mx-auto max-w-[1180px] space-y-5 py-4 md:py-2">
-      {/* Saudação + ações */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto max-w-[1180px] space-y-5 py-4 max-md:pt-0 md:py-2">
+      {/* Celular: topo com fundo em degradê, saldo e os 3 números do mês */}
+      <HeroMobile
+        dataExtenso={dataExtenso} saudacao={greeting()} nome={primeiroNome}
+        mesRotulo={metaSubtitle} ehAtual={ehAtual} onMes={mudarMes} onMesAtual={() => setPeriodo(mesAtual)}
+        saldoRotulo={passado ? `Saldo no fim de ${mesCurto}` : 'Saldo em contas'} saldo={saldoKpi}
+        saldoDelta={saldoAnterior != null ? variacaoPct(saldoAtualHist ?? totalBalance, saldoAnterior) : null}
+        saldoHint={`${accountBalances.length} ${accountBalances.length === 1 ? 'conta' : 'contas'} · vs fim de ${mesAnteriorCurto}`}
+        onSaldo={() => setSaldoSheetOpen(true)}
+        minis={[
+          { rotulo: 'Recebido', valor: resumo.faturamento_mes, delta: variacaoPct(resumo.faturamento_mes, resumo.faturamento_mes_anterior),
+            onClick: () => navigate(comMes('/fluxo-caixa?tipo=entrada&status=recebido&base=efetivacao')),
+            extra: metaValor > 0 ? (
+              <span className="mt-0.5 block h-1 overflow-hidden rounded-full bg-surface-2" title={`Meta ${formatCurrency(metaValor)}`}>
+                <span className="block h-full rounded-full bg-success-fg" style={{ width: `${Math.min(100, (meta_faturamento.valor_realizado / metaValor) * 100)}%` }} />
+              </span>
+            ) : null },
+          { rotulo: 'Pago', valor: resumo.despesas_mes, delta: variacaoPct(resumo.despesas_mes, resumo.despesas_mes_anterior), inverter: true,
+            onClick: () => navigate(comMes('/fluxo-caixa?tipo=saida&status=pago&base=efetivacao')) },
+          { rotulo: 'Lucro', valor: resumo.lucro_mensal, delta: variacaoPct(resumo.lucro_mensal, resumo.lucro_mensal_anterior),
+            onClick: () => navigate(comMes('/fluxo-caixa?status=recebido,pago&base=efetivacao')) },
+        ]}
+      />
+
+      {/* Saudação + ações (no celular fica no topo novo) */}
+      <div className="flex flex-wrap items-end justify-between gap-4 max-md:hidden">
         <div className="min-w-0">
           <p className="text-[13px] text-foreground-muted">{dataExtenso}</p>
           <div className="flex items-center gap-2">
@@ -233,13 +257,13 @@ export default function Dashboard() {
         </div>
         <div className="mt-2 flex gap-2 overflow-x-auto pl-12 scrollbar-hide">
           {CHIPS_IARA.map((c) => (
-            <button key={c} type="button" onClick={() => perguntar(c)} className="h-8 shrink-0 rounded-full border border-border bg-surface px-3 text-[12.5px] text-foreground-muted hover:text-foreground">{c}</button>
+            <button key={c} type="button" onClick={() => perguntar(c)} className="h-7 shrink-0 rounded-full border border-border bg-surface px-2.5 text-[11.5px] text-foreground-muted hover:text-foreground md:h-8 md:px-3 md:text-[12.5px]">{c}</button>
           ))}
         </div>
       </form>
 
-      {/* Números do mês */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Números do mês (no celular ficam no topo novo) */}
+      <div className="grid grid-cols-1 gap-3 max-md:hidden sm:grid-cols-2 xl:grid-cols-4">
         <KpiStatCard
           highlight
           label={passado ? `Saldo no fim de ${mesCurto}` : 'Saldo em contas'}
